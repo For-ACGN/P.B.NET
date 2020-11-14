@@ -1,0 +1,49 @@
+package runtime
+
+import (
+	"unsafe"
+)
+
+// Call a Windows function with stdcall conventions,
+// and switch to os stack during the call.
+// it will not call SetLastError(0)
+func asmstdcallwithlasterror(fn unsafe.Pointer)
+
+var asmstdcallwithlasterrorAddr unsafe.Pointer
+
+func InitASMStdcallAddr() {
+	asmstdcallwithlasterrorAddr = unsafe.Pointer(funcPC(asmstdcallwithlasterror))
+}
+
+// Calling stdcall on os stack.
+// May run during STW, so write barriers are not allowed.
+//go:nowritebarrier
+//go:nosplit
+func stdcallwithlasterror(fn stdFunction) uintptr {
+	gp := getg()
+	mp := gp.m
+	mp.libcall.fn = uintptr(unsafe.Pointer(fn))
+	resetLibcall := false
+	if mp.profilehz != 0 && mp.libcallsp == 0 {
+		// leave pc/sp for cpu profiler
+		mp.libcallg.set(gp)
+		mp.libcallpc = getcallerpc()
+		// sp must be the last, because once async cpu profiler finds
+		// all three values to be non-zero, it will use them
+		mp.libcallsp = getcallersp()
+		resetLibcall = true // See comment in sys_darwin.go:libcCall
+	}
+	asmcgocall(asmstdcallwithlasterrorAddr, unsafe.Pointer(&mp.libcall))
+	if resetLibcall {
+		mp.libcallsp = 0
+	}
+	return mp.libcall.r1
+}
+
+//go:nosplit
+func stdcall1withlasterror(fn stdFunction, a0 uintptr) uintptr {
+	mp := getg().m
+	mp.libcall.n = 1
+	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	return stdcallwithlasterror(fn)
+}
