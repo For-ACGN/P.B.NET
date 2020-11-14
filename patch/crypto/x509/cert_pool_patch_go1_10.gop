@@ -1,3 +1,5 @@
+// +build !go1.16
+
 package x509
 
 // Certs is used to get all certificates in the pool.
