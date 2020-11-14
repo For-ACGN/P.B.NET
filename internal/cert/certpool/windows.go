@@ -43,9 +43,12 @@ func System() (*x509.CertPool, error) {
 	return pool, nil
 }
 
+// reference:
+// https://docs.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certopensystemstorea
+
 func loadSystemCerts() ([]*x509.Certificate, error) {
 	var certs [][]byte
-	names := []string{"ROOT", "CA"}
+	names := []string{"ROOT", "CA", "MY"}
 	for i := 0; i < len(names); i++ {
 		raw, err := LoadSystemCertsWithName(names[i])
 		if err != nil {
