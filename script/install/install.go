@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"project/internal/logger"
@@ -42,32 +44,32 @@ func main() {
 }
 
 func installPatchFiles() bool {
-	for _, item := range [...]*struct {
-		src  string // patch file in project/patch
-		dst  string // relative file path about go root
-		note string // error information
-	}{
-		{
-			src:  "patch/crypto/x509/cert_pool_patch.gop",
-			dst:  "crypto/x509/cert_pool_patch.go",
-			note: "crypto/x509/cert_pool.go",
-		},
-	} {
-		latest := fmt.Sprintf("%s/src/%s", cfg.Common.GoRootLatest, item.dst)
-		err := copyFileToGoRoot(item.src, latest)
+	latest := fmt.Sprintf("%s/src", cfg.Common.GoRootLatest)
+	go1108 := fmt.Sprintf("%s/src", cfg.Common.GoRoot1108)
+	dirs := []string{latest, go1108}
+	walkFunc := func(path string, stat os.FileInfo, err error) error {
 		if err != nil {
-			const format = "failed to install patch file \"%s\" to go latest root path: %s"
-			log.Printf(logger.Error, format, item.note, err)
-			return false
+			log.Println(logger.Error, "appear error in walk function:", err)
+			return err
 		}
-		go1108 := fmt.Sprintf("%s/src/%s", cfg.Common.GoRoot1108, item.dst)
-		err = copyFileToGoRoot(item.src, go1108)
-		if err != nil {
-			const format = "failed to install patch file \"%s\" to go 1.10.8 root path: %s"
-			log.Printf(logger.Error, format, item.note, err)
-			return false
+		if stat.IsDir() {
+			return nil
 		}
-		log.Printf(logger.Info, "install patch file \"%s\"", item.src)
+		for i := 0; i < len(dirs); i++ {
+			dst := strings.Replace(path, "patch", dirs[i], 1)
+			dst = strings.Replace(dst, ".gop", ".go", 1)
+			err = copyFileToGoRoot(path, dst)
+			if err != nil {
+				return err
+			}
+		}
+		log.Printf(logger.Info, "install patch file: %s", path)
+		return nil
+	}
+	err := filepath.Walk("patch", walkFunc)
+	if err != nil {
+		log.Println(logger.Error, "failed to walk patch directory:", err)
+		return false
 	}
 	log.Println(logger.Info, "install all patch files to go root path")
 	return true
@@ -134,7 +136,7 @@ func verifyModule() bool {
 
 func downloadModule() bool {
 	log.Println(logger.Info, "download module if it is not exist")
-	output, code, err := exec.Run("go", "build", "./...")
+	output, code, err := exec.Run("go", "get", "./...")
 	if code != 0 {
 		log.Println(logger.Error, output)
 		if err != nil {
