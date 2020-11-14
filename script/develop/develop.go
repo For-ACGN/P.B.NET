@@ -213,8 +213,8 @@ func buildSourceCode() bool {
 				return
 			}
 			buildPath := filepath.Join(developDir, dir, build)
-			// go build -v -i -ldflags "-s -w" -o lint.exe
-			args := []string{"build", "-v", "-i", "-ldflags", "-s -w", "-o", binName}
+			// go build -v -trimpath -ldflags "-s -w" -o lint.exe
+			args := []string{"build", "-v", "-trimpath", "-ldflags", "-s -w", "-o", binName}
 			cmd := exec.Command("go", args...) // #nosec
 			cmd.Dir = buildPath
 			writer := logger.WrapLogger(logger.Info, "develop", logger.Common)

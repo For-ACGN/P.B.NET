@@ -91,7 +91,13 @@ func Load(path string, config *Config) bool {
 		// set os environment for build
 		err = os.Setenv("HTTP_PROXY", proxyURL)
 		if err != nil {
-			log.Println(logger.Error, "failed to set os env:", err)
+			log.Println(logger.Error, "failed to set environment about HTTP_PROXY:", err)
+			return false
+		}
+		// go1.16, must set HTTPS_PROXY for https URL
+		err = os.Setenv("HTTPS_PROXY", proxyURL)
+		if err != nil {
+			log.Println(logger.Error, "failed to set environment about HTTPS_PROXY:", err)
 			return false
 		}
 		log.Println(logger.Info, "set proxy url:", proxyURL)
