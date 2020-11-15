@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"reflect"
+	"runtime"
 	"sync"
 	"unsafe"
 
@@ -16,6 +17,15 @@ import (
 	"project/internal/module/windows/api"
 	"project/internal/random"
 )
+
+// if want to develop, build program that use this package like rdpthief,
+// must use "project/build.bat[sh] -install-hook" before build and
+// use "project/build.bat[sh] -uninstall-hook" to restore runtime files,
+// otherwise maybe appear unexpected problems.
+
+func init() {
+	runtime.InitASMStdcallAddr()
+}
 
 // [patch] is a near jump to [hook jumper].
 // [hook jumper] is a far jump to our hook function.
@@ -318,6 +328,9 @@ func relocateInstruction(offset int, src []byte, insts []*x86asm.Inst) []byte {
 					mem := insts[i].Args[0].(x86asm.Mem)
 					binary.LittleEndian.PutUint32(src[2:], uint32(int(mem.Disp)-offset))
 				}
+			case 0xE8:
+				mem := insts[i].Args[0].(x86asm.Mem)
+				binary.LittleEndian.PutUint32(src[1:], uint32(int(mem.Disp)-offset))
 			}
 		case x86asm.JMP:
 			switch src[0] {
