@@ -70,6 +70,10 @@ func TestBytes(t *testing.T) {
 		require.True(t, equal)
 	})
 
+	t.Run("len", func(t *testing.T) {
+		require.Equal(t, 4, sb.Len())
+	})
+
 	t.Run("string", func(t *testing.T) {
 		sb := NewBytes([]byte("test"))
 		require.Equal(t, "test", sb.String())

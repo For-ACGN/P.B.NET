@@ -129,6 +129,11 @@ func (b *Bytes) Put(bytes []byte) {
 	b.cache.Put(&bytes)
 }
 
+// Len is used to get the bytes length.
+func (b *Bytes) Len() int {
+	return b.len
+}
+
 func (b *Bytes) String() string {
 	bytes := b.Get()
 	defer b.Put(bytes)
