@@ -1,1 +1,1 @@
-go build -v -i -ldflags "-s -w" -o lsb.exe
+go build -v -trimpath -ldflags "-s -w" -o lsb.exe

@@ -1,1 +1,1 @@
-go build -v -i -ldflags "-s -w" -o meterpreter.exe
+go build -v -trimpath -ldflags "-s -w" -o meterpreter.exe

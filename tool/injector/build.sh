@@ -1,2 +1,2 @@
 set GOOS=windows
-go build -v -i -ldflags "-s -w" -o injector.exe
+go build -v -trimpath -ldflags "-s -w" -o injector.exe

@@ -99,7 +99,7 @@ func main() {
 	if noGUI {
 		ldFlags += " -H windowsgui"
 	}
-	args := []string{"build", "-v", "-i", "-ldflags", ldFlags, "-o", output, tempSrc}
+	args := []string{"build", "-v", "-trimpath", "-ldflags", ldFlags, "-o", output, tempSrc}
 	cmd := exec.Command("go", args...) // #nosec
 	cmd.Env = append(os.Environ(), "GOOS="+sys)
 	cmd.Env = append(cmd.Env, "GOARCH="+arch)
