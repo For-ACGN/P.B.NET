@@ -242,7 +242,10 @@ func disassemble(src []byte, mode int) ([]*x86asm.Inst, error) {
 	for len(src) > 0 {
 		inst, err := x86asm.Decode(src, mode)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			if len(insts) == 0 {
+				return nil, errors.WithStack(err)
+			}
+			return insts, nil
 		}
 		insts = append(insts, &inst)
 		src = src[inst.Len:]
