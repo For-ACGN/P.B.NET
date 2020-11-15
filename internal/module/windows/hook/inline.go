@@ -29,8 +29,8 @@ func init() {
 
 // [patch] is a near jump to [hook jumper].
 // [hook jumper] is a far jump to our hook function.
-// [trampoline] is a part of code about original function and
-// add a near jump to the remaining original function.
+// [trampoline] is a part of code about original function
+// and add a near jump to the remaining original function.
 
 // <security> not use FlushInstructionCache for bypass AV.
 
@@ -38,24 +38,35 @@ func init() {
 type PatchGuard struct {
 	Original *windows.Proc
 
-	// contain origin data before hook
-	fnData    []byte
-	patchMem  *memory
-	patchData []byte
+	// contain origin function data before hook
+	patchMem      *memory
+	patchOriginal []byte // original data before Patch()
+	patchData     []byte
 
 	// about hook jumper
-	hookJumperMem  *memory
-	hookJumperData []byte
+	hookJumperMem      *memory
+	hookJumperOriginal []byte // original data before Patch()
+	hookJumperData     []byte
 
 	// about trampoline function
-	trampolineMem  *memory
-	trampolineData []byte
+	trampolineMem      *memory
+	trampolineOriginal []byte // original data before call Patch()
+	trampolineData     []byte
 
 	mu sync.Mutex
 }
 
 // Patch is used to patch the target function.
 func (pg *PatchGuard) Patch() error {
+	err := pg.patch()
+	if err != nil {
+		const format = "failed to patch %s in %s"
+		return errors.WithMessagef(err, format, pg.Original.Name, pg.Original.Dll.Name)
+	}
+	return nil
+}
+
+func (pg *PatchGuard) patch() error {
 	pg.mu.Lock()
 	defer pg.mu.Unlock()
 	// must create hook jumper before patch
@@ -76,18 +87,27 @@ func (pg *PatchGuard) Patch() error {
 
 // UnPatch is used to unpatch the target function.
 func (pg *PatchGuard) UnPatch() error {
+	err := pg.unpatch()
+	if err != nil {
+		const format = "failed to unpatch %s in %s"
+		return errors.WithMessagef(err, format, pg.Original.Name, pg.Original.Dll.Name)
+	}
+	return nil
+}
+
+func (pg *PatchGuard) unpatch() error {
 	pg.mu.Lock()
 	defer pg.mu.Unlock()
 	// must unload patch before recover hook jumper
-	err := pg.patchMem.Write(pg.fnData)
+	err := pg.patchMem.Write(pg.patchOriginal)
 	if err != nil {
-		return errors.WithMessage(err, "failed to unload patch")
+		return errors.WithMessage(err, "failed to recover memory about patch")
 	}
-	err = pg.hookJumperMem.Write(bytes.Repeat([]byte{0xCC}, len(pg.hookJumperData)))
+	err = pg.hookJumperMem.Write(pg.hookJumperOriginal)
 	if err != nil {
 		return errors.WithMessage(err, "failed to recover memory about hook jumper")
 	}
-	err = pg.trampolineMem.Write(bytes.Repeat([]byte{0xCC}, len(pg.trampolineData)))
+	err = pg.trampolineMem.Write(pg.trampolineOriginal)
 	if err != nil {
 		return errors.WithMessage(err, "failed to recover memory about trampoline function")
 	}
@@ -112,13 +132,8 @@ func NewInlineHookByName(dll, proc string, system bool, hookFn interface{}) (*Pa
 	if err != nil {
 		return nil, err
 	}
-	target := &windows.Proc{
-		Name: dll,
-	}
-	target.Dll = &windows.DLL{
-		Name:   dll,
-		Handle: windows.Handle(lazyDLL.Handle()),
-	}
+	target := &windows.Proc{Name: dll}
+	target.Dll = &windows.DLL{Name: dll, Handle: windows.Handle(lazyDLL.Handle())}
 	// set private structure field "addr"
 	*(*uintptr)(unsafe.Pointer(
 		reflect.ValueOf(target).Elem().FieldByName("addr").UnsafeAddr()),
@@ -160,49 +175,60 @@ func NewInlineHook(target *windows.Proc, hookFn interface{}) (*PatchGuard, error
 	// search writeable memory about hook jumper and trampoline.
 	mbi, err := api.VirtualQuery(targetAddr)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "failed to query memory information about target")
 	}
 	// create hook jumper
 	hookJumperMem, err := searchMemory(targetAddr, arch.FarJumpSize(), true, mbi)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "failed to search memory for write hook jumper")
+	}
+	hookJumperOriginal, err := hookJumperMem.Read()
+	if err != nil {
+		return nil, errors.WithMessage(err, "failed to read original memory about hook jumper")
 	}
 	hookJumperData := arch.NewFarJumpASM(hookJumperMem.Addr, hookFnAddr)
-	// add padding data for prevent search the same memory
-	err = hookJumperMem.Write(bytes.Repeat([]byte{0x00}, len(hookJumperData)))
+	// add padding data for prevent search at the same memory
+	err = hookJumperMem.Write(bytes.Repeat([]byte{0x01}, len(hookJumperData)))
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "failed to write reserve data for hook jumper")
 	}
 	// fmt.Printf("hook jumper: 0x%X\n", hookJumperMem.Addr)
+	// create trampoline function for call original function
+	trampolineMem, err := searchMemory(targetAddr, len(rebuiltInsts)+nearJumperSize, false, mbi)
+	if err != nil {
+		return nil, errors.WithMessage(err, "failed to search memory for write trampoline")
+	}
+	trampolineOriginal, err := trampolineMem.Read()
+	if err != nil {
+		return nil, errors.WithMessage(err, "failed to read original memory about trampoline")
+	}
+	offset := int(trampolineMem.Addr - targetAddr)
+	trampolineData := relocateInstruction(offset, rebuiltInsts, newInsts)
+	addr := trampolineMem.Addr + uintptr(len(trampolineData))
+	finalJump := newNearJumpASM(addr, targetAddr+uintptr(patchSize))
+	trampolineData = append(trampolineData, finalJump...)
 	// create patch for jump to hook jumper
 	patchMem := newMemory(targetAddr, nearJumperSize)
+	patchOriginal := originalFunc[:nearJumperSize]
 	patchData := newNearJumpASM(targetAddr, hookJumperMem.Addr)
-	// create trampoline function for call original function
-	trampMem, err := searchMemory(targetAddr, len(rebuiltInsts)+nearJumperSize, false, mbi)
-	if err != nil {
-		return nil, err
-	}
-	tramData := relocateInstruction(int(trampMem.Addr-targetAddr), rebuiltInsts, newInsts)
-	finalJump := newNearJumpASM(trampMem.Addr+uintptr(len(tramData)), targetAddr+uintptr(patchSize))
-	tramData = append(tramData, finalJump...)
 	// create proc for call original function
-	fakeOriginalProc := &windows.Proc{
-		Dll:  target.Dll,
-		Name: target.Name,
-	}
+	originalProc := &windows.Proc{Dll: target.Dll, Name: target.Name}
+	// set private structure field "addr"
 	*(*uintptr)(unsafe.Pointer(
-		reflect.ValueOf(fakeOriginalProc).Elem().FieldByName("addr").UnsafeAddr()),
-	) = trampMem.Addr // #nosec
+		reflect.ValueOf(originalProc).Elem().FieldByName("addr").UnsafeAddr()),
+	) = trampolineMem.Addr // #nosec
 	// create patch guard
 	pg := PatchGuard{
-		Original:       fakeOriginalProc,
-		fnData:         originalFunc[:nearJumperSize],
-		patchMem:       patchMem,
-		patchData:      patchData,
-		hookJumperMem:  hookJumperMem,
-		hookJumperData: hookJumperData,
-		trampolineMem:  trampMem,
-		trampolineData: tramData,
+		Original:           originalProc,
+		patchMem:           patchMem,
+		patchOriginal:      patchOriginal,
+		patchData:          patchData,
+		hookJumperMem:      hookJumperMem,
+		hookJumperOriginal: hookJumperOriginal,
+		hookJumperData:     hookJumperData,
+		trampolineMem:      trampolineMem,
+		trampolineOriginal: trampolineOriginal,
+		trampolineData:     trampolineData,
 	}
 	err = pg.Patch()
 	if err != nil {
@@ -278,6 +304,10 @@ func searchMemoryAt(begin uintptr, size int, add bool, mbi *api.MemoryBasicInfor
 		}
 		// check memory is all int3 code
 		if bytes.Equal(mem, bytes.Repeat([]byte{0xCC}, size)) {
+			return newMemory(addr, size), nil
+		}
+		// check memory is all 0x00 code
+		if bytes.Equal(mem, bytes.Repeat([]byte{0x00}, size)) {
 			return newMemory(addr, size), nil
 		}
 	}

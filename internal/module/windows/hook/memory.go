@@ -40,6 +40,10 @@ func newMemory(addr uintptr, size int) *memory {
 	}
 }
 
+func (mem *memory) Read() ([]byte, error) {
+	return readMemory(mem.Addr, int(mem.Size))
+}
+
 func (mem *memory) Write(data []byte) (err error) {
 	if uintptr(len(data)) != mem.Size {
 		return errors.Errorf("invalid data size %d:%d", mem.Size, len(data))
