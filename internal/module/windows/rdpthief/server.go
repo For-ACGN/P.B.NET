@@ -6,6 +6,11 @@ import (
 	"github.com/Microsoft/go-winio"
 )
 
+// Server is used to watch process list and inject hook
+// to the new created process ("mstsc.exe").
+type Server struct {
+}
+
 func Listen() {
 	listener, _ := winio.ListenPipe(`\\.\pipe\test`, nil)
 

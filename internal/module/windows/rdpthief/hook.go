@@ -95,11 +95,6 @@ func (h *Hook) Uninstall() error {
 	return nil
 }
 
-// Clean is used to clean callback.
-func (h *Hook) Clean() {
-	h.callback = nil
-}
-
 func (h *Hook) credReadW(targetName *uint16, typ, flags uint, credential uintptr) (ret uintptr) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

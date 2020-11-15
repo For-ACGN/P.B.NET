@@ -46,6 +46,4 @@ func TestHook(t *testing.T) {
 
 	err = hook.Uninstall()
 	require.NoError(t, err)
-
-	hook.Clean()
 }
