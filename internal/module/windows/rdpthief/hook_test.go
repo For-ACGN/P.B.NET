@@ -10,16 +10,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func TestHook(t *testing.T) {
-	hook := NewHook(func(cred *Credential) {
-		require.Equal(t, "hostname", cred.Hostname)
-		require.Equal(t, "username", cred.Username)
-		require.Equal(t, "test", cred.Password)
-	})
-
-	err := hook.Install()
-	require.NoError(t, err)
-
+func testCreateCredential(t *testing.T) {
 	hostname := windows.StringToUTF16Ptr("hostname")
 	proc := windows.NewLazySystemDLL("advapi32.dll").NewProc("CredReadW")
 	ret, _, _ := proc.Call(uintptr(unsafe.Pointer(hostname)), 0, 0, 0)
@@ -37,6 +28,19 @@ func TestHook(t *testing.T) {
 	proc = windows.NewLazySystemDLL("advapi32.dll").NewProc("CredIsMarshaledCredentialW")
 	ret, _, _ = proc.Call(uintptr(unsafe.Pointer(usernamePtr)))
 	require.Equal(t, uintptr(0), ret)
+}
+
+func TestHook(t *testing.T) {
+	hook := NewHook(func(cred *Credential) {
+		require.Equal(t, "hostname", cred.Hostname)
+		require.Equal(t, "username", cred.Username)
+		require.Equal(t, "test", cred.Password)
+	})
+
+	err := hook.Install()
+	require.NoError(t, err)
+
+	testCreateCredential(t)
 
 	err = hook.Uninstall()
 	require.NoError(t, err)

