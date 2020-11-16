@@ -124,7 +124,7 @@ func (client *Client) Close() (err error) {
 		client.cancel()
 		client.wg.Wait()
 		err = client.hook.Uninstall()
-		client.hook = nil
+		client.hook.Clean()
 	})
 	return
 }

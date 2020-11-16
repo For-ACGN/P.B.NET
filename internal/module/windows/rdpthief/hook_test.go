@@ -31,22 +31,29 @@ func testCreateCredential(t *testing.T) {
 }
 
 func TestHook(t *testing.T) {
+	var hooked bool
 	hook := NewHook(func(cred *Credential) {
 		require.Equal(t, "hostname", cred.Hostname)
 		require.Equal(t, "username", cred.Username)
 		require.Equal(t, "test", cred.Password)
+		hooked = true
 	})
 
 	err := hook.Install()
 	require.NoError(t, err)
 
 	testCreateCredential(t)
+	require.True(t, hooked)
 
 	err = hook.Uninstall()
 	require.NoError(t, err)
 
 	err = hook.Install()
 	require.NoError(t, err)
+
+	hooked = false
+	testCreateCredential(t)
+	require.True(t, hooked)
 
 	err = hook.Uninstall()
 	require.NoError(t, err)
