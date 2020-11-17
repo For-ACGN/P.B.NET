@@ -294,10 +294,6 @@ func (l *Listener) accept(listener net.Listener) net.Conn {
 	}
 }
 
-func (l *Listener) newConn(remote, local net.Conn) *lConn {
-	return &lConn{ctx: l, remote: remote, local: local}
-}
-
 func (l *Listener) trackConn(conn *lConn, add bool) bool {
 	l.rwm.Lock()
 	defer l.rwm.Unlock()
@@ -317,6 +313,10 @@ type lConn struct {
 	ctx    *Listener
 	remote net.Conn // slaver income connection
 	local  net.Conn // user income connection
+}
+
+func (l *Listener) newConn(remote, local net.Conn) *lConn {
+	return &lConn{ctx: l, remote: remote, local: local}
 }
 
 func (c *lConn) log(lv logger.Level, log ...interface{}) {
@@ -352,9 +352,8 @@ func (c *lConn) serve() {
 		}
 	}()
 
-	buf := new(bytes.Buffer)
 	defer func() {
-		buf.Reset()
+		buf := new(bytes.Buffer)
 		_, _ = fmt.Fprintln(buf, "connection closed")
 		_, _ = logger.Conn(c.local).WriteTo(buf)
 		_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
@@ -367,6 +366,7 @@ func (c *lConn) serve() {
 	defer c.ctx.trackConn(c, false)
 
 	// print latest connection status
+	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, "connection established")
 	_, _ = logger.Conn(c.local).WriteTo(buf)
 	_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())

@@ -387,10 +387,10 @@ func TestSConn_Serve(t *testing.T) {
 
 		conn := new(sConn)
 		patch := func(c *sConn) {
-			done := make(chan struct{}, 2)
+			done := make(chan byte, 2)
 			// block
-			done <- struct{}{}
-			done <- struct{}{}
+			done <- 1
+			done <- 1
 			c.ctx.wg.Add(1)
 			go c.serve(done)
 
@@ -426,9 +426,9 @@ func TestSConn_Serve(t *testing.T) {
 
 		conn := new(sConn)
 		patch := func(c *sConn) {
-			done := make(chan struct{}, 2)
+			done := make(chan byte, 2)
 			// block
-			done <- struct{}{}
+			done <- 1
 			c.ctx.wg.Add(1)
 			go c.serve(done)
 
@@ -464,7 +464,7 @@ func TestSConn_Serve(t *testing.T) {
 
 		conn := new(sConn)
 		patch1 := func(c *sConn) {
-			done := make(chan struct{})
+			done := make(chan byte)
 			c.ctx.wg.Add(1)
 			go c.serve(done)
 

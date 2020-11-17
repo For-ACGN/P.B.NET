@@ -30,6 +30,7 @@ type Slaver struct {
 	dialer  net.Dialer
 	sleeper *random.Sleeper
 	stopped bool
+	online  bool // prevent record a lot of logs about dail failure
 	conns   map[*sConn]struct{}
 	rwm     sync.RWMutex
 
@@ -191,12 +192,11 @@ func (s *Slaver) serve() {
 	defer s.logf(logger.Info, "stop connect listener (%s %s)", s.lNetwork, s.lAddress)
 
 	// dial loop
-	var online bool // prevent record a lot of logs about dail failure
 	for {
 		if s.full() {
-			if online {
+			if s.online {
 				s.log(logger.Warning, "full connection")
-				online = false
+				s.online = false
 			}
 			select {
 			case <-s.sleeper.Sleep(1, 3):
@@ -210,9 +210,9 @@ func (s *Slaver) serve() {
 		}
 		conn, err := s.connectToListener()
 		if err != nil {
-			if online {
+			if s.online {
 				s.log(logger.Error, "failed to connect listener:", err)
-				online = false
+				s.online = false
 			}
 			select {
 			case <-s.sleeper.Sleep(1, 10):
@@ -223,7 +223,7 @@ func (s *Slaver) serve() {
 		}
 		c := s.newConn(conn)
 		c.Serve()
-		online = true
+		s.online = true
 	}
 }
 
@@ -243,10 +243,6 @@ func (s *Slaver) connectToListener() (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, s.opts.DialTimeout)
 	defer cancel()
 	return s.dialer.DialContext(ctx, s.lNetwork, s.lAddress)
-}
-
-func (s *Slaver) newConn(c net.Conn) *sConn {
-	return &sConn{ctx: s, local: c}
 }
 
 func (s *Slaver) trackConn(conn *sConn, add bool) bool {
@@ -269,6 +265,13 @@ type sConn struct {
 	local net.Conn
 }
 
+func (s *Slaver) newConn(c net.Conn) *sConn {
+	return &sConn{
+		ctx:   s,
+		local: c,
+	}
+}
+
 func (c *sConn) log(lv logger.Level, log ...interface{}) {
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, log...)
@@ -277,25 +280,28 @@ func (c *sConn) log(lv logger.Level, log ...interface{}) {
 }
 
 func (c *sConn) Serve() {
-	done := make(chan struct{}, 1+1+2)
+	done := make(chan byte, 1+1+2)
 	c.ctx.wg.Add(1)
 	go c.serve(done)
 	// receive read and write ok or finish signal.
+	var state byte // local or remote read ok, send 1,
 	select {
-	case <-done:
+	case state = <-done:
 	case <-c.ctx.ctx.Done():
 	}
 	select {
-	case <-done:
+	case state = <-done:
 	case <-c.ctx.ctx.Done():
 	}
 	// print current status
-	c.ctx.log(logger.Info, c.ctx.Status(), "connection established")
+	if state == 1 {
+		c.ctx.log(logger.Info, c.ctx.Status(), "connection established")
+	}
 }
 
-func (c *sConn) serve(done chan<- struct{}) {
+func (c *sConn) serve(done chan<- byte) {
 	defer c.ctx.wg.Done()
-	defer c.sendFinish(done)
+	defer c.sendFailedState(done)
 	defer func() {
 		if r := recover(); r != nil {
 			c.log(logger.Fatal, xpanic.Print(r, "sConn.serve"))
@@ -316,7 +322,7 @@ func (c *sConn) serve(done chan<- struct{}) {
 		if ok {
 			c.ctx.log(logger.Info, c.ctx.Status(), "connection closed")
 		} else {
-			c.ctx.log(logger.Info, c.ctx.Status())
+			c.ctx.log(logger.Info, c.ctx.Status(), "connection killed")
 		}
 	}()
 
@@ -363,7 +369,7 @@ func (c *sConn) serve(done chan<- struct{}) {
 
 	// send local connection read ok signal
 	select {
-	case done <- struct{}{}:
+	case done <- 1:
 	case <-c.ctx.ctx.Done():
 		return
 	}
@@ -376,7 +382,7 @@ func (c *sConn) serve(done chan<- struct{}) {
 	ok = true
 }
 
-func (c *sConn) serveRemote(done chan<- struct{}, remote net.Conn) {
+func (c *sConn) serveRemote(done chan<- byte, remote net.Conn) {
 	defer c.ctx.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
@@ -400,7 +406,7 @@ func (c *sConn) serveRemote(done chan<- struct{}, remote net.Conn) {
 
 	// send remote connection read ok signal
 	select {
-	case done <- struct{}{}:
+	case done <- 1:
 	case <-c.ctx.ctx.Done():
 		return
 	}
@@ -412,13 +418,13 @@ func (c *sConn) serveRemote(done chan<- struct{}, remote net.Conn) {
 	_, _ = io.Copy(c.local, remote)
 }
 
-func (c *sConn) sendFinish(done chan<- struct{}) {
+func (c *sConn) sendFailedState(done chan<- byte) {
 	select {
-	case done <- struct{}{}:
+	case done <- 0:
 	case <-c.ctx.ctx.Done():
 	}
 	select {
-	case done <- struct{}{}:
+	case done <- 0:
 	case <-c.ctx.ctx.Done():
 	}
 }

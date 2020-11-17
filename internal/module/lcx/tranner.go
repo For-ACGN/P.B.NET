@@ -236,10 +236,6 @@ func (t *Tranner) serve(listener net.Listener) {
 	}
 }
 
-func (t *Tranner) newConn(c net.Conn) *tConn {
-	return &tConn{ctx: t, local: c}
-}
-
 func (t *Tranner) trackConn(conn *tConn, add bool) bool {
 	t.rwm.Lock()
 	defer t.rwm.Unlock()
@@ -258,6 +254,10 @@ func (t *Tranner) trackConn(conn *tConn, add bool) bool {
 type tConn struct {
 	ctx   *Tranner
 	local net.Conn
+}
+
+func (t *Tranner) newConn(c net.Conn) *tConn {
+	return &tConn{ctx: t, local: c}
 }
 
 func (c *tConn) log(lv logger.Level, log ...interface{}) {
