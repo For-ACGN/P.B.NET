@@ -312,6 +312,7 @@ func (l *Listener) trackConn(conn *lConn, add bool) bool {
 	return true
 }
 
+// listener connection
 type lConn struct {
 	ctx    *Listener
 	remote net.Conn // slaver income connection
@@ -351,12 +352,6 @@ func (c *lConn) serve() {
 		}
 	}()
 
-	if !c.ctx.trackConn(c, true) {
-		return
-	}
-	defer c.ctx.trackConn(c, false)
-
-	// print latest connection status
 	buf := new(bytes.Buffer)
 	defer func() {
 		buf.Reset()
@@ -365,6 +360,13 @@ func (c *lConn) serve() {
 		_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
 		c.ctx.log(logger.Info, buf)
 	}()
+
+	if !c.ctx.trackConn(c, true) {
+		return
+	}
+	defer c.ctx.trackConn(c, false)
+
+	// print latest connection status
 	_, _ = fmt.Fprintln(buf, "connection established")
 	_, _ = logger.Conn(c.local).WriteTo(buf)
 	_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())

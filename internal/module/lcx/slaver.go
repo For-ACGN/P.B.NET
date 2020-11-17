@@ -29,7 +29,6 @@ type Slaver struct {
 	logSrc  string
 	dialer  net.Dialer
 	sleeper *random.Sleeper
-	online  bool
 	stopped bool
 	conns   map[*sConn]struct{}
 	rwm     sync.RWMutex
@@ -192,11 +191,12 @@ func (s *Slaver) serve() {
 	defer s.logf(logger.Info, "stop connect listener (%s %s)", s.lNetwork, s.lAddress)
 
 	// dial loop
+	var online bool // prevent record a lot of logs about dail failure
 	for {
 		if s.full() {
-			if s.online {
+			if online {
 				s.log(logger.Warning, "full connection")
-				s.online = false
+				online = false
 			}
 			select {
 			case <-s.sleeper.Sleep(1, 3):
@@ -210,9 +210,9 @@ func (s *Slaver) serve() {
 		}
 		conn, err := s.connectToListener()
 		if err != nil {
-			if s.online {
+			if online {
 				s.log(logger.Error, "failed to connect listener:", err)
-				s.online = false
+				online = false
 			}
 			select {
 			case <-s.sleeper.Sleep(1, 10):
@@ -223,7 +223,7 @@ func (s *Slaver) serve() {
 		}
 		c := s.newConn(conn)
 		c.Serve()
-		s.online = true
+		online = true
 	}
 }
 
@@ -263,6 +263,7 @@ func (s *Slaver) trackConn(conn *sConn, add bool) bool {
 	return true
 }
 
+// salver connection
 type sConn struct {
 	ctx   *Slaver
 	local net.Conn
@@ -288,6 +289,8 @@ func (c *sConn) Serve() {
 	case <-done:
 	case <-c.ctx.ctx.Done():
 	}
+	// print current status
+	c.ctx.log(logger.Info, c.ctx.Status(), "connection established")
 }
 
 func (c *sConn) serve(done chan<- struct{}) {
@@ -339,9 +342,6 @@ func (c *sConn) serve(done chan<- struct{}) {
 			c.log(logger.Error, "failed to close remote connection:", err)
 		}
 	}()
-
-	// print current status
-	c.ctx.log(logger.Info, c.ctx.Status())
 
 	// start another goroutine to copy
 	c.ctx.wg.Add(1)

@@ -254,6 +254,7 @@ func (t *Tranner) trackConn(conn *tConn, add bool) bool {
 	return true
 }
 
+// tran connection
 type tConn struct {
 	ctx   *Tranner
 	local net.Conn
@@ -326,7 +327,7 @@ func (c *tConn) serve() {
 
 	// print latest connection status
 	buf := new(bytes.Buffer)
-	_, _ = fmt.Fprintln(buf, "income connection")
+	_, _ = fmt.Fprintln(buf, "connection established")
 	_, _ = logger.Conn(c.local).WriteTo(buf)
 	_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
 	c.ctx.log(logger.Info, buf)
