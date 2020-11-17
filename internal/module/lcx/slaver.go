@@ -276,9 +276,14 @@ func (c *sConn) log(lv logger.Level, log ...interface{}) {
 }
 
 func (c *sConn) Serve() {
-	done := make(chan struct{}, 3)
+	done := make(chan struct{}, 1+1+2)
 	c.ctx.wg.Add(1)
 	go c.serve(done)
+	// receive read and write ok or finish signal.
+	select {
+	case <-done:
+	case <-c.ctx.ctx.Done():
+	}
 	select {
 	case <-done:
 	case <-c.ctx.ctx.Done():
@@ -287,15 +292,7 @@ func (c *sConn) Serve() {
 
 func (c *sConn) serve(done chan<- struct{}) {
 	defer c.ctx.wg.Done()
-
-	// send done signal
-	defer func() {
-		select {
-		case done <- struct{}{}:
-		case <-c.ctx.ctx.Done():
-		}
-	}()
-
+	defer c.sendFinish(done)
 	defer func() {
 		if r := recover(); r != nil {
 			c.log(logger.Fatal, xpanic.Print(r, "sConn.serve"))
@@ -364,7 +361,7 @@ func (c *sConn) serve(done chan<- struct{}) {
 		return
 	}
 
-	// send done signal
+	// send local connection read ok signal
 	select {
 	case done <- struct{}{}:
 	case <-c.ctx.ctx.Done():
@@ -401,7 +398,7 @@ func (c *sConn) serveRemote(done chan<- struct{}, remote net.Conn) {
 		return
 	}
 
-	// send done signal
+	// send remote connection read ok signal
 	select {
 	case done <- struct{}{}:
 	case <-c.ctx.ctx.Done():
@@ -413,6 +410,17 @@ func (c *sConn) serveRemote(done chan<- struct{}, remote net.Conn) {
 	_ = c.local.SetWriteDeadline(time.Time{})
 
 	_, _ = io.Copy(c.local, remote)
+}
+
+func (c *sConn) sendFinish(done chan<- struct{}) {
+	select {
+	case done <- struct{}{}:
+	case <-c.ctx.ctx.Done():
+	}
+	select {
+	case done <- struct{}{}:
+	case <-c.ctx.ctx.Done():
+	}
 }
 
 func (c *sConn) Close() error {

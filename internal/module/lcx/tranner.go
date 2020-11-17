@@ -174,16 +174,6 @@ func (t *Tranner) Status() string {
 	return buf.String()
 }
 
-// testAddress is used to get listener address, it only for test.
-func (t *Tranner) testAddress() string {
-	t.rwm.RLock()
-	defer t.rwm.RUnlock()
-	if t.listener == nil {
-		return ""
-	}
-	return t.listener.Addr().String()
-}
-
 func (t *Tranner) logf(lv logger.Level, format string, log ...interface{}) {
 	t.logger.Printf(lv, t.logSrc, format, log...)
 }
@@ -334,7 +324,7 @@ func (c *tConn) serve() {
 		}
 	}()
 
-	// log
+	// print latest connection status
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, "income connection")
 	_, _ = logger.Conn(c.local).WriteTo(buf)
@@ -362,4 +352,14 @@ func (c *tConn) serve() {
 
 func (c *tConn) Close() error {
 	return c.local.Close()
+}
+
+// testAddress is used to get listener address, it only for test.
+func (t *Tranner) testAddress() string {
+	t.rwm.RLock()
+	defer t.rwm.RUnlock()
+	if t.listener == nil {
+		return ""
+	}
+	return t.listener.Addr().String()
 }

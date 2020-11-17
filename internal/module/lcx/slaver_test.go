@@ -194,6 +194,7 @@ func TestSlaver_serve(t *testing.T) {
 		listener, slaver := testGenerateListenerAndSlaver(t)
 		slaver.opts.MaxConns = 1 // force change
 
+		// make test faster
 		sleeper := new(random.Sleeper)
 		patch := func(interface{}, uint, uint) <-chan time.Time {
 			return time.After(500 * time.Millisecond)
@@ -207,8 +208,7 @@ func TestSlaver_serve(t *testing.T) {
 		lConn, err := net.Dial("tcp", listener.testLocalAddress())
 		require.NoError(t, err)
 		defer func() { _ = lConn.Close() }()
-		_, err = lConn.Write(make([]byte, 1))
-		require.NoError(t, err)
+		testsuite.SendHTTPRequest(t, lConn)
 
 		// wait call full()
 		time.Sleep(2 * time.Second)

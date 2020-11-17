@@ -190,26 +190,6 @@ func (l *Listener) Status() string {
 	return buf.String()
 }
 
-// testIncomeAddress is used to get income listener address, it only for test.
-func (l *Listener) testIncomeAddress() string {
-	l.rwm.RLock()
-	defer l.rwm.RUnlock()
-	if l.iListener == nil {
-		return ""
-	}
-	return l.iListener.Addr().String()
-}
-
-// testLocalAddress is used to get local listener address, it only for test.
-func (l *Listener) testLocalAddress() string {
-	l.rwm.RLock()
-	defer l.rwm.RUnlock()
-	if l.lListener == nil {
-		return ""
-	}
-	return l.lListener.Addr().String()
-}
-
 func (l *Listener) logf(lv logger.Level, format string, log ...interface{}) {
 	l.logger.Printf(lv, l.logSrc, format, log...)
 }
@@ -256,6 +236,7 @@ func (l *Listener) serve(iListener, lListener net.Listener) {
 	}()
 
 	// started accept loop
+	buf := new(bytes.Buffer)
 	for {
 		// first accept remote connection
 		remote := l.accept(iListener)
@@ -263,10 +244,9 @@ func (l *Listener) serve(iListener, lListener net.Listener) {
 			return
 		}
 		// log remote connection
-		buf := new(bytes.Buffer)
+		buf.Reset()
 		_, _ = fmt.Fprintln(buf, "income slave connection")
 		_, _ = logger.Conn(remote).WriteTo(buf)
-		_, _ = fmt.Fprint(buf, "\n", l.Status())
 		l.log(logger.Info, buf)
 		// than accept local connection
 		local := l.accept(lListener)
@@ -278,7 +258,6 @@ func (l *Listener) serve(iListener, lListener net.Listener) {
 		buf.Reset()
 		_, _ = fmt.Fprintln(buf, "income user connection")
 		_, _ = logger.Conn(local).WriteTo(buf)
-		_, _ = fmt.Fprint(buf, "\n", l.Status())
 		l.log(logger.Info, buf)
 		// serve
 		c := l.newConn(remote, local)
@@ -372,18 +351,24 @@ func (c *lConn) serve() {
 		}
 	}()
 
+	if !c.ctx.trackConn(c, true) {
+		return
+	}
+	defer c.ctx.trackConn(c, false)
+
+	// print latest connection status
+	buf := new(bytes.Buffer)
 	defer func() {
-		buf := new(bytes.Buffer)
+		buf.Reset()
 		_, _ = fmt.Fprintln(buf, "connection closed")
 		_, _ = logger.Conn(c.local).WriteTo(buf)
 		_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
 		c.ctx.log(logger.Info, buf)
 	}()
-
-	if !c.ctx.trackConn(c, true) {
-		return
-	}
-	defer c.ctx.trackConn(c, false)
+	_, _ = fmt.Fprintln(buf, "connection established")
+	_, _ = logger.Conn(c.local).WriteTo(buf)
+	_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
+	c.ctx.log(logger.Info, buf)
 
 	// reset deadline
 	_ = c.remote.SetDeadline(time.Time{})
@@ -410,4 +395,24 @@ func (c *lConn) Close() error {
 		return rErr
 	}
 	return lErr
+}
+
+// testIncomeAddress is used to get income listener address, it only for test.
+func (l *Listener) testIncomeAddress() string {
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
+	if l.iListener == nil {
+		return ""
+	}
+	return l.iListener.Addr().String()
+}
+
+// testLocalAddress is used to get local listener address, it only for test.
+func (l *Listener) testLocalAddress() string {
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
+	if l.lListener == nil {
+		return ""
+	}
+	return l.lListener.Addr().String()
 }
