@@ -104,9 +104,9 @@ type bootClient struct {
 	logSrc   string
 	boot     bootstrap.Bootstrap
 
-	closeOnce sync.Once
 	context   context.Context
 	cancel    context.CancelFunc
+	closeOnce sync.Once
 	wg        sync.WaitGroup
 }
 

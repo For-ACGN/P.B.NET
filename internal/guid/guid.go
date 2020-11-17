@@ -99,8 +99,8 @@ type Generator struct {
 	now func() time.Time
 	rwm sync.RWMutex
 
-	closeOnce  sync.Once
 	stopSignal chan struct{}
+	closeOnce  sync.Once
 	wg         sync.WaitGroup
 }
 

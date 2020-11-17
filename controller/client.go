@@ -41,8 +41,8 @@ type Client struct {
 	syncMu    sync.Mutex
 
 	inClose    int32
-	closeOnce  sync.Once
 	stopSignal chan struct{}
+	closeOnce  sync.Once
 	wg         sync.WaitGroup
 }
 

@@ -56,8 +56,8 @@ type conn struct {
 	QueryPool  sync.Pool
 
 	inClose    int32
-	closeOnce  sync.Once
 	stopSignal chan struct{}
+	closeOnce  sync.Once
 }
 
 func newConn(ctx *Node, xConn *xnet.Conn, guid *guid.GUID, usage int) *conn {

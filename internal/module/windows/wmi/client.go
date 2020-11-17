@@ -85,8 +85,8 @@ type Client struct {
 	getQueue   chan *getObject
 	execQueue  chan *execMethod
 
-	closeOnce  sync.Once
 	stopSignal chan struct{}
+	closeOnce  sync.Once
 	wg         sync.WaitGroup
 }
 
