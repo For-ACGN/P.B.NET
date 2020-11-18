@@ -24,6 +24,7 @@ const (
 )
 
 // EventHandler is used to handle appeared event.
+// data type can be []interface{} ([]*TCP4Conn, []*TCP6Conn, []*UDP4Conn,[]*UDP6Conn)
 type EventHandler func(ctx context.Context, event uint8, data interface{})
 
 // Monitor is used tp monitor network status about current system.

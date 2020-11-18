@@ -13,7 +13,7 @@ import (
 
 const (
 	defaultRefreshInterval = time.Second
-	minimumRefreshInterval = 500 * time.Millisecond
+	minimumRefreshInterval = 250 * time.Millisecond
 )
 
 // about events
@@ -24,6 +24,7 @@ const (
 )
 
 // EventHandler is used to handle appeared event.
+// data type can be []*Process.
 type EventHandler func(ctx context.Context, event uint8, data interface{})
 
 // Monitor is used tp monitor system status about current system.

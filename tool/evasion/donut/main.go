@@ -79,14 +79,14 @@ func main() {
 		fmt.Printf("unsupported executable file: 0x%02X\n", peFile.Machine)
 		return
 	}
-	fmt.Println("the architecture of the executable file is", arch)
+	fmt.Println("[info] the architecture of the executable file is", arch)
 
 	// convert to shellcode
-	fmt.Println("convert executable file to shellcode")
 	donutCfg.Entropy = uint32(entropy)
 	donutCfg.Parameters = params
 	scBuf, err := donut.ShellcodeFromBytes(bytes.NewBuffer(exeData), donutCfg)
 	system.CheckError(err)
+	fmt.Println("[info] convert executable file to shellcode")
 
 	// save shellcode
 	if scOnly {
@@ -95,12 +95,12 @@ func main() {
 		}
 		err = system.WriteFile(output, scBuf.Bytes())
 		system.CheckError(err)
-		fmt.Println("save shellcode")
+		fmt.Println("[info] save shellcode")
 		return
 	}
 
 	// compress shellcode
-	fmt.Println("compress generated shellcode")
+	fmt.Println("[info] compress generated shellcode")
 	flateBuf := bytes.NewBuffer(make([]byte, 0, scBuf.Len()/2))
 	writer, err := flate.NewWriter(flateBuf, flate.BestCompression)
 	system.CheckError(err)
@@ -110,14 +110,14 @@ func main() {
 	system.CheckError(err)
 
 	// encrypt shellcode
-	fmt.Println("encrypt compressed shellcode")
+	fmt.Println("[info] encrypt compressed shellcode")
 	aesKey := random.Bytes(aes.Key256Bit)
 	aesIV := random.Bytes(aes.IVSize)
 	encShellcode, err := aes.CBCEncrypt(flateBuf.Bytes(), aesKey, aesIV)
 	system.CheckError(err)
 
 	// generate source code
-	fmt.Println("generate source code")
+	fmt.Println("[info] generate source code")
 	tpl := template.New("execute")
 	_, err = tpl.Parse(srcTemplate)
 	system.CheckError(err)
@@ -138,7 +138,7 @@ func main() {
 	system.CheckError(err)
 
 	// build source code
-	fmt.Println("build source code to final executable file")
+	fmt.Println("[info] build source code to final executable file")
 	ldFlags := "-s -w"
 	if noGUI {
 		ldFlags += " -H windowsgui"
@@ -153,7 +153,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("build final executable file finish")
+	fmt.Println("[info] build final executable file successfully")
 }
 
 type config struct {
