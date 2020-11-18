@@ -6,6 +6,7 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"io"
 	"net"
 	"net/http"
 	"sync"
@@ -498,6 +499,17 @@ func NewMockResponseWriterWithClosePanic() http.ResponseWriter {
 	return &mockResponseWriter{conn: NewMockConnWithClosePanic()}
 }
 
+type mockNotEqualWriter struct{}
+
+// NewMockNotEqualWriter is used to test function that will check write length.
+func NewMockNotEqualWriter() io.Writer {
+	return new(mockNotEqualWriter)
+}
+
+func (mockNotEqualWriter) Write([]byte) (int, error) {
+	return 0, nil
+}
+
 // MockImage implemented image.Image.
 type MockImage struct {
 	model color.Model
@@ -628,9 +640,9 @@ func (module *MockModule) Info() string {
 	module.startedMu.Lock()
 	defer module.startedMu.Unlock()
 	if module.started {
-		return "mock module started info"
+		return "mock module information(started)"
 	}
-	return "mock module stopped info"
+	return "mock module information(stopped)"
 }
 
 // Status is used to get the status about the mock module.
@@ -638,9 +650,9 @@ func (module *MockModule) Status() string {
 	module.startedMu.Lock()
 	defer module.startedMu.Unlock()
 	if module.started {
-		return "mock module started status"
+		return "mock module status(started)"
 	}
-	return "mock module stopped status"
+	return "mock module status(stopped)"
 }
 
 // NewMockModule is used to create a mock module.

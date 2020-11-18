@@ -363,6 +363,13 @@ func TestNewMockResponseWriterWithClosePanic(t *testing.T) {
 	_ = conn.Close()
 }
 
+func TestNewMockNotEqualWriter(t *testing.T) {
+	writer := NewMockNotEqualWriter()
+	n, err := writer.Write([]byte{1, 2, 3})
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+}
+
 func TestMockImage(t *testing.T) {
 	mi := NewMockImage()
 
