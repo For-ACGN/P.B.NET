@@ -12,7 +12,7 @@ import (
 	"project/internal/xpanic"
 )
 
-// states about task
+// states about task (about FSM)
 const (
 	StateReady    = "ready"    // wait call Start()
 	StatePrepare  = "prepare"  // prepare task like walk directory.
@@ -32,7 +32,7 @@ const (
 	EventCancel   = "cancel"   // task canceled not update progress
 )
 
-// task internal state(different from state in FSM)
+// task internal state(different from state in FSM), "p" is private.
 const (
 	pStateReady int32 = iota
 	pStateProcess
@@ -287,11 +287,6 @@ func (task *Task) Name() string {
 	return task.name
 }
 
-// Task is used to get raw task Interface.
-func (task *Task) Task() Interface {
-	return task.task
-}
-
 // State is used to get the state about current task.
 func (task *Task) State() string {
 	return task.fsm.Current()
@@ -305,6 +300,11 @@ func (task *Task) Progress() string {
 // Detail is used to get the detail about current task.
 func (task *Task) Detail() string {
 	return task.task.Detail()
+}
+
+// Task is used to get raw task Interface.
+func (task *Task) Task() Interface {
+	return task.task
 }
 
 func internalErr(err error) {
