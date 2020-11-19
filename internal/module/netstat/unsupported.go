@@ -10,8 +10,8 @@ import (
 // Options is a padding structure.
 type Options struct{}
 
-// NewNetstat is a padding function.
-func NewNetstat(*Options) (Netstat, error) {
+// New is a padding function.
+func New(*Options) (Netstat, error) {
 	return nil, errors.New("netstat is not implemented on " + runtime.GOOS)
 }
 

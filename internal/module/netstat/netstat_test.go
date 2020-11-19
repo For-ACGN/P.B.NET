@@ -11,7 +11,7 @@ import (
 )
 
 func TestNetstat(t *testing.T) {
-	netstat, err := NewNetstat(nil)
+	netstat, err := New(nil)
 	require.NoError(t, err)
 
 	t.Run("TCP Over IPv4", func(t *testing.T) {
@@ -19,9 +19,9 @@ func TestNetstat(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Local Address      Remote Address      State      PID      Process")
 		for _, conn := range conns {
-			fmt.Printf("%s:%d      %s:%d      %s      %d      %s\n",
-				conn.LocalAddr, conn.LocalPort,
-				conn.RemoteAddr, conn.RemotePort,
+			fmt.Printf(
+				"%s      %s      %s      %d      %s\n",
+				conn.LocalAddr(), conn.RemoteAddr(),
 				GetTCPConnState(conn.State), conn.PID, conn.Process,
 			)
 		}
@@ -33,9 +33,9 @@ func TestNetstat(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Local Address      Remote Address      State      PID      Process")
 		for _, conn := range conns {
-			fmt.Printf("[%s%%%d]:%d      [%s%%%d]:%d      %s      %d      %s\n",
-				conn.LocalAddr, conn.LocalScopeID, conn.LocalPort,
-				conn.RemoteAddr, conn.RemoteScopeID, conn.RemotePort,
+			fmt.Printf(
+				"%s      %s      %s      %d      %s\n",
+				conn.LocalAddr(), conn.RemoteAddr(),
 				GetTCPConnState(conn.State), conn.PID, conn.Process,
 			)
 		}
@@ -47,10 +47,7 @@ func TestNetstat(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Local Address      PID      Process")
 		for _, conn := range conns {
-			fmt.Printf("%s:%d      %d      %s\n",
-				conn.LocalAddr, conn.LocalPort,
-				conn.PID, conn.Process,
-			)
+			fmt.Printf("%s      %d      %s\n", conn.Addr(), conn.PID, conn.Process)
 		}
 		testsuite.IsDestroyed(t, &conns)
 	})
@@ -60,10 +57,7 @@ func TestNetstat(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Println("Local Address      PID      Process")
 		for _, conn := range conns {
-			fmt.Printf("[%s%%%d]:%d      %d      %s\n",
-				conn.LocalAddr, conn.LocalScopeID, conn.LocalPort,
-				conn.PID, conn.Process,
-			)
+			fmt.Printf("%s      %d      %s\n", conn.Addr(), conn.PID, conn.Process)
 		}
 		testsuite.IsDestroyed(t, &conns)
 	})
@@ -76,9 +70,9 @@ func TestNetstat(t *testing.T) {
 
 func TestTCP4Conn_ID(t *testing.T) {
 	conn := TCP4Conn{
-		LocalAddr:  net.IP{0x01, 0x02, 0x03, 0x04},
+		LocalIP:    net.IP{0x01, 0x02, 0x03, 0x04},
 		LocalPort:  0x1127,
-		RemoteAddr: net.IP{0x05, 0x06, 0x07, 0x08},
+		RemoteIP:   net.IP{0x05, 0x06, 0x07, 0x08},
 		RemotePort: 0x1657,
 	}
 	id := string([]byte{
@@ -90,13 +84,13 @@ func TestTCP4Conn_ID(t *testing.T) {
 
 func TestTCP6Conn_ID(t *testing.T) {
 	conn := TCP6Conn{
-		LocalAddr: net.IP{
+		LocalIP: net.IP{
 			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 			0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
 		},
 		LocalScopeID: 0x12341127,
 		LocalPort:    0x1657,
-		RemoteAddr: net.IP{
+		RemoteIP: net.IP{
 			0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
 			0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
 		},
@@ -116,7 +110,7 @@ func TestTCP6Conn_ID(t *testing.T) {
 
 func TestUDP4Conn_ID(t *testing.T) {
 	conn := UDP4Conn{
-		LocalAddr: net.IP{0x01, 0x02, 0x03, 0x04},
+		LocalIP:   net.IP{0x01, 0x02, 0x03, 0x04},
 		LocalPort: 0x1127,
 	}
 	id := string([]byte{0x01, 0x02, 0x03, 0x04, 0x11, 0x27})
@@ -125,7 +119,7 @@ func TestUDP4Conn_ID(t *testing.T) {
 
 func TestUDP6Conn_ID(t *testing.T) {
 	conn := UDP6Conn{
-		LocalAddr: net.IP{
+		LocalIP: net.IP{
 			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 			0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
 		},

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"project/internal/logger"
+	"project/internal/module/netstat"
 	"project/internal/nettool"
 	"project/internal/patch/monkey"
 	"project/internal/testsuite"
@@ -28,7 +29,7 @@ func TestMonitor(t *testing.T) {
 			testMonitorPrintClosedConns(t, data)
 		}
 	}
-	monitor, err := NewMonitor(logger.Test, handler, nil)
+	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
 
 	monitor.SetInterval(200 * time.Millisecond)
@@ -49,25 +50,25 @@ func TestMonitor(t *testing.T) {
 func testMonitorPrintCreatedConns(t *testing.T, conns interface{}) {
 	for _, conn := range conns.([]interface{}) {
 		switch conn := conn.(type) {
-		case *TCP4Conn:
+		case *netstat.TCP4Conn:
 			fmt.Printf("create TCP4 connection\n%s:%d %s:%d %d %d\n",
-				conn.LocalAddr, conn.LocalPort,
-				conn.RemoteAddr, conn.RemotePort,
+				conn.LocalIP, conn.LocalPort,
+				conn.RemoteIP, conn.RemotePort,
 				conn.State, conn.PID,
 			)
-		case *TCP6Conn:
+		case *netstat.TCP6Conn:
 			fmt.Printf("create TCP6 connection\n[%s%%%d]:%d [%s%%%d]:%d %d %d\n",
-				conn.LocalAddr, conn.LocalScopeID, conn.LocalPort,
-				conn.RemoteAddr, conn.RemoteScopeID, conn.RemotePort,
+				conn.LocalIP, conn.LocalScopeID, conn.LocalPort,
+				conn.RemoteIP, conn.RemoteScopeID, conn.RemotePort,
 				conn.State, conn.PID,
 			)
-		case *UDP4Conn:
+		case *netstat.UDP4Conn:
 			fmt.Printf("create UDP4 connection\n%s:%d *:* %d\n",
-				conn.LocalAddr, conn.LocalPort, conn.PID,
+				conn.LocalIP, conn.LocalPort, conn.PID,
 			)
-		case *UDP6Conn:
+		case *netstat.UDP6Conn:
 			fmt.Printf("create UDP6 connection\n[%s%%%d]:%d *:* %d\n",
-				conn.LocalAddr, conn.LocalScopeID, conn.LocalPort, conn.PID,
+				conn.LocalIP, conn.LocalScopeID, conn.LocalPort, conn.PID,
 			)
 		default:
 			t.Fatal("invalid structure:", conn)
@@ -78,25 +79,25 @@ func testMonitorPrintCreatedConns(t *testing.T, conns interface{}) {
 func testMonitorPrintClosedConns(t *testing.T, conns interface{}) {
 	for _, conn := range conns.([]interface{}) {
 		switch conn := conn.(type) {
-		case *TCP4Conn:
+		case *netstat.TCP4Conn:
 			fmt.Printf("close TCP4 connection\n%s:%d %s:%d %d %d\n",
-				conn.LocalAddr, conn.LocalPort,
-				conn.RemoteAddr, conn.RemotePort,
+				conn.LocalIP, conn.LocalPort,
+				conn.RemoteIP, conn.RemotePort,
 				conn.State, conn.PID,
 			)
-		case *TCP6Conn:
+		case *netstat.TCP6Conn:
 			fmt.Printf("close TCP6 connection\n[%s%%%d]:%d [%s%%%d]:%d %d %d\n",
-				conn.LocalAddr, conn.LocalScopeID, conn.LocalPort,
-				conn.RemoteAddr, conn.RemoteScopeID, conn.RemotePort,
+				conn.LocalIP, conn.LocalScopeID, conn.LocalPort,
+				conn.RemoteIP, conn.RemoteScopeID, conn.RemotePort,
 				conn.State, conn.PID,
 			)
-		case *UDP4Conn:
+		case *netstat.UDP4Conn:
 			fmt.Printf("close UDP4 connection\n%s:%d *:* %d\n",
-				conn.LocalAddr, conn.LocalPort, conn.PID,
+				conn.LocalIP, conn.LocalPort, conn.PID,
 			)
-		case *UDP6Conn:
+		case *netstat.UDP6Conn:
 			fmt.Printf("close UDP6 connection\n[%s%%%d]:%d *:* %d\n",
-				conn.LocalAddr, conn.LocalScopeID, conn.LocalPort, conn.PID,
+				conn.LocalIP, conn.LocalScopeID, conn.LocalPort, conn.PID,
 			)
 		default:
 			t.Fatal("invalid structure:", conn)
@@ -137,24 +138,24 @@ func TestMonitor_EventConnCreated(t *testing.T) {
 		}
 		for _, conn := range data.([]interface{}) {
 			switch conn := conn.(type) {
-			case *TCP4Conn:
-				remoteAddr := nettool.JoinHostPort(conn.RemoteAddr.String(), conn.RemotePort)
+			case *netstat.TCP4Conn:
+				remoteAddr := nettool.JoinHostPort(conn.RemoteIP.String(), conn.RemotePort)
 				fmt.Println("created tcp4 connection:", remoteAddr)
 				if remoteAddr == tcp4Addr {
 					findTCP4 = true
 				}
-			case *TCP6Conn:
-				remoteAddr := nettool.JoinHostPort(conn.RemoteAddr.String(), conn.RemotePort)
+			case *netstat.TCP6Conn:
+				remoteAddr := nettool.JoinHostPort(conn.RemoteIP.String(), conn.RemotePort)
 				fmt.Println("created tcp6 connection:", remoteAddr)
 				if remoteAddr == tcp6Addr {
 					findTCP6 = true
 				}
-			case *UDP4Conn:
-				localAddr := nettool.JoinHostPort(conn.LocalAddr.String(), conn.LocalPort)
+			case *netstat.UDP4Conn:
+				localAddr := nettool.JoinHostPort(conn.LocalIP.String(), conn.LocalPort)
 				fmt.Println("created udp4 connection:", localAddr)
 				createdUDP4 = append(createdUDP4, localAddr)
-			case *UDP6Conn:
-				localAddr := nettool.JoinHostPort(conn.LocalAddr.String(), conn.LocalPort)
+			case *netstat.UDP6Conn:
+				localAddr := nettool.JoinHostPort(conn.LocalIP.String(), conn.LocalPort)
 				fmt.Println("created udp6 connection:", localAddr)
 				createdUDP6 = append(createdUDP6, localAddr)
 			default:
@@ -162,7 +163,7 @@ func TestMonitor_EventConnCreated(t *testing.T) {
 			}
 		}
 	}
-	monitor, err := NewMonitor(logger.Test, handler, nil)
+	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
 
 	// wait first auto refresh
@@ -272,26 +273,26 @@ func TestMonitor_EventConnClosed(t *testing.T) {
 		}
 		for _, conn := range data.([]interface{}) {
 			switch conn := conn.(type) {
-			case *TCP4Conn:
-				localAddr := nettool.JoinHostPort(conn.LocalAddr.String(), conn.LocalPort)
+			case *netstat.TCP4Conn:
+				localAddr := nettool.JoinHostPort(conn.LocalIP.String(), conn.LocalPort)
 				fmt.Println("close tcp4 connection:", localAddr)
 				if localAddr == tcp4Addr {
 					findTCP4 = true
 				}
-			case *TCP6Conn:
-				localAddr := nettool.JoinHostPort(conn.LocalAddr.String(), conn.LocalPort)
+			case *netstat.TCP6Conn:
+				localAddr := nettool.JoinHostPort(conn.LocalIP.String(), conn.LocalPort)
 				fmt.Println("close tcp6 connection:", localAddr)
 				if localAddr == tcp6Addr {
 					findTCP6 = true
 				}
-			case *UDP4Conn:
-				localAddr := nettool.JoinHostPort(conn.LocalAddr.String(), conn.LocalPort)
+			case *netstat.UDP4Conn:
+				localAddr := nettool.JoinHostPort(conn.LocalIP.String(), conn.LocalPort)
 				fmt.Println("close udp4 connection:", localAddr)
 				if localAddr == udp4ConnAddr {
 					findUDP4 = true
 				}
-			case *UDP6Conn:
-				localAddr := nettool.JoinHostPort(conn.LocalAddr.String(), conn.LocalPort)
+			case *netstat.UDP6Conn:
+				localAddr := nettool.JoinHostPort(conn.LocalIP.String(), conn.LocalPort)
 				fmt.Println("close udp6 connection:", localAddr)
 				if localAddr == udp6ConnAddr {
 					findUDP6 = true
@@ -301,7 +302,7 @@ func TestMonitor_EventConnClosed(t *testing.T) {
 			}
 		}
 	}
-	monitor, err := NewMonitor(logger.Test, handler, nil)
+	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
 
 	err = tcp4Listener.Close()
@@ -332,7 +333,7 @@ func TestMonitor_refreshLoop(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("failed to refresh", func(t *testing.T) {
-		monitor, err := NewMonitor(logger.Test, nil, nil)
+		monitor, err := New(logger.Test, nil, nil)
 		require.NoError(t, err)
 
 		monitor.Pause()
@@ -356,7 +357,7 @@ func TestMonitor_refreshLoop(t *testing.T) {
 	})
 
 	t.Run("panic", func(t *testing.T) {
-		monitor, err := NewMonitor(logger.Test, nil, nil)
+		monitor, err := New(logger.Test, nil, nil)
 		require.NoError(t, err)
 
 		monitor.Pause()

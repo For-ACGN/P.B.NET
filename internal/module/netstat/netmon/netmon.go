@@ -5,8 +5,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"project/internal/compare"
 	"project/internal/logger"
+	"project/internal/module/netstat"
 	"project/internal/task/pauser"
 	"project/internal/xpanic"
 )
@@ -16,32 +19,38 @@ const (
 	minimumRefreshInterval = 100 * time.Millisecond
 )
 
-// about events
+// events about monitor.
 const (
 	_ uint8 = iota
 	EventConnCreated
 	EventConnClosed
 )
 
-// EventHandler is used to handle appeared event.
-// data type can be []interface{} ([]*TCP4Conn, []*TCP6Conn, []*UDP4Conn,[]*UDP6Conn)
+// EventHandler is used to handle appeared event, data type can be []interface{} that include
+// []*netstat.TCP4Conn, []*netstat.TCP6Conn, []*netstat.UDP4Conn, []*netstat.UDP6Conn
 type EventHandler func(ctx context.Context, event uint8, data interface{})
+
+// Options contains options about network monitor.
+type Options struct {
+	Interval time.Duration
+	Netstat  *netstat.Options
+}
 
 // Monitor is used tp monitor network status about current system.
 type Monitor struct {
 	logger  logger.Logger
 	handler EventHandler
 
-	pauser   *pauser.Pauser
-	netstat  Netstat
-	interval time.Duration
-	rwm      sync.RWMutex
+	pauser      *pauser.Pauser
+	netstat     netstat.Netstat
+	interval    time.Duration
+	intervalRWM sync.RWMutex
 
 	// about check network status
-	tcp4Conns []*TCP4Conn
-	tcp6Conns []*TCP6Conn
-	udp4Conns []*UDP4Conn
-	udp6Conns []*UDP6Conn
+	tcp4Conns []*netstat.TCP4Conn
+	tcp6Conns []*netstat.TCP6Conn
+	udp4Conns []*netstat.UDP4Conn
+	udp6Conns []*netstat.UDP6Conn
 	connsRWM  sync.RWMutex
 
 	ctx    context.Context
@@ -49,24 +58,32 @@ type Monitor struct {
 	wg     sync.WaitGroup
 }
 
-// NewMonitor is used to create a network status monitor.
-func NewMonitor(logger logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
-	netstat, err := NewNetstat(opts)
+// New is used to create a network status monitor.
+func New(logger logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
+	if opts == nil {
+		opts = new(Options)
+	}
+	interval := opts.Interval
+	if interval < defaultRefreshInterval {
+		interval = defaultRefreshInterval
+	}
+	ns, err := netstat.New(opts.Netstat)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "failed to create netstat module")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	monitor := Monitor{
 		logger:   logger,
 		pauser:   pauser.New(ctx),
-		netstat:  netstat,
-		interval: defaultRefreshInterval,
+		netstat:  ns,
+		interval: interval,
 		ctx:      ctx,
 		cancel:   cancel,
 	}
 	// refresh before refreshLoop, and not set eventHandler.
 	err = monitor.Refresh()
 	if err != nil {
+		_ = ns.Close()
 		return nil, err
 	}
 	// not trigger eventHandler before first refresh.
@@ -78,8 +95,8 @@ func NewMonitor(logger logger.Logger, handler EventHandler, opts *Options) (*Mon
 
 // GetInterval is used to get refresh interval.
 func (mon *Monitor) GetInterval() time.Duration {
-	mon.rwm.RLock()
-	defer mon.rwm.RUnlock()
+	mon.intervalRWM.RLock()
+	defer mon.intervalRWM.RUnlock()
 	return mon.interval
 }
 
@@ -88,8 +105,8 @@ func (mon *Monitor) SetInterval(interval time.Duration) {
 	if interval < minimumRefreshInterval {
 		interval = minimumRefreshInterval
 	}
-	mon.rwm.Lock()
-	defer mon.rwm.Unlock()
+	mon.intervalRWM.Lock()
+	defer mon.intervalRWM.Unlock()
 	mon.interval = interval
 }
 
@@ -162,7 +179,7 @@ func (mon *Monitor) Refresh() error {
 
 // for compare package
 
-type tcp4Conns []*TCP4Conn
+type tcp4Conns []*netstat.TCP4Conn
 
 func (conns tcp4Conns) Len() int {
 	return len(conns)
@@ -172,7 +189,7 @@ func (conns tcp4Conns) ID(i int) string {
 	return conns[i].ID()
 }
 
-type tcp6Conns []*TCP6Conn
+type tcp6Conns []*netstat.TCP6Conn
 
 func (conns tcp6Conns) Len() int {
 	return len(conns)
@@ -182,7 +199,7 @@ func (conns tcp6Conns) ID(i int) string {
 	return conns[i].ID()
 }
 
-type udp4Conns []*UDP4Conn
+type udp4Conns []*netstat.UDP4Conn
 
 func (conns udp4Conns) Len() int {
 	return len(conns)
@@ -192,7 +209,7 @@ func (conns udp4Conns) ID(i int) string {
 	return conns[i].ID()
 }
 
-type udp6Conns []*UDP6Conn
+type udp6Conns []*netstat.UDP6Conn
 
 func (conns udp6Conns) Len() int {
 	return len(conns)
@@ -203,10 +220,10 @@ func (conns udp6Conns) ID(i int) string {
 }
 
 type dataSource struct {
-	tcp4Conns []*TCP4Conn
-	tcp6Conns []*TCP6Conn
-	udp4Conns []*UDP4Conn
-	udp6Conns []*UDP6Conn
+	tcp4Conns []*netstat.TCP4Conn
+	tcp6Conns []*netstat.TCP6Conn
+	udp4Conns []*netstat.UDP4Conn
+	udp6Conns []*netstat.UDP6Conn
 }
 
 type compareResult struct {
@@ -279,28 +296,28 @@ func (mon *Monitor) notice(result *compareResult) {
 }
 
 // GetTCP4Conns is used to get tcp4 connections that stored in monitor.
-func (mon *Monitor) GetTCP4Conns() []*TCP4Conn {
+func (mon *Monitor) GetTCP4Conns() []*netstat.TCP4Conn {
 	mon.connsRWM.RLock()
 	defer mon.connsRWM.RUnlock()
 	return mon.tcp4Conns
 }
 
 // GetTCP6Conns is used to get tcp6 connections that stored in monitor.
-func (mon *Monitor) GetTCP6Conns() []*TCP6Conn {
+func (mon *Monitor) GetTCP6Conns() []*netstat.TCP6Conn {
 	mon.connsRWM.RLock()
 	defer mon.connsRWM.RUnlock()
 	return mon.tcp6Conns
 }
 
 // GetUDP4Conns is used to get udp4 connections that stored in monitor.
-func (mon *Monitor) GetUDP4Conns() []*UDP4Conn {
+func (mon *Monitor) GetUDP4Conns() []*netstat.UDP4Conn {
 	mon.connsRWM.RLock()
 	defer mon.connsRWM.RUnlock()
 	return mon.udp4Conns
 }
 
 // GetUDP6Conns is used to get udp6 connections that stored in monitor.
-func (mon *Monitor) GetUDP6Conns() []*UDP6Conn {
+func (mon *Monitor) GetUDP6Conns() []*netstat.UDP6Conn {
 	mon.connsRWM.RLock()
 	defer mon.connsRWM.RUnlock()
 	return mon.udp6Conns

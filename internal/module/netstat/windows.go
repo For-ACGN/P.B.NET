@@ -7,6 +7,7 @@ import (
 )
 
 // Options contain options about table class.
+// see project/internal/module/windows/api/network.go
 type Options struct {
 	TCPTableClass uint32
 	UDPTableClass uint32
@@ -17,8 +18,8 @@ type netstat struct {
 	udpTableClass uint32
 }
 
-// NewNetstat is used to create a netstat with TCP and UDP table class.
-func NewNetstat(opts *Options) (Netstat, error) {
+// New is used to create a netstat with TCP and UDP table class.
+func New(opts *Options) (Netstat, error) {
 	if opts == nil {
 		opts = &Options{
 			TCPTableClass: api.TCPTableOwnerModuleAll,
@@ -40,9 +41,9 @@ func (n *netstat) GetTCP4Conns() ([]*TCP4Conn, error) {
 	cs := make([]*TCP4Conn, l)
 	for i := 0; i < l; i++ {
 		cs[i] = &TCP4Conn{
-			LocalAddr:  conns[i].LocalAddr,
+			LocalIP:    conns[i].LocalAddr,
 			LocalPort:  conns[i].LocalPort,
-			RemoteAddr: conns[i].RemoteAddr,
+			RemoteIP:   conns[i].RemoteAddr,
 			RemotePort: conns[i].RemotePort,
 			State:      conns[i].State,
 			PID:        conns[i].PID,
@@ -61,10 +62,10 @@ func (n *netstat) GetTCP6Conns() ([]*TCP6Conn, error) {
 	cs := make([]*TCP6Conn, l)
 	for i := 0; i < l; i++ {
 		cs[i] = &TCP6Conn{
-			LocalAddr:     conns[i].LocalAddr,
+			LocalIP:       conns[i].LocalAddr,
 			LocalScopeID:  conns[i].LocalScopeID,
 			LocalPort:     conns[i].LocalPort,
-			RemoteAddr:    conns[i].RemoteAddr,
+			RemoteIP:      conns[i].RemoteAddr,
 			RemoteScopeID: conns[i].RemoteScopeID,
 			RemotePort:    conns[i].RemotePort,
 			State:         conns[i].State,
@@ -84,7 +85,7 @@ func (n *netstat) GetUDP4Conns() ([]*UDP4Conn, error) {
 	cs := make([]*UDP4Conn, l)
 	for i := 0; i < l; i++ {
 		cs[i] = &UDP4Conn{
-			LocalAddr: conns[i].LocalAddr,
+			LocalIP:   conns[i].LocalAddr,
 			LocalPort: conns[i].LocalPort,
 			PID:       conns[i].PID,
 			Process:   conns[i].Process,
@@ -102,7 +103,7 @@ func (n *netstat) GetUDP6Conns() ([]*UDP6Conn, error) {
 	cs := make([]*UDP6Conn, l)
 	for i := 0; i < l; i++ {
 		cs[i] = &UDP6Conn{
-			LocalAddr:    conns[i].LocalAddr,
+			LocalIP:      conns[i].LocalAddr,
 			LocalScopeID: conns[i].LocalScopeID,
 			LocalPort:    conns[i].LocalPort,
 			PID:          conns[i].PID,
