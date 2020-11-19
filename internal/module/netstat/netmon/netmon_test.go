@@ -51,24 +51,24 @@ func testMonitorPrintCreatedConns(t *testing.T, conns interface{}) {
 	for _, conn := range conns.([]interface{}) {
 		switch conn := conn.(type) {
 		case *netstat.TCP4Conn:
-			fmt.Printf("create TCP4 connection\n%s:%d %s:%d %d %d\n",
-				conn.LocalIP, conn.LocalPort,
-				conn.RemoteIP, conn.RemotePort,
-				conn.State, conn.PID,
+			fmt.Printf(
+				"create TCP4 connection\n%s %s %d %d\n",
+				conn.LocalAddr(), conn.RemoteAddr(), conn.State, conn.PID,
 			)
 		case *netstat.TCP6Conn:
-			fmt.Printf("create TCP6 connection\n[%s%%%d]:%d [%s%%%d]:%d %d %d\n",
-				conn.LocalIP, conn.LocalScopeID, conn.LocalPort,
-				conn.RemoteIP, conn.RemoteScopeID, conn.RemotePort,
-				conn.State, conn.PID,
+			fmt.Printf(
+				"create TCP6 connection\n%s %s %d %d\n",
+				conn.LocalAddr(), conn.RemoteAddr(), conn.State, conn.PID,
 			)
 		case *netstat.UDP4Conn:
-			fmt.Printf("create UDP4 connection\n%s:%d *:* %d\n",
-				conn.LocalIP, conn.LocalPort, conn.PID,
+			fmt.Printf(
+				"create UDP4 connection\n%s *:* %d\n",
+				conn.LocalAddr(), conn.PID,
 			)
 		case *netstat.UDP6Conn:
-			fmt.Printf("create UDP6 connection\n[%s%%%d]:%d *:* %d\n",
-				conn.LocalIP, conn.LocalScopeID, conn.LocalPort, conn.PID,
+			fmt.Printf(
+				"create UDP6 connection\n%s *:* %d\n",
+				conn.LocalAddr(), conn.PID,
 			)
 		default:
 			t.Fatal("invalid structure:", conn)

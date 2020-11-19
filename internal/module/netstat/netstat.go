@@ -37,6 +37,18 @@ func (conn *TCP4Conn) ID() string {
 	return *(*string)(unsafe.Pointer(&b)) // #nosec
 }
 
+// Clone is used to clone information about this connection.
+func (conn *TCP4Conn) Clone() *TCP4Conn {
+	c := *conn
+	localIP := make(net.IP, len(conn.LocalIP))
+	copy(localIP, conn.LocalIP)
+	c.LocalIP = localIP
+	remoteIP := make(net.IP, len(conn.RemoteIP))
+	copy(remoteIP, conn.RemoteIP)
+	c.RemoteIP = remoteIP
+	return &c
+}
+
 // LocalAddr is used to get the local address about this connection.
 func (conn *TCP4Conn) LocalAddr() string {
 	return fmt.Sprintf("%s:%d", conn.LocalIP, conn.LocalPort)
@@ -72,6 +84,18 @@ func (conn *TCP6Conn) ID() string {
 	return *(*string)(unsafe.Pointer(&b)) // #nosec
 }
 
+// Clone is used to clone information about this connection.
+func (conn *TCP6Conn) Clone() *TCP6Conn {
+	c := *conn
+	localIP := make(net.IP, len(conn.LocalIP))
+	copy(localIP, conn.LocalIP)
+	c.LocalIP = localIP
+	remoteIP := make(net.IP, len(conn.RemoteIP))
+	copy(remoteIP, conn.RemoteIP)
+	c.RemoteIP = remoteIP
+	return &c
+}
+
 // LocalAddr is used to get the local address about this connection.
 func (conn *TCP6Conn) LocalAddr() string {
 	return fmt.Sprintf("[%s%%%d]:%d", conn.LocalIP, conn.LocalScopeID, conn.LocalPort)
@@ -98,9 +122,23 @@ func (conn *UDP4Conn) ID() string {
 	return *(*string)(unsafe.Pointer(&b)) // #nosec
 }
 
-// Addr is used to get the local address about this connection.
-func (conn *UDP4Conn) Addr() string {
+// Clone is used to clone information about this connection.
+func (conn *UDP4Conn) Clone() *UDP4Conn {
+	c := *conn
+	localIP := make(net.IP, len(conn.LocalIP))
+	copy(localIP, conn.LocalIP)
+	c.LocalIP = localIP
+	return &c
+}
+
+// LocalAddr is used to get the local address about this connection.
+func (conn *UDP4Conn) LocalAddr() string {
 	return fmt.Sprintf("%s:%d", conn.LocalIP, conn.LocalPort)
+}
+
+// RemoteAddr is used to get the remote address about this connection.
+func (conn *UDP4Conn) RemoteAddr() string {
+	return "*:*"
 }
 
 // UDP6Conn contains information about UDP Over IPv6 connection.
@@ -121,7 +159,21 @@ func (conn *UDP6Conn) ID() string {
 	return *(*string)(unsafe.Pointer(&b)) // #nosec
 }
 
-// Addr is used to get the local address about this connection.
-func (conn *UDP6Conn) Addr() string {
+// Clone is used to clone information about this connection.
+func (conn *UDP6Conn) Clone() *UDP6Conn {
+	c := *conn
+	localIP := make(net.IP, len(conn.LocalIP))
+	copy(localIP, conn.LocalIP)
+	c.LocalIP = localIP
+	return &c
+}
+
+// LocalAddr is used to get the local address about this connection.
+func (conn *UDP6Conn) LocalAddr() string {
 	return fmt.Sprintf("[%s%%%d]:%d", conn.LocalIP, conn.LocalScopeID, conn.LocalPort)
+}
+
+// RemoteAddr is used to get the remote address about this connection.
+func (conn *UDP6Conn) RemoteAddr() string {
+	return "*:*"
 }
