@@ -1,4 +1,6 @@
-package netmon
+// +build windows
+
+package netstat
 
 import (
 	"project/internal/module/windows/api"
@@ -10,26 +12,26 @@ type Options struct {
 	UDPTableClass uint32
 }
 
-type netStat struct {
+type netstat struct {
 	tcpTableClass uint32
 	udpTableClass uint32
 }
 
-// NewNetStat is used to create a netstat with TCP and UDP table class.
-func NewNetStat(opts *Options) (NetStat, error) {
+// NewNetstat is used to create a netstat with TCP and UDP table class.
+func NewNetstat(opts *Options) (Netstat, error) {
 	if opts == nil {
 		opts = &Options{
 			TCPTableClass: api.TCPTableOwnerModuleAll,
 			UDPTableClass: api.UDPTableOwnerModule,
 		}
 	}
-	return &netStat{
+	return &netstat{
 		tcpTableClass: opts.TCPTableClass,
 		udpTableClass: opts.UDPTableClass,
 	}, nil
 }
 
-func (n *netStat) GetTCP4Conns() ([]*TCP4Conn, error) {
+func (n *netstat) GetTCP4Conns() ([]*TCP4Conn, error) {
 	conns, err := api.GetTCP4Conns(n.tcpTableClass)
 	if err != nil {
 		return nil, err
@@ -50,7 +52,7 @@ func (n *netStat) GetTCP4Conns() ([]*TCP4Conn, error) {
 	return cs, nil
 }
 
-func (n *netStat) GetTCP6Conns() ([]*TCP6Conn, error) {
+func (n *netstat) GetTCP6Conns() ([]*TCP6Conn, error) {
 	conns, err := api.GetTCP6Conns(n.tcpTableClass)
 	if err != nil {
 		return nil, err
@@ -73,7 +75,7 @@ func (n *netStat) GetTCP6Conns() ([]*TCP6Conn, error) {
 	return cs, nil
 }
 
-func (n *netStat) GetUDP4Conns() ([]*UDP4Conn, error) {
+func (n *netstat) GetUDP4Conns() ([]*UDP4Conn, error) {
 	conns, err := api.GetUDP4Conns(n.udpTableClass)
 	if err != nil {
 		return nil, err
@@ -91,7 +93,7 @@ func (n *netStat) GetUDP4Conns() ([]*UDP4Conn, error) {
 	return cs, nil
 }
 
-func (n *netStat) GetUDP6Conns() ([]*UDP6Conn, error) {
+func (n *netstat) GetUDP6Conns() ([]*UDP6Conn, error) {
 	conns, err := api.GetUDP6Conns(n.udpTableClass)
 	if err != nil {
 		return nil, err
@@ -110,7 +112,7 @@ func (n *netStat) GetUDP6Conns() ([]*UDP6Conn, error) {
 	return cs, nil
 }
 
-func (n *netStat) Close() error {
+func (n *netstat) Close() error {
 	return nil
 }
 

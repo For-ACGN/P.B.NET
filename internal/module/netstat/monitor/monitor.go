@@ -7,7 +7,7 @@ import (
 
 	"project/internal/compare"
 	"project/internal/logger"
-	"project/internal/module/control"
+	"project/internal/task/pauser"
 	"project/internal/xpanic"
 )
 
@@ -32,10 +32,10 @@ type Monitor struct {
 	logger  logger.Logger
 	handler EventHandler
 
-	controller *control.Controller
-	netstat    NetStat
-	interval   time.Duration
-	rwm        sync.RWMutex
+	pauser   *pauser.Pauser
+	netstat  Netstat
+	interval time.Duration
+	rwm      sync.RWMutex
 
 	// about check network status
 	tcp4Conns []*TCP4Conn
@@ -51,18 +51,18 @@ type Monitor struct {
 
 // NewMonitor is used to create a network status monitor.
 func NewMonitor(logger logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
-	netstat, err := NewNetStat(opts)
+	netstat, err := NewNetstat(opts)
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	monitor := Monitor{
-		logger:     logger,
-		controller: control.NewController(ctx),
-		netstat:    netstat,
-		interval:   defaultRefreshInterval,
-		ctx:        ctx,
-		cancel:     cancel,
+		logger:   logger,
+		pauser:   pauser.New(ctx),
+		netstat:  netstat,
+		interval: defaultRefreshInterval,
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 	// refresh before refreshLoop, and not set eventHandler.
 	err = monitor.Refresh()
@@ -111,7 +111,7 @@ func (mon *Monitor) refreshLoop() {
 	timer := time.NewTimer(mon.GetInterval())
 	defer timer.Stop()
 	for {
-		mon.controller.Paused()
+		mon.pauser.Paused()
 		select {
 		case <-timer.C:
 			err := mon.Refresh()
@@ -158,6 +158,48 @@ func (mon *Monitor) Refresh() error {
 	}
 	mon.refresh(ds)
 	return nil
+}
+
+// for compare package
+
+type tcp4Conns []*TCP4Conn
+
+func (conns tcp4Conns) Len() int {
+	return len(conns)
+}
+
+func (conns tcp4Conns) ID(i int) string {
+	return conns[i].ID()
+}
+
+type tcp6Conns []*TCP6Conn
+
+func (conns tcp6Conns) Len() int {
+	return len(conns)
+}
+
+func (conns tcp6Conns) ID(i int) string {
+	return conns[i].ID()
+}
+
+type udp4Conns []*UDP4Conn
+
+func (conns udp4Conns) Len() int {
+	return len(conns)
+}
+
+func (conns udp4Conns) ID(i int) string {
+	return conns[i].ID()
+}
+
+type udp6Conns []*UDP6Conn
+
+func (conns udp6Conns) Len() int {
+	return len(conns)
+}
+
+func (conns udp6Conns) ID(i int) string {
+	return conns[i].ID()
 }
 
 type dataSource struct {
@@ -266,12 +308,12 @@ func (mon *Monitor) GetUDP6Conns() []*UDP6Conn {
 
 // Pause is used to pause auto refresh.
 func (mon *Monitor) Pause() {
-	mon.controller.Pause()
+	mon.pauser.Pause()
 }
 
 // Continue is used to continue auto refresh.
 func (mon *Monitor) Continue() {
-	mon.controller.Continue()
+	mon.pauser.Continue()
 }
 
 // Close is used to close network status monitor.

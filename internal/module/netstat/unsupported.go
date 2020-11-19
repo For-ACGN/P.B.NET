@@ -1,6 +1,6 @@
 // +build !windows
 
-package netmon
+package netstat
 
 import (
 	"errors"
@@ -10,8 +10,8 @@ import (
 // Options is a padding structure.
 type Options struct{}
 
-// NewNetStat is a padding function.
-func NewNetStat(*Options) (NetStat, error) {
+// NewNetstat is a padding function.
+func NewNetstat(*Options) (Netstat, error) {
 	return nil, errors.New("netstat is not implemented on " + runtime.GOOS)
 }
 

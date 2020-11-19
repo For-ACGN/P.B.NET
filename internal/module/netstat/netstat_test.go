@@ -1,4 +1,4 @@
-package netmon
+package netstat
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 	"project/internal/testsuite"
 )
 
-func TestNetStat(t *testing.T) {
-	netstat, err := NewNetStat(nil)
+func TestNetstat(t *testing.T) {
+	netstat, err := NewNetstat(nil)
 	require.NoError(t, err)
 
 	t.Run("TCP Over IPv4", func(t *testing.T) {
