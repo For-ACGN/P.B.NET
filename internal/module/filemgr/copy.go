@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"project/internal/convert"
-	"project/internal/module/task"
+	"project/internal/task"
 	"project/internal/xpanic"
 )
 

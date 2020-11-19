@@ -13,9 +13,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"project/internal/module/task"
 	"project/internal/patch/monkey"
 	"project/internal/system"
+	"project/internal/task"
 	"project/internal/testsuite"
 )
 
@@ -200,14 +200,7 @@ func (mockTask) Detail() string {
 	return ""
 }
 
-func (mockTask) Clean() {
-}
-
-type notEqualWriter struct{}
-
-func (notEqualWriter) Write([]byte) (int, error) {
-	return 0, nil
-}
+func (mockTask) Clean() {}
 
 func TestIOCopy(t *testing.T) {
 	testdata := bytes.Repeat([]byte("hello"), 100)
@@ -265,7 +258,7 @@ func TestIOCopy(t *testing.T) {
 		mt := task.New(mockTaskName, nil, nil)
 		reader := new(bytes.Buffer)
 		reader.Write([]byte{1, 2, 3})
-		writer := new(notEqualWriter)
+		writer := testsuite.NewMockNotEqualWriter()
 
 		n, err := ioCopy(mt, add, writer, reader)
 		require.Error(t, err)

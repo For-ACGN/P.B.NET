@@ -16,7 +16,7 @@ import (
 
 	"project/internal/convert"
 	"project/internal/logger"
-	"project/internal/module/task"
+	"project/internal/task"
 	"project/internal/xpanic"
 )
 

@@ -12,7 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"project/internal/module/task"
+	"project/internal/task"
 	"project/internal/xpanic"
 )
 
@@ -67,7 +67,8 @@ var (
 		return ErrCtrlOpSkip
 	}
 
-	// Cancel is used to cancel current task if appear some error
+	// Cancel is used to cancel current task if appear some error.
+	// tests about filemgr will use it.
 	Cancel = func(_ context.Context, typ uint8, err error, _ *SrcDstStat) uint8 {
 		fmt.Println(typ, err)
 		return ErrCtrlOpCancel
