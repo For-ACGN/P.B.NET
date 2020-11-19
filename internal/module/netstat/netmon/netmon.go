@@ -27,7 +27,7 @@ const (
 )
 
 // EventHandler is used to handle appeared event, data type can be []interface{} that include
-// []*netstat.TCP4Conn, []*netstat.TCP6Conn, []*netstat.UDP4Conn, []*netstat.UDP6Conn
+// *netstat.TCP4Conn, *netstat.TCP6Conn, *netstat.UDP4Conn, *netstat.UDP6Conn
 type EventHandler func(ctx context.Context, event uint8, data interface{})
 
 // Options contains options about network monitor.
@@ -59,34 +59,38 @@ type Monitor struct {
 }
 
 // New is used to create a network status monitor.
-func New(logger logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
+func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
 	if opts == nil {
 		opts = new(Options)
-	}
-	interval := opts.Interval
-	if interval < defaultRefreshInterval {
-		interval = defaultRefreshInterval
 	}
 	ns, err := netstat.New(opts.Netstat)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to create netstat module")
 	}
+	interval := opts.Interval
+	if interval < minimumRefreshInterval {
+		interval = minimumRefreshInterval
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	monitor := Monitor{
-		logger:   logger,
+		logger:   lg,
 		pauser:   pauser.New(ctx),
 		netstat:  ns,
 		interval: interval,
 		ctx:      ctx,
 		cancel:   cancel,
 	}
-	// refresh before refreshLoop, and not set eventHandler.
+	// refresh before refreshLoop, and not set EventHandler.
 	err = monitor.Refresh()
 	if err != nil {
-		_ = ns.Close()
-		return nil, err
+		// close netstat module
+		e := ns.Close()
+		if e != nil {
+			lg.Println(logger.Error, "network monitor", "failed to close netstat module:", e)
+		}
+		return nil, errors.WithMessage(err, "failed to get the initial connection data")
 	}
-	// not trigger eventHandler before first refresh.
+	// not trigger eventHandler before the first refresh.
 	monitor.handler = handler
 	monitor.wg.Add(1)
 	go monitor.refreshLoop()
@@ -145,21 +149,75 @@ func (mon *Monitor) refreshLoop() {
 
 // Refresh is used to refresh current network status at once.
 func (mon *Monitor) Refresh() error {
-	tcp4Conns, err := mon.netstat.GetTCP4Conns()
-	if err != nil {
-		return err
-	}
-	tcp6Conns, err := mon.netstat.GetTCP6Conns()
-	if err != nil {
-		return err
-	}
-	udp4Conns, err := mon.netstat.GetUDP4Conns()
-	if err != nil {
-		return err
-	}
-	udp6Conns, err := mon.netstat.GetUDP6Conns()
-	if err != nil {
-		return err
+	const title = "Monitor.Refresh"
+	var (
+		tcp4Conns tcp4Conns
+		tcp6Conns tcp6Conns
+		udp4Conns udp4Conns
+		udp6Conns udp6Conns
+	)
+	errCh := make(chan error, 4)
+	go func() {
+		var err error
+		defer func() {
+			if r := recover(); r != nil {
+				err = xpanic.Error(r, title)
+			}
+			errCh <- err
+		}()
+		tcp4Conns, err = mon.netstat.GetTCP4Conns()
+		if err != nil {
+			err = errors.WithMessage(err, "failed to get tcp4 connections")
+		}
+	}()
+	go func() {
+		var err error
+		defer func() {
+			if r := recover(); r != nil {
+				err = xpanic.Error(r, title)
+			}
+			errCh <- err
+		}()
+		tcp6Conns, err = mon.netstat.GetTCP6Conns()
+		if err != nil {
+			err = errors.WithMessage(err, "failed to get tcp6 connections")
+		}
+	}()
+	go func() {
+		var err error
+		defer func() {
+			if r := recover(); r != nil {
+				err = xpanic.Error(r, title)
+			}
+			errCh <- err
+		}()
+		udp4Conns, err = mon.netstat.GetUDP4Conns()
+		if err != nil {
+			err = errors.WithMessage(err, "failed to get udp4 connections")
+		}
+	}()
+	go func() {
+		var err error
+		defer func() {
+			if r := recover(); r != nil {
+				err = xpanic.Error(r, title)
+			}
+			errCh <- err
+		}()
+		udp6Conns, err = mon.netstat.GetUDP6Conns()
+		if err != nil {
+			err = errors.WithMessage(err, "failed to get udp6 connections")
+		}
+	}()
+	for i := 0; i < 4; i++ {
+		select {
+		case err := <-errCh:
+			if err != nil {
+				return err
+			}
+		case <-mon.ctx.Done():
+			return mon.ctx.Err()
+		}
 	}
 	ds := &dataSource{
 		tcp4Conns: tcp4Conns,
