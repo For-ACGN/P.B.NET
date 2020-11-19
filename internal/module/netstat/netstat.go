@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// Netstat is used to get current connections about TCP and UDP.
+// Netstat is used to get current TCP and UDP connections.
 type Netstat interface {
 	GetTCP4Conns() ([]*TCP4Conn, error)
 	GetTCP6Conns() ([]*TCP6Conn, error)
