@@ -35,3 +35,4 @@ func TestTaskList(t *testing.T) {
 
 	testsuite.IsDestroyed(t, tasklist)
 }
+

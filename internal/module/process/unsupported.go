@@ -10,7 +10,7 @@ import (
 // Options is a padding structure.
 type Options struct{}
 
-// NewTaskList is a padding function.
-func NewTaskList(opts *Options) (TaskList, error) {
-	return nil, errors.New("tasklist is not implemented on " + runtime.GOOS)
+// New is a padding function.
+func New(opts *Options) (Process, error) {
+	return nil, errors.New("process is not implemented on " + runtime.GOOS)
 }

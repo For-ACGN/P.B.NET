@@ -32,7 +32,7 @@ func TestTaskList_GetProcesses(t *testing.T) {
 }
 
 func TestProcess_ID(t *testing.T) {
-	process := Process{
+	process := PsInfo{
 		PID:          0x1234567887654321,
 		CreationDate: time.Unix(123, 123),
 	}

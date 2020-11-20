@@ -3,6 +3,8 @@
 package process
 
 import (
+	"runtime"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -12,56 +14,62 @@ import (
 	"project/internal/module/windows/api"
 )
 
-// Options is contains options about tasklist.
+// Options is contains options about process module.
 type Options struct {
-	ShowSessionID bool
-	ShowUsername  bool
+	GetSessionID bool
+	GetUsername  bool
 
-	ShowUserModeTime   bool
-	ShowKernelModeTime bool
-	ShowMemoryUsed     bool
+	GetUserModeTime   bool
+	GetKernelModeTime bool
+	GetMemoryUsed     bool
 
-	ShowHandleCount bool
-	ShowThreadCount bool
+	GetHandleCount bool
+	GetThreadCount bool
 
-	ShowIOReadBytes  bool
-	ShowIOWriteBytes bool
+	GetIOReadBytes  bool
+	GetIOWriteBytes bool
 
-	ShowArchitecture   bool
-	ShowCommandLine    bool
-	ShowExecutablePath bool
-	ShowCreationDate   bool
+	GetArchitecture   bool
+	GetCommandLine    bool
+	GetExecutablePath bool
+	GetCreationDate   bool
 }
 
-type taskList struct {
+type process struct {
 	opts *Options
 
-	major       uint32
+	isARM       bool
+	majorVer    uint32
 	modKernel32 *windows.LazyDLL
-	isWow64     *windows.LazyProc
+	procIsWow64 *windows.LazyProc
 
 	closeOnce sync.Once
 }
 
-// NewTaskList is used to create a new TaskList tool.
-func NewTaskList(opts *Options) (TaskList, error) {
+// New is used to create a process module.
+func New(opts *Options) (Process, error) {
 	if opts == nil {
 		opts = &Options{
-			ShowSessionID:      true,
-			ShowUsername:       true,
-			ShowUserModeTime:   true,
-			ShowKernelModeTime: true,
-			ShowMemoryUsed:     true,
-			ShowArchitecture:   true,
-			ShowCommandLine:    true,
-			ShowExecutablePath: true,
-			ShowCreationDate:   true,
+			GetSessionID:      true,
+			GetUsername:       true,
+			GetUserModeTime:   true,
+			GetKernelModeTime: true,
+			GetMemoryUsed:     true,
+			GetHandleCount:    true,
+			GetThreadCount:    true,
+			GetIOReadBytes:    true,
+			GetIOWriteBytes:   true,
+			GetArchitecture:   true,
+			GetCommandLine:    true,
+			GetExecutablePath: true,
+			GetCreationDate:   true,
 		}
 	}
 	major, _, _ := api.GetVersionNumber()
-	tl := taskList{
-		opts:  opts,
-		major: major,
+	ps := process{
+		opts:     opts,
+		isARM:    strings.Contains(runtime.GOARCH, "arm"),
+		majorVer: major,
 	}
 	if api.IsSystem64Bit(true) {
 		modKernel32 := windows.NewLazySystemDLL("kernel32.dll")
@@ -70,50 +78,50 @@ func NewTaskList(opts *Options) (TaskList, error) {
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
-		tl.modKernel32 = modKernel32
-		tl.isWow64 = proc
+		ps.modKernel32 = modKernel32
+		ps.procIsWow64 = proc
 	}
-	return &tl, nil
+	return &ps, nil
 }
 
-func (tl *taskList) GetProcesses() ([]*Process, error) {
+func (ps *process) GetProcesses() ([]*PsInfo, error) {
 	list, err := api.GetProcessList()
 	if err != nil {
 		return nil, err
 	}
 	l := len(list)
-	processes := make([]*Process, l)
+	processes := make([]*PsInfo, l)
 	for i := 0; i < l; i++ {
-		processes[i] = &Process{
+		processes[i] = &PsInfo{
 			Name: list[i].Name,
 			PID:  int64(list[i].PID),
 			PPID: int64(list[i].PPID),
 		}
-		if tl.opts.ShowThreadCount {
+		if ps.opts.ShowThreadCount {
 			processes[i].ThreadCount = list[i].Threads
 		}
-		tl.getProcessInfo(processes[i])
+		ps.getProcessInfo(processes[i])
 	}
 	return processes, nil
 }
 
-func (tl *taskList) getProcessInfo(process *Process) {
-	pHandle, err := tl.openProcess(process.PID)
+func (ps *process) getProcessInfo(process *PsInfo) {
+	pHandle, err := ps.openProcess(process.PID)
 	if err != nil {
 		return
 	}
 	defer api.CloseHandle(pHandle)
-	if tl.opts.ShowUsername {
+	if ps.opts.GetUsername {
 		process.Username = getProcessUsername(pHandle)
 	}
-	if tl.opts.ShowArchitecture {
-		process.Architecture = tl.getProcessArchitecture(pHandle)
+	if ps.opts.ShowArchitecture {
+		process.Architecture = ps.getProcessArchitecture(pHandle)
 	}
 }
 
-func (tl *taskList) openProcess(pid int64) (windows.Handle, error) {
+func (ps *process) openProcess(pid int64) (windows.Handle, error) {
 	var da uint32
-	if tl.major < 6 {
+	if ps.major < 6 {
 		da = windows.PROCESS_QUERY_INFORMATION
 	} else {
 		da = windows.PROCESS_QUERY_LIMITED_INFORMATION
@@ -138,14 +146,16 @@ func getProcessUsername(handle windows.Handle) string {
 	return domain + "\\" + account
 }
 
-func (tl *taskList) getProcessArchitecture(handle windows.Handle) string {
-	if tl.isWow64 == nil {
+func (ps *process) getProcessArchitecture(handle windows.Handle) string {
+	if ps.isARM {
+		return ""
+	}
+
+	if ps.procIsWow64 == nil {
 		return "x86"
 	}
 	var wow64 bool
-	ret, _, _ := tl.isWow64.Call(
-		uintptr(handle), uintptr(unsafe.Pointer(&wow64)),
-	) // #nosec
+	ret, _, _ := ps.isWow64.Call(uintptr(handle), uintptr(unsafe.Pointer(&wow64))) // #nosec
 	if ret == 0 {
 		return ""
 	}
@@ -155,12 +165,12 @@ func (tl *taskList) getProcessArchitecture(handle windows.Handle) string {
 	return "x64"
 }
 
-func (tl *taskList) Close() (err error) {
-	if tl.modKernel32 == nil {
+func (ps *process) Close() (err error) {
+	if ps.modKernel32 == nil {
 		return
 	}
-	tl.closeOnce.Do(func() {
-		handle := windows.Handle(tl.modKernel32.Handle())
+	ps.closeOnce.Do(func() {
+		handle := windows.Handle(ps.modKernel32.Handle())
 		err = windows.FreeLibrary(handle)
 	})
 	return

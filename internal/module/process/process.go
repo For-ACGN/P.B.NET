@@ -6,17 +6,32 @@ import (
 	"unsafe"
 )
 
-// TaskList is used to get current process list.
-type TaskList interface {
-	GetProcesses() ([]*Process, error)
+// Process is a module about process.
+type Process interface {
+	// GetList is used to get process list.
+	GetList() ([]*PsInfo, error)
+
+	// Create is used to create process with options.
+	Create(name, opts *CreateOptions) error
+
+	// Kill is used to kill process.
+	Kill(pid int64, force bool) error
+
+	// KillTree is used to kill process tree.
+	KillTree(pid int64, force bool) error
+
+	// SendSignal is used to send signal to process.
+	SendSignal(pid int64, signal uint8) error
+
+	// Close is used to close module for release resource.
 	Close() error
 }
 
-// Process contains information about process.
-type Process struct {
-	Name string
-	PID  int64
-	PPID int64
+// PsInfo contains information about process.
+type PsInfo struct {
+	Name string // must not be zero value
+	PID  int64  // must not be zero value
+	PPID int64  // must not be zero value
 
 	SessionID uint32
 	Username  string
@@ -24,6 +39,7 @@ type Process struct {
 	// for calculate CPU usage
 	UserModeTime   uint64
 	KernelModeTime uint64
+
 	// for calculate Memory usage
 	MemoryUsed uint64
 
@@ -40,20 +56,23 @@ type Process struct {
 }
 
 // ID is used to identified this Process.
-func (p *Process) ID() string {
-	id := make([]byte, 16) // PID + timestamp
-	binary.BigEndian.PutUint64(id, uint64(p.PID))
-	binary.BigEndian.PutUint64(id[8:], uint64(p.CreationDate.UnixNano()))
-	return *(*string)(unsafe.Pointer(&id)) // #nosec
+func (info *PsInfo) ID() string {
+	id := make([]byte, 8)
+	binary.BigEndian.PutUint64(id, uint64(info.PID+info.PPID))
+	return info.Name + *(*string)(unsafe.Pointer(&id)) // #nosec
 }
 
-// for compare package
-type processes []*Process
-
-func (ps processes) Len() int {
-	return len(ps)
+// Clone is used to clone information about this process.
+func (info *PsInfo) Clone() *PsInfo {
+	i := *info
+	return &i
 }
 
-func (ps processes) ID(i int) string {
-	return ps[i].ID()
+// CreateOptions contain options about create process.
+type CreateOptions struct {
+	CommandLine   string
+	Directory     string
+	Environment   []string
+	CreationFlags uint32
+	HideWindow    bool
 }

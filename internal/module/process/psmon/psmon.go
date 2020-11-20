@@ -143,6 +143,17 @@ func (mon *Monitor) Refresh() error {
 	return nil
 }
 
+// for compare package
+type processes []*PsInfo
+
+func (ps processes) Len() int {
+	return len(ps)
+}
+
+func (ps processes) ID(i int) string {
+	return ps[i].ID()
+}
+
 type dataSource struct {
 	processes []*Process
 }
