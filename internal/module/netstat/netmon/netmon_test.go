@@ -36,10 +36,10 @@ func TestMonitor(t *testing.T) {
 
 	time.Sleep(3 * time.Second)
 
-	monitor.GetTCP4Conns()
-	monitor.GetTCP6Conns()
-	monitor.GetUDP4Conns()
-	monitor.GetUDP6Conns()
+	require.NotEmpty(t, monitor.GetTCP4Conns())
+	require.NotEmpty(t, monitor.GetTCP6Conns())
+	require.NotEmpty(t, monitor.GetUDP4Conns())
+	require.NotEmpty(t, monitor.GetUDP6Conns())
 
 	err = monitor.Close()
 	require.NoError(t, err)

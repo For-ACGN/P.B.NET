@@ -26,7 +26,7 @@ const (
 	EventConnClosed
 )
 
-// EventHandler is used to handle appeared event, data type can be []interface{} that include
+// EventHandler is used to handle event, data type can be []interface{} that include
 // *netstat.TCP4Conn, *netstat.TCP6Conn, *netstat.UDP4Conn, *netstat.UDP6Conn
 type EventHandler func(ctx context.Context, event uint8, data interface{})
 
@@ -226,11 +226,11 @@ func (mon *Monitor) Refresh() error {
 		udp6Conns: udp6Conns,
 	}
 	if mon.handler != nil {
-		result := mon.compare(ds)
-		mon.refresh(ds)
-		mon.notice(result)
+		mon.notice(mon.compare(ds))
 		return nil
 	}
+	mon.connsRWM.Lock()
+	defer mon.connsRWM.Unlock()
 	mon.refresh(ds)
 	return nil
 }
@@ -295,49 +295,49 @@ func (mon *Monitor) compare(ds *dataSource) *compareResult {
 		createdConns []interface{}
 		closedConns  []interface{}
 	)
-	mon.connsRWM.RLock()
-	defer mon.connsRWM.RUnlock()
+	mon.connsRWM.Lock()
+	defer mon.connsRWM.Unlock()
 	// TCP4
 	added, deleted := compare.UniqueSlice(tcp4Conns(ds.tcp4Conns), tcp4Conns(mon.tcp4Conns))
 	for i := 0; i < len(added); i++ {
-		createdConns = append(createdConns, ds.tcp4Conns[added[i]])
+		createdConns = append(createdConns, ds.tcp4Conns[added[i]].Clone())
 	}
 	for i := 0; i < len(deleted); i++ {
-		closedConns = append(closedConns, mon.tcp4Conns[deleted[i]])
+		closedConns = append(closedConns, mon.tcp4Conns[deleted[i]].Clone())
 	}
 	// TCP6
 	added, deleted = compare.UniqueSlice(tcp6Conns(ds.tcp6Conns), tcp6Conns(mon.tcp6Conns))
 	for i := 0; i < len(added); i++ {
-		createdConns = append(createdConns, ds.tcp6Conns[added[i]])
+		createdConns = append(createdConns, ds.tcp6Conns[added[i]].Clone())
 	}
 	for i := 0; i < len(deleted); i++ {
-		closedConns = append(closedConns, mon.tcp6Conns[deleted[i]])
+		closedConns = append(closedConns, mon.tcp6Conns[deleted[i]].Clone())
 	}
 	// UDP4
 	added, deleted = compare.UniqueSlice(udp4Conns(ds.udp4Conns), udp4Conns(mon.udp4Conns))
 	for i := 0; i < len(added); i++ {
-		createdConns = append(createdConns, ds.udp4Conns[added[i]])
+		createdConns = append(createdConns, ds.udp4Conns[added[i]].Clone())
 	}
 	for i := 0; i < len(deleted); i++ {
-		closedConns = append(closedConns, mon.udp4Conns[deleted[i]])
+		closedConns = append(closedConns, mon.udp4Conns[deleted[i]].Clone())
 	}
 	// UDP6
 	added, deleted = compare.UniqueSlice(udp6Conns(ds.udp6Conns), udp6Conns(mon.udp6Conns))
 	for i := 0; i < len(added); i++ {
-		createdConns = append(createdConns, ds.udp6Conns[added[i]])
+		createdConns = append(createdConns, ds.udp6Conns[added[i]].Clone())
 	}
 	for i := 0; i < len(deleted); i++ {
-		closedConns = append(closedConns, mon.udp6Conns[deleted[i]])
+		closedConns = append(closedConns, mon.udp6Conns[deleted[i]].Clone())
 	}
-	return &compareResult{
+	cr := compareResult{
 		createdConns: createdConns,
 		closedConns:  closedConns,
 	}
+	mon.refresh(ds)
+	return &cr
 }
 
 func (mon *Monitor) refresh(ds *dataSource) {
-	mon.connsRWM.Lock()
-	defer mon.connsRWM.Unlock()
 	mon.tcp4Conns = ds.tcp4Conns
 	mon.tcp6Conns = ds.tcp6Conns
 	mon.udp4Conns = ds.udp4Conns
@@ -357,28 +357,48 @@ func (mon *Monitor) notice(result *compareResult) {
 func (mon *Monitor) GetTCP4Conns() []*netstat.TCP4Conn {
 	mon.connsRWM.RLock()
 	defer mon.connsRWM.RUnlock()
-	return mon.tcp4Conns
+	l := len(mon.tcp4Conns)
+	conns := make([]*netstat.TCP4Conn, l)
+	for i := 0; i < l; i++ {
+		conns[i] = mon.tcp4Conns[i].Clone()
+	}
+	return conns
 }
 
 // GetTCP6Conns is used to get tcp6 connections that stored in monitor.
 func (mon *Monitor) GetTCP6Conns() []*netstat.TCP6Conn {
 	mon.connsRWM.RLock()
 	defer mon.connsRWM.RUnlock()
-	return mon.tcp6Conns
+	l := len(mon.tcp6Conns)
+	conns := make([]*netstat.TCP6Conn, l)
+	for i := 0; i < l; i++ {
+		conns[i] = mon.tcp6Conns[i].Clone()
+	}
+	return conns
 }
 
 // GetUDP4Conns is used to get udp4 connections that stored in monitor.
 func (mon *Monitor) GetUDP4Conns() []*netstat.UDP4Conn {
 	mon.connsRWM.RLock()
 	defer mon.connsRWM.RUnlock()
-	return mon.udp4Conns
+	l := len(mon.udp4Conns)
+	conns := make([]*netstat.UDP4Conn, l)
+	for i := 0; i < l; i++ {
+		conns[i] = mon.udp4Conns[i].Clone()
+	}
+	return conns
 }
 
 // GetUDP6Conns is used to get udp6 connections that stored in monitor.
 func (mon *Monitor) GetUDP6Conns() []*netstat.UDP6Conn {
 	mon.connsRWM.RLock()
 	defer mon.connsRWM.RUnlock()
-	return mon.udp6Conns
+	l := len(mon.udp6Conns)
+	conns := make([]*netstat.UDP6Conn, l)
+	for i := 0; i < l; i++ {
+		conns[i] = mon.udp6Conns[i].Clone()
+	}
+	return conns
 }
 
 // Pause is used to pause auto refresh.
