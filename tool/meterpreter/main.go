@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"project/internal/module/meterpreter"
+	"project/internal/module/spawn/meterpreter"
 )
 
 func main() {
