@@ -1,6 +1,6 @@
 // +build !windows
 
-package taskmgr
+package process
 
 import (
 	"errors"

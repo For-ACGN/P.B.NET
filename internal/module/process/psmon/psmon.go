@@ -1,4 +1,4 @@
-package taskmgr
+package psmon
 
 import (
 	"context"
@@ -7,13 +7,13 @@ import (
 
 	"project/internal/compare"
 	"project/internal/logger"
-	"project/internal/module/control"
+	"project/internal/task/pauser"
 	"project/internal/xpanic"
 )
 
 const (
-	defaultRefreshInterval = time.Second
-	minimumRefreshInterval = 250 * time.Millisecond
+	defaultRefreshInterval = 500 * time.Millisecond
+	minimumRefreshInterval = 100 * time.Millisecond
 )
 
 // about events
@@ -32,10 +32,10 @@ type Monitor struct {
 	logger  logger.Logger
 	handler EventHandler
 
-	controller *control.Controller
-	tasklist   TaskList
-	interval   time.Duration
-	rwm        sync.RWMutex
+	pauser   *pauser.Pauser
+	tasklist TaskList
+	interval time.Duration
+	rwm      sync.RWMutex
 
 	// about check system status
 	processes []*Process
@@ -54,12 +54,12 @@ func NewMonitor(logger logger.Logger, handler EventHandler, opts *Options) (*Mon
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	monitor := Monitor{
-		logger:     logger,
-		controller: control.NewController(ctx),
-		tasklist:   tasklist,
-		interval:   defaultRefreshInterval,
-		ctx:        ctx,
-		cancel:     cancel,
+		logger:   logger,
+		pauser:   pauser.New(ctx),
+		tasklist: tasklist,
+		interval: defaultRefreshInterval,
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 	// refresh before refreshLoop, and not set eventHandler.
 	err = monitor.Refresh()
@@ -108,7 +108,7 @@ func (mon *Monitor) refreshLoop() {
 	timer := time.NewTimer(mon.GetInterval())
 	defer timer.Stop()
 	for {
-		mon.controller.Paused()
+		mon.pauser.Paused()
 		select {
 		case <-timer.C:
 			err := mon.Refresh()
@@ -197,12 +197,12 @@ func (mon *Monitor) GetProcesses() []*Process {
 
 // Pause is used to pause auto refresh.
 func (mon *Monitor) Pause() {
-	mon.controller.Pause()
+	mon.pauser.Pause()
 }
 
 // Continue is used to continue auto refresh.
 func (mon *Monitor) Continue() {
-	mon.controller.Continue()
+	mon.pauser.Continue()
 }
 
 // Close is used to close network status monitor.

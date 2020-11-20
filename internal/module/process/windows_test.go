@@ -1,4 +1,6 @@
-package taskmgr
+// +build windows
+
+package process
 
 import (
 	"fmt"

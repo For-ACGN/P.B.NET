@@ -1,4 +1,4 @@
-package taskmgr
+package psmon
 
 import (
 	"context"
