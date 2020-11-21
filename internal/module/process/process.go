@@ -9,8 +9,8 @@ import (
 
 // Process is a module about process.
 type Process interface {
-	// GetList is used to get process list.
-	GetList() ([]*PsInfo, error)
+	// List is used to get process list.
+	List() ([]*PsInfo, error)
 
 	// Create is used to create process with options.
 	Create(name string, opts *CreateOptions) (*os.Process, error)
@@ -21,8 +21,8 @@ type Process interface {
 	// KillTree is used to kill process tree.
 	KillTree(pid int) error
 
-	// SendSignal is used to send signal to process.
-	SendSignal(pid int, signal os.Signal) error
+	// Signal is used to signal to process.
+	Signal(pid int, signal os.Signal) error
 
 	// Close is used to close module for release resource.
 	Close() error

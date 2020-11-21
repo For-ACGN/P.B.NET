@@ -16,7 +16,7 @@ func TestProcess(t *testing.T) {
 	process, err := New(nil)
 	require.NoError(t, err)
 
-	processes, err := process.GetList()
+	processes, err := process.List()
 	require.NoError(t, err)
 
 	require.NotEmpty(t, processes)

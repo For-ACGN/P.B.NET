@@ -18,7 +18,7 @@ import (
 	"project/internal/testsuite"
 )
 
-func TestProcess_GetList(t *testing.T) {
+func TestProcess_List(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
@@ -28,7 +28,7 @@ func TestProcess_GetList(t *testing.T) {
 	process, err := New(nil)
 	require.NoError(t, err)
 
-	processes, err := process.GetList()
+	processes, err := process.List()
 	require.NoError(t, err)
 
 	require.NotEmpty(t, processes)
@@ -148,16 +148,14 @@ func TestProcess_KillTree(t *testing.T) {
 			pg.Unpatch()
 			defer pg.Restore()
 			// check process name is cmd.exe
-			// because kill conhost.exe maybe failed
+			// because kill conhost.exe maybe failed (it is terminated)
 			name, err := api.GetProcessNameByPID(uint32(pid))
 			require.NoError(t, err)
-			if name == "cmd.exe" {
-				err = p.Kill(pid)
-				require.NoError(t, err)
+			if name != "cmd.exe" {
+				return nil
 			}
-			if pid != cmd.Process.Pid {
-				return monkey.Error
-			}
+			err = p.Kill(pid)
+			require.NoError(t, err)
 			return nil
 		}
 		pg = monkey.PatchInstanceMethod(process, "Kill", patch)
@@ -203,7 +201,7 @@ func TestProcess_KillTree(t *testing.T) {
 			pg.Unpatch()
 			defer pg.Restore()
 			// check process name is cmd.exe
-			// because kill conhost.exe maybe failed
+			// because kill conhost.exe maybe failed(it is terminated)
 			name, err := api.GetProcessNameByPID(uint32(pid))
 			require.NoError(t, err)
 			if name == "cmd.exe" {
@@ -235,10 +233,66 @@ func TestProcess_KillTree(t *testing.T) {
 	testsuite.IsDestroyed(t, process)
 }
 
-func TestProcess_SendSignal(t *testing.T) {
+func TestProcess_Signal(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
 
+	process, err := New(nil)
+	require.NoError(t, err)
+
+	t.Run("common", func(t *testing.T) {
+		ps, err := process.Create("notepad.exe", nil)
+		require.NoError(t, err)
+
+		err = process.Signal(ps.Pid, os.Kill)
+		require.NoError(t, err)
+	})
+
+	t.Run("failed to find process", func(t *testing.T) {
+		err = process.Signal(123456789, os.Kill)
+		require.Error(t, err)
+	})
+
+	t.Run("failed to signal", func(t *testing.T) {
+		ps, err := process.Create("notepad.exe", nil)
+		require.NoError(t, err)
+
+		err = process.Signal(ps.Pid, os.Interrupt)
+		require.Error(t, err)
+
+		err = ps.Kill()
+		require.NoError(t, err)
+	})
+
+	err = process.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, process)
 }
 
 func TestProcess_Close(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
 
+	t.Run("common", func(t *testing.T) {
+		process, err := New(nil)
+		require.NoError(t, err)
+
+		err = process.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, process)
+	})
+
+	t.Run("nil modKernel32", func(t *testing.T) {
+		p, err := New(nil)
+		require.NoError(t, err)
+
+		p.(*process).modKernel32 = nil
+
+		err = p.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, p)
+	})
 }

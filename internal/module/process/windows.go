@@ -95,7 +95,7 @@ func New(opts *Options) (Process, error) {
 	return &ps, nil
 }
 
-func (ps *process) GetList() ([]*PsInfo, error) {
+func (ps *process) List() ([]*PsInfo, error) {
 	list, err := api.GetProcessList()
 	if err != nil {
 		return nil, err
@@ -248,7 +248,7 @@ func (ps *process) KillTree(pid int) error {
 	return nil
 }
 
-func (ps *process) SendSignal(pid int, signal os.Signal) error {
+func (ps *process) Signal(pid int, signal os.Signal) error {
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find process %d", pid)
