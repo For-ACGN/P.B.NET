@@ -139,8 +139,12 @@ func (mon *Monitor) SetOptions(opts *netstat.Options) error {
 	}
 	var ok bool
 	defer func() {
-		if !ok {
-			_ = ns.Close()
+		if ok {
+			return
+		}
+		err = ns.Close()
+		if err != nil {
+			mon.log(logger.Error, "failed to close netstat:", err)
 		}
 	}()
 	err = mon.netstat.Close()
@@ -174,8 +178,10 @@ func (mon *Monitor) refreshLoop() {
 		select {
 		case <-timer.C:
 			err := mon.Refresh()
-			if err != nil && err != ErrMonitorClosed {
-				mon.log(logger.Error, "failed to refresh:", err)
+			if err != nil {
+				if err != ErrMonitorClosed {
+					mon.log(logger.Error, "failed to refresh:", err)
+				}
 				return
 			}
 		case <-mon.ctx.Done():
@@ -444,12 +450,12 @@ func (mon *Monitor) GetUDP6Conns() []*netstat.UDP6Conn {
 	return conns
 }
 
-// Pause is used to pause auto refresh.
+// Pause is used to pause refresh automatically.
 func (mon *Monitor) Pause() {
 	mon.pauser.Pause()
 }
 
-// Continue is used to continue auto refresh.
+// Continue is used to continue refresh automatically.
 func (mon *Monitor) Continue() {
 	mon.pauser.Continue()
 }
