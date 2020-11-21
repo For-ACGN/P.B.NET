@@ -3,6 +3,7 @@
 package api
 
 import (
+	"unicode/utf16"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -96,6 +97,81 @@ func OpenProcess(desiredAccess uint32, inheritHandle bool, pid uint32) (windows.
 		return 0, newErrorf(name, err, "failed to open process with PID %d", pid)
 	}
 	return hProcess, nil
+}
+
+// CreateProcess to run a new program. It creates a new process and its primary thread.
+// The new process runs the specified executable file.
+func CreateProcess(
+	imageName, commandLine string,
+	procSecurity *windows.SecurityAttributes,
+	threadSecurity *windows.SecurityAttributes,
+	inheritHandles bool, creationFlags uint32,
+	env []string, currentDir string,
+	startupInfo *windows.StartupInfo,
+) (*windows.ProcessInformation, error) {
+	const name = "CreateProcess"
+	imageNamePtr, err := windows.UTF16PtrFromString(imageName)
+	if err != nil {
+		return nil, newError(name, err, "invalid image name")
+	}
+	commandLinePtr, err := windows.UTF16PtrFromString(commandLine)
+	if err != nil {
+		return nil, newError(name, err, "invalid command line")
+	}
+	currentDirPtr, err := windows.UTF16PtrFromString(currentDir)
+	if err != nil {
+		return nil, newError(name, err, "invalid current directory")
+	}
+	ProcInfo := new(windows.ProcessInformation)
+	err = windows.CreateProcess(
+		imageNamePtr, commandLinePtr, procSecurity,
+		threadSecurity, inheritHandles, creationFlags,
+		createEnvBlock(env), currentDirPtr, startupInfo,
+		ProcInfo,
+	)
+	if err != nil {
+		return nil, newErrorf(name, err, "failed to create process %s", imageName)
+	}
+	return ProcInfo, nil
+}
+
+// createEnvBlock converts an array of environment strings into
+// the representation required by CreateProcess: a sequence of NUL
+// terminated strings followed by a nil.
+// Last bytes are two UCS-2 NULs, or four NUL bytes.
+//
+// from GOROOT/src/syscall/exec_windows.go
+func createEnvBlock(env []string) *uint16 {
+	if len(env) == 0 {
+		return &utf16.Encode([]rune("\x00\x00"))[0]
+	}
+	length := 0
+	for _, s := range env {
+		length += len(s) + 1
+	}
+	length += 1
+
+	b := make([]byte, length)
+	i := 0
+	for _, s := range env {
+		l := len(s)
+		copy(b[i:i+l], s)
+		copy(b[i+l:i+l+1], []byte{0})
+		i = i + l + 1
+	}
+	copy(b[i:i+1], []byte{0})
+
+	return &utf16.Encode([]rune(string(b)))[0]
+}
+
+// TerminateProcess is used to terminate the specified process and all of its threads.
+func TerminateProcess(handle windows.Handle, exitCode uint32) error {
+	const name = "TerminateProcess"
+	err := windows.TerminateProcess(handle, exitCode)
+	if err != nil {
+		return newError(name, err, "failed to terminate process")
+	}
+	return nil
 }
 
 // information class about NTQueryInformationProcess.
