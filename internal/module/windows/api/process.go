@@ -6,6 +6,7 @@ import (
 	"unicode/utf16"
 	"unsafe"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/windows"
 )
 
@@ -87,6 +88,21 @@ func GetProcessIDByName(n string) ([]uint32, error) {
 		return nil, newErrorf(name, nil, "process \"%s\" is not found", n)
 	}
 	return pid, nil
+}
+
+// GetProcessNameByPID is used to get process name by pid.
+func GetProcessNameByPID(pid uint32) (string, error) {
+	const name = "GetProcessNameByPID"
+	processes, err := GetProcessList()
+	if err != nil {
+		return "", newError(name, err, "failed to get process list")
+	}
+	for _, process := range processes {
+		if process.PID == pid {
+			return process.Name, nil
+		}
+	}
+	return "", errors.Errorf("failed to find process %d", pid)
 }
 
 // OpenProcess is used to open process by PID and return process handle.
