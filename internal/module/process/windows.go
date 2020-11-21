@@ -194,7 +194,7 @@ func (ps *process) Create(name string, opts *CreateOptions) (*os.Process, error)
 	cmd.Dir = opts.Directory
 	cmd.Env = opts.Environment
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    opts.HideWindow,
+		HideWindow:    !opts.ShowWindow,
 		CreationFlags: opts.CreationFlags,
 	}
 	err := cmd.Start()
@@ -222,20 +222,17 @@ func (ps *process) Kill(pid int) error {
 	defer api.CloseHandle(hProcess)
 	err = api.TerminateProcess(hProcess, 1)
 	if err != nil {
-		return err
+		return errors.WithMessagef(err, "failed to kill process %d", pid)
 	}
 	return nil
 }
 
 func (ps *process) KillTree(pid int) error {
-	err := ps.Kill(pid)
-	if err != nil {
-		return err
-	}
 	list, err := api.GetProcessList()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "failed to get process list")
 	}
+	err = ps.Kill(pid)
 	for i := 0; i < len(list); i++ {
 		if int(list[i].PPID) != pid {
 			continue

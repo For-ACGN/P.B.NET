@@ -4,6 +4,7 @@ package process
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -123,7 +124,115 @@ func TestProcess_Kill(t *testing.T) {
 }
 
 func TestProcess_KillTree(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
 
+	process, err := New(nil)
+	require.NoError(t, err)
+
+	t.Run("common", func(t *testing.T) {
+		cmd := exec.Command("cmd.exe")
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		cmd.Stdin = r
+
+		err = cmd.Start()
+		require.NoError(t, err)
+		_, err = w.WriteString("start\n")
+		require.NoError(t, err)
+		// wait start sub process
+		time.Sleep(time.Second)
+
+		var pg *monkey.PatchGuard
+		patch := func(p Process, pid int) error {
+			pg.Unpatch()
+			defer pg.Restore()
+			// check process name is cmd.exe
+			// because kill conhost.exe maybe failed
+			name, err := api.GetProcessNameByPID(uint32(pid))
+			require.NoError(t, err)
+			if name == "cmd.exe" {
+				err = p.Kill(pid)
+				require.NoError(t, err)
+			}
+			if pid != cmd.Process.Pid {
+				return monkey.Error
+			}
+			return nil
+		}
+		pg = monkey.PatchInstanceMethod(process, "Kill", patch)
+		defer pg.Unpatch()
+
+		err = process.KillTree(cmd.Process.Pid)
+		require.NoError(t, err)
+
+		// exit status 1
+		err = cmd.Wait()
+		require.Error(t, err)
+
+		err = w.Close()
+		require.NoError(t, err)
+	})
+
+	t.Run("failed to get process list", func(t *testing.T) {
+		patch := func() ([]*api.ProcessBasicInfo, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.Patch(api.GetProcessList, patch)
+		defer pg.Unpatch()
+
+		err = process.KillTree(0)
+		monkey.IsExistMonkeyError(t, err)
+	})
+
+	t.Run("failed to kill sub process", func(t *testing.T) {
+		cmd := exec.Command("cmd.exe")
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		cmd.Stdin = r
+
+		err = cmd.Start()
+		require.NoError(t, err)
+		_, err = w.WriteString("start\n")
+		require.NoError(t, err)
+		// wait start sub process
+		time.Sleep(time.Second)
+
+		var pg *monkey.PatchGuard
+		patch := func(p Process, pid int) error {
+			pg.Unpatch()
+			defer pg.Restore()
+			// check process name is cmd.exe
+			// because kill conhost.exe maybe failed
+			name, err := api.GetProcessNameByPID(uint32(pid))
+			require.NoError(t, err)
+			if name == "cmd.exe" {
+				err = p.Kill(pid)
+				require.NoError(t, err)
+			}
+			if pid != cmd.Process.Pid {
+				return monkey.Error
+			}
+			return nil
+		}
+		pg = monkey.PatchInstanceMethod(process, "Kill", patch)
+		defer pg.Unpatch()
+
+		err = process.KillTree(cmd.Process.Pid)
+		monkey.IsExistMonkeyError(t, err)
+
+		// exit status 1
+		err = cmd.Wait()
+		require.Error(t, err)
+
+		err = w.Close()
+		require.NoError(t, err)
+	})
+
+	err = process.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, process)
 }
 
 func TestProcess_SendSignal(t *testing.T) {

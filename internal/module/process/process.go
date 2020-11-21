@@ -76,6 +76,6 @@ type CreateOptions struct {
 	CommandLine   string
 	Directory     string
 	Environment   []string
-	HideWindow    bool
+	ShowWindow    bool
 	CreationFlags uint32
 }
