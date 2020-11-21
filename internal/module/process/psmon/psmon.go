@@ -2,11 +2,15 @@ package psmon
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"project/internal/compare"
 	"project/internal/logger"
+	"project/internal/module/process"
 	"project/internal/task/pauser"
 	"project/internal/xpanic"
 )
@@ -16,30 +20,40 @@ const (
 	minimumRefreshInterval = 100 * time.Millisecond
 )
 
-// about events
+// events about monitor.
 const (
 	_ uint8 = iota
 	EventProcessCreated
 	EventProcessTerminated
 )
 
-// EventHandler is used to handle appeared event.
-// data type can be []*Process.
+// ErrMonitorClosed is an error that monitor is closed.
+var ErrMonitorClosed = fmt.Errorf("monitor is closed")
+
+// EventHandler is used to handle events, data type can be []*Process.
 type EventHandler func(ctx context.Context, event uint8, data interface{})
 
-// Monitor is used tp monitor system status about current system.
+// Options contains options about process monitor.
+type Options struct {
+	Interval time.Duration
+	Process  *process.Options
+}
+
+// Monitor is used tp monitor process..
 type Monitor struct {
 	logger  logger.Logger
 	handler EventHandler
 
-	pauser   *pauser.Pauser
-	tasklist TaskList
+	pauser *pauser.Pauser
+
+	process  process.Process
 	interval time.Duration
+	closed   bool
 	rwm      sync.RWMutex
 
-	// about check system status
-	processes []*Process
-	statusRWM sync.RWMutex
+	// for compare difference
+	processes    []*process.PsInfo
+	processesRWM sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -47,29 +61,47 @@ type Monitor struct {
 }
 
 // NewMonitor is used to create a system status monitor.
-func NewMonitor(logger logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
-	tasklist, err := NewTaskList(opts)
+func NewMonitor(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
+	if opts == nil {
+		opts = new(Options)
+	}
+	ps, err := process.New(opts.Process)
 	if err != nil {
 		return nil, err
 	}
+	var ok bool
+	defer func() {
+		if ok {
+			return
+		}
+		err := ps.Close()
+		if err != nil {
+			lg.Println(logger.Error, "process monitor", "failed to close process module:", err)
+		}
+	}()
+	interval := opts.Interval
+	if interval < minimumRefreshInterval {
+		interval = minimumRefreshInterval
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	monitor := Monitor{
-		logger:   logger,
+		logger:   lg,
 		pauser:   pauser.New(ctx),
-		tasklist: tasklist,
-		interval: defaultRefreshInterval,
+		process:  ps,
+		interval: interval,
 		ctx:      ctx,
 		cancel:   cancel,
 	}
 	// refresh before refreshLoop, and not set eventHandler.
 	err = monitor.Refresh()
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "failed to get the initial process data")
 	}
 	// not trigger eventHandler before first refresh.
 	monitor.handler = handler
 	monitor.wg.Add(1)
 	go monitor.refreshLoop()
+	ok = true
 	return &monitor, nil
 }
 
@@ -90,8 +122,38 @@ func (mon *Monitor) SetInterval(interval time.Duration) {
 	mon.interval = interval
 }
 
+// SetOptions is used to update process module options.
+func (mon *Monitor) SetOptions(opts *process.Options) error {
+	mon.rwm.Lock()
+	defer mon.rwm.Unlock()
+	if mon.closed {
+		return ErrMonitorClosed
+	}
+	ps, err := process.New(opts)
+	if err != nil {
+		return err
+	}
+	var ok bool
+	defer func() {
+		if ok {
+			return
+		}
+		err = ps.Close()
+		if err != nil {
+			mon.log(logger.Error, "failed to close process module:", err)
+		}
+	}()
+	err = mon.process.Close()
+	if err != nil {
+		return err
+	}
+	mon.process = ps
+	ok = true
+	return nil
+}
+
 func (mon *Monitor) log(lv logger.Level, log ...interface{}) {
-	mon.logger.Println(lv, "system monitor", log...)
+	mon.logger.Println(lv, "process monitor", log...)
 }
 
 func (mon *Monitor) refreshLoop() {
@@ -113,7 +175,9 @@ func (mon *Monitor) refreshLoop() {
 		case <-timer.C:
 			err := mon.Refresh()
 			if err != nil {
-				mon.log(logger.Error, "failed to refresh:", err)
+				if err != ErrMonitorClosed {
+					mon.log(logger.Error, "failed to refresh:", err)
+				}
 				return
 			}
 		case <-mon.ctx.Done():
@@ -125,7 +189,12 @@ func (mon *Monitor) refreshLoop() {
 
 // Refresh is used to refresh current system status at once.
 func (mon *Monitor) Refresh() error {
-	processes, err := mon.tasklist.GetProcesses()
+	mon.rwm.RLock()
+	defer mon.rwm.RUnlock()
+	if mon.closed {
+		return ErrMonitorClosed
+	}
+	processes, err := mon.process.List()
 	if err != nil {
 		return err
 	}
@@ -133,18 +202,17 @@ func (mon *Monitor) Refresh() error {
 		processes: processes,
 	}
 	if mon.handler != nil {
-		result := mon.compare(ds)
-		mon.refresh(ds)
-		mon.notice(result)
+		mon.compare(ds)
 		return nil
 	}
+	mon.processesRWM.Lock()
+	defer mon.processesRWM.Unlock()
 	mon.refresh(ds)
-
 	return nil
 }
 
 // for compare package
-type processes []*PsInfo
+type processes []*process.PsInfo
 
 func (ps processes) Len() int {
 	return len(ps)
@@ -155,38 +223,40 @@ func (ps processes) ID(i int) string {
 }
 
 type dataSource struct {
-	processes []*Process
+	processes []*process.PsInfo
 }
 
 type compareResult struct {
-	createdProcesses  []*Process
-	terminatedProcess []*Process
+	createdProcesses  []*process.PsInfo
+	terminatedProcess []*process.PsInfo
 }
 
 // compare is used to compare between stored in monitor.
-func (mon *Monitor) compare(ds *dataSource) *compareResult {
+func (mon *Monitor) compare(ds *dataSource) {
 	var (
-		createdProcesses  []*Process
-		terminatedProcess []*Process
+		createdProcesses  []*process.PsInfo
+		terminatedProcess []*process.PsInfo
 	)
-	mon.statusRWM.RLock()
-	defer mon.statusRWM.RUnlock()
+	defer func() {
+		mon.notice(&compareResult{
+			createdProcesses:  createdProcesses,
+			terminatedProcess: terminatedProcess,
+		})
+	}()
+	mon.processesRWM.Lock()
+	defer mon.processesRWM.Unlock()
+	defer mon.refresh(ds)
+
 	added, deleted := compare.UniqueSlice(processes(ds.processes), processes(mon.processes))
 	for i := 0; i < len(added); i++ {
-		createdProcesses = append(createdProcesses, ds.processes[added[i]])
+		createdProcesses = append(createdProcesses, ds.processes[added[i]].Clone())
 	}
 	for i := 0; i < len(deleted); i++ {
-		terminatedProcess = append(terminatedProcess, mon.processes[deleted[i]])
-	}
-	return &compareResult{
-		createdProcesses:  createdProcesses,
-		terminatedProcess: terminatedProcess,
+		terminatedProcess = append(terminatedProcess, mon.processes[deleted[i]].Clone())
 	}
 }
 
 func (mon *Monitor) refresh(ds *dataSource) {
-	mon.statusRWM.Lock()
-	defer mon.statusRWM.Unlock()
 	mon.processes = ds.processes
 }
 
@@ -200,25 +270,37 @@ func (mon *Monitor) notice(result *compareResult) {
 }
 
 // GetProcesses is used to get processes that stored in monitor.
-func (mon *Monitor) GetProcesses() []*Process {
-	mon.statusRWM.RLock()
-	defer mon.statusRWM.RUnlock()
-	return mon.processes
+func (mon *Monitor) GetProcesses() []*process.PsInfo {
+	mon.processesRWM.RLock()
+	defer mon.processesRWM.RUnlock()
+	l := len(mon.processes)
+	processes := make([]*process.PsInfo, l)
+	for i := 0; i < l; i++ {
+		processes[i] = mon.processes[i].Clone()
+	}
+	return processes
 }
 
-// Pause is used to pause auto refresh.
+// Pause is used to pause refresh automatically.
 func (mon *Monitor) Pause() {
 	mon.pauser.Pause()
 }
 
-// Continue is used to continue auto refresh.
+// Continue is used to continue refresh automatically.
 func (mon *Monitor) Continue() {
 	mon.pauser.Continue()
 }
 
-// Close is used to close network status monitor.
+// Close is used to close process monitor.
 func (mon *Monitor) Close() error {
 	mon.cancel()
 	mon.wg.Wait()
-	return mon.tasklist.Close()
+	mon.rwm.Lock()
+	defer mon.rwm.Unlock()
+	err := mon.process.Close()
+	if err != nil {
+		return err
+	}
+	mon.closed = true
+	return nil
 }

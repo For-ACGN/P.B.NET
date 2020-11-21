@@ -275,7 +275,7 @@ func (mon *Monitor) Refresh() error {
 		udp6Conns: udp6Conns,
 	}
 	if mon.handler != nil {
-		mon.notice(mon.compare(ds))
+		mon.compare(ds)
 		return nil
 	}
 	mon.connsRWM.Lock()
@@ -338,14 +338,21 @@ type compareResult struct {
 	closedConns  []interface{}
 }
 
-// compare is used to compare between stored in monitor.
-func (mon *Monitor) compare(ds *dataSource) *compareResult {
+// compare is used to compare data between stored in monitor.
+func (mon *Monitor) compare(ds *dataSource) {
 	var (
 		createdConns []interface{}
 		closedConns  []interface{}
 	)
+	defer func() {
+		mon.notice(&compareResult{
+			createdConns: createdConns,
+			closedConns:  closedConns,
+		})
+	}()
 	mon.connsRWM.Lock()
 	defer mon.connsRWM.Unlock()
+	defer mon.refresh(ds)
 	// TCP4
 	added, deleted := compare.UniqueSlice(tcp4Conns(ds.tcp4Conns), tcp4Conns(mon.tcp4Conns))
 	for i := 0; i < len(added); i++ {
@@ -378,12 +385,6 @@ func (mon *Monitor) compare(ds *dataSource) *compareResult {
 	for i := 0; i < len(deleted); i++ {
 		closedConns = append(closedConns, mon.udp6Conns[deleted[i]].Clone())
 	}
-	cr := compareResult{
-		createdConns: createdConns,
-		closedConns:  closedConns,
-	}
-	mon.refresh(ds)
-	return &cr
 }
 
 func (mon *Monitor) refresh(ds *dataSource) {
