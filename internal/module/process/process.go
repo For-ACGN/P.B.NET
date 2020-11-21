@@ -30,9 +30,10 @@ type Process interface {
 
 // PsInfo contains information about process.
 type PsInfo struct {
-	Name string // must not be zero value
-	PID  int64  // must not be zero value
-	PPID int64  // must not be zero value
+	// these fields must not be zero value
+	Name string
+	PID  int64
+	PPID int64
 
 	SessionID uint32
 	Username  string
@@ -58,9 +59,10 @@ type PsInfo struct {
 
 // ID is used to identified this Process.
 func (info *PsInfo) ID() string {
-	id := make([]byte, 8)
-	binary.BigEndian.PutUint64(id, uint64(info.PID+info.PPID))
-	return info.Name + *(*string)(unsafe.Pointer(&id)) // #nosec
+	id := make([]byte, 16)
+	binary.BigEndian.PutUint64(id, uint64(info.PID))
+	binary.BigEndian.PutUint64(id[8:], uint64(info.PPID))
+	return *(*string)(unsafe.Pointer(&id)) // #nosec
 }
 
 // Clone is used to clone information about this process.

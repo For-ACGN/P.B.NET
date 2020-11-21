@@ -3,7 +3,6 @@ package process
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -31,14 +30,23 @@ func TestProcess(t *testing.T) {
 	testsuite.IsDestroyed(t, process)
 }
 
-func TestProcess_ID(t *testing.T) {
-	process := PsInfo{
-		PID:          0x1234567887654321,
-		CreationDate: time.Unix(123, 123),
+func TestPsInfo_ID(t *testing.T) {
+	info := PsInfo{
+		PID:  0x1234567887654321,
+		PPID: 0x1234567812345678,
 	}
 	id := string([]byte{
 		0x12, 0x34, 0x56, 0x78, 0x87, 0x65, 0x43, 0x21,
-		0x00, 0x00, 0x00, 0x1C, 0xA3, 0x5F, 0x0E, 0x7B,
+		0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78,
 	})
-	require.Equal(t, id, process.ID())
+	require.Equal(t, id, info.ID())
+}
+
+func TestPsInfo_Clone(t *testing.T) {
+	info := &PsInfo{
+		PID:  0x1234567887654321,
+		PPID: 0x1234567812345678,
+	}
+	infoCp := info.Clone()
+	require.Equal(t, info, infoCp)
 }

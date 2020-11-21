@@ -215,13 +215,14 @@ func (ps *process) Create(name string, opts *CreateOptions) (*os.Process, error)
 }
 
 func (ps *process) Kill(pid int) error {
-	process, err := os.FindProcess(pid)
+	hProcess, err := api.OpenProcess(syscall.PROCESS_TERMINATE, false, uint32(pid))
 	if err != nil {
-		return errors.Wrapf(err, "failed to find process %d", pid)
+		return errors.WithMessagef(err, "failed to open process %d", pid)
 	}
-	err = process.Kill()
+	defer api.CloseHandle(hProcess)
+	err = api.TerminateProcess(hProcess, 1)
 	if err != nil {
-		return errors.Wrapf(err, "failed to kill process %d", pid)
+		return err
 	}
 	return nil
 }

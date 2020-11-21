@@ -4,11 +4,16 @@ package process
 
 import (
 	"fmt"
+	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/windows"
 
+	"project/internal/module/windows/api"
 	"project/internal/module/windows/privilege"
+	"project/internal/patch/monkey"
 	"project/internal/testsuite"
 )
 
@@ -43,14 +48,88 @@ func TestProcess_Create(t *testing.T) {
 	process, err := New(nil)
 	require.NoError(t, err)
 
-	p, err := process.Create("notepad.exe", nil)
-	require.NoError(t, err)
+	t.Run("common", func(t *testing.T) {
+		ps, err := process.Create("notepad.exe", nil)
+		require.NoError(t, err)
 
-	err = p.Kill()
-	require.NoError(t, err)
+		err = ps.Kill()
+		require.NoError(t, err)
+	})
+
+	t.Run("failed to start", func(t *testing.T) {
+		ps, err := process.Create("foo.acg", nil)
+		require.Error(t, err)
+		require.Nil(t, ps)
+	})
+
+	t.Run("panic in wait", func(t *testing.T) {
+		var cmd *exec.Cmd
+		patch := func(interface{}) error {
+			panic(monkey.Panic)
+		}
+		pg := monkey.PatchInstanceMethod(cmd, "Wait", patch)
+		defer pg.Unpatch()
+
+		ps, err := process.Create("notepad.exe", nil)
+		require.NoError(t, err)
+
+		time.Sleep(time.Second)
+
+		err = ps.Kill()
+		require.NoError(t, err)
+	})
 
 	err = process.Close()
 	require.NoError(t, err)
 
 	testsuite.IsDestroyed(t, process)
+}
+
+func TestProcess_Kill(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	process, err := New(nil)
+	require.NoError(t, err)
+
+	t.Run("common", func(t *testing.T) {
+		ps, err := process.Create("notepad.exe", nil)
+		require.NoError(t, err)
+
+		err = process.Kill(ps.Pid)
+		require.NoError(t, err)
+	})
+
+	t.Run("failed to find process", func(t *testing.T) {
+		err = process.Kill(12345678)
+		require.Error(t, err)
+	})
+
+	t.Run("failed to kill process", func(t *testing.T) {
+		patch := func(uint32, bool, uint32) (windows.Handle, error) {
+			return 0, nil
+		}
+		pg := monkey.Patch(api.OpenProcess, patch)
+		defer pg.Unpatch()
+
+		err = process.Kill(0)
+		require.Error(t, err)
+	})
+
+	err = process.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, process)
+}
+
+func TestProcess_KillTree(t *testing.T) {
+
+}
+
+func TestProcess_SendSignal(t *testing.T) {
+
+}
+
+func TestProcess_Close(t *testing.T) {
+
 }

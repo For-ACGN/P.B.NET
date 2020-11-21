@@ -149,8 +149,7 @@ func createEnvBlock(env []string) *uint16 {
 	for _, s := range env {
 		length += len(s) + 1
 	}
-	length += 1
-
+	length++
 	b := make([]byte, length)
 	i := 0
 	for _, s := range env {
@@ -160,7 +159,6 @@ func createEnvBlock(env []string) *uint16 {
 		i = i + l + 1
 	}
 	copy(b[i:i+1], []byte{0})
-
 	return &utf16.Encode([]rune(string(b)))[0]
 }
 
