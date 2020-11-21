@@ -2,6 +2,7 @@ package netmon
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -26,6 +27,9 @@ const (
 	EventConnClosed
 )
 
+// ErrMonitorClosed is an error that monitor is closed.
+var ErrMonitorClosed = fmt.Errorf("monitor is closed")
+
 // EventHandler is used to handle event, data type can be []interface{} that include
 // *netstat.TCP4Conn, *netstat.TCP6Conn, *netstat.UDP4Conn, *netstat.UDP6Conn
 type EventHandler func(ctx context.Context, event uint8, data interface{})
@@ -41,10 +45,12 @@ type Monitor struct {
 	logger  logger.Logger
 	handler EventHandler
 
-	pauser      *pauser.Pauser
-	netstat     netstat.Netstat
-	interval    time.Duration
-	intervalRWM sync.RWMutex
+	pauser *pauser.Pauser
+
+	netstat  netstat.Netstat
+	interval time.Duration
+	closed   bool
+	rwm      sync.RWMutex
 
 	// about check network status
 	tcp4Conns []*netstat.TCP4Conn
@@ -67,6 +73,16 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to create netstat module")
 	}
+	var ok bool
+	defer func() {
+		if ok {
+			return
+		}
+		err := ns.Close()
+		if err != nil {
+			lg.Println(logger.Error, "network monitor", "failed to close netstat:", err)
+		}
+	}()
 	interval := opts.Interval
 	if interval < minimumRefreshInterval {
 		interval = minimumRefreshInterval
@@ -83,24 +99,20 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	// refresh before refreshLoop, and not set EventHandler.
 	err = monitor.Refresh()
 	if err != nil {
-		// close netstat module
-		e := ns.Close()
-		if e != nil {
-			lg.Println(logger.Error, "network monitor", "failed to close netstat module:", e)
-		}
 		return nil, errors.WithMessage(err, "failed to get the initial connection data")
 	}
 	// not trigger eventHandler before the first refresh.
 	monitor.handler = handler
 	monitor.wg.Add(1)
 	go monitor.refreshLoop()
+	ok = true
 	return &monitor, nil
 }
 
 // GetInterval is used to get refresh interval.
 func (mon *Monitor) GetInterval() time.Duration {
-	mon.intervalRWM.RLock()
-	defer mon.intervalRWM.RUnlock()
+	mon.rwm.RLock()
+	defer mon.rwm.RUnlock()
 	return mon.interval
 }
 
@@ -109,9 +121,35 @@ func (mon *Monitor) SetInterval(interval time.Duration) {
 	if interval < minimumRefreshInterval {
 		interval = minimumRefreshInterval
 	}
-	mon.intervalRWM.Lock()
-	defer mon.intervalRWM.Unlock()
+	mon.rwm.Lock()
+	defer mon.rwm.Unlock()
 	mon.interval = interval
+}
+
+// SetOptions is used to update netstat options.
+func (mon *Monitor) SetOptions(opts *netstat.Options) error {
+	mon.rwm.Lock()
+	defer mon.rwm.Unlock()
+	if mon.closed {
+		return ErrMonitorClosed
+	}
+	ns, err := netstat.New(opts)
+	if err != nil {
+		return err
+	}
+	var ok bool
+	defer func() {
+		if !ok {
+			_ = ns.Close()
+		}
+	}()
+	err = mon.netstat.Close()
+	if err != nil {
+		return err
+	}
+	mon.netstat = ns
+	ok = true
+	return nil
 }
 
 func (mon *Monitor) log(lv logger.Level, log ...interface{}) {
@@ -136,7 +174,7 @@ func (mon *Monitor) refreshLoop() {
 		select {
 		case <-timer.C:
 			err := mon.Refresh()
-			if err != nil {
+			if err != nil && err != ErrMonitorClosed {
 				mon.log(logger.Error, "failed to refresh:", err)
 				return
 			}
@@ -150,6 +188,11 @@ func (mon *Monitor) refreshLoop() {
 // Refresh is used to refresh current network status at once.
 func (mon *Monitor) Refresh() error {
 	const title = "Monitor.Refresh"
+	mon.rwm.RLock()
+	defer mon.rwm.RUnlock()
+	if mon.closed {
+		return ErrMonitorClosed
+	}
 	var (
 		tcp4Conns tcp4Conns
 		tcp6Conns tcp6Conns
@@ -415,5 +458,12 @@ func (mon *Monitor) Continue() {
 func (mon *Monitor) Close() error {
 	mon.cancel()
 	mon.wg.Wait()
-	return mon.netstat.Close()
+	mon.rwm.Lock()
+	defer mon.rwm.Unlock()
+	err := mon.netstat.Close()
+	if err != nil {
+		return err
+	}
+	mon.closed = true
+	return nil
 }
