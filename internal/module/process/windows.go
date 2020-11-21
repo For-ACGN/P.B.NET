@@ -190,7 +190,12 @@ func (ps *process) Create(name string, opts *CreateOptions) (*os.Process, error)
 		opts = new(CreateOptions)
 	}
 	args := system.CommandLineToArgv(opts.CommandLine)
-	cmd := exec.CommandContext(ps.ctx, name, args...)
+	var cmd *exec.Cmd
+	if opts.Wait {
+		cmd = exec.CommandContext(ps.ctx, name, args...)
+	} else {
+		cmd = exec.Command(name, args...)
+	}
 	cmd.Dir = opts.Directory
 	cmd.Env = opts.Environment
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -200,6 +205,9 @@ func (ps *process) Create(name string, opts *CreateOptions) (*os.Process, error)
 	err := cmd.Start()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create process")
+	}
+	if !opts.Wait {
+		return cmd.Process, nil
 	}
 	ps.wg.Add(1)
 	go func() {

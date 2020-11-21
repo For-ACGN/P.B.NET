@@ -31,7 +31,7 @@ func TestMonitor(t *testing.T) {
 	monitor, err := NewMonitor(logger.Test, handler, nil)
 	require.NoError(t, err)
 
-	monitor.SetInterval(500 * time.Millisecond)
+	monitor.SetInterval(50 * time.Millisecond)
 
 	time.Sleep(5 * time.Second)
 

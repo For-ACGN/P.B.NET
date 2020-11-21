@@ -57,6 +57,17 @@ func TestProcess_Create(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("wait", func(t *testing.T) {
+		opts := CreateOptions{
+			Wait: true,
+		}
+		ps, err := process.Create("notepad.exe", &opts)
+		require.NoError(t, err)
+
+		err = ps.Kill()
+		require.NoError(t, err)
+	})
+
 	t.Run("failed to start", func(t *testing.T) {
 		ps, err := process.Create("foo.acg", nil)
 		require.Error(t, err)
@@ -71,7 +82,10 @@ func TestProcess_Create(t *testing.T) {
 		pg := monkey.PatchInstanceMethod(cmd, "Wait", patch)
 		defer pg.Unpatch()
 
-		ps, err := process.Create("notepad.exe", nil)
+		opts := CreateOptions{
+			Wait: true,
+		}
+		ps, err := process.Create("notepad.exe", &opts)
 		require.NoError(t, err)
 
 		time.Sleep(time.Second)
@@ -149,8 +163,7 @@ func TestProcess_KillTree(t *testing.T) {
 			defer pg.Restore()
 			// check process name is cmd.exe
 			// because kill conhost.exe maybe failed (it is terminated)
-			name, err := api.GetProcessNameByPID(uint32(pid))
-			require.NoError(t, err)
+			name, _ := api.GetProcessNameByPID(uint32(pid))
 			if name != "cmd.exe" {
 				return nil
 			}
@@ -202,8 +215,7 @@ func TestProcess_KillTree(t *testing.T) {
 			defer pg.Restore()
 			// check process name is cmd.exe
 			// because kill conhost.exe maybe failed(it is terminated)
-			name, err := api.GetProcessNameByPID(uint32(pid))
-			require.NoError(t, err)
+			name, _ := api.GetProcessNameByPID(uint32(pid))
 			if name == "cmd.exe" {
 				err = p.Kill(pid)
 				require.NoError(t, err)

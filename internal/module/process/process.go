@@ -78,4 +78,8 @@ type CreateOptions struct {
 	Environment   []string
 	ShowWindow    bool
 	CreationFlags uint32
+
+	// if Wait is set true, the created processes
+	// will be killed before process module closed.
+	Wait bool
 }
