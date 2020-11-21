@@ -13,7 +13,7 @@ type Process interface {
 	GetList() ([]*PsInfo, error)
 
 	// Create is used to create process with options.
-	Create(name string, opts *CreateOptions) error
+	Create(name string, opts *CreateOptions) (*os.Process, error)
 
 	// Kill is used to kill process.
 	Kill(pid int) error

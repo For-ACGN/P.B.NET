@@ -44,8 +44,8 @@ type Options struct {
 type process struct {
 	opts *Options
 
-	isARM       bool
 	majorVer    uint32
+	isARM       bool
 	modKernel32 *windows.LazyDLL
 	procIsWow64 *windows.LazyProc
 
@@ -78,11 +78,8 @@ func New(opts *Options) (Process, error) {
 	isARM := strings.Contains(runtime.GOARCH, "arm")
 	ps := process{
 		opts:     opts,
-		isARM:    isARM,
 		majorVer: major,
-	}
-	if isARM {
-		// TODO get IsWow64Process2
+		isARM:    isARM,
 	}
 	if api.IsSystem64Bit(true) {
 		modKernel32 := windows.NewLazySystemDLL("kernel32.dll")
@@ -114,26 +111,26 @@ func (ps *process) GetList() ([]*PsInfo, error) {
 		if ps.opts.GetThreadCount {
 			processes[i].ThreadCount = list[i].Threads
 		}
-		ps.getProcessInfo(processes[i])
+		ps.getInfo(processes[i])
 	}
 	return processes, nil
 }
 
-func (ps *process) getProcessInfo(process *PsInfo) {
-	pHandle, err := ps.openProcess(process.PID)
+func (ps *process) getInfo(process *PsInfo) {
+	pHandle, err := ps.open(process.PID)
 	if err != nil {
 		return
 	}
 	defer api.CloseHandle(pHandle)
 	if ps.opts.GetUsername {
-		process.Username = getProcessUsername(pHandle)
+		process.Username = getUsername(pHandle)
 	}
 	if ps.opts.GetArchitecture {
-		process.Architecture = ps.getProcessArchitecture(pHandle)
+		process.Architecture = ps.getArchitecture(pHandle)
 	}
 }
 
-func (ps *process) openProcess(pid int64) (windows.Handle, error) {
+func (ps *process) open(pid int64) (windows.Handle, error) {
 	var da uint32
 	if ps.majorVer < 6 {
 		da = windows.PROCESS_QUERY_INFORMATION
@@ -143,7 +140,7 @@ func (ps *process) openProcess(pid int64) (windows.Handle, error) {
 	return api.OpenProcess(da, false, uint32(pid))
 }
 
-func getProcessUsername(handle windows.Handle) string {
+func getUsername(handle windows.Handle) string {
 	var token windows.Token
 	err := windows.OpenProcessToken(handle, windows.TOKEN_QUERY, &token)
 	if err != nil {
@@ -160,26 +157,35 @@ func getProcessUsername(handle windows.Handle) string {
 	return domain + "\\" + account
 }
 
-func (ps *process) getProcessArchitecture(handle windows.Handle) string {
+func (ps *process) getArchitecture(handle windows.Handle) string {
+	var arch string
 	if ps.isARM {
-		return ""
+		arch = "arm32"
+	} else {
+		arch = "x86"
 	}
-
 	if ps.procIsWow64 == nil {
-		return "x86"
+		return arch
 	}
-	var wow64 bool
-	ret, _, _ := ps.procIsWow64.Call(uintptr(handle), uintptr(unsafe.Pointer(&wow64))) // #nosec
+	var isWow64 bool
+	ret, _, _ := ps.procIsWow64.Call(
+		uintptr(handle), uintptr(unsafe.Pointer(&isWow64)), // #nosec
+	)
 	if ret == 0 {
 		return ""
 	}
-	if wow64 {
-		return "x86"
+	if isWow64 {
+		return arch
 	}
-	return "x64"
+	if ps.isARM {
+		arch = "arm64"
+	} else {
+		arch = "x64"
+	}
+	return arch
 }
 
-func (ps *process) Create(name string, opts *CreateOptions) error {
+func (ps *process) Create(name string, opts *CreateOptions) (*os.Process, error) {
 	if opts == nil {
 		opts = new(CreateOptions)
 	}
@@ -193,7 +199,7 @@ func (ps *process) Create(name string, opts *CreateOptions) error {
 	}
 	err := cmd.Start()
 	if err != nil {
-		return errors.Wrap(err, "failed to create process")
+		return nil, errors.Wrap(err, "failed to create process")
 	}
 	ps.wg.Add(1)
 	go func() {
@@ -205,31 +211,51 @@ func (ps *process) Create(name string, opts *CreateOptions) error {
 		}()
 		_ = cmd.Wait()
 	}()
-	return nil
+	return cmd.Process, nil
 }
 
 func (ps *process) Kill(pid int) error {
-	p, err := os.FindProcess(pid)
+	process, err := os.FindProcess(pid)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find process %d", pid)
 	}
-	err = p.Kill()
+	err = process.Kill()
 	if err != nil {
 		return errors.Wrapf(err, "failed to kill process %d", pid)
 	}
 	return nil
 }
 
-func (ps *process) KillTree(_ int) error {
-	return errors.New("not implemented")
+func (ps *process) KillTree(pid int) error {
+	err := ps.Kill(pid)
+	if err != nil {
+		return err
+	}
+	list, err := api.GetProcessList()
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(list); i++ {
+		if int(list[i].PPID) != pid {
+			continue
+		}
+		e := ps.KillTree(int(list[i].PID))
+		if e != nil && err == nil {
+			err = e
+		}
+	}
+	if err != nil {
+		return errors.WithMessagef(err, "appear error when kill process tree %d", pid)
+	}
+	return nil
 }
 
 func (ps *process) SendSignal(pid int, signal os.Signal) error {
-	p, err := os.FindProcess(pid)
+	process, err := os.FindProcess(pid)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find process %d", pid)
 	}
-	err = p.Signal(signal)
+	err = process.Signal(signal)
 	if err != nil {
 		return errors.Wrapf(err, "failed to send signal %d to process %d", signal, pid)
 	}
@@ -237,13 +263,14 @@ func (ps *process) SendSignal(pid int, signal os.Signal) error {
 }
 
 func (ps *process) Close() (err error) {
-	ps.cancel()
-	ps.wg.Wait()
 	ps.closeOnce.Do(func() {
+		ps.cancel()
+		ps.wg.Wait()
 		if ps.modKernel32 == nil {
-			handle := windows.Handle(ps.modKernel32.Handle())
-			err = windows.FreeLibrary(handle)
+			return
 		}
+		handle := windows.Handle(ps.modKernel32.Handle())
+		err = windows.FreeLibrary(handle)
 	})
 	return
 }

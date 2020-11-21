@@ -10,14 +10,14 @@ import (
 	"project/internal/testsuite"
 )
 
-func TestTaskList_GetProcesses(t *testing.T) {
+func TestProcess(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	tasklist, err := NewTaskList(nil)
+	process, err := New(nil)
 	require.NoError(t, err)
 
-	processes, err := tasklist.GetProcesses()
+	processes, err := process.GetList()
 	require.NoError(t, err)
 
 	require.NotEmpty(t, processes)
@@ -25,10 +25,10 @@ func TestTaskList_GetProcesses(t *testing.T) {
 		fmt.Println(process.Name, process.Architecture, process.Username)
 	}
 
-	err = tasklist.Close()
+	err = process.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, tasklist)
+	testsuite.IsDestroyed(t, process)
 }
 
 func TestProcess_ID(t *testing.T) {
