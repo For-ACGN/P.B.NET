@@ -38,14 +38,18 @@ func NewClient(pipeName, password string) (*Client, error) {
 		pipeName: pipeName,
 		credCh:   make(chan *Credential, 1024),
 	}
+	hook, err := NewHook(client.recordCred)
+	if err != nil {
+		return nil, err
+	}
 	passHash := sha256.Sum256([]byte(password))
 	cbc, err := aes.NewCBC(passHash[:], passHash[:aes.IVSize])
 	if err != nil {
 		return nil, err
 	}
 	client.cbc = cbc
+	// start
 	client.ctx, client.cancel = context.WithCancel(context.Background())
-	hook := NewHook(client.recordCred)
 	err = hook.Install()
 	if err != nil {
 		return nil, err
@@ -124,7 +128,9 @@ func (client *Client) Close() (err error) {
 		client.cancel()
 		client.wg.Wait()
 		err = client.hook.Uninstall()
-		client.hook.Clean()
+		if err == nil {
+			client.hook.Clean()
+		}
 	})
 	return
 }

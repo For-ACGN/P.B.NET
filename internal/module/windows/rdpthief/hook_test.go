@@ -10,8 +10,14 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+const (
+	testCredHostname = "hostname"
+	testCredUsername = "username"
+	testCredPassword = "test"
+)
+
 func testCreateCredential(t *testing.T) {
-	hostname := windows.StringToUTF16Ptr("hostname")
+	hostname := windows.StringToUTF16Ptr(testCredHostname)
 	proc := windows.NewLazySystemDLL("advapi32.dll").NewProc("CredReadW")
 	ret, _, _ := proc.Call(uintptr(unsafe.Pointer(hostname)), 0, 0, 0)
 	require.Equal(t, uintptr(0), ret)
@@ -24,7 +30,7 @@ func testCreateCredential(t *testing.T) {
 	ret, _, _ = proc.Call(uintptr(unsafe.Pointer(&password[0])), 16, 1)
 	require.Equal(t, uintptr(1), ret)
 
-	usernamePtr := windows.StringToUTF16Ptr("username")
+	usernamePtr := windows.StringToUTF16Ptr(testCredUsername)
 	proc = windows.NewLazySystemDLL("advapi32.dll").NewProc("CredIsMarshaledCredentialW")
 	ret, _, _ = proc.Call(uintptr(unsafe.Pointer(usernamePtr)))
 	require.Equal(t, uintptr(0), ret)
@@ -32,26 +38,38 @@ func testCreateCredential(t *testing.T) {
 
 func TestHook(t *testing.T) {
 	var hooked bool
-	hook := NewHook(func(cred *Credential) {
-		require.Equal(t, "hostname", cred.Hostname)
-		require.Equal(t, "username", cred.Username)
-		require.Equal(t, "test", cred.Password)
+	hook, err := NewHook(func(cred *Credential) {
+		require.Equal(t, testCredHostname, cred.Hostname)
+		require.Equal(t, testCredUsername, cred.Username)
+		require.Equal(t, testCredPassword, cred.Password)
 		hooked = true
 	})
-
-	err := hook.Install()
-	require.NoError(t, err)
-
-	testCreateCredential(t)
-	require.True(t, hooked)
-
-	err = hook.Uninstall()
 	require.NoError(t, err)
 
 	err = hook.Install()
 	require.NoError(t, err)
 
+	testCreateCredential(t)
+	require.True(t, hooked)
+
+	// not record the same credential
 	hooked = false
+	testCreateCredential(t)
+	require.False(t, hooked)
+
+	// install && uninstall
+	hook.lastCredHash = [32]byte{}
+
+	err = hook.Uninstall()
+	require.NoError(t, err)
+
+	hooked = false
+	testCreateCredential(t)
+	require.False(t, hooked)
+
+	err = hook.Install()
+	require.NoError(t, err)
+
 	testCreateCredential(t)
 	require.True(t, hooked)
 
