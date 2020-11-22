@@ -20,9 +20,10 @@ func TestMonitor(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(3 * time.Second)
 
-	monitor.Close()
+	err = monitor.Close()
+	require.NoError(t, err)
 
 	testsuite.IsDestroyed(t, monitor)
 }

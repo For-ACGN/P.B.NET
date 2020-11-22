@@ -10,8 +10,10 @@ import (
 	"github.com/pkg/errors"
 
 	"project/internal/logger"
-	"project/internal/module/netmon"
-	"project/internal/module/taskmgr"
+	"project/internal/module/netstat"
+	"project/internal/module/netstat/netmon"
+	"project/internal/module/process"
+	"project/internal/module/process/psmon"
 	"project/internal/module/windows/api"
 	"project/internal/module/windows/kiwi"
 	"project/internal/nettool"
@@ -34,8 +36,8 @@ type Monitor struct {
 	handler       Handler
 	stealWaitTime time.Duration
 
-	processMonitor *taskmgr.Monitor
-	connMonitor    *netmon.Monitor
+	psmon  *psmon.Monitor
+	netmon *netmon.Monitor
 
 	// key is PID
 	watchPIDList    map[int64]struct{}
@@ -50,9 +52,9 @@ type Monitor struct {
 
 // Options contains options about monitor.
 type Options struct {
-	StealWaitTime          time.Duration
 	ProcessMonitorInterval time.Duration
 	ConnMonitorInterval    time.Duration
+	StealWaitTime          time.Duration
 }
 
 // NewMonitor is used to create a new kiwi monitor.
@@ -71,41 +73,36 @@ func NewMonitor(logger logger.Logger, handler Handler, opts *Options) (*Monitor,
 	}
 	monitor.ctx, monitor.cancel = context.WithCancel(context.Background())
 	// initialize process monitor
-	taskmgrOpts := taskmgr.Options{
-		ShowSessionID:      true,
-		ShowUsername:       true,
-		ShowCommandLine:    true,
-		ShowExecutablePath: true,
-		ShowCreationDate:   true,
+	psmonOpts := psmon.Options{
+		Interval: opts.ProcessMonitorInterval,
+		Process: &process.Options{
+			GetSessionID:      true,
+			GetUsername:       true,
+			GetCommandLine:    true,
+			GetExecutablePath: true,
+			GetCreationDate:   true,
+		},
 	}
-	processMonitor, err := taskmgr.NewMonitor(logger, monitor.processMonitorHandler, &taskmgrOpts)
+	processMonitor, err := psmon.New(logger, monitor.psmonHandler, &psmonOpts)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to create process monitor")
 	}
-	if opts.ProcessMonitorInterval != 0 {
-		processMonitor.SetInterval(opts.ProcessMonitorInterval)
-	}
 	// initialize connection monitor
 	netmonOpts := netmon.Options{
-		TCPTableClass: api.TCPTableOwnerPIDAll,
-		UDPTableClass: api.UDPTableOwnerPID,
+		Interval: opts.ConnMonitorInterval,
+		Netstat: &netstat.Options{
+			TCPTableClass: api.TCPTableOwnerPIDAll,
+			UDPTableClass: api.UDPTableOwnerPID,
+		},
 	}
-	connMonitor, err := netmon.NewMonitor(logger, monitor.connMonitorHandler, &netmonOpts)
+	networkMonitor, err := netmon.New(logger, monitor.netmonHandler, &netmonOpts)
 	if err != nil {
 		_ = processMonitor.Close()
-		return nil, errors.WithMessage(err, "failed to create connection monitor")
-	}
-	if opts.ConnMonitorInterval != 0 {
-		connMonitor.SetInterval(opts.ConnMonitorInterval)
-	}
-	// prevent watch connection first
-	interval := processMonitor.GetInterval()
-	if connMonitor.GetInterval() < interval {
-		connMonitor.SetInterval(interval)
+		return nil, errors.WithMessage(err, "failed to create network monitor")
 	}
 	// set struct fields
-	monitor.processMonitor = processMonitor
-	monitor.connMonitor = connMonitor
+	monitor.psmon = processMonitor
+	monitor.netmon = networkMonitor
 	return &monitor, nil
 }
 
@@ -113,28 +110,28 @@ func (mon *Monitor) log(lv logger.Level, log ...interface{}) {
 	mon.logger.Println(lv, "kiwi monitor", log...)
 }
 
-func (mon *Monitor) processMonitorHandler(_ context.Context, event uint8, data interface{}) {
+func (mon *Monitor) psmonHandler(_ context.Context, event uint8, data interface{}) {
 	switch event {
-	case taskmgr.EventProcessCreated:
+	case psmon.EventProcessCreated:
 		mon.watchPIDListRWM.Lock()
 		defer mon.watchPIDListRWM.Unlock()
-		for _, process := range data.([]*taskmgr.Process) {
-			if process.Name == "mstsc.exe" {
-				mon.watchPIDList[process.PID] = struct{}{}
+		for _, ps := range data.([]*process.PsInfo) {
+			if ps.Name == "mstsc.exe" {
+				mon.watchPIDList[ps.PID] = struct{}{}
 			}
 		}
-	case taskmgr.EventProcessTerminated:
+	case psmon.EventProcessTerminated:
 		mon.watchPIDListRWM.Lock()
 		defer mon.watchPIDListRWM.Unlock()
-		for _, process := range data.([]*taskmgr.Process) {
-			if process.Name == "mstsc.exe" {
-				delete(mon.watchPIDList, process.PID)
+		for _, ps := range data.([]*process.PsInfo) {
+			if ps.Name == "mstsc.exe" {
+				delete(mon.watchPIDList, ps.PID)
 			}
 		}
 	}
 }
 
-func (mon *Monitor) connMonitorHandler(_ context.Context, event uint8, data interface{}) {
+func (mon *Monitor) netmonHandler(_ context.Context, event uint8, data interface{}) {
 	if event != netmon.EventConnCreated {
 		return
 	}
@@ -147,20 +144,20 @@ func (mon *Monitor) connMonitorHandler(_ context.Context, event uint8, data inte
 			remote string
 		)
 		switch conn := conn.(type) {
-		case *netmon.TCP4Conn:
+		case *netstat.TCP4Conn:
 			pid = conn.PID
 			if _, ok := mon.watchPIDList[pid]; !ok {
 				continue
 			}
-			local = nettool.JoinHostPort(conn.LocalAddr.String(), conn.LocalPort)
-			remote = nettool.JoinHostPort(conn.RemoteAddr.String(), conn.RemotePort)
-		case *netmon.TCP6Conn:
+			local = nettool.JoinHostPort(conn.LocalAddr(), conn.LocalPort)
+			remote = nettool.JoinHostPort(conn.RemoteAddr(), conn.RemotePort)
+		case *netstat.TCP6Conn:
 			pid = conn.PID
 			if _, ok := mon.watchPIDList[pid]; !ok {
 				continue
 			}
-			local = nettool.JoinHostPort(conn.LocalAddr.String(), conn.LocalPort)
-			remote = nettool.JoinHostPort(conn.RemoteAddr.String(), conn.RemotePort)
+			local = nettool.JoinHostPort(conn.LocalAddr(), conn.LocalPort)
+			remote = nettool.JoinHostPort(conn.RemoteAddr(), conn.RemotePort)
 		}
 		if pid != 0 {
 			mon.counter.Add(1)
@@ -194,19 +191,19 @@ func (mon *Monitor) Close() error {
 	mon.cancel()
 	mon.mu.Lock()
 	defer mon.mu.Unlock()
-	if mon.processMonitor != nil {
-		err := mon.processMonitor.Close()
+	if mon.psmon != nil {
+		err := mon.psmon.Close()
 		if err != nil {
 			return err
 		}
-		mon.processMonitor = nil
+		mon.psmon = nil
 	}
-	if mon.connMonitor != nil {
-		err := mon.connMonitor.Close()
+	if mon.netmon != nil {
+		err := mon.netmon.Close()
 		if err != nil {
 			return err
 		}
-		mon.connMonitor = nil
+		mon.netmon = nil
 	}
 	mon.counter.Wait()
 	return nil
