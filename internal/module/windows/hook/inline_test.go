@@ -45,6 +45,8 @@ func TestHookMessageBoxTimeoutW(t *testing.T) {
 	var err error
 	pg, err = NewInlineHookByName("user32.dll", "MessageBoxTimeoutW", true, hookFn)
 	require.NoError(t, err)
+	err = pg.Patch()
+	require.NoError(t, err)
 
 	textPtr, err := windows.UTF16PtrFromString("text")
 	require.NoError(t, err)
@@ -66,6 +68,16 @@ func TestHookMessageBoxTimeoutW(t *testing.T) {
 		0, uintptr(unsafe.Pointer(textPtr)), uintptr(unsafe.Pointer(captionPtr)), 1, 0, 1000,
 	)
 	require.Equal(t, uintptr(32000), ret)
+	require.Equal(t, syscall.Errno(0x00), err)
+
+	// restore patch
+	err = pg.Patch()
+	require.NoError(t, err)
+
+	ret, _, err = proc.Call(
+		0, uintptr(unsafe.Pointer(textPtr)), uintptr(unsafe.Pointer(captionPtr)), 1, 0, 1000,
+	)
+	require.Equal(t, uintptr(1234), ret)
 	require.Equal(t, syscall.Errno(0x00), err)
 }
 
@@ -98,6 +110,8 @@ func TestHookCryptProtectMemory(t *testing.T) {
 	var err error
 	pg, err = NewInlineHookByName("crypt32.dll", "CryptProtectMemory", true, hookFn)
 	require.NoError(t, err)
+	err = pg.Patch()
+	require.NoError(t, err)
 
 	proc := windows.NewLazySystemDLL("crypt32.dll").NewProc("CryptProtectMemory")
 	ret, _, err := proc.Call(uintptr(unsafe.Pointer(&data[0])), 16, 1)
@@ -110,6 +124,14 @@ func TestHookCryptProtectMemory(t *testing.T) {
 
 	ret, _, err = proc.Call(uintptr(unsafe.Pointer(&data[0])), 16, 1)
 	require.Equal(t, uintptr(1), ret)
+	require.Equal(t, syscall.Errno(0x00), err)
+
+	// restore patch
+	err = pg.Patch()
+	require.NoError(t, err)
+
+	ret, _, err = proc.Call(uintptr(unsafe.Pointer(&data[0])), 16, 1)
+	require.Equal(t, uintptr(1234), ret)
 	require.Equal(t, syscall.Errno(0x00), err)
 }
 
@@ -134,6 +156,8 @@ func TestHookCredReadW(t *testing.T) {
 	var err error
 	pg, err = NewInlineHookByName("advapi32.dll", "CredReadW", true, hookFn)
 	require.NoError(t, err)
+	err = pg.Patch()
+	require.NoError(t, err)
 
 	targetName := windows.StringToUTF16Ptr("test")
 
@@ -148,5 +172,13 @@ func TestHookCredReadW(t *testing.T) {
 
 	ret, _, err = proc.Call(uintptr(unsafe.Pointer(targetName)), 16, 1, 0x1234)
 	require.Equal(t, uintptr(0), ret)
+	require.Equal(t, syscall.Errno(0x57), err)
+
+	// restore patch
+	err = pg.Patch()
+	require.NoError(t, err)
+
+	ret, _, err = proc.Call(uintptr(unsafe.Pointer(targetName)), 16, 1, 0x1234)
+	require.Equal(t, uintptr(1234), ret)
 	require.Equal(t, syscall.Errno(0x57), err)
 }

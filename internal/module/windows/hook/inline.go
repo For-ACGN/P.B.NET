@@ -32,7 +32,8 @@ func init() {
 // [trampoline] is a part of code about original function
 // and add a near jump to the remaining original function.
 
-// <security> not use FlushInstructionCache for bypass AV.
+// <security> not use FlushInstructionCache for bypass AV,
+// WriteProcessMemory will call it.
 
 // PatchGuard contain information about hooked function.
 type PatchGuard struct {
@@ -187,8 +188,8 @@ func NewInlineHook(target *windows.Proc, hookFn interface{}) (*PatchGuard, error
 		return nil, errors.WithMessage(err, "failed to read original memory about hook jumper")
 	}
 	hookJumperData := arch.NewFarJumpASM(hookJumperMem.Addr, hookFnAddr)
-	// add padding data for prevent search at the same memory
-	err = hookJumperMem.Write(bytes.Repeat([]byte{0x01}, len(hookJumperData)))
+	// add Nop construction for prevent search at the same memory
+	err = hookJumperMem.Write(bytes.Repeat([]byte{0x90}, len(hookJumperData)))
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to write reserve data for hook jumper")
 	}
@@ -218,7 +219,7 @@ func NewInlineHook(target *windows.Proc, hookFn interface{}) (*PatchGuard, error
 		reflect.ValueOf(originalProc).Elem().FieldByName("addr").UnsafeAddr()),
 	) = trampolineMem.Addr // #nosec
 	// create patch guard
-	pg := PatchGuard{
+	return &PatchGuard{
 		Original:           originalProc,
 		patchMem:           patchMem,
 		patchOriginal:      patchOriginal,
@@ -229,12 +230,7 @@ func NewInlineHook(target *windows.Proc, hookFn interface{}) (*PatchGuard, error
 		trampolineMem:      trampolineMem,
 		trampolineOriginal: trampolineOriginal,
 		trampolineData:     trampolineData,
-	}
-	err = pg.Patch()
-	if err != nil {
-		return nil, err
-	}
-	return &pg, nil
+	}, nil
 }
 
 func disassemble(src []byte, mode int) ([]*x86asm.Inst, error) {
