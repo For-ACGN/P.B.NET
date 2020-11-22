@@ -25,7 +25,7 @@ func TestSystem(t *testing.T) {
 	require.NoError(t, err)
 
 	wg := sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -46,6 +46,7 @@ func TestSystem(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	fmt.Println()
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
