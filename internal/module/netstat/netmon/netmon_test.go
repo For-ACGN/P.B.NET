@@ -365,7 +365,7 @@ func TestMonitor_refreshLoop(t *testing.T) {
 
 		monitor.Pause()
 
-		m := new(Monitor)
+		var m *Monitor
 		patch := func(interface{}) error {
 			panic(monkey.Panic)
 		}

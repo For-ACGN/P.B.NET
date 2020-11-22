@@ -60,8 +60,8 @@ type Monitor struct {
 	wg     sync.WaitGroup
 }
 
-// NewMonitor is used to create a system status monitor.
-func NewMonitor(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
+// New is used to create a process monitor.
+func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error) {
 	if opts == nil {
 		opts = new(Options)
 	}
@@ -196,7 +196,7 @@ func (mon *Monitor) Refresh() error {
 	}
 	processes, err := mon.process.List()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "failed to get process list")
 	}
 	ds := &dataSource{
 		processes: processes,

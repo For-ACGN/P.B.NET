@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"project/internal/logger"
+	"project/internal/module/process"
 	"project/internal/patch/monkey"
 	"project/internal/testsuite"
 )
@@ -23,15 +24,18 @@ func TestMonitor(t *testing.T) {
 	handler := func(_ context.Context, event uint8, data interface{}) {
 		switch event {
 		case EventProcessCreated:
-			testMonitorPrintCreatedProcesses(data.([]*Process))
+			testMonitorPrintCreatedProcesses(data.([]*process.PsInfo))
 		case EventProcessTerminated:
-			testMonitorPrintTerminatedProcesses(data.([]*Process))
+			testMonitorPrintTerminatedProcesses(data.([]*process.PsInfo))
 		}
 	}
-	monitor, err := NewMonitor(logger.Test, handler, nil)
+	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
 
 	monitor.SetInterval(50 * time.Millisecond)
+
+	err = monitor.SetOptions(nil)
+	require.NoError(t, err)
 
 	time.Sleep(5 * time.Second)
 
@@ -43,15 +47,15 @@ func TestMonitor(t *testing.T) {
 	testsuite.IsDestroyed(t, monitor)
 }
 
-func testMonitorPrintCreatedProcesses(processes []*Process) {
-	for _, process := range processes {
-		fmt.Printf("create process PID: %d Name: %s\n", process.PID, process.Name)
+func testMonitorPrintCreatedProcesses(processes []*process.PsInfo) {
+	for _, ps := range processes {
+		fmt.Printf("create process PID: %d Name: %s\n", ps.PID, ps.Name)
 	}
 }
 
-func testMonitorPrintTerminatedProcesses(processes []*Process) {
-	for _, process := range processes {
-		fmt.Printf("terminate process PID: %d Name: %s\n", process.PID, process.Name)
+func testMonitorPrintTerminatedProcesses(processes []*process.PsInfo) {
+	for _, ps := range processes {
+		fmt.Printf("terminate process PID: %d Name: %s\n", ps.PID, ps.Name)
 	}
 }
 
@@ -69,13 +73,13 @@ func TestMonitor_EventProcessCreated(t *testing.T) {
 		if event != EventProcessCreated {
 			return
 		}
-		for _, process := range data.([]*Process) {
-			if process.Name == name {
+		for _, ps := range data.([]*process.PsInfo) {
+			if ps.Name == name {
 				created = true
 			}
 		}
 	}
-	monitor, err := NewMonitor(logger.Test, handler, nil)
+	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
 
 	// wait first auto refresh
@@ -122,13 +126,13 @@ func TestMonitor_EventProcessTerminated(t *testing.T) {
 		if event != EventProcessTerminated {
 			return
 		}
-		for _, process := range data.([]*Process) {
-			if process.Name == name {
+		for _, ps := range data.([]*process.PsInfo) {
+			if ps.Name == name {
 				terminated = true
 			}
 		}
 	}
-	monitor, err := NewMonitor(logger.Test, handler, nil)
+	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
 
 	// wait first auto refresh
@@ -156,7 +160,7 @@ func TestMonitor_refreshLoop(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("failed to refresh", func(t *testing.T) {
-		monitor, err := NewMonitor(logger.Test, nil, nil)
+		monitor, err := New(logger.Test, nil, nil)
 		require.NoError(t, err)
 
 		monitor.Pause()
@@ -180,12 +184,12 @@ func TestMonitor_refreshLoop(t *testing.T) {
 	})
 
 	t.Run("panic", func(t *testing.T) {
-		monitor, err := NewMonitor(logger.Test, nil, nil)
+		monitor, err := New(logger.Test, nil, nil)
 		require.NoError(t, err)
 
 		monitor.Pause()
 
-		m := new(Monitor)
+		var m *Monitor
 		patch := func(interface{}) error {
 			panic(monkey.Panic)
 		}
