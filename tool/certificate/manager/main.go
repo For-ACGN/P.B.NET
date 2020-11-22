@@ -17,7 +17,6 @@ import (
 
 	"project/internal/cert"
 	"project/internal/cert/certmgr"
-	"project/internal/module/shell"
 	"project/internal/security"
 	"project/internal/system"
 )
@@ -135,11 +134,11 @@ func manage() {
 	// backup
 	createBackup()
 	// start manage
-	manager := manager{
+	mgr := manager{
 		password: security.NewBytes(password),
 	}
 	security.CoverBytes(password)
-	manager.Manage()
+	mgr.Manage()
 }
 
 func createBackup() {
@@ -249,80 +248,80 @@ type manager struct {
 	scanner  *bufio.Scanner
 }
 
-func (m *manager) Manage() {
+func (mgr *manager) Manage() {
 	// interrupt input
 	go func() {
 		signalCh := make(chan os.Signal, 1)
 		signal.Notify(signalCh, os.Interrupt)
 	}()
-	m.reload()
-	m.prefix = prefixManager
-	m.scanner = bufio.NewScanner(os.Stdin)
+	mgr.reload()
+	mgr.prefix = prefixManager
+	mgr.scanner = bufio.NewScanner(os.Stdin)
 	for {
-		fmt.Printf("%s> ", m.prefix)
-		if !m.scanner.Scan() {
-			m.scanner = bufio.NewScanner(os.Stdin)
+		fmt.Printf("%s> ", mgr.prefix)
+		if !mgr.scanner.Scan() {
+			mgr.scanner = bufio.NewScanner(os.Stdin)
 			fmt.Println()
 			continue
 		}
-		switch m.prefix {
+		switch mgr.prefix {
 		case prefixManager:
-			m.manager()
+			mgr.manager()
 		case prefixPublic:
-			m.public()
+			mgr.public()
 		case prefixPrivate:
-			m.private()
+			mgr.private()
 		case prefixPublicRootCA:
-			m.publicRootCA()
+			mgr.publicRootCA()
 		case prefixPublicClientCA:
-			m.publicClientCA()
+			mgr.publicClientCA()
 		case prefixPublicClient:
-			m.publicClient()
+			mgr.publicClient()
 		case prefixPrivateRootCA:
-			m.privateRootCA()
+			mgr.privateRootCA()
 		case prefixPrivateClientCA:
-			m.privateClientCA()
+			mgr.privateClientCA()
 		case prefixPrivateClient:
-			m.privateClient()
+			mgr.privateClient()
 		default:
-			fmt.Printf("unknown prefix: %s\n", m.prefix)
+			fmt.Printf("unknown prefix: %s\n", mgr.prefix)
 			os.Exit(1)
 		}
 	}
 }
 
-func (m *manager) reload() {
+func (mgr *manager) reload() {
 	// read certificate pool file
 	certPool, err := ioutil.ReadFile(certmgr.CertPoolFilePath)
 	checkError(err, true)
 	// get password
-	password := m.password.Get()
-	defer m.password.Put(password)
+	password := mgr.password.Get()
+	defer mgr.password.Put(password)
 	// load certificate
 	pool := cert.NewPool()
 	err = certmgr.LoadCtrlCertPool(pool, certPool, password)
 	checkError(err, true)
-	m.pool = pool
+	mgr.pool = pool
 }
 
-func (m *manager) save() {
+func (mgr *manager) save() {
 	// get password
-	password := m.password.Get()
-	defer m.password.Put(password)
+	password := mgr.password.Get()
+	defer mgr.password.Put(password)
 	// save certificate
-	err := certmgr.SaveCtrlCertPool(m.pool, password)
+	err := certmgr.SaveCtrlCertPool(mgr.pool, password)
 	checkError(err, false)
 }
 
-func (m *manager) exit() {
+func (mgr *manager) exit() {
 	deleteBackup()
 	fmt.Println("Bye!")
 	os.Exit(0)
 }
 
-func (m *manager) manager() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) manager() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
@@ -332,23 +331,23 @@ func (m *manager) manager() {
 	}
 	switch args[0] {
 	case "public":
-		m.prefix = prefixPublic
+		mgr.prefix = prefixPublic
 	case "private":
-		m.prefix = prefixPrivate
+		mgr.prefix = prefixPrivate
 	case "help":
-		m.managerHelp()
+		mgr.managerHelp()
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
 }
 
-func (m *manager) managerHelp() {
+func (mgr *manager) managerHelp() {
 	const help = `
 help about manager:
   
@@ -363,9 +362,9 @@ help about manager:
 	fmt.Print(help)
 }
 
-func (m *manager) public() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) public() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
@@ -375,11 +374,11 @@ func (m *manager) public() {
 	}
 	switch args[0] {
 	case "root-ca":
-		m.prefix = prefixPublicRootCA
+		mgr.prefix = prefixPublicRootCA
 	case "client-ca":
-		m.prefix = prefixPublicClientCA
+		mgr.prefix = prefixPublicClientCA
 	case "client":
-		m.prefix = prefixPublicClient
+		mgr.prefix = prefixPublicClient
 	case "help":
 		a := make([]interface{}, 4)
 		for i := 0; i < 4; i++ {
@@ -387,21 +386,21 @@ func (m *manager) public() {
 		}
 		fmt.Printf(locationHelpTemplate, a...)
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "return":
-		m.prefix = prefixManager
+		mgr.prefix = prefixManager
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
 }
 
-func (m *manager) private() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) private() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
@@ -411,11 +410,11 @@ func (m *manager) private() {
 	}
 	switch args[0] {
 	case "root-ca":
-		m.prefix = prefixPrivateRootCA
+		mgr.prefix = prefixPrivateRootCA
 	case "client-ca":
-		m.prefix = prefixPrivateClientCA
+		mgr.prefix = prefixPrivateClientCA
 	case "client":
-		m.prefix = prefixPrivateClient
+		mgr.prefix = prefixPrivateClient
 	case "help":
 		a := make([]interface{}, 4)
 		for i := 0; i < 4; i++ {
@@ -423,13 +422,13 @@ func (m *manager) private() {
 		}
 		fmt.Printf(locationHelpTemplate, a...)
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "return":
-		m.prefix = prefixManager
+		mgr.prefix = prefixManager
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
@@ -437,57 +436,57 @@ func (m *manager) private() {
 
 // -----------------------------------------Public Root CA-----------------------------------------
 
-func (m *manager) publicRootCA() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) publicRootCA() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
 	switch args[0] {
 	case "list":
-		m.publicRootCAList()
+		mgr.publicRootCAList()
 	case "add":
 		if len(args) < 2 {
 			fmt.Println("no certificate file")
 			return
 		}
-		m.publicRootCAAdd(args[1])
+		mgr.publicRootCAAdd(args[1])
 	case "delete":
 		if len(args) < 2 {
 			fmt.Println("no certificate ID")
 			return
 		}
-		m.publicRootCADelete(args[1])
+		mgr.publicRootCADelete(args[1])
 	case "export":
 		if len(args) < 3 {
 			fmt.Println("no certificate ID or export file name")
 			return
 		}
-		m.publicRootCAExport(args[1], args[2])
+		mgr.publicRootCAExport(args[1], args[2])
 	case "help":
 		fmt.Printf(certHelpTemplate, "public/root-ca", "Root CA", "public")
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "return":
-		m.prefix = prefixPublic
+		mgr.prefix = prefixPublic
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
 }
 
-func (m *manager) publicRootCAList() {
+func (mgr *manager) publicRootCAList() {
 	fmt.Println()
-	certs := m.pool.GetPublicRootCACerts()
+	certs := mgr.pool.GetPublicRootCACerts()
 	for i := 0; i < len(certs); i++ {
 		printCertificate(i, certs[i])
 	}
 }
 
-func (m *manager) publicRootCAAdd(certFile string) {
+func (mgr *manager) publicRootCAAdd(certFile string) {
 	pemData, err := ioutil.ReadFile(certFile) // #nosec
 	if checkError(err, false) {
 		return
@@ -497,27 +496,27 @@ func (m *manager) publicRootCAAdd(certFile string) {
 		return
 	}
 	for i := 0; i < len(certs); i++ {
-		err = m.pool.AddPublicRootCACert(certs[i].Raw)
+		err = mgr.pool.AddPublicRootCACert(certs[i].Raw)
 		checkError(err, false)
 		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
 	}
 }
 
-func (m *manager) publicRootCADelete(id string) {
+func (mgr *manager) publicRootCADelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	err = m.pool.DeletePublicRootCACert(i)
+	err = mgr.pool.DeletePublicRootCACert(i)
 	checkError(err, false)
 }
 
-func (m *manager) publicRootCAExport(id, file string) {
+func (mgr *manager) publicRootCAExport(id, file string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	certPEM, err := m.pool.ExportPublicRootCACert(i)
+	certPEM, err := mgr.pool.ExportPublicRootCACert(i)
 	if checkError(err, false) {
 		return
 	}
@@ -527,57 +526,57 @@ func (m *manager) publicRootCAExport(id, file string) {
 
 // ----------------------------------------Public Client CA----------------------------------------
 
-func (m *manager) publicClientCA() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) publicClientCA() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
 	switch args[0] {
 	case "list":
-		m.publicClientCAList()
+		mgr.publicClientCAList()
 	case "add":
 		if len(args) < 2 {
 			fmt.Println("no certificate file")
 			return
 		}
-		m.publicClientCAAdd(args[1])
+		mgr.publicClientCAAdd(args[1])
 	case "delete":
 		if len(args) < 2 {
 			fmt.Println("no certificate ID")
 			return
 		}
-		m.publicClientCADelete(args[1])
+		mgr.publicClientCADelete(args[1])
 	case "export":
 		if len(args) < 3 {
 			fmt.Println("no certificate ID or export file name")
 			return
 		}
-		m.publicClientCAExport(args[1], args[2])
+		mgr.publicClientCAExport(args[1], args[2])
 	case "help":
 		fmt.Printf(certHelpTemplate, "public/client-ca", "Client CA", "public")
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "return":
-		m.prefix = prefixPublic
+		mgr.prefix = prefixPublic
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
 }
 
-func (m *manager) publicClientCAList() {
+func (mgr *manager) publicClientCAList() {
 	fmt.Println()
-	certs := m.pool.GetPublicClientCACerts()
+	certs := mgr.pool.GetPublicClientCACerts()
 	for i := 0; i < len(certs); i++ {
 		printCertificate(i, certs[i])
 	}
 }
 
-func (m *manager) publicClientCAAdd(certFile string) {
+func (mgr *manager) publicClientCAAdd(certFile string) {
 	pemData, err := ioutil.ReadFile(certFile) // #nosec
 	if checkError(err, false) {
 		return
@@ -587,27 +586,27 @@ func (m *manager) publicClientCAAdd(certFile string) {
 		return
 	}
 	for i := 0; i < len(certs); i++ {
-		err = m.pool.AddPublicClientCACert(certs[i].Raw)
+		err = mgr.pool.AddPublicClientCACert(certs[i].Raw)
 		checkError(err, false)
 		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
 	}
 }
 
-func (m *manager) publicClientCADelete(id string) {
+func (mgr *manager) publicClientCADelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	err = m.pool.DeletePublicClientCACert(i)
+	err = mgr.pool.DeletePublicClientCACert(i)
 	checkError(err, false)
 }
 
-func (m *manager) publicClientCAExport(id, file string) {
+func (mgr *manager) publicClientCAExport(id, file string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	certPEM, err := m.pool.ExportPublicClientCACert(i)
+	certPEM, err := mgr.pool.ExportPublicClientCACert(i)
 	if checkError(err, false) {
 		return
 	}
@@ -617,81 +616,81 @@ func (m *manager) publicClientCAExport(id, file string) {
 
 // -----------------------------------------Public Client------------------------------------------
 
-func (m *manager) publicClient() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) publicClient() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
 	switch args[0] {
 	case "list":
-		m.publicClientList()
+		mgr.publicClientList()
 	case "add":
 		if len(args) < 3 {
 			fmt.Println("no certificate file or private key file")
 			return
 		}
-		m.publicClientAdd(args[1], args[2])
+		mgr.publicClientAdd(args[1], args[2])
 	case "delete":
 		if len(args) < 2 {
 			fmt.Println("no certificate ID")
 			return
 		}
-		m.publicClientDelete(args[1])
+		mgr.publicClientDelete(args[1])
 	case "export":
 		if len(args) < 4 {
 			fmt.Println("no certificate ID or two export file name")
 			return
 		}
-		m.publicClientExport(args[1], args[2], args[3])
+		mgr.publicClientExport(args[1], args[2], args[3])
 	case "help":
 		fmt.Printf(certHelpTemplate, "public/client", "Client", "public")
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "return":
-		m.prefix = prefixPublic
+		mgr.prefix = prefixPublic
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
 }
 
-func (m *manager) publicClientList() {
+func (mgr *manager) publicClientList() {
 	fmt.Println()
-	certs := m.pool.GetPublicClientPairs()
+	certs := mgr.pool.GetPublicClientPairs()
 	for i := 0; i < len(certs); i++ {
 		printCertificate(i, certs[i].Certificate)
 	}
 }
 
-func (m *manager) publicClientAdd(certFile, keyFile string) {
+func (mgr *manager) publicClientAdd(certFile, keyFile string) {
 	certs, keys := loadPairs(certFile, keyFile)
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
-		err := m.pool.AddPublicClientPair(certs[i].Raw, keyData)
+		err := mgr.pool.AddPublicClientPair(certs[i].Raw, keyData)
 		checkError(err, false)
 		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
 	}
 }
 
-func (m *manager) publicClientDelete(id string) {
+func (mgr *manager) publicClientDelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	err = m.pool.DeletePublicClientCert(i)
+	err = mgr.pool.DeletePublicClientCert(i)
 	checkError(err, false)
 }
 
-func (m *manager) publicClientExport(id, cert, key string) {
+func (mgr *manager) publicClientExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	certPEM, keyPEM, err := m.pool.ExportPublicClientPair(i)
+	certPEM, keyPEM, err := mgr.pool.ExportPublicClientPair(i)
 	if checkError(err, false) {
 		return
 	}
@@ -705,81 +704,81 @@ func (m *manager) publicClientExport(id, cert, key string) {
 
 // ----------------------------------------Private Root CA-----------------------------------------
 
-func (m *manager) privateRootCA() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) privateRootCA() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
 	switch args[0] {
 	case "list":
-		m.privateRootCAList()
+		mgr.privateRootCAList()
 	case "add":
 		if len(args) < 3 {
 			fmt.Println("no certificate file or private key file")
 			return
 		}
-		m.privateRootCAAdd(args[1], args[2])
+		mgr.privateRootCAAdd(args[1], args[2])
 	case "delete":
 		if len(args) < 2 {
 			fmt.Println("no certificate ID")
 			return
 		}
-		m.privateRootCADelete(args[1])
+		mgr.privateRootCADelete(args[1])
 	case "export":
 		if len(args) < 4 {
 			fmt.Println("no certificate ID or two export file name")
 			return
 		}
-		m.privateRootCAExport(args[1], args[2], args[3])
+		mgr.privateRootCAExport(args[1], args[2], args[3])
 	case "help":
 		fmt.Printf(certHelpTemplate, "private/root-ca", "Root CA", "private")
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "return":
-		m.prefix = prefixPrivate
+		mgr.prefix = prefixPrivate
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
 }
 
-func (m *manager) privateRootCAList() {
+func (mgr *manager) privateRootCAList() {
 	fmt.Println()
-	certs := m.pool.GetPrivateRootCACerts()
+	certs := mgr.pool.GetPrivateRootCACerts()
 	for i := 0; i < len(certs); i++ {
 		printCertificate(i, certs[i])
 	}
 }
 
-func (m *manager) privateRootCAAdd(certFile, keyFile string) {
+func (mgr *manager) privateRootCAAdd(certFile, keyFile string) {
 	certs, keys := loadPairs(certFile, keyFile)
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
-		err := m.pool.AddPrivateRootCAPair(certs[i].Raw, keyData)
+		err := mgr.pool.AddPrivateRootCAPair(certs[i].Raw, keyData)
 		checkError(err, false)
 		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
 	}
 }
 
-func (m *manager) privateRootCADelete(id string) {
+func (mgr *manager) privateRootCADelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	err = m.pool.DeletePrivateRootCACert(i)
+	err = mgr.pool.DeletePrivateRootCACert(i)
 	checkError(err, false)
 }
 
-func (m *manager) privateRootCAExport(id, cert, key string) {
+func (mgr *manager) privateRootCAExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	certPEM, keyPEM, err := m.pool.ExportPrivateRootCAPair(i)
+	certPEM, keyPEM, err := mgr.pool.ExportPrivateRootCAPair(i)
 	if checkError(err, false) {
 		return
 	}
@@ -793,81 +792,81 @@ func (m *manager) privateRootCAExport(id, cert, key string) {
 
 // ---------------------------------------Private Client CA----------------------------------------
 
-func (m *manager) privateClientCA() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) privateClientCA() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
 	switch args[0] {
 	case "list":
-		m.privateClientCAList()
+		mgr.privateClientCAList()
 	case "add":
 		if len(args) < 3 {
 			fmt.Println("no certificate file or private key file")
 			return
 		}
-		m.privateClientCAAdd(args[1], args[2])
+		mgr.privateClientCAAdd(args[1], args[2])
 	case "delete":
 		if len(args) < 2 {
 			fmt.Println("no certificate ID")
 			return
 		}
-		m.privateClientCADelete(args[1])
+		mgr.privateClientCADelete(args[1])
 	case "export":
 		if len(args) < 4 {
 			fmt.Println("no certificate ID or two export file name")
 			return
 		}
-		m.privateClientCAExport(args[1], args[2], args[3])
+		mgr.privateClientCAExport(args[1], args[2], args[3])
 	case "help":
 		fmt.Printf(certHelpTemplate, "private/client-ca", "Client CA", "private")
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "return":
-		m.prefix = prefixPrivate
+		mgr.prefix = prefixPrivate
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
 }
 
-func (m *manager) privateClientCAList() {
+func (mgr *manager) privateClientCAList() {
 	fmt.Println()
-	certs := m.pool.GetPrivateClientCACerts()
+	certs := mgr.pool.GetPrivateClientCACerts()
 	for i := 0; i < len(certs); i++ {
 		printCertificate(i, certs[i])
 	}
 }
 
-func (m *manager) privateClientCAAdd(certFile, keyFile string) {
+func (mgr *manager) privateClientCAAdd(certFile, keyFile string) {
 	certs, keys := loadPairs(certFile, keyFile)
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
-		err := m.pool.AddPrivateClientCAPair(certs[i].Raw, keyData)
+		err := mgr.pool.AddPrivateClientCAPair(certs[i].Raw, keyData)
 		checkError(err, false)
 		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
 	}
 }
 
-func (m *manager) privateClientCADelete(id string) {
+func (mgr *manager) privateClientCADelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	err = m.pool.DeletePrivateClientCACert(i)
+	err = mgr.pool.DeletePrivateClientCACert(i)
 	checkError(err, false)
 }
 
-func (m *manager) privateClientCAExport(id, cert, key string) {
+func (mgr *manager) privateClientCAExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	certPEM, keyPEM, err := m.pool.ExportPrivateClientCAPair(i)
+	certPEM, keyPEM, err := mgr.pool.ExportPrivateClientCAPair(i)
 	if checkError(err, false) {
 		return
 	}
@@ -881,81 +880,81 @@ func (m *manager) privateClientCAExport(id, cert, key string) {
 
 // ----------------------------------------Private Client------------------------------------------
 
-func (m *manager) privateClient() {
-	cmd := m.scanner.Text()
-	args := shell.CommandLineToArgv(cmd)
+func (mgr *manager) privateClient() {
+	cmd := mgr.scanner.Text()
+	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
 		return
 	}
 	switch args[0] {
 	case "list":
-		m.privateClientList()
+		mgr.privateClientList()
 	case "add":
 		if len(args) < 3 {
 			fmt.Println("no certificate file or private key file")
 			return
 		}
-		m.privateClientAdd(args[1], args[2])
+		mgr.privateClientAdd(args[1], args[2])
 	case "delete":
 		if len(args) < 2 {
 			fmt.Println("no certificate ID")
 			return
 		}
-		m.privateClientDelete(args[1])
+		mgr.privateClientDelete(args[1])
 	case "export":
 		if len(args) < 4 {
 			fmt.Println("no certificate ID or two export file name")
 			return
 		}
-		m.privateClientExport(args[1], args[2], args[3])
+		mgr.privateClientExport(args[1], args[2], args[3])
 	case "help":
 		fmt.Printf(certHelpTemplate, "private/client", "Client", "private")
 	case "save":
-		m.save()
+		mgr.save()
 	case "reload":
-		m.reload()
+		mgr.reload()
 	case "return":
-		m.prefix = prefixPrivate
+		mgr.prefix = prefixPrivate
 	case "exit":
-		m.exit()
+		mgr.exit()
 	default:
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 	}
 }
 
-func (m *manager) privateClientList() {
+func (mgr *manager) privateClientList() {
 	fmt.Println()
-	certs := m.pool.GetPrivateClientPairs()
+	certs := mgr.pool.GetPrivateClientPairs()
 	for i := 0; i < len(certs); i++ {
 		printCertificate(i, certs[i].Certificate)
 	}
 }
 
-func (m *manager) privateClientAdd(certFile, keyFile string) {
+func (mgr *manager) privateClientAdd(certFile, keyFile string) {
 	certs, keys := loadPairs(certFile, keyFile)
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
-		err := m.pool.AddPrivateClientPair(certs[i].Raw, keyData)
+		err := mgr.pool.AddPrivateClientPair(certs[i].Raw, keyData)
 		checkError(err, false)
 		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
 	}
 }
 
-func (m *manager) privateClientDelete(id string) {
+func (mgr *manager) privateClientDelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	err = m.pool.DeletePrivateClientCert(i)
+	err = mgr.pool.DeletePrivateClientCert(i)
 	checkError(err, false)
 }
 
-func (m *manager) privateClientExport(id, cert, key string) {
+func (mgr *manager) privateClientExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
 	}
-	certPEM, keyPEM, err := m.pool.ExportPrivateClientPair(i)
+	certPEM, keyPEM, err := mgr.pool.ExportPrivateClientPair(i)
 	if checkError(err, false) {
 		return
 	}
