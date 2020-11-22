@@ -169,8 +169,8 @@ func (ps *process) getArchitecture(handle windows.Handle) string {
 	}
 	var isWow64 bool
 	ret, _, _ := ps.procIsWow64.Call(
-		uintptr(handle), uintptr(unsafe.Pointer(&isWow64)), // #nosec
-	)
+		uintptr(handle), uintptr(unsafe.Pointer(&isWow64)),
+	) // #nosec
 	if ret == 0 {
 		return ""
 	}
@@ -192,9 +192,9 @@ func (ps *process) Create(name string, opts *CreateOptions) (*os.Process, error)
 	args := system.CommandLineToArgv(opts.CommandLine)
 	var cmd *exec.Cmd
 	if opts.Wait {
-		cmd = exec.CommandContext(ps.ctx, name, args...)
+		cmd = exec.CommandContext(ps.ctx, name, args...) // #nosec
 	} else {
-		cmd = exec.Command(name, args...)
+		cmd = exec.Command(name, args...) // #nosec
 	}
 	cmd.Dir = opts.Directory
 	cmd.Env = opts.Environment

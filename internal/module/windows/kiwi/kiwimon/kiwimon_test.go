@@ -15,7 +15,7 @@ import (
 )
 
 func TestMonitor(t *testing.T) {
-	monitor, err := NewMonitor(logger.Test, func(local, remote string, pid int64, cred *kiwi.Credential) {
+	monitor, err := New(logger.Test, func(local, remote string, pid int64, cred *kiwi.Credential) {
 		fmt.Println(local, remote, pid, cred)
 	}, nil)
 	require.NoError(t, err)

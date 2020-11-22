@@ -120,7 +120,7 @@ func (h *Hook) credReadW(targetName *uint16, typ, flags uint, credential uintptr
 	defer func() {
 		ret, _, _ = h.pgCredReadW.Original.Call(
 			uintptr(unsafe.Pointer(targetName)), uintptr(typ), uintptr(flags), credential,
-		)
+		) // #nosec
 	}()
 
 	hostname := windows.UTF16PtrToString(targetName)
@@ -140,7 +140,7 @@ func (h *Hook) cryptProtectMemory(address *byte, size, flags uint) (ret uintptr)
 	defer func() {
 		ret, _, _ = h.pgCryptProtectMemory.Original.Call(
 			uintptr(unsafe.Pointer(address)), uintptr(size), uintptr(flags),
-		)
+		) // #nosec
 	}()
 
 	// skip data that not contain password
@@ -160,8 +160,8 @@ func (h *Hook) cryptProtectMemory(address *byte, size, flags uint) (ret uintptr)
 	}
 
 	var data []byte
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	sh.Data = uintptr(unsafe.Pointer(address))
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data)) // #nosec
+	sh.Data = uintptr(unsafe.Pointer(address))          // #nosec
 	sh.Len = int(size)
 	sh.Cap = int(size)
 
@@ -188,12 +188,10 @@ func (h *Hook) cryptProtectMemory(address *byte, size, flags uint) (ret uintptr)
 
 	password := make([]byte, passwordLen)
 	copy(password, data[4:4+passwordLen])
-
-	sh = (*reflect.SliceHeader)(unsafe.Pointer(&password))
+	sh = (*reflect.SliceHeader)(unsafe.Pointer(&password)) // #nosec
 	sh.Len = sh.Len / 2
 	sh.Cap = sh.Cap / 2
-
-	h.password = string(utf16.Decode(*(*[]uint16)(unsafe.Pointer(&password))))
+	h.password = string(utf16.Decode(*(*[]uint16)(unsafe.Pointer(&password)))) // #nosec
 	return
 }
 
@@ -207,7 +205,7 @@ func (h *Hook) credIsMarshaledCredentialW(marshaledCredential *uint16) (ret uint
 	defer func() {
 		ret, _, _ = h.pgCredIsMarshaledCredentialW.Original.Call(
 			uintptr(unsafe.Pointer(marshaledCredential)),
-		)
+		) // #nosec
 	}()
 
 	username := windows.UTF16PtrToString(marshaledCredential)

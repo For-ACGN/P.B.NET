@@ -57,8 +57,8 @@ type Options struct {
 	StealWaitTime          time.Duration
 }
 
-// NewMonitor is used to create a new kiwi monitor.
-func NewMonitor(logger logger.Logger, handler Handler, opts *Options) (*Monitor, error) {
+// New is used to create a new kiwi monitor.
+func New(logger logger.Logger, handler Handler, opts *Options) (*Monitor, error) {
 	if opts == nil {
 		opts = new(Options)
 	}

