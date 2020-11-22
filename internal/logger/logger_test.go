@@ -27,8 +27,11 @@ func TestParse(t *testing.T) {
 		name  string
 		level Level
 	}{
+		{"all", All},
+		{"trace", Trace},
 		{"debug", Debug},
 		{"info", Info},
+		{"crucial", Crucial},
 		{"warning", Warning},
 		{"error", Error},
 		{"exploit", Exploit},
@@ -43,9 +46,9 @@ func TestParse(t *testing.T) {
 	}
 
 	t.Run("invalid level", func(t *testing.T) {
-		l, err := Parse("invalid level")
+		lv, err := Parse("invalid level")
 		require.Error(t, err)
-		require.Equal(t, l, Debug)
+		require.Equal(t, lv, Level(0))
 	})
 }
 
@@ -58,25 +61,38 @@ func TestPrefix(t *testing.T) {
 }
 
 func TestLogger(t *testing.T) {
-	Common.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-	Common.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-	Common.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	t.Run("common", func(t *testing.T) {
+		Common.Printf(Info, testSrc, testPrefixF, testLog1, testLog2)
+		Common.Print(Info, testSrc, testPrefix, testLog1, testLog2)
+		Common.Println(Info, testSrc, testPrefixLn, testLog1, testLog2)
 
-	Test.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-	Test.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-	Test.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+		// will not display
+		Common.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
+		Common.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
+		Common.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	})
 
-	Discard.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-	Discard.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-	Discard.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	t.Run("test", func(t *testing.T) {
+		Test.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
+		Test.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
+		Test.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	})
+
+	t.Run("discard", func(t *testing.T) {
+		Discard.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
+		Discard.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
+		Discard.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	})
 }
 
 func TestMultiLogger(t *testing.T) {
 	logger := NewMultiLogger(Debug, os.Stdout)
 
-	logger.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-	logger.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-	logger.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	t.Run("common", func(t *testing.T) {
+		logger.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
+		logger.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
+		logger.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	})
 
 	t.Run("low level", func(t *testing.T) {
 		err := logger.SetLevel(Info)
@@ -96,6 +112,12 @@ func TestMultiLogger(t *testing.T) {
 	require.NoError(t, err)
 
 	testsuite.IsDestroyed(t, logger)
+}
+
+func TestNewWriterWithPrefix(t *testing.T) {
+	w := NewWriterWithPrefix(os.Stdout, "prefix")
+	_, err := w.Write([]byte("test\n"))
+	require.NoError(t, err)
 }
 
 func TestWrapLogger(t *testing.T) {
@@ -119,7 +141,7 @@ func TestHijackLogWriter(t *testing.T) {
 }
 
 func TestSetErrorLogger(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
 		const name = "testdata/test.err"
 
 		file, err := SetErrorLogger(name)
@@ -133,7 +155,7 @@ func TestSetErrorLogger(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("failed", func(t *testing.T) {
+	t.Run("fail", func(t *testing.T) {
 		file, err := SetErrorLogger("testdata/<</file")
 		require.Error(t, err)
 		require.Nil(t, file)
@@ -159,10 +181,4 @@ func TestConn(t *testing.T) {
 		defer func() { _ = conn.Close() }()
 		fmt.Println(Conn(conn))
 	})
-}
-
-func TestNewWriterWithPrefix(t *testing.T) {
-	w := NewWriterWithPrefix(os.Stdout, "prefix")
-	_, err := w.Write([]byte("test\n"))
-	require.NoError(t, err)
 }

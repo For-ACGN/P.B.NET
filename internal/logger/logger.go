@@ -18,15 +18,25 @@ import (
 // Level is the log level.
 type Level = uint8
 
-// about level
+// levels about logger.
 const (
-	Debug Level = iota
-	Info
-	Warning
-	Error
-	Exploit
-	Fatal
-	Off
+	All Level = iota // show all log messages
+
+	// about debug
+	Trace // for trace function (development)
+	Debug // general debug information
+
+	// about information
+	Info    // common running information
+	Crucial // important information like attack successfully
+
+	// about error
+	Warning // appear error but can continue
+	Error   // appear error that can not continue (returned)
+	Exploit // find attack exploit or security problem(maybe)
+	Fatal   // appear panic in goroutine
+
+	Off // stop log message
 )
 
 // TimeLayout is used to provide a parameter to time.Time.Format().
@@ -46,12 +56,18 @@ type LevelSetter interface {
 
 // Parse is used to parse logger level from string.
 func Parse(level string) (Level, error) {
-	lv := Level(0)
+	var lv Level
 	switch strings.ToLower(level) {
+	case "all":
+		lv = All
+	case "trace":
+		lv = Trace
 	case "debug":
 		lv = Debug
 	case "info":
 		lv = Info
+	case "crucial":
+		lv = Crucial
 	case "warning":
 		lv = Warning
 	case "error":
@@ -78,10 +94,14 @@ func Parse(level string) (Level, error) {
 func Prefix(time time.Time, level Level, src string) *bytes.Buffer {
 	var lv string
 	switch level {
+	case Trace:
+		lv = "trace"
 	case Debug:
 		lv = "debug"
 	case Info:
 		lv = "info"
+	case Crucial:
+		lv = "crucial"
 	case Warning:
 		lv = "warning"
 	case Error:
@@ -115,22 +135,31 @@ var (
 	Discard Logger = new(discard)
 )
 
-// [2020-01-21 12:36:41] [debug] <test src> test-format test log
+// [2020-01-21 12:36:41] [info] <test src> test-format test log
 type common struct{}
 
 func (common) Printf(lv Level, src, format string, log ...interface{}) {
+	if lv < Info {
+		return
+	}
 	output := Prefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintf(output, format, log...)
 	fmt.Println(output)
 }
 
 func (common) Print(lv Level, src string, log ...interface{}) {
+	if lv < Info {
+		return
+	}
 	output := Prefix(time.Now(), lv, src)
 	_, _ = fmt.Fprint(output, log...)
 	fmt.Println(output)
 }
 
 func (common) Println(lv Level, src string, log ...interface{}) {
+	if lv < Info {
+		return
+	}
 	output := Prefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintln(output, log...)
 	fmt.Print(output)
@@ -244,6 +273,27 @@ func (lg *MultiLogger) Close() error {
 	return nil
 }
 
+// prefixWriter is used to print with a prefix.
+type prefixWriter struct {
+	writer io.Writer
+	prefix []byte
+}
+
+func (p *prefixWriter) Write(b []byte) (n int, err error) {
+	n = len(b)
+	_, err = p.writer.Write(append(p.prefix, b...))
+	return
+}
+
+// NewWriterWithPrefix is used to print prefix before each log.
+// It used to test role.
+func NewWriterWithPrefix(w io.Writer, prefix string) io.Writer {
+	return &prefixWriter{
+		writer: w,
+		prefix: []byte(fmt.Sprintf("[%s] ", prefix)),
+	}
+}
+
 // wrapWriter will print stack trace to inner logger.
 type wrapWriter struct {
 	level  Level
@@ -329,25 +379,4 @@ func Conn(conn net.Conn) *bytes.Buffer {
 		conn.RemoteAddr().Network(), conn.RemoteAddr(),
 	)
 	return buf
-}
-
-// prefixWriter is used to print with a prefix.
-type prefixWriter struct {
-	writer io.Writer
-	prefix []byte
-}
-
-func (p *prefixWriter) Write(b []byte) (n int, err error) {
-	n = len(b)
-	_, err = p.writer.Write(append(p.prefix, b...))
-	return
-}
-
-// NewWriterWithPrefix is used to print prefix before each log.
-// It used to test role.
-func NewWriterWithPrefix(w io.Writer, prefix string) io.Writer {
-	return &prefixWriter{
-		writer: w,
-		prefix: []byte(fmt.Sprintf("[%s] ", prefix)),
-	}
 }
