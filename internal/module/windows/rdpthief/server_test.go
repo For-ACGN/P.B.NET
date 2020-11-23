@@ -37,6 +37,9 @@ func TestServer(t *testing.T) {
 
 	var received bool
 	cb := func(cred *Credential) {
+		require.Equal(t, testCredHostname, cred.Hostname)
+		require.Equal(t, testCredUsername, cred.Username)
+		require.Equal(t, testCredPassword, cred.Password)
 		received = true
 	}
 	server, err := NewServer(logger.Test, testInjector, cb, testConfig)
@@ -53,7 +56,7 @@ func TestServer(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	// simulate get credential
+	// simulate steal credential
 	testCreateCredential(t)
 	time.Sleep(time.Second)
 

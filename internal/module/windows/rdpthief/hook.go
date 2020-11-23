@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 	"unicode/utf16"
 	"unsafe"
@@ -138,9 +139,19 @@ func (h *Hook) credReadW(targetName *uint16, typ, flags uint, credential uintptr
 	}()
 
 	hostname := windows.UTF16PtrToString(targetName)
-	if hostname != "" {
+	if hostname == "" {
+		return
+	}
+	// on Windows Server 2012 R2, receive hostname with guid default.
+	if index := strings.Index(hostname, "="); index != -1 {
+		h.hostname = hostname[index+1:]
+	} else {
 		h.hostname = hostname
 	}
+	// <lol> can be simplify to these code but not used:
+	// if Index not found, it will return -1, and -1 + 1 = 0.
+	//
+	// h.hostname = hostname[strings.Index(hostname, "=")+1:]
 	return
 }
 
