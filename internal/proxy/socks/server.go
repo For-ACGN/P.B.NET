@@ -335,14 +335,14 @@ func (conn *conn) logf(lv logger.Level, format string, log ...interface{}) {
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintf(buf, format, log...)
 	buf.WriteString("\n")
-	_, _ = logger.Conn(conn.local).WriteTo(buf)
+	nettool.FprintConn(buf, conn.local)
 	conn.ctx.log(lv, buf)
 }
 
 func (conn *conn) log(lv logger.Level, log ...interface{}) {
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, log...)
-	_, _ = logger.Conn(conn.local).WriteTo(buf)
+	nettool.FprintConn(buf, conn.local)
 	conn.ctx.log(lv, buf)
 }
 

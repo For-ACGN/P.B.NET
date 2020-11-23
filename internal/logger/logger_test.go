@@ -3,7 +3,6 @@ package logger
 import (
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"testing"
 	"time"
@@ -159,26 +158,5 @@ func TestSetErrorLogger(t *testing.T) {
 		file, err := SetErrorLogger("testdata/<</file")
 		require.Error(t, err)
 		require.Nil(t, file)
-	})
-}
-
-func TestConn(t *testing.T) {
-	t.Run("local", func(t *testing.T) {
-		listener, err := net.Listen("tcp", "localhost:0")
-		require.NoError(t, err)
-
-		conn, err := net.Dial("tcp", listener.Addr().String())
-		require.NoError(t, err)
-		defer func() { _ = conn.Close() }()
-		fmt.Println(Conn(conn))
-
-		err = listener.Close()
-		require.NoError(t, err)
-	})
-
-	t.Run("mock", func(t *testing.T) {
-		conn := testsuite.NewMockConn()
-		defer func() { _ = conn.Close() }()
-		fmt.Println(Conn(conn))
 	})
 }

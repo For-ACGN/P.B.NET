@@ -1,9 +1,11 @@
 package nettool
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -180,6 +182,24 @@ func DeadlineConn(conn net.Conn, deadline time.Duration) net.Conn {
 		dc.deadline = time.Minute
 	}
 	return &dc
+}
+
+// FprintConn is used to print information about net.Conn to a io.Writer.
+//
+// local:  tcp 127.0.0.1:1234
+// remote: tcp 127.0.0.1:1235
+func FprintConn(w io.Writer, c net.Conn) {
+	_, _ = fmt.Fprintf(w, "local:  %s %s\nremote: %s %s",
+		c.LocalAddr().Network(), c.LocalAddr(),
+		c.RemoteAddr().Network(), c.RemoteAddr(),
+	)
+}
+
+// PrintConn is used to print information about net.Conn to a *bytes.Buffer.
+func PrintConn(conn net.Conn) *bytes.Buffer {
+	buf := bytes.NewBuffer(make([]byte, 0, 64))
+	FprintConn(buf, conn)
+	return buf
 }
 
 // Server implemented method Addresses() []net.Addr.

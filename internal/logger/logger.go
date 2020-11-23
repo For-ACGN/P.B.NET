@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"os"
 	"strings"
 	"sync"
@@ -366,17 +365,4 @@ func SetErrorLogger(name string) (*os.File, error) {
 	mLogger := NewMultiLogger(Warning, os.Stdout, file)
 	HijackLogWriter(Fatal, "init", mLogger)
 	return file, nil
-}
-
-// Conn is used to print connection information to a *bytes.Buffer.
-//
-// local:  tcp 127.0.0.1:1234
-// remote: tcp 127.0.0.1:1235
-func Conn(conn net.Conn) *bytes.Buffer {
-	buf := bytes.NewBuffer(make([]byte, 0, 64))
-	_, _ = fmt.Fprintf(buf, "local:  %s %s\nremote: %s %s ",
-		conn.LocalAddr().Network(), conn.LocalAddr(),
-		conn.RemoteAddr().Network(), conn.RemoteAddr(),
-	)
-	return buf
 }

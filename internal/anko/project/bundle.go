@@ -338,6 +338,8 @@ func initInternalGUID() {
 func initInternalHTTPTool() {
 	env.Packages["project/internal/httptool"] = map[string]reflect.Value{
 		// define constants
+		"BodyLineLength": reflect.ValueOf(httptool.BodyLineLength),
+		"MaxBodyLength":  reflect.ValueOf(httptool.MaxBodyLength),
 
 		// define variables
 
@@ -353,6 +355,8 @@ func initInternalHTTPTool() {
 func initInternalLogger() {
 	env.Packages["project/internal/logger"] = map[string]reflect.Value{
 		// define constants
+		"All":        reflect.ValueOf(logger.All),
+		"Crucial":    reflect.ValueOf(logger.Crucial),
 		"Debug":      reflect.ValueOf(logger.Debug),
 		"Error":      reflect.ValueOf(logger.Error),
 		"Exploit":    reflect.ValueOf(logger.Exploit),
@@ -360,6 +364,7 @@ func initInternalLogger() {
 		"Info":       reflect.ValueOf(logger.Info),
 		"Off":        reflect.ValueOf(logger.Off),
 		"TimeLayout": reflect.ValueOf(logger.TimeLayout),
+		"Trace":      reflect.ValueOf(logger.Trace),
 		"Warning":    reflect.ValueOf(logger.Warning),
 
 		// define variables
@@ -368,7 +373,6 @@ func initInternalLogger() {
 		"Test":    reflect.ValueOf(logger.Test),
 
 		// define functions
-		"Conn":                reflect.ValueOf(logger.Conn),
 		"HijackLogWriter":     reflect.ValueOf(logger.HijackLogWriter),
 		"NewMultiLogger":      reflect.ValueOf(logger.NewMultiLogger),
 		"NewWriterWithPrefix": reflect.ValueOf(logger.NewWriterWithPrefix),
@@ -426,12 +430,14 @@ func initInternalNetTool() {
 		"DeadlineConn":          reflect.ValueOf(nettool.DeadlineConn),
 		"DecodeExternalAddress": reflect.ValueOf(nettool.DecodeExternalAddress),
 		"EncodeExternalAddress": reflect.ValueOf(nettool.EncodeExternalAddress),
+		"FprintConn":            reflect.ValueOf(nettool.FprintConn),
 		"IPEnabled":             reflect.ValueOf(nettool.IPEnabled),
 		"IPToHost":              reflect.ValueOf(nettool.IPToHost),
 		"IsNetClosingError":     reflect.ValueOf(nettool.IsNetClosingError),
 		"IsTCPNetwork":          reflect.ValueOf(nettool.IsTCPNetwork),
 		"IsUDPNetwork":          reflect.ValueOf(nettool.IsUDPNetwork),
 		"JoinHostPort":          reflect.ValueOf(nettool.JoinHostPort),
+		"PrintConn":             reflect.ValueOf(nettool.PrintConn),
 		"SplitHostPort":         reflect.ValueOf(nettool.SplitHostPort),
 		"WaitServerServe":       reflect.ValueOf(nettool.WaitServerServe),
 	}
@@ -677,6 +683,7 @@ func initInternalSecurity() {
 		"CoverString":           reflect.ValueOf(security.CoverString),
 		"FlushMemory":           reflect.ValueOf(security.FlushMemory),
 		"LimitReadAll":          reflect.ValueOf(security.LimitReadAll),
+		"LimitReader":           reflect.ValueOf(security.LimitReader),
 		"NewBogo":               reflect.ValueOf(security.NewBogo),
 		"NewBytes":              reflect.ValueOf(security.NewBytes),
 		"NewMemory":             reflect.ValueOf(security.NewMemory),
@@ -707,11 +714,13 @@ func initInternalSystem() {
 		// define functions
 		"ChangeCurrentDirectory": reflect.ValueOf(system.ChangeCurrentDirectory),
 		"CheckError":             reflect.ValueOf(system.CheckError),
+		"CommandLineToArgv":      reflect.ValueOf(system.CommandLineToArgv),
 		"ExecutableName":         reflect.ValueOf(system.ExecutableName),
 		"GetConnHandle":          reflect.ValueOf(system.GetConnHandle),
 		"IsExist":                reflect.ValueOf(system.IsExist),
 		"IsNotExist":             reflect.ValueOf(system.IsNotExist),
 		"OpenFile":               reflect.ValueOf(system.OpenFile),
+		"PrintError":             reflect.ValueOf(system.PrintError),
 		"WriteFile":              reflect.ValueOf(system.WriteFile),
 	}
 	var ()

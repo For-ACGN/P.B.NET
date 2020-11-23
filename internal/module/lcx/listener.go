@@ -246,7 +246,7 @@ func (l *Listener) serve(iListener, lListener net.Listener) {
 		// log remote connection
 		buf.Reset()
 		_, _ = fmt.Fprintln(buf, "income slave connection")
-		_, _ = logger.Conn(remote).WriteTo(buf)
+		nettool.FprintConn(buf, remote)
 		l.log(logger.Info, buf)
 		// than accept local connection
 		local := l.accept(lListener)
@@ -257,7 +257,7 @@ func (l *Listener) serve(iListener, lListener net.Listener) {
 		// log local connection
 		buf.Reset()
 		_, _ = fmt.Fprintln(buf, "income user connection")
-		_, _ = logger.Conn(local).WriteTo(buf)
+		nettool.FprintConn(buf, local)
 		l.log(logger.Info, buf)
 		// serve
 		c := l.newConn(remote, local)
@@ -322,7 +322,7 @@ func (l *Listener) newConn(remote, local net.Conn) *lConn {
 func (c *lConn) log(lv logger.Level, log ...interface{}) {
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, log...)
-	_, _ = logger.Conn(c.remote).WriteTo(buf)
+	nettool.FprintConn(buf, c.remote)
 	c.ctx.log(lv, buf)
 }
 
@@ -355,7 +355,7 @@ func (c *lConn) serve() {
 	defer func() {
 		buf := new(bytes.Buffer)
 		_, _ = fmt.Fprintln(buf, "connection closed")
-		_, _ = logger.Conn(c.local).WriteTo(buf)
+		nettool.FprintConn(buf, c.local)
 		_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
 		c.ctx.log(logger.Info, buf)
 	}()
@@ -368,7 +368,7 @@ func (c *lConn) serve() {
 	// print latest connection status
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, "connection established")
-	_, _ = logger.Conn(c.local).WriteTo(buf)
+	nettool.FprintConn(buf, c.local)
 	_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
 	c.ctx.log(logger.Info, buf)
 

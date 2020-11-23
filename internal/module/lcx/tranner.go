@@ -263,7 +263,7 @@ func (t *Tranner) newConn(c net.Conn) *tConn {
 func (c *tConn) log(lv logger.Level, log ...interface{}) {
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, log...)
-	_, _ = logger.Conn(c.local).WriteTo(buf)
+	nettool.FprintConn(buf, c.local)
 	c.ctx.log(lv, buf)
 }
 
@@ -294,7 +294,7 @@ func (c *tConn) serve() {
 		if ok {
 			buf := new(bytes.Buffer)
 			_, _ = fmt.Fprintln(buf, "connection closed")
-			_, _ = logger.Conn(c.local).WriteTo(buf)
+			nettool.FprintConn(buf, c.local)
 			_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
 			c.ctx.log(logger.Info, buf)
 		} else {
@@ -328,7 +328,7 @@ func (c *tConn) serve() {
 	// print latest connection status
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, "connection established")
-	_, _ = logger.Conn(c.local).WriteTo(buf)
+	nettool.FprintConn(buf, c.local)
 	_, _ = fmt.Fprint(buf, "\n", c.ctx.Status())
 	c.ctx.log(logger.Info, buf)
 

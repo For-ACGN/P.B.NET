@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"testing"
@@ -273,6 +274,19 @@ func TestDeadlineConn(t *testing.T) {
 	err = client.Close()
 	require.NoError(t, err)
 	err = server.Close()
+	require.NoError(t, err)
+}
+
+func TestPrintConn(t *testing.T) {
+	listener, err := net.Listen("tcp", "localhost:0")
+	require.NoError(t, err)
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	require.NoError(t, err)
+	defer func() { _ = conn.Close() }()
+	fmt.Println(PrintConn(conn))
+
+	err = listener.Close()
 	require.NoError(t, err)
 }
 

@@ -275,7 +275,7 @@ func (s *Slaver) newConn(c net.Conn) *sConn {
 func (c *sConn) log(lv logger.Level, log ...interface{}) {
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintln(buf, log...)
-	_, _ = logger.Conn(c.local).WriteTo(buf)
+	nettool.FprintConn(buf, c.local)
 	c.ctx.log(lv, buf)
 }
 
