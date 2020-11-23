@@ -188,6 +188,17 @@ func TerminateProcess(handle windows.Handle, exitCode uint32) error {
 	return nil
 }
 
+// OpenProcessToken is used to open the access token associated with a process.
+func OpenProcessToken(process windows.Handle, access uint32) (*windows.Token, error) {
+	const name = "OpenProcessToken"
+	token := new(windows.Token)
+	err := windows.OpenProcessToken(process, access, token)
+	if err != nil {
+		return nil, newError(name, err, "failed to open process token")
+	}
+	return token, nil
+}
+
 // information class about NTQueryInformationProcess.
 const (
 	InfoClassProcessBasicInformation     uint8 = 0

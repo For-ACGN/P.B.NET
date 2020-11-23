@@ -117,16 +117,16 @@ func (ps *process) List() ([]*PsInfo, error) {
 }
 
 func (ps *process) getInfo(process *PsInfo) {
-	pHandle, err := ps.open(process.PID)
+	hProcess, err := ps.open(process.PID)
 	if err != nil {
 		return
 	}
-	defer api.CloseHandle(pHandle)
+	defer api.CloseHandle(hProcess)
 	if ps.opts.GetUsername {
-		process.Username = getUsername(pHandle)
+		process.Username = getUsername(hProcess)
 	}
 	if ps.opts.GetArchitecture {
-		process.Architecture = ps.getArchitecture(pHandle)
+		process.Architecture = ps.getArchitecture(hProcess)
 	}
 }
 
@@ -140,12 +140,12 @@ func (ps *process) open(pid int64) (windows.Handle, error) {
 	return api.OpenProcess(da, false, uint32(pid))
 }
 
-func getUsername(handle windows.Handle) string {
-	var token windows.Token
-	err := windows.OpenProcessToken(handle, windows.TOKEN_QUERY, &token)
+func getUsername(hProcess windows.Handle) string {
+	token, err := api.OpenProcessToken(hProcess, windows.TOKEN_QUERY)
 	if err != nil {
 		return ""
 	}
+	defer func() { _ = token.Close() }()
 	tu, err := token.GetTokenUser()
 	if err != nil {
 		return ""
@@ -157,7 +157,7 @@ func getUsername(handle windows.Handle) string {
 	return domain + "\\" + account
 }
 
-func (ps *process) getArchitecture(handle windows.Handle) string {
+func (ps *process) getArchitecture(hProcess windows.Handle) string {
 	var arch string
 	if ps.isARM {
 		arch = "arm32"
@@ -169,7 +169,7 @@ func (ps *process) getArchitecture(handle windows.Handle) string {
 	}
 	var isWow64 bool
 	ret, _, _ := ps.procIsWow64.Call(
-		uintptr(handle), uintptr(unsafe.Pointer(&isWow64)),
+		uintptr(hProcess), uintptr(unsafe.Pointer(&isWow64)),
 	) // #nosec
 	if ret == 0 {
 		return ""
