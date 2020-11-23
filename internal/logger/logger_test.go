@@ -1,11 +1,9 @@
 package logger
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -20,44 +18,6 @@ const (
 	testLog1     = "test"
 	testLog2     = "log"
 )
-
-func TestParse(t *testing.T) {
-	for _, testdata := range [...]*struct {
-		name  string
-		level Level
-	}{
-		{"all", All},
-		{"trace", Trace},
-		{"debug", Debug},
-		{"info", Info},
-		{"crucial", Crucial},
-		{"warning", Warning},
-		{"error", Error},
-		{"exploit", Exploit},
-		{"fatal", Fatal},
-		{"off", Off},
-	} {
-		t.Run(testdata.name, func(t *testing.T) {
-			l, err := Parse(testdata.name)
-			require.NoError(t, err)
-			require.Equal(t, l, testdata.level)
-		})
-	}
-
-	t.Run("invalid level", func(t *testing.T) {
-		lv, err := Parse("invalid level")
-		require.Error(t, err)
-		require.Equal(t, lv, Level(0))
-	})
-}
-
-func TestPrefix(t *testing.T) {
-	for lv := Level(0); lv < Off; lv++ {
-		fmt.Println(Prefix(time.Now(), lv, testSrc).String())
-	}
-	// unknown level
-	fmt.Println(Prefix(time.Now(), Level(153), testSrc).String())
-}
 
 func TestLogger(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
