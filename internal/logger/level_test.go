@@ -17,7 +17,7 @@ func TestParse(t *testing.T) {
 		{"trace", Trace},
 		{"debug", Debug},
 		{"info", Info},
-		{"crucial", Crucial},
+		{"critical", Critical},
 		{"warning", Warning},
 		{"error", Error},
 		{"exploit", Exploit},

@@ -356,7 +356,7 @@ func initInternalLogger() {
 	env.Packages["project/internal/logger"] = map[string]reflect.Value{
 		// define constants
 		"All":        reflect.ValueOf(logger.All),
-		"Crucial":    reflect.ValueOf(logger.Crucial),
+		"Critical":   reflect.ValueOf(logger.Critical),
 		"Debug":      reflect.ValueOf(logger.Debug),
 		"Error":      reflect.ValueOf(logger.Error),
 		"Exploit":    reflect.ValueOf(logger.Exploit),

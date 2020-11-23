@@ -24,8 +24,8 @@ const (
 	Debug // general debug information
 
 	// about information
-	Info    // common running information
-	Crucial // important information like attack successfully
+	Info     // common running information
+	Critical // important information like attack successfully
 
 	// about error
 	Warning // appear error but can continue
@@ -51,8 +51,8 @@ func Parse(level string) (Level, error) {
 		lv = Debug
 	case "info":
 		lv = Info
-	case "crucial":
-		lv = Crucial
+	case "critical":
+		lv = Critical
 	case "warning":
 		lv = Warning
 	case "error":
@@ -85,8 +85,8 @@ func Prefix(time time.Time, level Level, src string) *bytes.Buffer {
 		lv = "debug"
 	case Info:
 		lv = "info"
-	case Crucial:
-		lv = "crucial"
+	case Critical:
+		lv = "critical"
 	case Warning:
 		lv = "warning"
 	case Error:
