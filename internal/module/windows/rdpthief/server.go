@@ -63,6 +63,7 @@ func NewServer(lg logger.Logger, inj Injector, cb Callback, cfg *Config) (*Serve
 	// create process monitor
 	psmonOpts := psmon.Options{
 		Interval: 250 * time.Millisecond,
+		Process:  new(process.Options), // only need process name
 	}
 	monitor, err := psmon.New(lg, srv.psmonEventHandler, &psmonOpts)
 	if err != nil {
@@ -83,11 +84,11 @@ func NewServer(lg logger.Logger, inj Injector, cb Callback, cfg *Config) (*Serve
 }
 
 func (srv *Server) logf(lv logger.Level, format string, log ...interface{}) {
-	srv.logger.Printf(lv, "rdpthief-server", format, log...)
+	srv.logger.Printf(lv, "rdpthief", format, log...)
 }
 
 func (srv *Server) log(lv logger.Level, log ...interface{}) {
-	srv.logger.Println(lv, "rdpthief-server", log...)
+	srv.logger.Println(lv, "rdpthief", log...)
 }
 
 func (srv *Server) psmonEventHandler(_ context.Context, event uint8, data interface{}) {
