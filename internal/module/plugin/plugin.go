@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"context"
+	"io"
 
 	"github.com/pkg/errors"
 
@@ -18,10 +18,10 @@ const (
 // external include role functions like Sender.Send(),
 // the script can use external to call Role self function.
 // [warning]: script string will covered after call.
-func New(ctx context.Context, external interface{}, mode, script string) (module.Module, error) {
+func New(external interface{}, output io.Writer, mode, script string) (module.Module, error) {
 	switch mode {
 	case ModeAnko:
-		return NewAnko(ctx, external, script)
+		return NewAnko(external, output, script)
 	case ModeYaegi:
 		return nil, nil
 	default:

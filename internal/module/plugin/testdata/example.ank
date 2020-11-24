@@ -1,0 +1,42 @@
+
+
+func scan() {
+
+}
+
+
+
+func Start() {
+    // sa = make(type sa, make(struct{
+    //  A string,
+    //  B string
+    // }))
+    // sa.AA = 1
+
+
+
+    return 123, 456
+}
+
+func Stop() {
+    return nil
+}
+
+func Call(name, ...args) {
+
+    return nil
+}
+
+func Name() {
+    return "anko-name"
+}
+
+func Info() {
+    return "anko-info"
+}
+
+func Status() {
+    return "anko-status"
+}
+
+return true
