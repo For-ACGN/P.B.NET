@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"project/external/anko/ast"
@@ -20,16 +21,24 @@ var (
 	Types    = env.PackageTypes
 )
 
-// NewEnv is used to create a new global scope with packages.
+// Stmt is a shortcut for ast.Stmt.
+type Stmt = ast.Stmt
+
+// NewEnv is used to create a new global scope.
 func NewEnv() *Env {
-	e := newEnv(env.NewEnv(), os.Stdout)
+	return NewEnvWithOutput(os.Stdout)
+}
+
+// NewEnvWithOutput is used to create a new global scope with output.
+func NewEnvWithOutput(output io.Writer) *Env {
+	e := newEnv(env.NewEnv(), output)
 	e.ctx, e.cancel = context.WithCancel(context.Background())
 	return e
 }
 
 // ParseSrc provides way to parse the code from source.
 // Warning! source code will be covered after parse.
-func ParseSrc(src string) (ast.Stmt, error) {
+func ParseSrc(src string) (Stmt, error) {
 	defer security.CoverString(src)
 	r := []rune(src)
 	if len(r) < 1 {

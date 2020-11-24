@@ -9,8 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"project/external/anko/ast"
-
 	"project/internal/testsuite"
 )
 
@@ -75,7 +73,7 @@ a -- a
 	})
 }
 
-func testParseSrc(t *testing.T, s string) ast.Stmt {
+func testParseSrc(t *testing.T, s string) Stmt {
 	src := strings.Repeat(s, 1)
 	stmt, err := ParseSrc(src)
 	require.NoError(t, err)
