@@ -99,6 +99,8 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	}
 	// not trigger eventHandler before first refresh.
 	monitor.handler = handler
+	// refreshLoop will block until call Start.
+	monitor.pauser.Pause()
 	monitor.wg.Add(1)
 	go monitor.refreshLoop()
 	ok = true
@@ -279,6 +281,11 @@ func (mon *Monitor) GetProcesses() []*process.PsInfo {
 		processes[i] = mon.processes[i].Clone()
 	}
 	return processes
+}
+
+// Start is used to start monitor.
+func (mon *Monitor) Start() {
+	mon.pauser.Continue()
 }
 
 // Pause is used to pause refresh automatically.
