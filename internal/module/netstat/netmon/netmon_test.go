@@ -31,11 +31,16 @@ func TestMonitor(t *testing.T) {
 	}
 	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
+	monitor.Start()
 
 	monitor.SetInterval(50 * time.Millisecond)
 
 	err = monitor.SetOptions(nil)
 	require.NoError(t, err)
+
+	monitor.Pause()
+	time.Sleep(3 * time.Second)
+	monitor.Continue()
 
 	time.Sleep(3 * time.Second)
 
@@ -168,6 +173,7 @@ func TestMonitor_EventConnCreated(t *testing.T) {
 	}
 	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
+	monitor.Start()
 
 	// wait first auto refresh
 	time.Sleep(2 * defaultRefreshInterval)
@@ -307,6 +313,7 @@ func TestMonitor_EventConnClosed(t *testing.T) {
 	}
 	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
+	monitor.Start()
 
 	err = tcp4Listener.Close()
 	require.NoError(t, err)
@@ -339,16 +346,14 @@ func TestMonitor_refreshLoop(t *testing.T) {
 		monitor, err := New(logger.Test, nil, nil)
 		require.NoError(t, err)
 
-		monitor.Pause()
-
-		m := new(Monitor)
+		var m *Monitor
 		patch := func(interface{}) error {
 			return monkey.Error
 		}
 		pg := monkey.PatchInstanceMethod(m, "Refresh", patch)
 		defer pg.Unpatch()
 
-		monitor.Continue()
+		monitor.Start()
 
 		// wait restart
 		time.Sleep(3 * time.Second)
@@ -363,8 +368,6 @@ func TestMonitor_refreshLoop(t *testing.T) {
 		monitor, err := New(logger.Test, nil, nil)
 		require.NoError(t, err)
 
-		monitor.Pause()
-
 		var m *Monitor
 		patch := func(interface{}) error {
 			panic(monkey.Panic)
@@ -372,7 +375,7 @@ func TestMonitor_refreshLoop(t *testing.T) {
 		pg := monkey.PatchInstanceMethod(m, "Refresh", patch)
 		defer pg.Unpatch()
 
-		monitor.Continue()
+		monitor.Start()
 
 		// wait restart
 		time.Sleep(3 * time.Second)

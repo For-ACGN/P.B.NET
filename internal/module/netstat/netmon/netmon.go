@@ -103,6 +103,8 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	}
 	// not trigger eventHandler before the first refresh.
 	monitor.handler = handler
+	// refreshLoop will block until call Start.
+	monitor.pauser.Pause()
 	monitor.wg.Add(1)
 	go monitor.refreshLoop()
 	ok = true
@@ -449,6 +451,11 @@ func (mon *Monitor) GetUDP6Conns() []*netstat.UDP6Conn {
 		conns[i] = mon.udp6Conns[i].Clone()
 	}
 	return conns
+}
+
+// Start is used to start monitor.
+func (mon *Monitor) Start() {
+	mon.pauser.Continue()
 }
 
 // Pause is used to pause refresh automatically.
