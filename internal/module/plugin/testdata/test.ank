@@ -5,12 +5,12 @@ fmt    = import("fmt")
 func Scan(ip) {
     fmt.Println(ip)
 
-    println("haha")
-    println(ip)
+    aaa = ip+"haha"
 
+    println(aaa)
 
+    println(&aaa)
 }
-
 
 
 func Start() {
@@ -29,12 +29,13 @@ func Stop() {
 
 }
 
-func Call(name, args...) {
-    switch name {
+func Call(method, args...) {
+    switch method {
     case "Scan":
-        go Scan(args[0])
+        Scan(args[0])
+        println(aaa)
     default:
-        return fmt.Errorf("invalid function name: \"%s\"", name)
+        return fmt.Errorf("invalid method: \"%s\"", method)
     }
     return nil
 }

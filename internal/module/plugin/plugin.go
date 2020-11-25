@@ -26,7 +26,7 @@ func New(external interface{}, output io.Writer, mode, script string) (module.Mo
 	case ModeAnko:
 		return NewAnko(external, output, script)
 	case ModeYaegi:
-		return nil, nil
+		return nil, errors.New("not implemented")
 	default:
 		return nil, errors.New("unsupported mode: " + mode)
 	}

@@ -23,7 +23,7 @@ func TestAnko(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	script, err := os.ReadFile("testdata/example.ank")
+	script, err := os.ReadFile("testdata/test.ank")
 	require.NoError(t, err)
 
 	mod, err := NewAnko(new(testExternal), os.Stdout, string(script))
@@ -32,14 +32,20 @@ func TestAnko(t *testing.T) {
 	err = mod.Start()
 	require.NoError(t, err)
 
-	err = mod.Call("")
-	fmt.Println(err)
+	go func() {
+		ret, err := mod.Call("")
+		fmt.Println(ret, err)
+	}()
 
-	err = mod.Call("Scan")
-	fmt.Println(err)
+	go func() {
+		ret, err := mod.Call("Scan", "1.1.1.2")
+		fmt.Println(ret, err)
+	}()
 
-	err = mod.Call("Scan", "1.1.1.1")
-	fmt.Println(err)
+	go func() {
+		ret, err := mod.Call("Scan", "1.1.1.1")
+		fmt.Println(ret, err)
+	}()
 
 	time.Sleep(time.Second)
 
