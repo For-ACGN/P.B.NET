@@ -2,10 +2,10 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"reflect"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -13,10 +13,15 @@ import (
 )
 
 // comFn is common function for Start, Stop, Name, Info and Status function.
-type comFn func(context.Context) (reflect.Value, reflect.Value)
+type comFn = func(context.Context) (reflect.Value, reflect.Value)
 
 // callFn is call function for Call function.
-type callFn func(context.Context, string, ...interface{}) (reflect.Value, reflect.Value)
+type callFn = func(context.Context, reflect.Value, ...interface{}) (reflect.Value, reflect.Value)
+
+var (
+	ErrAnkoPluginStarted = fmt.Errorf("anko plugin is started")
+	ErrAnkoPluginStopped = fmt.Errorf("anko plugin is stopped")
+)
 
 // Anko is a plugin from anko script.
 type Anko struct {
@@ -24,23 +29,22 @@ type Anko struct {
 	output   io.Writer
 	stmt     anko.Stmt
 
-	env *anko.Env
-
 	// in script
-	startFn comFn  // func() error
-	stopFn  comFn  // func()
-	name    comFn  // func() string
-	info    comFn  // func() string
-	status  comFn  // func() string
-	call    callFn // func(name string, args ...interface{}) error
+	startFn  comFn  // func() error
+	stopFn   comFn  // func()
+	nameFn   comFn  // func() string
+	infoFn   comFn  // func() string
+	statusFn comFn  // func() string
+	callFn   callFn // func(name string, args ...interface{}) error
 
-	mu sync.Mutex
-
-	ctx    context.Context
-	cancel context.CancelFunc
+	env     *anko.Env
+	stopped bool
+	ctx     context.Context
+	cancel  context.CancelFunc
+	rwm     sync.RWMutex
 }
 
-// NewAnko is used to create a custom module from anko script.
+// NewAnko is used to create a custom plugin from anko script.
 func NewAnko(external interface{}, output io.Writer, script string) (*Anko, error) {
 	stmt, err := anko.ParseSrc(script)
 	if err != nil {
@@ -50,6 +54,7 @@ func NewAnko(external interface{}, output io.Writer, script string) (*Anko, erro
 		external: external,
 		output:   output,
 		stmt:     stmt,
+		stopped:  true,
 	}
 	err = ank.load(context.Background())
 	if err != nil {
@@ -62,8 +67,8 @@ func (ank *Anko) load(ctx context.Context) error {
 	// set output
 	env := anko.NewEnv()
 	env.SetOutput(ank.output)
-	// load module
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// load plugin
+	ctx, cancel := context.WithTimeout(ctx, operationTimeout)
 	defer cancel()
 	ret, err := anko.RunContext(ctx, env, ank.stmt)
 	if err != nil {
@@ -87,10 +92,12 @@ func (ank *Anko) load(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to define external")
 	}
+	// register functions
 	err = ank.getExportedFunctions(env)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "failed to register function")
 	}
+	ank.env = env
 	return nil
 }
 
@@ -101,7 +108,7 @@ func (ank *Anko) getExportedFunctions(env *anko.Env) error {
 	}
 	startFn, ok := start.(comFn)
 	if !ok {
-		return errors.Wrap(err, "invalid start function type")
+		return errors.New("invalid start function type")
 	}
 
 	stop, err := env.Get("Stop")
@@ -110,7 +117,7 @@ func (ank *Anko) getExportedFunctions(env *anko.Env) error {
 	}
 	stopFn, ok := stop.(comFn)
 	if !ok {
-		return errors.Wrap(err, "invalid stop function type")
+		return errors.New("invalid stop function type")
 	}
 
 	name, err := env.Get("Name")
@@ -119,7 +126,7 @@ func (ank *Anko) getExportedFunctions(env *anko.Env) error {
 	}
 	nameFn, ok := name.(comFn)
 	if !ok {
-		return errors.Wrap(err, "invalid name function type")
+		return errors.New("invalid name function type")
 	}
 
 	info, err := env.Get("Info")
@@ -128,7 +135,7 @@ func (ank *Anko) getExportedFunctions(env *anko.Env) error {
 	}
 	infoFn, ok := info.(comFn)
 	if !ok {
-		return errors.Wrap(err, "invalid info function type")
+		return errors.New("invalid info function type")
 	}
 
 	status, err := env.Get("Status")
@@ -137,7 +144,7 @@ func (ank *Anko) getExportedFunctions(env *anko.Env) error {
 	}
 	statusFn, ok := status.(comFn)
 	if !ok {
-		return errors.Wrap(err, "invalid status function type")
+		return errors.New("invalid status function type")
 	}
 
 	call, err := env.Get("Call")
@@ -146,55 +153,110 @@ func (ank *Anko) getExportedFunctions(env *anko.Env) error {
 	}
 	callFn, ok := call.(callFn)
 	if !ok {
-		return errors.Wrap(err, "invalid call function type")
+		return errors.New("invalid call function type")
 	}
+
 	ank.startFn = startFn
 	ank.stopFn = stopFn
-	ank.name = nameFn
-	ank.info = infoFn
-	ank.status = statusFn
-	ank.call = callFn
+	ank.nameFn = nameFn
+	ank.infoFn = infoFn
+	ank.statusFn = statusFn
+	ank.callFn = callFn
 	return nil
 }
 
-// Start is used to start module like connect external program.
+// Start is used to start plugin like connect external program.
 func (ank *Anko) Start() error {
-
-	// ret1, e := startFn(ctx)
-	// fmt.Println("ret2", ret2.Interface() == nil)
-	// fmt.Println(ret1.Interface(), ret2.Type())
-	// fmt.Println(&startFn)
-
-	return ank.startFn()
+	ank.rwm.Lock()
+	defer ank.rwm.Unlock()
+	return ank.start()
 }
 
-// Stop is used to stop module and stop all tasks like port scan.
+func (ank *Anko) start() error {
+	if !ank.stopped {
+		return errors.WithStack(ErrAnkoPluginStarted)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
+	defer cancel()
+	startErr, ankoErr := ank.startFn(ctx)
+	if err, ok := ankoErr.Interface().(error); ok && err != nil {
+		return errors.Wrap(err, "appear error when execute script about start")
+	}
+	if err, ok := startErr.Interface().(error); ok && err != nil {
+		return errors.Wrap(err, "appear error when execute script about start")
+	}
+	ank.stopped = false
+	ank.ctx, ank.cancel = context.WithCancel(context.Background())
+	return nil
+}
+
+// Stop is used to stop plugin and stop all tasks like port scan.
 func (ank *Anko) Stop() {
-	ank.stopFn()
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
+	err := ank.stop()
+	if err != nil {
+		// log it
+	}
+
 }
 
-// Restart will stop module and then start module.
+func (ank *Anko) stop() error {
+	if ank.stopped {
+		return nil
+	}
+
+	// stop other call
+	ank.cancel()
+	// call stop
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
+	defer cancel()
+	stopErr, ankoErr := ank.stopFn(ctx)
+	err := ankoErr.Interface().(error)
+	if err != nil {
+		return errors.Wrap(err, "appear error when execute script about stop")
+	}
+	err = stopErr.Interface().(error)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Restart will stop plugin and then start plugin.
 func (ank *Anko) Restart() error {
-	return ank.restart()
+	return nil
 }
 
-// Name is used to get module name.
+// Name is used to get plugin name.
 func (ank *Anko) Name() string {
-	return ank.name()
+	return ""
 }
 
-// Info is used to get module information.
+// Info is used to get plugin information.
 func (ank *Anko) Info() string {
-	return ank.info()
+	return ""
 }
 
-// Status is used to get module status.
+// Status is used to get plugin status.
 func (ank *Anko) Status() string {
-	return ank.status()
+	return ""
 }
 
-// Call is used to call module inner function or other special function.
-func (ank *Anko) Call(name string, arg ...interface{}) error {
+// Call is used to call plugin inner function or other special function.
+func (ank *Anko) Call(name string, args ...interface{}) error {
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
 
+	if ank.stopped {
+		return errors.WithStack(ErrAnkoPluginStopped)
+	}
+	callErr, ankoErr := ank.callFn(ank.ctx, reflect.ValueOf(name), args...)
+	if err, ok := ankoErr.Interface().(error); ok && err != nil {
+		return errors.Wrap(err, "appear error when execute script about call")
+	}
+	if err, ok := callErr.Interface().(error); ok && err != nil {
+		return errors.WithStack(err)
+	}
 	return nil
 }

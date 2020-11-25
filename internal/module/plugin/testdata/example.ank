@@ -1,6 +1,13 @@
+errors = import("errors")
+fmt    = import("fmt")
 
 
-func scan() {
+func Scan(ip) {
+    fmt.Println(ip)
+
+    println("haha")
+    println(ip)
+
 
 }
 
@@ -15,15 +22,20 @@ func Start() {
 
 
 
-    return 123, 456
-}
-
-func Stop() {
     return nil
 }
 
-func Call(name, ...args) {
+func Stop() {
 
+}
+
+func Call(name, args...) {
+    switch name {
+    case "Scan":
+        go Scan(args[0])
+    default:
+        return fmt.Errorf("invalid function name: \"%s\"", name)
+    }
     return nil
 }
 

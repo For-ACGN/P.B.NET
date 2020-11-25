@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"io"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -13,6 +14,8 @@ const (
 	ModeAnko  = "anko"  // support go 1.10
 	ModeYaegi = "yaegi" // support go 1.13
 )
+
+const operationTimeout = 30 * time.Second
 
 // New is used to create a new plugin from script.
 // external include role functions like Sender.Send(),
