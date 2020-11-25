@@ -29,9 +29,9 @@ type Tranner struct {
 	conns    map[*tConn]struct{}
 	rwm      sync.RWMutex // include listener
 
-	mu     sync.Mutex // for operation
 	ctx    context.Context
 	cancel context.CancelFunc
+	mu     sync.Mutex // for operation
 	wg     sync.WaitGroup
 }
 

@@ -34,9 +34,9 @@ type Slaver struct {
 	conns   map[*sConn]struct{}
 	rwm     sync.RWMutex
 
-	mu     sync.Mutex // for operation
 	ctx    context.Context
 	cancel context.CancelFunc
+	mu     sync.Mutex // for operation
 	wg     sync.WaitGroup
 }
 
