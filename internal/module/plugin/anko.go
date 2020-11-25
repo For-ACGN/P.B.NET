@@ -19,6 +19,7 @@ type comFn = func(context.Context) (reflect.Value, reflect.Value)
 // callFn is call function for Call function.
 type callFn = func(context.Context, reflect.Value, ...interface{}) (reflect.Value, reflect.Value)
 
+// errors about anko plugin.
 var (
 	ErrAnkoPluginStarted = fmt.Errorf("anko plugin is started")
 	ErrAnkoPluginStopped = fmt.Errorf("anko plugin is stopped")
@@ -184,7 +185,7 @@ func (ank *Anko) start() error {
 	switch err := ankoErr.Interface().(type) {
 	case nil:
 	case *vm.Error:
-		const format = "appear error: \"%s\" at line:%d column:%d"
+		const format = "appear error when start: \"%s\" at line:%d column:%d"
 		return errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:
 		return errors.Wrap(err, "failed to start")
@@ -202,8 +203,8 @@ func (ank *Anko) start() error {
 		return errors.Errorf("unexpected start error type, value: %v", err)
 	}
 	// update module
-	ank.stopped = false
 	ank.ctx, ank.cancel = context.WithCancel(context.Background())
+	ank.stopped = false
 	return nil
 }
 
@@ -232,7 +233,7 @@ func (ank *Anko) stop() error {
 	switch err := ankoErr.Interface().(type) {
 	case nil:
 	case *vm.Error:
-		const format = "appear error: \"%s\" at line:%d column:%d"
+		const format = "appear error when stop: \"%s\" at line:%d column:%d"
 		return errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:
 		return errors.Wrap(err, "failed to stop")
@@ -274,33 +275,136 @@ func (ank *Anko) Restart() error {
 	return ank.start()
 }
 
-// Name is used to get plugin name.
-func (ank *Anko) Name() string {
-
-	return ""
-}
-
-// Info is used to get plugin information.
-func (ank *Anko) Info() string {
-	return ""
-}
-
-// Status is used to get plugin status.
-func (ank *Anko) Status() string {
-	return ""
-}
-
 // Call is used to call plugin inner function or other special function.
 func (ank *Anko) Call(method string, args ...interface{}) (interface{}, error) {
 	ank.rwm.RLock()
 	defer ank.rwm.RUnlock()
-
 	if ank.stopped {
 		return nil, errors.WithStack(ErrAnkoPluginStopped)
 	}
 	ret, ankoErr := ank.callFn(ank.ctx, reflect.ValueOf(method), args...)
-	if err, ok := ankoErr.Interface().(error); ok && err != nil {
-		return nil, errors.Wrap(err, "appear error when execute script about call")
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *vm.Error:
+		const format = "appear error when call: \"%s\" at line:%d column:%d"
+		return nil, errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return nil, errors.Wrap(err, "failed to call")
+	default:
+		return nil, errors.Errorf("unexpected anko error type, value: %v", err)
 	}
 	return ret.Interface(), nil
+}
+
+// Name is used to get plugin name.
+func (ank *Anko) Name() string {
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
+	name, err := ank.name()
+	if err != nil {
+		return "[error]: " + err.Error()
+	}
+	return name
+}
+
+func (ank *Anko) name() (string, error) {
+	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	defer cancel()
+	name, ankoErr := ank.nameFn(ctx)
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *vm.Error:
+		const format = "appear error when get name: \"%s\" at line:%d column:%d"
+		return "", errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return "", errors.Wrap(err, "failed to get name")
+	default:
+		return "", errors.Errorf("unexpected anko error type, value: %v", err)
+	}
+	// check return type
+	switch name := name.Interface().(type) {
+	case string:
+		return name, nil
+	default:
+		return "", errors.Errorf("unexpected name type, value: %v", name)
+	}
+}
+
+// Info is used to get plugin information.
+func (ank *Anko) Info() string {
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
+	info, err := ank.info()
+	if err != nil {
+		return "[error]: " + err.Error()
+	}
+	return info
+}
+
+func (ank *Anko) info() (string, error) {
+	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	defer cancel()
+	info, ankoErr := ank.infoFn(ctx)
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *vm.Error:
+		const format = "appear error when get info: \"%s\" at line:%d column:%d"
+		return "", errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return "", errors.Wrap(err, "failed to get info")
+	default:
+		return "", errors.Errorf("unexpected anko error type, value: %v", err)
+	}
+	// check return type
+	switch info := info.Interface().(type) {
+	case string:
+		return info, nil
+	default:
+		return "", errors.Errorf("unexpected info type, value: %v", info)
+	}
+}
+
+// Status is used to get plugin status.
+func (ank *Anko) Status() string {
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
+	status, err := ank.status()
+	if err != nil {
+		return "[error]: " + err.Error()
+	}
+	return status
+}
+
+func (ank *Anko) status() (string, error) {
+	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	defer cancel()
+	status, ankoErr := ank.statusFn(ctx)
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *vm.Error:
+		const format = "appear error when get status: \"%s\" at line:%d column:%d"
+		return "", errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return "", errors.Wrap(err, "failed to get status")
+	default:
+		return "", errors.Errorf("unexpected anko error type, value: %v", err)
+	}
+	// check return type
+	switch status := status.Interface().(type) {
+	case string:
+		return status, nil
+	default:
+		return "", errors.Errorf("unexpected status type, value: %v", status)
+	}
+}
+
+// IsStopped is used to check this plugin is stopped.
+func (ank *Anko) IsStopped() bool {
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
+	return ank.stopped
 }
