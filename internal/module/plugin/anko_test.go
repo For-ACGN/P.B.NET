@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -13,10 +12,13 @@ import (
 	_ "project/internal/anko/goroot"
 )
 
-type testExternal struct{}
+type testExternal struct {
+	sent bool
+}
 
-func (testExternal) SendMessage(msg string) {
+func (ext *testExternal) SendMessage(msg string) {
 	fmt.Println(msg)
+	ext.sent = true
 }
 
 func TestAnko(t *testing.T) {
@@ -26,28 +28,54 @@ func TestAnko(t *testing.T) {
 	script, err := os.ReadFile("testdata/test.ank")
 	require.NoError(t, err)
 
-	mod, err := NewAnko(new(testExternal), os.Stdout, string(script))
+	ext := new(testExternal)
+	ank, err := NewAnko(ext, os.Stdout, string(script))
 	require.NoError(t, err)
 
-	err = mod.Start()
+	err = ank.Start()
 	require.NoError(t, err)
 
-	go func() {
-		ret, err := mod.Call("")
-		fmt.Println(ret, err)
-	}()
+	err = ank.Restart()
+	require.NoError(t, err)
 
-	go func() {
-		ret, err := mod.Call("Scan", "1.1.1.2")
-		fmt.Println(ret, err)
-	}()
+	name := ank.Name()
+	require.Equal(t, "anko-name", name)
 
-	go func() {
-		ret, err := mod.Call("Scan", "1.1.1.1")
-		fmt.Println(ret, err)
-	}()
+	info := ank.Info()
+	require.Equal(t, "anko-info", info)
 
-	time.Sleep(time.Second)
+	status := ank.Status()
+	require.Equal(t, "anko-status", status)
 
-	fmt.Println(mod.Name())
+	t.Run("call-IsStarted", func(t *testing.T) {
+		ret, err := ank.Call("IsStarted")
+		require.NoError(t, err)
+		require.True(t, ret.(bool))
+	})
+
+	t.Run("call-Add", func(t *testing.T) {
+		ret, err := ank.Call("Add", 1, 2)
+		require.NoError(t, err)
+		require.Equal(t, int64(3), ret.(int64))
+	})
+
+	t.Run("call-MultiReturn", func(t *testing.T) {
+		ret, err := ank.Call("MultiReturn")
+		require.NoError(t, err)
+		rets := ret.([]interface{})
+		require.Equal(t, "a", rets[0])
+		require.EqualError(t, rets[1].(error), "b")
+	})
+
+	t.Run("call-UseExternal", func(t *testing.T) {
+		ret, err := ank.Call("UseExternal")
+		require.NoError(t, err)
+		require.Nil(t, ret)
+		require.True(t, ext.sent)
+	})
+
+	ank.Stop()
+	require.True(t, ank.IsStopped())
+
+	testsuite.IsDestroyed(t, ank)
 }

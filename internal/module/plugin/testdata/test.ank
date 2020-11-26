@@ -1,43 +1,17 @@
 errors = import("errors")
 fmt    = import("fmt")
 
-
-func Scan(ip) {
-    fmt.Println(ip)
-
-    aaa = ip+"haha"
-
-    println(aaa)
-
-    println(&aaa)
-}
-
+// status
+started = false
 
 func Start() {
-    // sa = make(type sa, make(struct{
-    //  A string,
-    //  B string
-    // }))
-    // sa.AA = 1
-
-
-
+    started = true
     return nil
 }
 
 func Stop() {
-
-}
-
-func Call(method, args...) {
-    switch method {
-    case "Scan":
-        Scan(args[0])
-        println(aaa)
-    default:
-        return fmt.Errorf("invalid method: \"%s\"", method)
-    }
-    return nil
+    started = false
+    return
 }
 
 func Name() {
@@ -52,4 +26,36 @@ func Status() {
     return "anko-status"
 }
 
+func Call(method, args...) {
+    switch method {
+    case "IsStarted":
+        return IsStarted()
+    case "Add":
+        return Add(args[0], args[1])
+    case "MultiReturn":
+        return MultiReturn()
+    case "UseExternal":
+        UseExternal()
+    default:
+        return fmt.Errorf("unknown method: \"%s\"", method)
+    }
+}
+
+func IsStarted() {
+    return started
+}
+
+func Add(a, b) {
+    return a + b
+}
+
+func MultiReturn() {
+    return "a", errors.New("b")
+}
+
+func UseExternal() {
+    external.SendMessage("hello")
+}
+
+// load successfully
 return true

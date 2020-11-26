@@ -37,7 +37,7 @@ type Anko struct {
 	nameFn   comFn  // func() string
 	infoFn   comFn  // func() string
 	statusFn comFn  // func() string
-	callFn   callFn // func(name string, args ...interface{}) error
+	callFn   callFn // func(method string, args ...interface{}) error
 	env      *anko.Env
 
 	stopped bool
@@ -157,6 +157,7 @@ func (ank *Anko) getExportedFunctions(env *anko.Env) error {
 	if !ok {
 		return errors.New("invalid call function type")
 	}
+
 	// update module
 	ank.startFn = startFn
 	ank.stopFn = stopFn
@@ -275,28 +276,6 @@ func (ank *Anko) Restart() error {
 	return ank.start()
 }
 
-// Call is used to call plugin inner function or other special function.
-func (ank *Anko) Call(method string, args ...interface{}) (interface{}, error) {
-	ank.rwm.RLock()
-	defer ank.rwm.RUnlock()
-	if ank.stopped {
-		return nil, errors.WithStack(ErrAnkoPluginStopped)
-	}
-	ret, ankoErr := ank.callFn(ank.ctx, reflect.ValueOf(method), args...)
-	// check anko error
-	switch err := ankoErr.Interface().(type) {
-	case nil:
-	case *vm.Error:
-		const format = "appear error when call: \"%s\" at line:%d column:%d"
-		return nil, errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
-	case error:
-		return nil, errors.Wrap(err, "failed to call")
-	default:
-		return nil, errors.Errorf("unexpected anko error type, value: %v", err)
-	}
-	return ret.Interface(), nil
-}
-
 // Name is used to get plugin name.
 func (ank *Anko) Name() string {
 	ank.rwm.RLock()
@@ -407,4 +386,26 @@ func (ank *Anko) IsStopped() bool {
 	ank.rwm.RLock()
 	defer ank.rwm.RUnlock()
 	return ank.stopped
+}
+
+// Call is used to call plugin inner function or other special function.
+func (ank *Anko) Call(method string, args ...interface{}) (interface{}, error) {
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
+	if ank.stopped {
+		return nil, errors.WithStack(ErrAnkoPluginStopped)
+	}
+	ret, ankoErr := ank.callFn(ank.ctx, reflect.ValueOf(method), args...)
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *vm.Error:
+		const format = "appear error when call: \"%s\" at line:%d column:%d"
+		return nil, errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return nil, errors.Wrap(err, "failed to call")
+	default:
+		return nil, errors.Errorf("unexpected anko error type, value: %v", err)
+	}
+	return ret.Interface(), nil
 }
