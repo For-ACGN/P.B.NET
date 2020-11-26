@@ -36,14 +36,14 @@ type Tranner struct {
 }
 
 // NewTranner is used to create a tranner.
-func NewTranner(tag, dstNetwork, dstAddress string, lg logger.Logger, opts *Options) (*Tranner, error) {
+func NewTranner(tag, dstNet, dstAddr string, lg logger.Logger, opts *Options) (*Tranner, error) {
 	if tag == "" {
 		return nil, errors.New("empty tag")
 	}
-	if dstAddress == "" {
+	if dstAddr == "" {
 		return nil, errors.New("empty destination address")
 	}
-	_, err := net.ResolveTCPAddr(dstNetwork, dstAddress)
+	_, err := net.ResolveTCPAddr(dstNet, dstAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +61,8 @@ func NewTranner(tag, dstNetwork, dstAddress string, lg logger.Logger, opts *Opti
 		logSrc += "-" + tag
 	}
 	return &Tranner{
-		dstNetwork: dstNetwork,
-		dstAddress: dstAddress,
+		dstNetwork: dstNet,
+		dstAddress: dstAddr,
 		logger:     lg,
 		opts:       opts,
 		logSrc:     logSrc,
@@ -172,6 +172,29 @@ func (t *Tranner) Status() string {
 	const format = "connections: %d/%d (used/limit)"
 	_, _ = fmt.Fprintf(buf, format, len(t.conns), t.opts.MaxConns)
 	return buf.String()
+}
+
+// IsStopped is used to check tranner is stopped.
+func (t *Tranner) IsStopped() bool {
+	t.rwm.RLock()
+	defer t.rwm.RUnlock()
+	return t.listener == nil
+}
+
+// Call is used to call extended methods.
+// "List": get all connections.
+// "Kill": kill connection.
+func (t *Tranner) Call(method string, args ...interface{}) (interface{}, error) {
+	switch method {
+	case "List":
+		fmt.Println(args)
+		return nil, nil
+	case "Kill":
+		fmt.Println(args)
+		return nil, nil
+	default:
+		return nil, errors.New("unknown method: " + method)
+	}
 }
 
 func (t *Tranner) logf(lv logger.Level, format string, log ...interface{}) {

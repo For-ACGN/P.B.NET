@@ -34,14 +34,14 @@ type Listener struct {
 }
 
 // NewListener is used to create a listener.
-func NewListener(tag, iNetwork, iAddress string, lg logger.Logger, opts *Options) (*Listener, error) {
+func NewListener(tag, iNet, iAddr string, lg logger.Logger, opts *Options) (*Listener, error) {
 	if tag == "" {
 		return nil, errors.New("empty tag")
 	}
-	if iAddress == "" {
+	if iAddr == "" {
 		return nil, errors.New("empty income listener address")
 	}
-	_, err := net.ResolveTCPAddr(iNetwork, iAddress)
+	_, err := net.ResolveTCPAddr(iNet, iAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +59,8 @@ func NewListener(tag, iNetwork, iAddress string, lg logger.Logger, opts *Options
 		logSrc += "-" + tag
 	}
 	return &Listener{
-		iNetwork: iNetwork,
-		iAddress: iAddress,
+		iNetwork: iNet,
+		iAddress: iAddr,
 		logger:   lg,
 		opts:     opts,
 		logSrc:   logSrc,
@@ -188,6 +188,29 @@ func (l *Listener) Status() string {
 	const format = "connections: %d/%d (used/limit)"
 	_, _ = fmt.Fprintf(buf, format, len(l.conns), l.opts.MaxConns)
 	return buf.String()
+}
+
+// IsStopped is used to check listener is stopped.
+func (l *Listener) IsStopped() bool {
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
+	return l.iListener == nil
+}
+
+// Call is used to call extended methods.
+// "List": get all connections.
+// "Kill": kill connection.
+func (l *Listener) Call(method string, args ...interface{}) (interface{}, error) {
+	switch method {
+	case "List":
+		fmt.Println(args)
+		return nil, nil
+	case "Kill":
+		fmt.Println(args)
+		return nil, nil
+	default:
+		return nil, errors.New("unknown method: " + method)
+	}
 }
 
 func (l *Listener) logf(lv logger.Level, format string, log ...interface{}) {

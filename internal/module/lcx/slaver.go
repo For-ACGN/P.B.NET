@@ -41,29 +41,21 @@ type Slaver struct {
 }
 
 // NewSlaver is used to create a slaver.
-func NewSlaver(
-	tag string,
-	lNetwork string,
-	lAddress string,
-	dstNetwork string,
-	dstAddress string,
-	logger logger.Logger,
-	opts *Options,
-) (*Slaver, error) {
+func NewSlaver(tag, lNet, lAddr, dstNet, dstAddr string, lg logger.Logger, opts *Options) (*Slaver, error) {
 	if tag == "" {
 		return nil, errors.New("empty tag")
 	}
-	if lAddress == "" {
+	if lAddr == "" {
 		return nil, errors.New("empty listener address")
 	}
-	if dstAddress == "" {
+	if dstAddr == "" {
 		return nil, errors.New("empty destination address")
 	}
-	_, err := net.ResolveTCPAddr(lNetwork, lAddress)
+	_, err := net.ResolveTCPAddr(lNet, lAddr)
 	if err != nil {
 		return nil, err
 	}
-	_, err = net.ResolveTCPAddr(dstNetwork, dstAddress)
+	_, err = net.ResolveTCPAddr(dstNet, dstAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -77,11 +69,11 @@ func NewSlaver(
 		logSrc += "-" + tag
 	}
 	return &Slaver{
-		lNetwork:   lNetwork,
-		lAddress:   lAddress,
-		dstNetwork: dstNetwork,
-		dstAddress: dstAddress,
-		logger:     logger,
+		lNetwork:   lNet,
+		lAddress:   lAddr,
+		dstNetwork: dstNet,
+		dstAddress: dstAddr,
+		logger:     lg,
 		opts:       opts,
 		logSrc:     logSrc,
 		sleeper:    random.NewSleeper(),
@@ -169,6 +161,29 @@ func (s *Slaver) Status() string {
 	const format = "connections: %d/%d (used/limit)"
 	_, _ = fmt.Fprintf(buf, format, len(s.conns), s.opts.MaxConns)
 	return buf.String()
+}
+
+// IsStopped is used to check slaver is stopped.
+func (s *Slaver) IsStopped() bool {
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	return s.stopped
+}
+
+// Call is used to call extended methods.
+// "List": get all connections.
+// "Kill": kill connection.
+func (s *Slaver) Call(method string, args ...interface{}) (interface{}, error) {
+	switch method {
+	case "List":
+		fmt.Println(args)
+		return nil, nil
+	case "Kill":
+		fmt.Println(args)
+		return nil, nil
+	default:
+		return nil, errors.New("unknown method: " + method)
+	}
 }
 
 func (s *Slaver) logf(lv logger.Level, format string, log ...interface{}) {
