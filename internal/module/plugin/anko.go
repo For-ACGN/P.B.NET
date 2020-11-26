@@ -9,7 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"project/external/anko/vm"
 	"project/internal/anko"
 )
 
@@ -185,7 +184,7 @@ func (ank *Anko) start() error {
 	// check anko error
 	switch err := ankoErr.Interface().(type) {
 	case nil:
-	case *vm.Error:
+	case *anko.VMError:
 		const format = "appear error when start: \"%s\" at line:%d column:%d"
 		return errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:
@@ -233,7 +232,7 @@ func (ank *Anko) stop() error {
 	// check anko error
 	switch err := ankoErr.Interface().(type) {
 	case nil:
-	case *vm.Error:
+	case *anko.VMError:
 		const format = "appear error when stop: \"%s\" at line:%d column:%d"
 		return errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:
@@ -294,7 +293,7 @@ func (ank *Anko) name() (string, error) {
 	// check anko error
 	switch err := ankoErr.Interface().(type) {
 	case nil:
-	case *vm.Error:
+	case *anko.VMError:
 		const format = "appear error when get name: \"%s\" at line:%d column:%d"
 		return "", errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:
@@ -329,7 +328,7 @@ func (ank *Anko) info() (string, error) {
 	// check anko error
 	switch err := ankoErr.Interface().(type) {
 	case nil:
-	case *vm.Error:
+	case *anko.VMError:
 		const format = "appear error when get info: \"%s\" at line:%d column:%d"
 		return "", errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:
@@ -364,7 +363,7 @@ func (ank *Anko) status() (string, error) {
 	// check anko error
 	switch err := ankoErr.Interface().(type) {
 	case nil:
-	case *vm.Error:
+	case *anko.VMError:
 		const format = "appear error when get status: \"%s\" at line:%d column:%d"
 		return "", errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:
@@ -399,7 +398,7 @@ func (ank *Anko) Call(method string, args ...interface{}) (interface{}, error) {
 	// check anko error
 	switch err := ankoErr.Interface().(type) {
 	case nil:
-	case *vm.Error:
+	case *anko.VMError:
 		const format = "appear error when call: \"%s\" at line:%d column:%d"
 		return nil, errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:

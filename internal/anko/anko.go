@@ -24,6 +24,9 @@ var (
 // Stmt is a shortcut for ast.Stmt.
 type Stmt = ast.Stmt
 
+// VMError is a shortcut for vm.Error.
+type VMError = vm.Error
+
 // NewEnv is used to create a new global scope.
 func NewEnv() *Env {
 	return NewEnvWithOutput(os.Stdout)
@@ -61,15 +64,15 @@ func ParseSrc(src string) (Stmt, error) {
 }
 
 // Run executes statement in the specified environment.
-func Run(env *Env, stmt ast.Stmt) (interface{}, error) {
+func Run(env *Env, stmt Stmt) (interface{}, error) {
 	return RunContext(context.Background(), env, stmt)
 }
 
 // RunContext executes statement in the specified environment with context.
-func RunContext(ctx context.Context, env *Env, stmt ast.Stmt) (interface{}, error) {
+func RunContext(ctx context.Context, env *Env, stmt Stmt) (interface{}, error) {
 	val, err := vm.RunContext(ctx, env.env, nil, stmt)
 	if err != nil {
-		if e, ok := err.(*vm.Error); ok {
+		if e, ok := err.(*VMError); ok {
 			const format = "run with %s at line:%d column:%d"
 			return val, fmt.Errorf(format, e.Message, e.Pos.Line, e.Pos.Column)
 		}
