@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"io"
@@ -581,78 +582,90 @@ func (mc *MockImage) At(x, y int) color.Color {
 
 // MockModule implemented module.Module.
 type MockModule struct {
-	started   bool
-	startedMu sync.Mutex
+	started    bool
+	startedRWM sync.RWMutex
 
 	mu sync.Mutex // for operation
 	wg sync.WaitGroup
 }
 
 // Start is used to start mock module.
-func (module *MockModule) Start() error {
-	module.mu.Lock()
-	defer module.mu.Unlock()
-	return module.start()
+func (mod *MockModule) Start() error {
+	mod.mu.Lock()
+	defer mod.mu.Unlock()
+	return mod.start()
 }
 
-func (module *MockModule) start() error {
-	module.startedMu.Lock()
-	defer module.startedMu.Unlock()
-	if module.started {
+func (mod *MockModule) start() error {
+	mod.startedRWM.Lock()
+	defer mod.startedRWM.Unlock()
+	if mod.started {
 		return errors.New("already started")
 	}
-	module.started = true
+	mod.started = true
 	return nil
 }
 
 // Stop is used to stop mock module.
-func (module *MockModule) Stop() {
-	module.mu.Lock()
-	defer module.mu.Unlock()
-	module.stop()
-	module.wg.Wait()
+func (mod *MockModule) Stop() {
+	mod.mu.Lock()
+	defer mod.mu.Unlock()
+	mod.stop()
+	mod.wg.Wait()
 }
 
-func (module *MockModule) stop() {
-	module.startedMu.Lock()
-	defer module.startedMu.Unlock()
-	if module.started {
-		module.started = false
+func (mod *MockModule) stop() {
+	mod.startedRWM.Lock()
+	defer mod.startedRWM.Unlock()
+	if mod.started {
+		mod.started = false
 	}
 }
 
 // Restart is used to restart mock module.
-func (module *MockModule) Restart() error {
-	module.mu.Lock()
-	defer module.mu.Unlock()
-	module.stop()
-	module.wg.Wait()
-	return module.start()
+func (mod *MockModule) Restart() error {
+	mod.mu.Lock()
+	defer mod.mu.Unlock()
+	mod.stop()
+	mod.wg.Wait()
+	return mod.start()
 }
 
 // Name is used to get the name of the mock module.
-func (module *MockModule) Name() string {
+func (mod *MockModule) Name() string {
 	return "mock module"
 }
 
 // Info is used to get the information about the mock module.
-func (module *MockModule) Info() string {
-	module.startedMu.Lock()
-	defer module.startedMu.Unlock()
-	if module.started {
+func (mod *MockModule) Info() string {
+	mod.startedRWM.RLock()
+	defer mod.startedRWM.RUnlock()
+	if mod.started {
 		return "mock module information(started)"
 	}
 	return "mock module information(stopped)"
 }
 
 // Status is used to get the status about the mock module.
-func (module *MockModule) Status() string {
-	module.startedMu.Lock()
-	defer module.startedMu.Unlock()
-	if module.started {
+func (mod *MockModule) Status() string {
+	mod.startedRWM.RLock()
+	defer mod.startedRWM.RUnlock()
+	if mod.started {
 		return "mock module status(started)"
 	}
 	return "mock module status(stopped)"
+}
+
+// IsStopped is used to check module is stopped.
+func (mod *MockModule) IsStopped() bool {
+	mod.startedRWM.RLock()
+	defer mod.startedRWM.RUnlock()
+	return !mod.started
+}
+
+// Call is used to call the inner method about module.
+func (mod *MockModule) Call(method string, args ...interface{}) (interface{}, error) {
+	return fmt.Sprintf("method: %s, args: %s", method, args), nil
 }
 
 // NewMockModule is used to create a mock module.

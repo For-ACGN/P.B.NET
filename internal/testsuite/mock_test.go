@@ -472,5 +472,17 @@ func TestMockModule(t *testing.T) {
 		mod.Stop()
 	})
 
+	t.Run("IsStopped", func(t *testing.T) {
+		mod.Stop()
+		stopped := mod.IsStopped()
+		require.True(t, stopped)
+	})
+
+	t.Run("Call", func(t *testing.T) {
+		ret, err := mod.Call("foo", "p1")
+		require.NoError(t, err)
+		t.Log(ret)
+	})
+
 	IsDestroyed(t, mod)
 }
