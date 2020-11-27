@@ -198,19 +198,60 @@ func (l *Listener) IsStopped() bool {
 }
 
 // Call is used to call extended methods.
-// "List": get all connections.
-// "Kill": kill connection.
 func (l *Listener) Call(method string, args ...interface{}) (interface{}, error) {
 	switch method {
 	case "List":
-		fmt.Println(args)
-		return nil, nil
+		return l.List(), nil
 	case "Kill":
-		fmt.Println(args)
-		return nil, nil
+		if len(args) != 1 {
+			return nil, errors.New("invalid argument number")
+		}
+		addr, ok := args[0].(string)
+		if !ok {
+			return nil, errors.New("argument 1 is not a string")
+		}
+		return l.Kill(addr), nil
 	default:
 		return nil, errors.New("unknown method: " + method)
 	}
+}
+
+// List is used to get remote address from connection.
+func (l *Listener) List() []string {
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
+	// check listener is stopped
+	if l.iListener == nil {
+		return nil
+	}
+	addrs := make([]string, 0, len(l.conns))
+	for conn := range l.conns {
+		remote := conn.remote.RemoteAddr().String()
+		local := conn.local.RemoteAddr().String()
+		addrs = append(addrs, remote+" <-> "+local)
+	}
+	return addrs
+}
+
+// Kill is used to kill connection by remote address(from income listener).
+func (l *Listener) Kill(addr string) error {
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
+	// check listener is stopped
+	if l.iListener == nil {
+		return nil
+	}
+	for conn := range l.conns {
+		if conn.remote.RemoteAddr().String() != addr {
+			continue
+		}
+		err := conn.Close()
+		if err != nil && !nettool.IsNetClosingError(err) {
+			l.log(logger.Error, "failed to close connection:", err)
+		}
+		return nil
+	}
+	return errors.Errorf("connection %s is not exist", addr)
 }
 
 func (l *Listener) logf(lv logger.Level, format string, log ...interface{}) {

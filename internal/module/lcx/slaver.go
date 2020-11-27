@@ -171,19 +171,56 @@ func (s *Slaver) IsStopped() bool {
 }
 
 // Call is used to call extended methods.
-// "List": get all connections.
-// "Kill": kill connection.
 func (s *Slaver) Call(method string, args ...interface{}) (interface{}, error) {
 	switch method {
 	case "List":
-		fmt.Println(args)
-		return nil, nil
+		return s.List(), nil
 	case "Kill":
-		fmt.Println(args)
-		return nil, nil
+		if len(args) != 1 {
+			return nil, errors.New("invalid argument number")
+		}
+		addr, ok := args[0].(string)
+		if !ok {
+			return nil, errors.New("argument 1 is not a string")
+		}
+		return s.Kill(addr), nil
 	default:
 		return nil, errors.New("unknown method: " + method)
 	}
+}
+
+// List is used to get remote address from connection.
+func (s *Slaver) List() []string {
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	if s.stopped {
+		return nil
+	}
+	addrs := make([]string, 0, len(s.conns))
+	for conn := range s.conns {
+		addrs = append(addrs, conn.local.RemoteAddr().String())
+	}
+	return addrs
+}
+
+// Kill is used to kill connection by remote address.
+func (s *Slaver) Kill(addr string) error {
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	if s.stopped {
+		return nil
+	}
+	for conn := range s.conns {
+		if conn.local.RemoteAddr().String() != addr {
+			continue
+		}
+		err := conn.Close()
+		if err != nil && !nettool.IsNetClosingError(err) {
+			s.log(logger.Error, "failed to close connection:", err)
+		}
+		return nil
+	}
+	return errors.Errorf("connection %s is not exist", addr)
 }
 
 func (s *Slaver) logf(lv logger.Level, format string, log ...interface{}) {

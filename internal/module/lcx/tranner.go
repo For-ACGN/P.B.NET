@@ -182,19 +182,58 @@ func (t *Tranner) IsStopped() bool {
 }
 
 // Call is used to call extended methods.
-// "List": get all connections.
-// "Kill": kill connection.
 func (t *Tranner) Call(method string, args ...interface{}) (interface{}, error) {
 	switch method {
 	case "List":
-		fmt.Println(args)
-		return nil, nil
+		return t.List(), nil
 	case "Kill":
-		fmt.Println(args)
-		return nil, nil
+		if len(args) != 1 {
+			return nil, errors.New("invalid argument number")
+		}
+		addr, ok := args[0].(string)
+		if !ok {
+			return nil, errors.New("argument 1 is not a string")
+		}
+		return t.Kill(addr), nil
 	default:
 		return nil, errors.New("unknown method: " + method)
 	}
+}
+
+// List is used to get remote address from connection.
+func (t *Tranner) List() []string {
+	t.rwm.RLock()
+	defer t.rwm.RUnlock()
+	// check tranner is stopped
+	if t.listener == nil {
+		return nil
+	}
+	addrs := make([]string, 0, len(t.conns))
+	for conn := range t.conns {
+		addrs = append(addrs, conn.local.RemoteAddr().String())
+	}
+	return addrs
+}
+
+// Kill is used to kill connection by remote address.
+func (t *Tranner) Kill(addr string) error {
+	t.rwm.RLock()
+	defer t.rwm.RUnlock()
+	// check tranner is stopped
+	if t.listener == nil {
+		return nil
+	}
+	for conn := range t.conns {
+		if conn.local.RemoteAddr().String() != addr {
+			continue
+		}
+		err := conn.Close()
+		if err != nil && !nettool.IsNetClosingError(err) {
+			t.log(logger.Error, "failed to close connection:", err)
+		}
+		return nil
+	}
+	return errors.Errorf("connection %s is not exist", addr)
 }
 
 func (t *Tranner) logf(lv logger.Level, format string, log ...interface{}) {
