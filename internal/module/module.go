@@ -3,7 +3,6 @@ package module
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"strconv"
 )
 
@@ -54,9 +53,8 @@ type Module interface {
 
 	// Methods is used to get the definitions of extended methods that can
 	// be called by Module.Call function, use String() for get help.
-	// The key of the map in return value is the method name, map value is
-	// the detailed information include name, parameter and return value.
-	Methods() map[string]string
+	// The detailed information include name, parameter and return value.
+	Methods() []string
 
 	// Call is used to call extended method, it will return a general value
 	// and it maybe include an error(internal/module/plugin) and a general
@@ -72,6 +70,12 @@ type Method struct {
 	Rets []*Value // return value
 }
 
+// Value is the method argument or return value.
+type Value struct {
+	Name string // value name
+	Type string // value type
+}
+
 // String is used to print method definition.
 // output:
 // --------------------------------  --------------------------------
@@ -82,14 +86,13 @@ type Method struct {
 //   port uint16                       err error
 // --------------------------------  --------------------------------
 // return value:
-//   opened bool
-//   err    error
+//   open bool
+//   err  error
 // --------------------------------
 func (m *Method) String() string {
 	buf := bytes.NewBuffer(make([]byte, 0, 64))
 	buf.WriteString("--------------------------------\n")
 	_, _ = fmt.Fprintf(buf, "method: %s\n", m.Name)
-	buf.WriteString("--------------------------------")
 	// calculate the max line length about the parameter
 	var maxLine int
 	for i := 0; i < len(m.Args); i++ {
@@ -99,14 +102,14 @@ func (m *Method) String() string {
 		}
 	}
 	if maxLine != 0 { // has parameters
-		buf.WriteString("\n--------------------------------\n")
+		buf.WriteString("--------------------------------\n")
 		buf.WriteString("parameter:\n")
 		format := "  %-" + strconv.Itoa(maxLine) + "s %s\n"
 		for i := 0; i < len(m.Args); i++ {
-			typ := reflect.TypeOf(m.Args[i].Type).String()
-			_, _ = fmt.Fprintf(buf, format, m.Args[i].Name, typ)
+			name := m.Args[i].Name
+			typ := m.Args[i].Type
+			_, _ = fmt.Fprintf(buf, format, name, typ)
 		}
-		buf.WriteString("--------------------------------")
 	}
 	// calculate the max line length about the return value
 	maxLine = 0
@@ -117,25 +120,15 @@ func (m *Method) String() string {
 		}
 	}
 	if maxLine != 0 { // has return value
-		buf.WriteString("\n--------------------------------\n")
+		buf.WriteString("--------------------------------\n")
 		buf.WriteString("return value:\n")
 		format := "  %-" + strconv.Itoa(maxLine) + "s %s\n"
 		for i := 0; i < len(m.Rets); i++ {
-			typ := reflect.TypeOf(m.Rets[i].Type).String()
-			_, _ = fmt.Fprintf(buf, format, m.Rets[i].Name, typ)
+			name := m.Rets[i].Name
+			typ := m.Rets[i].Type
+			_, _ = fmt.Fprintf(buf, format, name, typ)
 		}
-		buf.WriteString("--------------------------------")
 	}
+	buf.WriteString("--------------------------------")
 	return buf.String()
-}
-
-// Value is the method argument or return value.
-type Value struct {
-	Name string      // value name
-	Type interface{} // value type
-}
-
-// String is used to print value information like "foo string".
-func (val *Value) String() string {
-	return fmt.Sprintf("%s %s", val.Name, reflect.TypeOf(val.Type).String())
 }
