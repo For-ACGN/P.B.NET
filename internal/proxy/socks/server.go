@@ -37,9 +37,9 @@ type Server struct {
 	logSrc     string
 
 	// options
-	username *security.Bytes
-	password *security.Bytes
-	userID   *security.Bytes
+	username *security.String
+	password *security.String
+	userID   *security.String
 	timeout  time.Duration
 	maxConns int
 
@@ -105,11 +105,11 @@ func newServer(tag string, lg logger.Logger, opts *Options, socks4, disableExt b
 	srv.logSrc = logSrc
 	// authentication
 	if opts.Username != "" || opts.Password != "" {
-		srv.username = security.NewBytes([]byte(opts.Username))
-		srv.password = security.NewBytes([]byte(opts.Password))
+		srv.username = security.NewString(opts.Username)
+		srv.password = security.NewString(opts.Password)
 	}
 	if opts.UserID != "" {
-		srv.userID = security.NewBytes([]byte(opts.UserID))
+		srv.userID = security.NewString(opts.UserID)
 	}
 	if srv.timeout < 1 {
 		srv.timeout = defaultConnectTimeout
@@ -266,7 +266,9 @@ func (srv *Server) Addresses() []net.Addr {
 // "socks4, address: [tcp 127.0.0.1:1999]"
 func (srv *Server) Info() string {
 	buf := new(bytes.Buffer)
+	// protocol
 	buf.WriteString(srv.protocol)
+	// listener address
 	addresses := srv.Addresses()
 	l := len(addresses)
 	if l > 0 {
@@ -281,13 +283,20 @@ func (srv *Server) Info() string {
 		}
 		buf.WriteString("]")
 	}
+	// username and password
 	if srv.socks4 {
 		if srv.userID != nil {
-			_, _ = fmt.Fprintf(buf, ", user id: %s", srv.userID)
+			userID := srv.userID.Get()
+			defer srv.userID.Put(userID)
+			_, _ = fmt.Fprintf(buf, ", user id: %s", userID)
 		}
 	} else {
 		if srv.username != nil {
-			_, _ = fmt.Fprintf(buf, ", auth: %s:%s", srv.username, srv.password)
+			username := srv.username.Get()
+			defer srv.username.Put(username)
+			password := srv.password.Get()
+			defer srv.password.Put(password)
+			_, _ = fmt.Fprintf(buf, ", auth: %s:%s", username, password)
 		}
 	}
 	return buf.String()

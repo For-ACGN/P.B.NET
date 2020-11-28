@@ -101,10 +101,10 @@ func newServer(tag string, lg logger.Logger, opts *Options, https bool) (*Server
 		if strings.Contains(opts.Username, ":") { // can not include ":"
 			return nil, errors.New("username can not include character \":\"")
 		}
-		handler.username = security.NewBytes([]byte(opts.Username))
+		handler.username = security.NewString(opts.Username)
 	}
 	if opts.Password != "" {
-		handler.password = security.NewBytes([]byte(opts.Password))
+		handler.password = security.NewString(opts.Password)
 	}
 	handler.ctx, handler.cancel = context.WithCancel(context.Background())
 	// set http server
@@ -219,11 +219,13 @@ func (srv *Server) Addresses() []net.Addr {
 // "http, address: [tcp 127.0.0.1:1999], auth: admin:123456"
 func (srv *Server) Info() string {
 	buf := new(bytes.Buffer)
+	// protocol
 	if srv.https {
 		buf.WriteString("https")
 	} else {
 		buf.WriteString("http")
 	}
+	// listener address
 	addresses := srv.Addresses()
 	l := len(addresses)
 	if l > 0 {
@@ -238,17 +240,20 @@ func (srv *Server) Info() string {
 		}
 		buf.WriteString("]")
 	}
-	username := srv.handler.username
-	password := srv.handler.password
+	// username and password
 	var (
 		user string
 		pass string
 	)
+	username := srv.handler.username
 	if username != nil {
-		user = username.String()
+		user = username.Get()
+		defer username.Put(user)
 	}
+	password := srv.handler.password
 	if password != nil {
-		pass = password.String()
+		pass = password.Get()
+		defer password.Put(pass)
 	}
 	if user != "" || pass != "" {
 		_, _ = fmt.Fprintf(buf, ", auth: %s:%s", user, pass)
@@ -279,8 +284,8 @@ type handler struct {
 	// secondary proxy
 	dialContext nettool.DialContext
 
-	username *security.Bytes
-	password *security.Bytes
+	username *security.String
+	password *security.String
 
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -348,19 +353,19 @@ func (h *handler) authenticate(w http.ResponseWriter, r *http.Request) bool {
 		if len(userPass) == 1 {
 			userPass = append(userPass, "")
 		}
-		user := []byte(userPass[0])
-		pass := []byte(userPass[1])
 		var (
 			eUser []byte
 			ePass []byte
 		)
+		user := []byte(userPass[0])
+		pass := []byte(userPass[1])
 		if h.username != nil {
-			eUser = h.username.Get()
-			defer h.username.Put(eUser)
+			eUser = h.username.GetBytes()
+			defer h.username.PutBytes(eUser)
 		}
 		if h.password != nil {
-			ePass = h.password.Get()
-			defer h.password.Put(ePass)
+			ePass = h.password.GetBytes()
+			defer h.password.PutBytes(ePass)
 		}
 		userErr := subtle.ConstantTimeCompare(eUser, user) != 1
 		passErr := subtle.ConstantTimeCompare(ePass, pass) != 1

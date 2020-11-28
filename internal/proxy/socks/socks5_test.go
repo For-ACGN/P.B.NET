@@ -160,8 +160,8 @@ func TestClient_authenticate(t *testing.T) {
 
 	t.Run("failed to write", func(t *testing.T) {
 		client := Client{
-			username: security.NewBytes([]byte("user")),
-			password: security.NewBytes([]byte("pass")),
+			username: security.NewString("user"),
+			password: security.NewString("pass"),
 		}
 		conn := testsuite.NewMockConnWithWriteError()
 
@@ -173,8 +173,8 @@ func TestClient_authenticate(t *testing.T) {
 
 	t.Run("failed to read response", func(t *testing.T) {
 		client := Client{
-			username: security.NewBytes([]byte("user")),
-			password: security.NewBytes([]byte("pass")),
+			username: security.NewString("user"),
+			password: security.NewString("pass"),
 		}
 		conn := testsuite.NewMockConnWithReadError()
 
@@ -186,14 +186,12 @@ func TestClient_authenticate(t *testing.T) {
 
 	t.Run("invalid response 0", func(t *testing.T) {
 		client := &Client{
-			username: security.NewBytes([]byte("user")),
-			password: security.NewBytes([]byte("pass")),
+			username: security.NewString("user"),
+			password: security.NewString("pass"),
 		}
 
 		testClientAuthenticate(t, client, func(server net.Conn) {
-			username := client.username.String()
-			password := client.password.String()
-			size := int64(1 + 1 + len(username) + 1 + len(password))
+			size := int64(1 + 1 + client.username.Len() + 1 + client.password.Len())
 			_, err := io.CopyN(ioutil.Discard, server, size)
 			require.NoError(t, err)
 
@@ -208,14 +206,12 @@ func TestClient_authenticate(t *testing.T) {
 
 	t.Run("invalid response 1", func(t *testing.T) {
 		client := &Client{
-			username: security.NewBytes([]byte("user")),
-			password: security.NewBytes([]byte("pass")),
+			username: security.NewString("user"),
+			password: security.NewString("pass"),
 		}
 
 		testClientAuthenticate(t, client, func(server net.Conn) {
-			username := client.username.String()
-			password := client.password.String()
-			size := int64(1 + 1 + len(username) + 1 + len(password))
+			size := int64(1 + 1 + client.username.Len() + 1 + client.password.Len())
 			_, err := io.CopyN(ioutil.Discard, server, size)
 			require.NoError(t, err)
 

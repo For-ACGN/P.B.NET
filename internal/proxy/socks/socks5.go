@@ -140,10 +140,10 @@ func (c *Client) authenticate(conn net.Conn, am uint8) error {
 		buf := bytes.Buffer{}
 		buf.WriteByte(usernamePasswordVersion)
 		// get username and password
-		user := c.username.Get()
-		defer c.username.Put(user)
-		pass := c.password.Get()
-		defer c.password.Put(pass)
+		user := c.username.GetBytes()
+		defer c.username.PutBytes(user)
+		pass := c.password.GetBytes()
+		defer c.password.PutBytes(pass)
 		// write it
 		buf.WriteByte(byte(len(user)))
 		buf.Write(user)
@@ -340,10 +340,10 @@ func (conn *conn) authenticate() bool {
 			return false
 		}
 		// compare
-		eUser := conn.ctx.username.Get()
-		defer conn.ctx.username.Put(eUser)
-		ePass := conn.ctx.password.Get()
-		defer conn.ctx.password.Put(ePass)
+		eUser := conn.ctx.username.GetBytes()
+		defer conn.ctx.username.PutBytes(eUser)
+		ePass := conn.ctx.password.GetBytes()
+		defer conn.ctx.password.PutBytes(ePass)
 		userErr := subtle.ConstantTimeCompare(eUser, username) != 1
 		passErr := subtle.ConstantTimeCompare(ePass, password) != 1
 		if userErr || passErr {

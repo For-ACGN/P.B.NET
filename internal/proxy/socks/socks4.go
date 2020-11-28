@@ -81,8 +81,8 @@ func (c *Client) connectSocks4(conn net.Conn, host string, port uint16) error {
 	}
 	// write user id
 	if c.userID != nil {
-		userID := c.userID.Get()
-		defer c.userID.Put(userID)
+		userID := c.userID.GetBytes()
+		defer c.userID.PutBytes(userID)
 		buffer.Write(userID)
 	}
 	buffer.WriteByte(0x00) // NULL
@@ -216,8 +216,8 @@ func (conn *conn) checkUserID() bool {
 	if conn.ctx.userID == nil {
 		return true
 	}
-	uid := conn.ctx.userID.Get()
-	defer conn.ctx.userID.Put(uid)
+	uid := conn.ctx.userID.GetBytes()
+	defer conn.ctx.userID.PutBytes(uid)
 	if subtle.ConstantTimeCompare(uid, userID) != 1 {
 		conn.logf(logger.Exploit, "invalid user id: %s", userID)
 		return false

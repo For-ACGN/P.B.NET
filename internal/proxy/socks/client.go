@@ -24,9 +24,9 @@ type Client struct {
 	protocol   string // "socks5", "socks4a", "socks4"
 
 	// options
-	username *security.Bytes
-	password *security.Bytes
-	userID   *security.Bytes
+	username *security.String
+	password *security.String
+	userID   *security.String
 	timeout  time.Duration
 }
 
@@ -71,11 +71,11 @@ func newClient(network, address string, opts *Options, socks4, disableExt bool) 
 	}
 	// set options
 	if opts.Username != "" || opts.Password != "" {
-		client.username = security.NewBytes([]byte(opts.Username))
-		client.password = security.NewBytes([]byte(opts.Password))
+		client.username = security.NewString(opts.Username)
+		client.password = security.NewString(opts.Password)
 	}
 	if opts.UserID != "" {
-		client.userID = security.NewBytes([]byte(opts.UserID))
+		client.userID = security.NewString(opts.UserID)
 	}
 	if client.timeout < 1 {
 		client.timeout = defaultDialTimeout
@@ -238,11 +238,17 @@ func (c *Client) Info() string {
 	_, _ = fmt.Fprintf(buf, "%s, server: %s %s", c.protocol, c.network, c.address)
 	if c.socks4 {
 		if c.userID != nil {
-			_, _ = fmt.Fprintf(buf, ", user id: %s", c.userID)
+			userID := c.userID.Get()
+			defer c.userID.Put(userID)
+			_, _ = fmt.Fprintf(buf, ", user id: %s", userID)
 		}
 	} else {
 		if c.username != nil {
-			_, _ = fmt.Fprintf(buf, ", auth: %s:%s", c.username, c.password)
+			username := c.username.Get()
+			defer c.username.Put(username)
+			password := c.password.Get()
+			defer c.password.Put(password)
+			_, _ = fmt.Fprintf(buf, ", auth: %s:%s", username, password)
 		}
 	}
 	return buf.String()
