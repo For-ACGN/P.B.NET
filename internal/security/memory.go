@@ -69,6 +69,7 @@ func CoverBytes(b []byte) {
 }
 
 // CoverString is used to cover string if string has secret.
+// If it is a constant string, it will panic because write invalid memory.
 // Don't cover string about map key, or maybe trigger data race.
 func CoverString(str string) {
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&str)) // #nosec
@@ -95,7 +96,7 @@ type Bytes struct {
 	cache sync.Pool
 }
 
-// NewBytes is used to create security Bytes.
+// NewBytes is used to create security byte slice.
 func NewBytes(b []byte) *Bytes {
 	l := len(b)
 	bytes := Bytes{
@@ -112,7 +113,7 @@ func NewBytes(b []byte) *Bytes {
 	return &bytes
 }
 
-// Get is used to get stored byte slice.
+// Get is used to get stored byte slice, remember call put after use.
 func (b *Bytes) Get() []byte {
 	bytes := *b.cache.Get().(*[]byte)
 	for i := 0; i < b.len; i++ {
@@ -134,8 +135,51 @@ func (b *Bytes) Len() int {
 	return b.len
 }
 
-func (b *Bytes) String() string {
-	bytes := b.Get()
-	defer b.Put(bytes)
-	return string(bytes)
+// String make string discontinuous, it safe for use by multiple goroutines.
+type String struct {
+	data  map[int]byte
+	len   int
+	cache sync.Pool
+}
+
+// NewString is used to create security string.
+func NewString(s string) *String {
+	l := len(s)
+	str := String{
+		data: make(map[int]byte, l),
+		len:  l,
+	}
+	for i := 0; i < l; i++ {
+		str.data[i] = s[i]
+	}
+	str.cache.New = func() interface{} {
+		b := make([]byte, l)
+		return &b
+	}
+	return &str
+}
+
+// Get is used to get stored string, remember to call put after use.
+func (s *String) Get() string {
+	b := *s.cache.Get().(*[]byte)
+	defer s.cache.Put(&b)
+	for i := 0; i < s.len; i++ {
+		b[i] = s.data[i]
+	}
+	str := string(b)
+	// cover byte slice at once
+	for i := 0; i < s.len; i++ {
+		b[i] = 0
+	}
+	return str
+}
+
+// Put is used to cover string, it is a shortcut.
+func (s *String) Put(str string) {
+	CoverString(str)
+}
+
+// Len is used to get the string length.
+func (s *String) Len() int {
+	return s.len
 }

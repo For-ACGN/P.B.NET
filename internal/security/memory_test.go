@@ -42,7 +42,7 @@ func TestBytes(t *testing.T) {
 
 	sb := NewBytes(testdata)
 
-	t.Run("common", func(t *testing.T) {
+	t.Run("get", func(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			b := sb.Get()
 			require.Equal(t, testdata, b)
@@ -50,8 +50,13 @@ func TestBytes(t *testing.T) {
 		}
 	})
 
+	t.Run("len", func(t *testing.T) {
+		require.Equal(t, len(testdata), sb.Len())
+	})
+
 	t.Run("compare address", func(t *testing.T) {
-		// maybe gc, so try 1000 times
+		// maybe trigger gc, so we try 1000 times
+
 		var equal bool
 		for i := 0; i < 1000; i++ {
 			b := sb.Get()
@@ -70,15 +75,6 @@ func TestBytes(t *testing.T) {
 		require.True(t, equal)
 	})
 
-	t.Run("len", func(t *testing.T) {
-		require.Equal(t, 4, sb.Len())
-	})
-
-	t.Run("string", func(t *testing.T) {
-		sb := NewBytes([]byte("test"))
-		require.Equal(t, "test", sb.String())
-	})
-
 	t.Run("parallel", func(t *testing.T) {
 		wg := sync.WaitGroup{}
 		wg.Add(100)
@@ -89,6 +85,39 @@ func TestBytes(t *testing.T) {
 					b := sb.Get()
 					require.Equal(t, testdata, b)
 					sb.Put(b)
+				}
+			}()
+		}
+		wg.Wait()
+	})
+}
+
+func TestString(t *testing.T) {
+	const testdata = "test"
+
+	ss := NewString(testdata)
+
+	t.Run("get", func(t *testing.T) {
+		for i := 0; i < 10; i++ {
+			str := ss.Get()
+			require.Equal(t, testdata, str)
+			ss.Put(str)
+		}
+	})
+
+	t.Run("len", func(t *testing.T) {
+		require.Equal(t, len(testdata), ss.Len())
+	})
+
+	t.Run("parallel", func(t *testing.T) {
+		wg := sync.WaitGroup{}
+		wg.Add(100)
+		for i := 0; i < 100; i++ {
+			go func() {
+				defer wg.Done()
+				for i := 0; i < 10; i++ {
+					str := ss.Get()
+					require.Equal(t, testdata, str)
 				}
 			}()
 		}
@@ -119,5 +148,31 @@ func benchmarkBytes(b *testing.B, n int) {
 	for i := 0; i < b.N; i++ {
 		data := sb.Get()
 		sb.Put(data)
+	}
+}
+
+func BenchmarkString(b *testing.B) {
+	b.Run("32 bytes", func(b *testing.B) {
+		benchmarkString(b, 32)
+	})
+
+	b.Run("64 bytes", func(b *testing.B) {
+		benchmarkString(b, 64)
+	})
+
+	b.Run("128 bytes", func(b *testing.B) {
+		benchmarkString(b, 128)
+	})
+}
+
+func benchmarkString(b *testing.B, n int) {
+	ss := NewString(strings.Repeat("a", n))
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		data := ss.Get()
+		CoverString(data)
 	}
 }
