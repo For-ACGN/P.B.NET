@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/netutil"
 
 	"project/internal/logger"
+	"project/internal/module"
 	"project/internal/nettool"
 	"project/internal/xpanic"
 )
@@ -66,6 +67,16 @@ func NewListener(tag, iNet, iAddr string, lg logger.Logger, opts *Options) (*Lis
 		logSrc:   logSrc,
 		conns:    make(map[*lConn]struct{}),
 	}, nil
+}
+
+// Name is used to get the module name about listener.
+func (*Listener) Name() string {
+	return "lcx listen"
+}
+
+// Description is used to get the description about listener.
+func (*Listener) Description() string {
+	return "Accept slaver and user connection, copy data between two connection."
 }
 
 // Start is used to started listener.
@@ -149,9 +160,11 @@ func (l *Listener) Restart() error {
 	return l.start()
 }
 
-// Name is used to get the module name.
-func (l *Listener) Name() string {
-	return "lcx listen"
+// IsStarted is used to check listener is stopped.
+func (l *Listener) IsStarted() bool {
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
+	return l.iListener != nil
 }
 
 // Info is used to get the listener information.
@@ -179,7 +192,7 @@ func (l *Listener) Info() string {
 	return buf.String()
 }
 
-// Status is used to return the tranner status.
+// Status is used to return the listener status.
 // connections: 12/1000 (used/limit)
 func (l *Listener) Status() string {
 	buf := bytes.NewBuffer(make([]byte, 0, 64))
@@ -190,11 +203,26 @@ func (l *Listener) Status() string {
 	return buf.String()
 }
 
-// IsStopped is used to check listener is stopped.
-func (l *Listener) IsStopped() bool {
-	l.rwm.RLock()
-	defer l.rwm.RUnlock()
-	return l.iListener == nil
+// Methods is used to get the information about extended methods.
+func (*Listener) Methods() []string {
+	list := module.Method{
+		Name: "List",
+		Desc: "List is used to list established connections",
+		Rets: []*module.Value{
+			{"addrs", "[]string"},
+		},
+	}
+	kill := module.Method{
+		Name: "Kill",
+		Desc: "Kill is used to kill established connection by remote address",
+		Args: []*module.Value{
+			{"addr", "string"},
+		},
+		Rets: []*module.Value{
+			{"err", "error"},
+		},
+	}
+	return []string{list.String(), kill.String()}
 }
 
 // Call is used to call extended methods.
@@ -220,10 +248,6 @@ func (l *Listener) Call(method string, args ...interface{}) (interface{}, error)
 func (l *Listener) List() []string {
 	l.rwm.RLock()
 	defer l.rwm.RUnlock()
-	// check listener is stopped
-	if l.iListener == nil {
-		return nil
-	}
 	addrs := make([]string, 0, len(l.conns))
 	for conn := range l.conns {
 		remote := conn.remote.RemoteAddr().String()
@@ -237,10 +261,6 @@ func (l *Listener) List() []string {
 func (l *Listener) Kill(addr string) error {
 	l.rwm.RLock()
 	defer l.rwm.RUnlock()
-	// check listener is stopped
-	if l.iListener == nil {
-		return nil
-	}
 	for conn := range l.conns {
 		if conn.remote.RemoteAddr().String() != addr {
 			continue

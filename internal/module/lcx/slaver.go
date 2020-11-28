@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"project/internal/logger"
+	"project/internal/module"
 	"project/internal/nettool"
 	"project/internal/random"
 	"project/internal/xpanic"
@@ -29,8 +30,9 @@ type Slaver struct {
 	logSrc  string
 	dialer  net.Dialer
 	sleeper *random.Sleeper
-	stopped bool
-	online  bool // prevent record a lot of logs about dail failure
+
+	started bool
+	online  bool // prevent record a lot of logs about dial failure
 	conns   map[*sConn]struct{}
 	rwm     sync.RWMutex
 
@@ -77,9 +79,18 @@ func NewSlaver(tag, lNet, lAddr, dstNet, dstAddr string, lg logger.Logger, opts 
 		opts:       opts,
 		logSrc:     logSrc,
 		sleeper:    random.NewSleeper(),
-		stopped:    true,
 		conns:      make(map[*sConn]struct{}),
 	}, nil
+}
+
+// Name is used to get the module name.
+func (*Slaver) Name() string {
+	return "lcx slave"
+}
+
+// Description is used to get the description about slaver.
+func (*Slaver) Description() string {
+	return "Connect listener and target, copy data between two connection."
 }
 
 // Start is used to started slaver.
@@ -92,13 +103,13 @@ func (s *Slaver) Start() error {
 func (s *Slaver) start() error {
 	s.rwm.Lock()
 	defer s.rwm.Unlock()
-	if !s.stopped {
+	if s.started {
 		return errors.New("already started lcx slave")
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.wg.Add(1)
 	go s.serve()
-	s.stopped = false
+	s.started = true
 	return nil
 }
 
@@ -113,7 +124,7 @@ func (s *Slaver) Stop() {
 func (s *Slaver) stop() {
 	s.rwm.Lock()
 	defer s.rwm.Unlock()
-	if s.stopped {
+	if !s.started {
 		return
 	}
 	s.cancel()
@@ -126,7 +137,7 @@ func (s *Slaver) stop() {
 		delete(s.conns, conn)
 	}
 	// prevent panic before here
-	s.stopped = true
+	s.started = false
 }
 
 // Restart is used to restart slaver.
@@ -138,9 +149,11 @@ func (s *Slaver) Restart() error {
 	return s.start()
 }
 
-// Name is used to get the module name.
-func (s *Slaver) Name() string {
-	return "lcx slave"
+// IsStarted is used to check slaver is started.
+func (s *Slaver) IsStarted() bool {
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	return s.started
 }
 
 // Info is used to get the slaver information.
@@ -163,11 +176,26 @@ func (s *Slaver) Status() string {
 	return buf.String()
 }
 
-// IsStopped is used to check slaver is stopped.
-func (s *Slaver) IsStopped() bool {
-	s.rwm.RLock()
-	defer s.rwm.RUnlock()
-	return s.stopped
+// Methods is used to get the information about extended methods.
+func (*Slaver) Methods() []string {
+	list := module.Method{
+		Name: "List",
+		Desc: "List is used to list established connections",
+		Rets: []*module.Value{
+			{"addrs", "[]string"},
+		},
+	}
+	kill := module.Method{
+		Name: "Kill",
+		Desc: "Kill is used to kill established connection by remote address",
+		Args: []*module.Value{
+			{"addr", "string"},
+		},
+		Rets: []*module.Value{
+			{"err", "error"},
+		},
+	}
+	return []string{list.String(), kill.String()}
 }
 
 // Call is used to call extended methods.
@@ -193,9 +221,6 @@ func (s *Slaver) Call(method string, args ...interface{}) (interface{}, error) {
 func (s *Slaver) List() []string {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
-	if s.stopped {
-		return nil
-	}
 	addrs := make([]string, 0, len(s.conns))
 	for conn := range s.conns {
 		addrs = append(addrs, conn.local.RemoteAddr().String())
@@ -207,9 +232,6 @@ func (s *Slaver) List() []string {
 func (s *Slaver) Kill(addr string) error {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
-	if s.stopped {
-		return nil
-	}
 	for conn := range s.conns {
 		if conn.local.RemoteAddr().String() != addr {
 			continue
@@ -257,7 +279,7 @@ func (s *Slaver) serve() {
 			}
 			continue
 		}
-		if s.isStopped() {
+		if !s.IsStarted() {
 			return
 		}
 		conn, err := s.connectToListener()
@@ -285,12 +307,6 @@ func (s *Slaver) full() bool {
 	return len(s.conns) >= s.opts.MaxConns
 }
 
-func (s *Slaver) isStopped() bool {
-	s.rwm.RLock()
-	defer s.rwm.RUnlock()
-	return s.stopped
-}
-
 func (s *Slaver) connectToListener() (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, s.opts.DialTimeout)
 	defer cancel()
@@ -301,7 +317,7 @@ func (s *Slaver) trackConn(conn *sConn, add bool) bool {
 	s.rwm.Lock()
 	defer s.rwm.Unlock()
 	if add {
-		if s.stopped {
+		if !s.started {
 			return false
 		}
 		s.conns[conn] = struct{}{}

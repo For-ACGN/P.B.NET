@@ -489,7 +489,7 @@ func TestMockModule(t *testing.T) {
 	t.Run("Call", func(t *testing.T) {
 		const method = "Scan"
 
-		// ok
+		// common
 		ret, err := mod.Call(method, "1.1.1.1")
 		require.NoError(t, err)
 		rets := ret.([]interface{})

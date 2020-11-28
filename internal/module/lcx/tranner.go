@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/netutil"
 
 	"project/internal/logger"
+	"project/internal/module"
 	"project/internal/nettool"
 	"project/internal/xpanic"
 )
@@ -68,6 +69,16 @@ func NewTranner(tag, dstNet, dstAddr string, lg logger.Logger, opts *Options) (*
 		logSrc:     logSrc,
 		conns:      make(map[*tConn]struct{}),
 	}, nil
+}
+
+// Name is used to get the module name.
+func (*Tranner) Name() string {
+	return "lcx tran"
+}
+
+// Description is used to get the description about tranner.
+func (*Tranner) Description() string {
+	return "Accept user connection and connect target, copy data between two connection."
 }
 
 // Start is used to started tranner.
@@ -140,9 +151,11 @@ func (t *Tranner) Restart() error {
 	return t.start()
 }
 
-// Name is used to get the module name.
-func (t *Tranner) Name() string {
-	return "lcx tran"
+// IsStarted is used to check tranner is started.
+func (t *Tranner) IsStarted() bool {
+	t.rwm.RLock()
+	defer t.rwm.RUnlock()
+	return t.listener != nil
 }
 
 // Info is used to get the tranner information.
@@ -174,11 +187,26 @@ func (t *Tranner) Status() string {
 	return buf.String()
 }
 
-// IsStopped is used to check tranner is stopped.
-func (t *Tranner) IsStopped() bool {
-	t.rwm.RLock()
-	defer t.rwm.RUnlock()
-	return t.listener == nil
+// Methods is used to get the information about extended methods.
+func (*Tranner) Methods() []string {
+	list := module.Method{
+		Name: "List",
+		Desc: "List is used to list established connections",
+		Rets: []*module.Value{
+			{"addrs", "[]string"},
+		},
+	}
+	kill := module.Method{
+		Name: "Kill",
+		Desc: "Kill is used to kill established connection by remote address",
+		Args: []*module.Value{
+			{"addr", "string"},
+		},
+		Rets: []*module.Value{
+			{"err", "error"},
+		},
+	}
+	return []string{list.String(), kill.String()}
 }
 
 // Call is used to call extended methods.
@@ -204,10 +232,6 @@ func (t *Tranner) Call(method string, args ...interface{}) (interface{}, error) 
 func (t *Tranner) List() []string {
 	t.rwm.RLock()
 	defer t.rwm.RUnlock()
-	// check tranner is stopped
-	if t.listener == nil {
-		return nil
-	}
 	addrs := make([]string, 0, len(t.conns))
 	for conn := range t.conns {
 		addrs = append(addrs, conn.local.RemoteAddr().String())
@@ -219,10 +243,6 @@ func (t *Tranner) List() []string {
 func (t *Tranner) Kill(addr string) error {
 	t.rwm.RLock()
 	defer t.rwm.RUnlock()
-	// check tranner is stopped
-	if t.listener == nil {
-		return nil
-	}
 	for conn := range t.conns {
 		if conn.local.RemoteAddr().String() != addr {
 			continue

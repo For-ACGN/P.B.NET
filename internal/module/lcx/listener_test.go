@@ -216,6 +216,24 @@ func TestListener_Stop(t *testing.T) {
 	})
 }
 
+func TestListener_Call(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+}
+
+func TestListener_List(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+}
+
+func TestListener_Kill(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+}
+
 func TestListener_serve(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()

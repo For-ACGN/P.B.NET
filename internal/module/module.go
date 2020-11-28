@@ -54,5 +54,5 @@ type Module interface {
 	// and it maybe include an error(internal/module/plugin) and a general
 	// error, usually check the general error firstly, then read the general
 	// value and get the error, finally check the inner error.
-	Call(method string, arguments ...interface{}) (interface{}, error)
+	Call(method string, args ...interface{}) (interface{}, error)
 }

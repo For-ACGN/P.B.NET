@@ -590,13 +590,13 @@ type MockModule struct {
 }
 
 // Name is used to get the name of the mock module.
-func (mod *MockModule) Name() string {
+func (*MockModule) Name() string {
 	return "mock module"
 }
 
 // Description is used to get the mock module description.
-func (mod *MockModule) Description() string {
-	return "mock module is used to test"
+func (*MockModule) Description() string {
+	return "Mock module is used to test."
 }
 
 // Start is used to start mock module.
@@ -669,18 +669,18 @@ func (mod *MockModule) Status() string {
 }
 
 // Methods is used to get the mock module extended methods.
-func (mod *MockModule) Methods() []string {
+func (*MockModule) Methods() []string {
 	return []string{"Scan"}
 }
 
 // Call is used to call the inner method about module.
-func (mod *MockModule) Call(method string, arguments ...interface{}) (interface{}, error) {
+func (mod *MockModule) Call(method string, args ...interface{}) (interface{}, error) {
 	switch method {
 	case "Scan":
-		if len(arguments) != 1 {
+		if len(args) != 1 {
 			return nil, errors.New("invalid argument number")
 		}
-		ip, ok := arguments[0].(string)
+		ip, ok := args[0].(string)
 		if !ok {
 			return nil, errors.New("argument 1 is not a string")
 		}
@@ -692,7 +692,7 @@ func (mod *MockModule) Call(method string, arguments ...interface{}) (interface{
 }
 
 // Scan is used to scan a ip address(fake function).
-func (mod *MockModule) Scan(ip string) (bool, error) {
+func (*MockModule) Scan(ip string) (bool, error) {
 	if ip == "" {
 		return false, errors.New("empty ip")
 	}
