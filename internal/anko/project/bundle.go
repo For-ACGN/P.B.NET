@@ -19,6 +19,7 @@ import (
 	"project/internal/guid"
 	"project/internal/httptool"
 	"project/internal/logger"
+	"project/internal/module"
 	"project/internal/namer"
 	"project/internal/nettool"
 	"project/internal/option"
@@ -51,6 +52,7 @@ func init() {
 	initInternalGUID()
 	initInternalHTTPTool()
 	initInternalLogger()
+	initInternalModule()
 	initInternalNamer()
 	initInternalNetTool()
 	initInternalOption()
@@ -396,6 +398,29 @@ func initInternalLogger() {
 	}
 }
 
+func initInternalModule() {
+	env.Packages["project/internal/module"] = map[string]reflect.Value{
+		// define constants
+
+		// define variables
+
+		// define functions
+		"NewManager": reflect.ValueOf(module.NewManager),
+	}
+	var (
+		manager module.Manager
+		method  module.Method
+		mod     module.Module
+		value   module.Value
+	)
+	env.PackageTypes["project/internal/module"] = map[string]reflect.Type{
+		"Manager": reflect.TypeOf(&manager).Elem(),
+		"Method":  reflect.TypeOf(&method).Elem(),
+		"Module":  reflect.TypeOf(&mod).Elem(),
+		"Value":   reflect.TypeOf(&value).Elem(),
+	}
+}
+
 func initInternalNamer() {
 	env.Packages["project/internal/namer"] = map[string]reflect.Value{
 		// define constants
@@ -687,6 +712,7 @@ func initInternalSecurity() {
 		"NewBogo":               reflect.ValueOf(security.NewBogo),
 		"NewBytes":              reflect.ValueOf(security.NewBytes),
 		"NewMemory":             reflect.ValueOf(security.NewMemory),
+		"NewString":             reflect.ValueOf(security.NewString),
 		"PaddingMemory":         reflect.ValueOf(security.PaddingMemory),
 		"ReadAll":               reflect.ValueOf(security.ReadAll),
 		"SwitchThread":          reflect.ValueOf(security.SwitchThread),
@@ -697,11 +723,13 @@ func initInternalSecurity() {
 		bogo   security.Bogo
 		bytes  security.Bytes
 		memory security.Memory
+		str    security.String
 	)
 	env.PackageTypes["project/internal/security"] = map[string]reflect.Type{
 		"Bogo":   reflect.TypeOf(&bogo).Elem(),
 		"Bytes":  reflect.TypeOf(&bytes).Elem(),
 		"Memory": reflect.TypeOf(&memory).Elem(),
+		"String": reflect.TypeOf(&str).Elem(),
 	}
 }
 

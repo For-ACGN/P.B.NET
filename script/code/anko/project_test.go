@@ -55,6 +55,7 @@ func init() {
 		{"internal/guid", "InternalGUID"},
 		{"internal/httptool", "InternalHTTPTool"},
 		{"internal/logger", "InternalLogger"},
+		{"internal/module", "InternalModule"},
 		{"internal/namer", "InternalNamer"},
 		{"internal/nettool", "InternalNetTool"},
 		{"internal/option", "InternalOption"},
@@ -91,6 +92,9 @@ func init() {
 		{"logger logger.Logger", "lg logger.Logger"},
 		{"(&logger)", "(&lg)"},
 
+		{"module module.Module", "mod module.Module"},
+		{"(&module)", "(&mod)"},
+
 		{"namer namer.Namer", "n namer.Namer"},
 		{"(&namer)", "(&n)"},
 
@@ -99,6 +103,9 @@ func init() {
 
 		{"rand random.Rand", "r random.Rand"},
 		{"(&rand)", "(&r)"},
+
+		{"string security.String", "str security.String"},
+		{"(&string)", "(&str)"},
 	} {
 		src = strings.ReplaceAll(src, item.old, item.new)
 	}

@@ -220,9 +220,6 @@ func init() {
 		{"time time.Time", "t time.Time"},
 		{"(&time)", "(&t)"},
 
-		{"time time.Time", "t time.Time"},
-		{"(&time)", "(&t)"},
-
 		// overflows int
 		{"(crc32.IEEE)", "(uint32(crc32.IEEE))"},
 		{"(crc32.Castagnoli)", "(uint32(crc32.Castagnoli))"},
