@@ -277,7 +277,7 @@ func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
 		require.Error(t, err)
 		require.Equal(t, 0, n)
 
-		// TODO [external] go internal bug: *tls.Conn memory leaks
+		// *tls.Conn start reference self after Go 1.15
 		type raw interface { // type: *xnet.Conn
 			RawConn() net.Conn
 		}

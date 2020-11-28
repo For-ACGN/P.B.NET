@@ -75,7 +75,7 @@ func TestAnko(t *testing.T) {
 	})
 
 	ank.Stop()
-	require.True(t, ank.IsStopped())
+	require.False(t, ank.IsStarted())
 
 	testsuite.IsDestroyed(t, ank)
 }

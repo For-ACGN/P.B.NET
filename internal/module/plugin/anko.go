@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"reflect"
 	"sync"
@@ -18,12 +17,6 @@ type comFn = func(context.Context) (reflect.Value, reflect.Value)
 // callFn is call function for Call function.
 type callFn = func(context.Context, reflect.Value, ...interface{}) (reflect.Value, reflect.Value)
 
-// errors about anko plugin.
-var (
-	ErrAnkoPluginStarted = fmt.Errorf("anko plugin is started")
-	ErrAnkoPluginStopped = fmt.Errorf("anko plugin is stopped")
-)
-
 // Anko is a plugin from anko script.
 type Anko struct {
 	external interface{}
@@ -31,15 +24,17 @@ type Anko struct {
 	stmt     anko.Stmt
 
 	// in script
-	startFn  comFn  // func() error
-	stopFn   comFn  // func()
-	nameFn   comFn  // func() string
-	infoFn   comFn  // func() string
-	statusFn comFn  // func() string
-	callFn   callFn // func(method string, args ...interface{}) error
-	env      *anko.Env
+	nameFn    comFn  // func() string
+	descFn    comFn  // func() string
+	startFn   comFn  // func() error
+	stopFn    comFn  // func()
+	infoFn    comFn  // func() string
+	statusFn  comFn  // func() string
+	methodsFn comFn  // func() []string
+	callFn    callFn // func(method string, args ...interface{}) error
+	env       *anko.Env
 
-	stopped bool
+	started bool
 	ctx     context.Context
 	cancel  context.CancelFunc
 	rwm     sync.RWMutex
@@ -55,7 +50,6 @@ func NewAnko(external interface{}, output io.Writer, script string) (*Anko, erro
 		external: external,
 		output:   output,
 		stmt:     stmt,
-		stopped:  true,
 	}
 	err = ank.load()
 	if err != nil {
@@ -94,7 +88,7 @@ func (ank *Anko) load() error {
 		return errors.Wrap(err, "failed to define external")
 	}
 	// register functions
-	err = ank.getExportedFunctions(env)
+	err = ank.registerFunctions(env)
 	if err != nil {
 		return errors.WithMessage(err, "failed to register function")
 	}
@@ -102,177 +96,41 @@ func (ank *Anko) load() error {
 	return nil
 }
 
-func (ank *Anko) getExportedFunctions(env *anko.Env) error {
-	start, err := env.Get("Start")
-	if err != nil {
-		return errors.Wrap(err, "failed to get start function")
+func (ank *Anko) registerFunctions(env *anko.Env) error {
+	// register common functions
+	for _, item := range []*struct {
+		method string
+		field  *comFn
+	}{
+		{"Name", &ank.nameFn},
+		{"Description", &ank.descFn},
+		{"Start", &ank.startFn},
+		{"Stop", &ank.stopFn},
+		{"Info", &ank.infoFn},
+		{"Status", &ank.statusFn},
+		{"Methods", &ank.methodsFn},
+	} {
+		symbol, err := env.Get(item.method)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get %s function", item.method)
+		}
+		fn, ok := symbol.(comFn)
+		if !ok {
+			return errors.Errorf("invalid %s function type", item.method)
+		}
+		*item.field = fn
 	}
-	startFn, ok := start.(comFn)
-	if !ok {
-		return errors.New("invalid start function type")
-	}
-
-	stop, err := env.Get("Stop")
-	if err != nil {
-		return errors.Wrap(err, "failed to get stop function")
-	}
-	stopFn, ok := stop.(comFn)
-	if !ok {
-		return errors.New("invalid stop function type")
-	}
-
-	name, err := env.Get("Name")
-	if err != nil {
-		return errors.Wrap(err, "failed to get name function")
-	}
-	nameFn, ok := name.(comFn)
-	if !ok {
-		return errors.New("invalid name function type")
-	}
-
-	info, err := env.Get("Info")
-	if err != nil {
-		return errors.Wrap(err, "failed to get info function")
-	}
-	infoFn, ok := info.(comFn)
-	if !ok {
-		return errors.New("invalid info function type")
-	}
-
-	status, err := env.Get("Status")
-	if err != nil {
-		return errors.Wrap(err, "failed to get status function")
-	}
-	statusFn, ok := status.(comFn)
-	if !ok {
-		return errors.New("invalid status function type")
-	}
-
+	// register Call function
 	call, err := env.Get("Call")
 	if err != nil {
-		return errors.Wrap(err, "failed to get call function")
+		return errors.Wrap(err, "failed to get Call function")
 	}
 	callFn, ok := call.(callFn)
 	if !ok {
-		return errors.New("invalid call function type")
+		return errors.New("invalid Call function type")
 	}
-
-	// update module
-	ank.startFn = startFn
-	ank.stopFn = stopFn
-	ank.nameFn = nameFn
-	ank.infoFn = infoFn
-	ank.statusFn = statusFn
 	ank.callFn = callFn
 	return nil
-}
-
-// Start is used to start plugin like connect external program.
-func (ank *Anko) Start() error {
-	ank.rwm.Lock()
-	defer ank.rwm.Unlock()
-	return ank.start()
-}
-
-func (ank *Anko) start() error {
-	if !ank.stopped {
-		return errors.WithStack(ErrAnkoPluginStarted)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
-	defer cancel()
-	startErr, ankoErr := ank.startFn(ctx)
-	// check anko error
-	switch err := ankoErr.Interface().(type) {
-	case nil:
-	case *anko.VMError:
-		const format = "appear error when start: \"%s\" at line:%d column:%d"
-		return errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
-	case error:
-		return errors.Wrap(err, "failed to start")
-	default:
-		return errors.Errorf("unexpected anko error type, value: %v", err)
-	}
-	// check start error
-	switch err := startErr.Interface().(type) {
-	case nil:
-	case error:
-		if err != nil {
-			return errors.Wrap(err, "failed to start")
-		}
-	default:
-		return errors.Errorf("unexpected start error type, value: %v", err)
-	}
-	// update module
-	ank.ctx, ank.cancel = context.WithCancel(context.Background())
-	ank.stopped = false
-	return nil
-}
-
-// Stop is used to stop plugin and stop all tasks like port scan.
-func (ank *Anko) Stop() {
-	ank.rwm.Lock()
-	defer ank.rwm.Unlock()
-	err := ank.stop()
-	if err != nil {
-		errStr := "appear error when stop: " + err.Error()
-		_, _ = ank.output.Write([]byte(errStr))
-	}
-}
-
-func (ank *Anko) stop() error {
-	if ank.stopped {
-		return nil
-	}
-	// stop other call
-	ank.cancel()
-	// call stop
-	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
-	defer cancel()
-	stopErr, ankoErr := ank.stopFn(ctx)
-	// check anko error
-	switch err := ankoErr.Interface().(type) {
-	case nil:
-	case *anko.VMError:
-		const format = "appear error when stop: \"%s\" at line:%d column:%d"
-		return errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
-	case error:
-		return errors.Wrap(err, "failed to stop")
-	default:
-		return errors.Errorf("unexpected anko error type, value: %v", err)
-	}
-	// check stop error
-	switch err := stopErr.Interface().(type) {
-	case nil:
-	case error:
-		if err != nil {
-			return errors.Wrap(err, "failed to stop")
-		}
-	default:
-		return errors.Errorf("unexpected stop error type, value: %v", err)
-	}
-	// update module
-	ank.env.Close()
-	ank.stopped = true
-	return nil
-}
-
-// Restart will stop plugin and then start plugin.
-func (ank *Anko) Restart() error {
-	ank.rwm.Lock()
-	defer ank.rwm.Unlock()
-	// stop
-	err := ank.stop()
-	if err != nil {
-		errStr := "appear error when restart: " + err.Error()
-		_, _ = ank.output.Write([]byte(errStr))
-	}
-	// reload
-	err = ank.load()
-	if err != nil {
-		return errors.WithMessage(err, "failed to reload plugin")
-	}
-	// start
-	return ank.start()
 }
 
 // Name is used to get plugin name.
@@ -308,6 +166,156 @@ func (ank *Anko) name() (string, error) {
 	default:
 		return "", errors.Errorf("unexpected name type, value: %v", name)
 	}
+}
+
+// Description is used to get plugin description.
+func (ank *Anko) Description() string {
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
+	desc, err := ank.description()
+	if err != nil {
+		return "[error]: " + err.Error()
+	}
+	return desc
+}
+
+func (ank *Anko) description() (string, error) {
+	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	defer cancel()
+	desc, ankoErr := ank.descFn(ctx)
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *anko.VMError:
+		const format = "appear error when get description: \"%s\" at line:%d column:%d"
+		return "", errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return "", errors.Wrap(err, "failed to get description")
+	default:
+		return "", errors.Errorf("unexpected anko error type, value: %v", err)
+	}
+	// check return type
+	switch desc := desc.Interface().(type) {
+	case string:
+		return desc, nil
+	default:
+		return "", errors.Errorf("unexpected description type, value: %v", desc)
+	}
+}
+
+// Start is used to start plugin like connect external program.
+func (ank *Anko) Start() error {
+	ank.rwm.Lock()
+	defer ank.rwm.Unlock()
+	return ank.start()
+}
+
+func (ank *Anko) start() error {
+	if ank.started {
+		return errors.Errorf("anko plugin %s is started", ank.Name())
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
+	defer cancel()
+	startErr, ankoErr := ank.startFn(ctx)
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *anko.VMError:
+		const format = "appear error when start: \"%s\" at line:%d column:%d"
+		return errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return errors.Wrap(err, "failed to start")
+	default:
+		return errors.Errorf("unexpected anko error type, value: %v", err)
+	}
+	// check start error
+	switch err := startErr.Interface().(type) {
+	case nil:
+	case error:
+		if err != nil {
+			return errors.Wrap(err, "failed to start")
+		}
+	default:
+		return errors.Errorf("unexpected start error type, value: %v", err)
+	}
+	// update module
+	ank.ctx, ank.cancel = context.WithCancel(context.Background())
+	ank.started = true
+	return nil
+}
+
+// Stop is used to stop plugin and stop all tasks like port scan.
+func (ank *Anko) Stop() {
+	ank.rwm.Lock()
+	defer ank.rwm.Unlock()
+	err := ank.stop()
+	if err != nil {
+		errStr := "appear error when stop: " + err.Error()
+		_, _ = ank.output.Write([]byte(errStr))
+	}
+}
+
+func (ank *Anko) stop() error {
+	if !ank.started {
+		return nil
+	}
+	// stop other call
+	ank.cancel()
+	// call stop
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
+	defer cancel()
+	stopErr, ankoErr := ank.stopFn(ctx)
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *anko.VMError:
+		const format = "appear error when stop: \"%s\" at line:%d column:%d"
+		return errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return errors.Wrap(err, "failed to stop")
+	default:
+		return errors.Errorf("unexpected anko error type, value: %v", err)
+	}
+	// check stop error
+	switch err := stopErr.Interface().(type) {
+	case nil:
+	case error:
+		if err != nil {
+			return errors.Wrap(err, "failed to stop")
+		}
+	default:
+		return errors.Errorf("unexpected stop error type, value: %v", err)
+	}
+	// update module
+	ank.env.Close()
+	ank.started = false
+	return nil
+}
+
+// Restart will stop plugin and then start plugin.
+func (ank *Anko) Restart() error {
+	ank.rwm.Lock()
+	defer ank.rwm.Unlock()
+	// stop
+	err := ank.stop()
+	if err != nil {
+		errStr := "appear error when restart: " + err.Error()
+		_, _ = ank.output.Write([]byte(errStr))
+	}
+	// reload
+	err = ank.load()
+	if err != nil {
+		return errors.WithMessage(err, "failed to reload plugin")
+	}
+	// start
+	return ank.start()
+}
+
+// IsStarted is used to check this plugin is started.
+func (ank *Anko) IsStarted() bool {
+	ank.rwm.RLock()
+	defer ank.rwm.RUnlock()
+	return ank.started
 }
 
 // Info is used to get plugin information.
@@ -380,19 +388,47 @@ func (ank *Anko) status() (string, error) {
 	}
 }
 
-// IsStopped is used to check this plugin is stopped.
-func (ank *Anko) IsStopped() bool {
+// Methods is used to get the information about extended methods.
+func (ank *Anko) Methods() []string {
 	ank.rwm.RLock()
 	defer ank.rwm.RUnlock()
-	return ank.stopped
+	methods, err := ank.methods()
+	if err != nil {
+		return []string{"[error]: " + err.Error()}
+	}
+	return methods
+}
+
+func (ank *Anko) methods() ([]string, error) {
+	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	defer cancel()
+	methods, ankoErr := ank.methodsFn(ctx)
+	// check anko error
+	switch err := ankoErr.Interface().(type) {
+	case nil:
+	case *anko.VMError:
+		const format = "appear error when get methods: \"%s\" at line:%d column:%d"
+		return nil, errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+	case error:
+		return nil, errors.Wrap(err, "failed to get methods")
+	default:
+		return nil, errors.Errorf("unexpected anko error type, value: %v", err)
+	}
+	// check return type
+	switch methods := methods.Interface().(type) {
+	case []string:
+		return methods, nil
+	default:
+		return nil, errors.Errorf("unexpected methods type, value: %v", methods)
+	}
 }
 
 // Call is used to call plugin inner function or other special function.
 func (ank *Anko) Call(method string, args ...interface{}) (interface{}, error) {
 	ank.rwm.RLock()
 	defer ank.rwm.RUnlock()
-	if ank.stopped {
-		return nil, errors.WithStack(ErrAnkoPluginStopped)
+	if !ank.started {
+		return nil, errors.Errorf("anko plugin %s is stopped", ank.Name())
 	}
 	ret, ankoErr := ank.callFn(ank.ctx, reflect.ValueOf(method), args...)
 	// check anko error
