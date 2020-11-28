@@ -42,7 +42,7 @@ func TestBytes(t *testing.T) {
 
 	sb := NewBytes(testdata)
 
-	t.Run("get", func(t *testing.T) {
+	t.Run("Get", func(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			b := sb.Get()
 			require.Equal(t, testdata, b)
@@ -50,7 +50,7 @@ func TestBytes(t *testing.T) {
 		}
 	})
 
-	t.Run("len", func(t *testing.T) {
+	t.Run("Len", func(t *testing.T) {
 		require.Equal(t, len(testdata), sb.Len())
 	})
 
@@ -97,7 +97,7 @@ func TestString(t *testing.T) {
 
 	ss := NewString(testdata)
 
-	t.Run("get", func(t *testing.T) {
+	t.Run("Get", func(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			str := ss.Get()
 			require.Equal(t, testdata, str)
@@ -105,19 +105,60 @@ func TestString(t *testing.T) {
 		}
 	})
 
+	t.Run("GetBytes", func(t *testing.T) {
+		for i := 0; i < 10; i++ {
+			b := ss.GetBytes()
+			require.Equal(t, testdata, string(b))
+			ss.PutBytes(b)
+		}
+	})
+
 	t.Run("len", func(t *testing.T) {
 		require.Equal(t, len(testdata), ss.Len())
 	})
 
+	t.Run("compare address", func(t *testing.T) {
+		// maybe trigger gc, so we try 1000 times
+
+		var equal bool
+		for i := 0; i < 1000; i++ {
+			b := ss.GetBytes()
+			addr1 := (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data
+			ss.PutBytes(b)
+
+			b = ss.GetBytes()
+			addr2 := (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data
+			ss.PutBytes(b)
+
+			if addr1 == addr2 {
+				equal = true
+				break
+			}
+		}
+		require.True(t, equal)
+	})
+
 	t.Run("parallel", func(t *testing.T) {
 		wg := sync.WaitGroup{}
-		wg.Add(100)
 		for i := 0; i < 100; i++ {
+			// Get
+			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				for i := 0; i < 10; i++ {
 					str := ss.Get()
 					require.Equal(t, testdata, str)
+					CoverString(str)
+				}
+			}()
+			// GetBytes
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i < 10; i++ {
+					b := ss.GetBytes()
+					require.Equal(t, testdata, string(b))
+					ss.PutBytes(b)
 				}
 			}()
 		}

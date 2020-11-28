@@ -179,6 +179,23 @@ func (s *String) Put(str string) {
 	CoverString(str)
 }
 
+// GetBytes is used to get string and return byte slice.
+func (s *String) GetBytes() []byte {
+	b := *s.cache.Get().(*[]byte)
+	for i := 0; i < s.len; i++ {
+		b[i] = s.data[i]
+	}
+	return b
+}
+
+// PutBytes is used to put byte slice that get from GetByte.
+func (s *String) PutBytes(b []byte) {
+	for i := 0; i < s.len; i++ {
+		b[i] = 0
+	}
+	s.cache.Put(&b)
+}
+
 // Len is used to get the string length.
 func (s *String) Len() int {
 	return s.len
