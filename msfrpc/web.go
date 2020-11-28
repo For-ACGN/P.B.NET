@@ -397,14 +397,14 @@ func (ui *webUI) handleIndex(w http.ResponseWriter, _ *http.Request) {
 }
 
 type webUser struct {
-	username    *security.Bytes
-	password    *security.Bytes
+	username    *security.String
+	password    *security.String
 	userGroup   int
-	displayName *security.Bytes
+	displayName *security.String
 
 	// if user change password, other
 	// session will lose efficacy at once
-	secret *security.Bytes
+	secret *security.String
 }
 
 // webAPI contain the actual handler, login and handle event.
@@ -519,11 +519,11 @@ func (api *webAPI) loadUserInfo(opts *WebOptions) error {
 		api.log(logger.Warning, log, defaultAdminDisplayName)
 	}
 	api.users[adminUsername] = &webUser{
-		username:    security.NewBytes([]byte(adminUsername)),
-		password:    security.NewBytes([]byte(adminPassword)),
+		username:    security.NewString(adminUsername),
+		password:    security.NewString(adminPassword),
 		userGroup:   userGroupAdmins,
-		displayName: security.NewBytes([]byte(adminDisplayName)),
-		secret:      security.NewBytes([]byte(api.guid.Get().Hex())),
+		displayName: security.NewString(adminDisplayName),
+		secret:      security.NewString(api.guid.Get().Hex()),
 	}
 	// set common user
 	for username, userInfo := range opts.Users {
@@ -542,11 +542,11 @@ func (api *webAPI) loadUserInfo(opts *WebOptions) error {
 			return errors.Errorf(format, username)
 		}
 		api.users[username] = &webUser{
-			username:    security.NewBytes([]byte(username)),
-			password:    security.NewBytes([]byte(userInfo.Password)),
+			username:    security.NewString(username),
+			password:    security.NewString(userInfo.Password),
 			userGroup:   userGroup,
-			displayName: security.NewBytes([]byte(userInfo.DisplayName)),
-			secret:      security.NewBytes([]byte(api.guid.Get().Hex())),
+			displayName: security.NewString(userInfo.DisplayName),
+			secret:      security.NewString(api.guid.Get().Hex()),
 		}
 	}
 	return nil
@@ -707,6 +707,8 @@ func (api *webAPI) Close() {
 func (api *webAPI) readRequest(r *http.Request, req interface{}) error {
 	defer func() { _, _ = io.Copy(ioutil.Discard, r.Body) }()
 	err := json.NewDecoder(security.LimitReader(r.Body, api.maxReqBodySize)).Decode(req)
+
+	// TODO start! , copy body
 	if err == nil {
 		return nil
 	}
@@ -719,10 +721,11 @@ func (api *webAPI) readRequest(r *http.Request, req interface{}) error {
 	return err
 }
 
-// readLargeRequest is used to request like upload file
+// readLargeRequest is used to request like upload file.
 func (api *webAPI) readLargeRequest(r *http.Request, req interface{}) error {
 	defer func() { _, _ = io.Copy(ioutil.Discard, r.Body) }()
 	err := json.NewDecoder(security.LimitReader(r.Body, api.maxLargeReqBodySize)).Decode(req)
+	// copy body
 	if err == nil {
 		return nil
 	}
@@ -807,7 +810,9 @@ func (api *webAPI) getUserSession(w http.ResponseWriter, r *http.Request) *sessi
 	}
 	// check user password is changed
 	secret := session.Values["secret"].(string)
-	if secret != user.secret.String() {
+	s := user.secret.Get()
+	defer user.secret.Put(s)
+	if secret != s {
 		err := fmt.Errorf("user \"%s\" changed password", username)
 		api.log(logger.Debug, err)
 		api.writeError(w, err)
@@ -834,8 +839,8 @@ func (api *webAPI) handleLogin(w http.ResponseWriter, r *http.Request) {
 		api.writeErrorString(w, errInvalidUser)
 		return
 	}
-	hash := user.password.Get()
-	defer user.password.Put(hash)
+	hash := user.password.GetBytes()
+	defer user.password.PutBytes(hash)
 	pwd := []byte(req.Password)
 	defer security.CoverBytes(pwd)
 	// compare password
@@ -860,12 +865,12 @@ func (api *webAPI) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	opts.HttpOnly = true
 	// set cookie value
-	username := user.username.String()
-	defer security.CoverString(username)
-	displayName := user.displayName.String()
-	defer security.CoverString(displayName)
-	secret := user.secret.String()
-	defer security.CoverString(secret)
+	username := user.username.Get()
+	user.username.Put(username)
+	displayName := user.displayName.Get()
+	user.displayName.Put(displayName)
+	secret := user.secret.Get()
+	user.secret.Put(secret)
 	session.Values["username"] = username
 	session.Values["user_group"] = user.userGroup
 	session.Values["display_name"] = displayName

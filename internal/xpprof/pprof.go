@@ -96,16 +96,15 @@ func newServer(lg logger.Logger, opts *Options, https bool) (*Server, error) {
 		if strings.Contains(opts.Username, ":") { // can not include ":"
 			return nil, errors.New("username can not include character \":\"")
 		}
-		handler.username = security.NewBytes([]byte(opts.Username))
+		handler.username = security.NewString(opts.Username)
 	}
 	if opts.Password != "" {
-		password := []byte(opts.Password)
-		// validate bcrypt hash
-		err = bcrypt.CompareHashAndPassword(password, []byte("123456"))
+		// validate password is a bcrypt hash
+		err = bcrypt.CompareHashAndPassword([]byte(opts.Password), []byte("123456"))
 		if err != nil && err != bcrypt.ErrMismatchedHashAndPassword {
 			return nil, errors.New("invalid bcrypt hash about password")
 		}
-		handler.password = security.NewBytes(password)
+		handler.password = security.NewString(opts.Password)
 	}
 	// set http server
 	server.Handler = handler
@@ -223,10 +222,17 @@ func (srv *Server) Addresses() []net.Addr {
 // "address: tcp 127.0.0.1:1999 auth: admin:bcrypt"
 func (srv *Server) Info() string {
 	buf := new(bytes.Buffer)
+	// protocol
+	if srv.https {
+		buf.WriteString("https")
+	} else {
+		buf.WriteString("http")
+	}
+	// listener address
 	addresses := srv.Addresses()
 	l := len(addresses)
 	if l > 0 {
-		buf.WriteString("address: ")
+		buf.WriteString(", address: [")
 		for i := 0; i < l; i++ {
 			if i > 0 {
 				buf.WriteString(", ")
@@ -235,25 +241,25 @@ func (srv *Server) Info() string {
 			address := addresses[i].String()
 			_, _ = fmt.Fprintf(buf, "%s %s", network, address)
 		}
+		buf.WriteString("]")
 	}
-	username := srv.handler.username
-	password := srv.handler.password
+	// username and password
 	var (
 		user string
 		pass string
 	)
+	username := srv.handler.username
 	if username != nil {
-		user = username.String()
+		user = username.Get()
+		defer username.Put(user)
 	}
+	password := srv.handler.password
 	if password != nil {
-		pass = password.String()
+		pass = password.Get()
+		defer password.Put(pass)
 	}
 	if user != "" || pass != "" {
-		format := "auth: %s:%s"
-		if buf.Len() > 0 {
-			format = " " + format
-		}
-		_, _ = fmt.Fprintf(buf, format, user, pass)
+		_, _ = fmt.Fprintf(buf, ", auth: %s:%s", user, pass)
 	}
 	return buf.String()
 }
@@ -274,8 +280,8 @@ type handler struct {
 
 	mux *http.ServeMux // pprof handlers
 
-	username *security.Bytes // raw username
-	password *security.Bytes // bcrypt hash
+	username *security.String // raw username
+	password *security.String // bcrypt hash
 
 	counter xsync.Counter
 }
@@ -336,19 +342,19 @@ func (h *handler) authenticate(w http.ResponseWriter, r *http.Request) bool {
 		if len(userPass) == 1 {
 			userPass = append(userPass, "")
 		}
-		user := []byte(userPass[0])
-		pass := []byte(userPass[1])
 		var (
 			eUser []byte
 			ePass []byte
 		)
+		user := []byte(userPass[0])
+		pass := []byte(userPass[1])
 		if h.username != nil {
-			eUser = h.username.Get()
-			defer h.username.Put(eUser)
+			eUser = h.username.GetBytes()
+			defer h.username.PutBytes(eUser)
 		}
 		if h.password != nil {
-			ePass = h.password.Get()
-			defer h.password.Put(ePass)
+			ePass = h.password.GetBytes()
+			defer h.password.PutBytes(ePass)
 		}
 		userErr := subtle.ConstantTimeCompare(eUser, user) != 1
 		passErr := ePass != nil && bcrypt.CompareHashAndPassword(ePass, pass) != nil
