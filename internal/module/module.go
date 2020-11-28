@@ -1,11 +1,5 @@
 package module
 
-import (
-	"bytes"
-	"fmt"
-	"strconv"
-)
-
 // Module is the interface of module, it include internal and external module.
 //
 // Internal module is in the internal/module/*. These module usually use less
@@ -61,74 +55,4 @@ type Module interface {
 	// error, usually check the general error firstly, then read the general
 	// value and get the error, finally check the inner error.
 	Call(method string, arguments ...interface{}) (interface{}, error)
-}
-
-// Method contain method function information.
-type Method struct {
-	Name string   // method name
-	Args []*Value // argument
-	Rets []*Value // return value
-}
-
-// Value is the method argument or return value.
-type Value struct {
-	Name string // value name
-	Type string // value type
-}
-
-// String is used to print method definition.
-// output:
-// --------------------------------  --------------------------------
-// method: Scan                      method: Kill
-// --------------------------------  --------------------------------
-// parameter:                        return value:
-//   host string                       ok  bool
-//   port uint16                       err error
-// --------------------------------  --------------------------------
-// return value:
-//   open bool
-//   err  error
-// --------------------------------
-func (m *Method) String() string {
-	buf := bytes.NewBuffer(make([]byte, 0, 64))
-	buf.WriteString("--------------------------------\n")
-	_, _ = fmt.Fprintf(buf, "method: %s\n", m.Name)
-	// calculate the max line length about the parameter
-	var maxLine int
-	for i := 0; i < len(m.Args); i++ {
-		l := len(m.Args[i].Name)
-		if l > maxLine {
-			maxLine = l
-		}
-	}
-	if maxLine != 0 { // has parameters
-		buf.WriteString("--------------------------------\n")
-		buf.WriteString("parameter:\n")
-		format := "  %-" + strconv.Itoa(maxLine) + "s %s\n"
-		for i := 0; i < len(m.Args); i++ {
-			name := m.Args[i].Name
-			typ := m.Args[i].Type
-			_, _ = fmt.Fprintf(buf, format, name, typ)
-		}
-	}
-	// calculate the max line length about the return value
-	maxLine = 0
-	for i := 0; i < len(m.Rets); i++ {
-		l := len(m.Rets[i].Name)
-		if l > maxLine {
-			maxLine = l
-		}
-	}
-	if maxLine != 0 { // has return value
-		buf.WriteString("--------------------------------\n")
-		buf.WriteString("return value:\n")
-		format := "  %-" + strconv.Itoa(maxLine) + "s %s\n"
-		for i := 0; i < len(m.Rets); i++ {
-			name := m.Rets[i].Name
-			typ := m.Rets[i].Type
-			_, _ = fmt.Fprintf(buf, format, name, typ)
-		}
-	}
-	buf.WriteString("--------------------------------")
-	return buf.String()
 }

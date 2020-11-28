@@ -6,9 +6,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Manager is the module manager.
+// Manager is the module manager, map key is module tag.
 type Manager struct {
-	// key = module tag
 	modules map[string]Module
 	closed  bool
 	rwm     sync.RWMutex
@@ -29,7 +28,7 @@ func (m *Manager) Add(tag string, module Module) error {
 	m.rwm.Lock()
 	defer m.rwm.Unlock()
 	if m.closed {
-		return errors.New("proxy server manager closed")
+		return errors.New("module manager closed")
 	}
 	if _, ok := m.modules[tag]; !ok {
 		m.modules[tag] = module
