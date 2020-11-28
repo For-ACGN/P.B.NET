@@ -32,20 +32,39 @@ func TestAnko(t *testing.T) {
 	ank, err := NewAnko(ext, os.Stdout, string(script))
 	require.NoError(t, err)
 
+	name := ank.Name()
+	require.Equal(t, "anko-name", name)
+
+	desc := ank.Description()
+	require.Equal(t, "anko-description", desc)
+
 	err = ank.Start()
 	require.NoError(t, err)
+
+	ank.Stop()
+
+	require.False(t, ank.IsStarted())
 
 	err = ank.Restart()
 	require.NoError(t, err)
 
-	name := ank.Name()
-	require.Equal(t, "anko-name", name)
+	require.True(t, ank.IsStarted())
+
+	err = ank.Restart()
+	require.NoError(t, err)
+
+	require.True(t, ank.IsStarted())
 
 	info := ank.Info()
 	require.Equal(t, "anko-info", info)
 
 	status := ank.Status()
 	require.Equal(t, "anko-status", status)
+
+	methods := ank.Methods()
+	for i := 0; i < len(methods); i++ {
+		fmt.Println(methods[i])
+	}
 
 	t.Run("call-IsStarted", func(t *testing.T) {
 		ret, err := ank.Call("IsStarted")

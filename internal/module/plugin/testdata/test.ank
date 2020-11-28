@@ -1,8 +1,17 @@
 errors = import("errors")
 fmt    = import("fmt")
+mod    = import("project/internal/module")
 
 // status
 started = false
+
+func Name() {
+    return "anko-name"
+}
+
+func Description() {
+    return "anko-description"
+}
 
 func Start() {
     started = true
@@ -14,16 +23,23 @@ func Stop() {
     return
 }
 
-func Name() {
-    return "anko-name"
-}
-
 func Info() {
     return "anko-info"
 }
 
 func Status() {
     return "anko-status"
+}
+
+func Methods() {
+    method = make(mod.Method)
+
+    return []string{"a", "b"}
+
+    // methods = make([]string, 2)
+    // methods[0] = "aa"
+    // methods[1] = "bb"
+    // return methods
 }
 
 func Call(method, args...) {

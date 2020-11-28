@@ -145,7 +145,7 @@ func (ank *Anko) Name() string {
 }
 
 func (ank *Anko) name() (string, error) {
-	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	defer cancel()
 	name, ankoErr := ank.nameFn(ctx)
 	// check anko error
@@ -180,7 +180,7 @@ func (ank *Anko) Description() string {
 }
 
 func (ank *Anko) description() (string, error) {
-	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	defer cancel()
 	desc, ankoErr := ank.descFn(ctx)
 	// check anko error
@@ -330,7 +330,7 @@ func (ank *Anko) Info() string {
 }
 
 func (ank *Anko) info() (string, error) {
-	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	defer cancel()
 	info, ankoErr := ank.infoFn(ctx)
 	// check anko error
@@ -365,7 +365,7 @@ func (ank *Anko) Status() string {
 }
 
 func (ank *Anko) status() (string, error) {
-	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	defer cancel()
 	status, ankoErr := ank.statusFn(ctx)
 	// check anko error
@@ -400,7 +400,7 @@ func (ank *Anko) Methods() []string {
 }
 
 func (ank *Anko) methods() ([]string, error) {
-	ctx, cancel := context.WithTimeout(ank.ctx, operationTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	defer cancel()
 	methods, ankoErr := ank.methodsFn(ctx)
 	// check anko error

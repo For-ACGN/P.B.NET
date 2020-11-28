@@ -12,7 +12,7 @@ import (
 // supported modes.
 const (
 	ModeAnko  = "anko"  // support go 1.10
-	ModeYaegi = "yaegi" // support go 1.13
+	ModeYaegi = "yaegi" // support go 1.12
 )
 
 const operationTimeout = 30 * time.Second

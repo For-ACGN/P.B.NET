@@ -1,3 +1,3 @@
-// +build go1.14
+// +build go1.12
 
 package plugin
