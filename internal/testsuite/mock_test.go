@@ -416,6 +416,14 @@ func TestMockImage(t *testing.T) {
 func TestMockModule(t *testing.T) {
 	mod := NewMockModule()
 
+	t.Run("Name", func(t *testing.T) {
+		t.Log(mod.Name())
+	})
+
+	t.Run("Description", func(t *testing.T) {
+		t.Log(mod.Description())
+	})
+
 	t.Run("Start", func(t *testing.T) {
 		err := mod.Start()
 		require.NoError(t, err)
@@ -423,7 +431,7 @@ func TestMockModule(t *testing.T) {
 		err = mod.Start()
 		require.Error(t, err)
 
-		mod.stop()
+		mod.Stop()
 	})
 
 	t.Run("Stop", func(t *testing.T) {
@@ -448,8 +456,10 @@ func TestMockModule(t *testing.T) {
 		mod.Stop()
 	})
 
-	t.Run("Name", func(t *testing.T) {
-		t.Log(mod.Name())
+	t.Run("IsStarted", func(t *testing.T) {
+		mod.Stop()
+		started := mod.IsStarted()
+		require.False(t, started)
 	})
 
 	t.Run("Info", func(t *testing.T) {
@@ -472,16 +482,42 @@ func TestMockModule(t *testing.T) {
 		mod.Stop()
 	})
 
-	t.Run("IsStopped", func(t *testing.T) {
-		mod.Stop()
-		stopped := mod.IsStopped()
-		require.True(t, stopped)
+	t.Run("Methods", func(t *testing.T) {
+		t.Log(mod.Methods())
 	})
 
 	t.Run("Call", func(t *testing.T) {
-		ret, err := mod.Call("foo", "p1")
+		const method = "Scan"
+
+		// ok
+		ret, err := mod.Call(method, "1.1.1.1")
 		require.NoError(t, err)
-		t.Log(ret)
+		rets := ret.([]interface{})
+		open, e := rets[0].(bool), rets[1]
+		require.Nil(t, e)
+		require.True(t, open)
+
+		// empty argument
+		ret, err = mod.Call(method)
+		require.Error(t, err)
+		require.Nil(t, ret)
+
+		ret, err = mod.Call(method, []rune("invalid arg"))
+		require.Error(t, err)
+		require.Nil(t, ret)
+
+		// empty argument
+		ret, err = mod.Call(method, "")
+		require.NoError(t, err)
+		rets = ret.([]interface{})
+		open, err = rets[0].(bool), rets[1].(error)
+		require.Error(t, err)
+		require.False(t, open)
+
+		// unknown method
+		ret, err = mod.Call("foo", "p1")
+		require.Error(t, err)
+		require.Nil(t, ret)
 	})
 
 	IsDestroyed(t, mod)

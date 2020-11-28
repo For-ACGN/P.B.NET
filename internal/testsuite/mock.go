@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"fmt"
 	"image"
 	"image/color"
 	"io"
@@ -585,8 +584,19 @@ type MockModule struct {
 	started    bool
 	startedRWM sync.RWMutex
 
-	mu sync.Mutex // for operation
+	// for operation
+	mu sync.Mutex
 	wg sync.WaitGroup
+}
+
+// Name is used to get the name of the mock module.
+func (mod *MockModule) Name() string {
+	return "mock module"
+}
+
+// Description is used to get the mock module description.
+func (mod *MockModule) Description() string {
+	return "mock module is used to test"
 }
 
 // Start is used to start mock module.
@@ -631,9 +641,11 @@ func (mod *MockModule) Restart() error {
 	return mod.start()
 }
 
-// Name is used to get the name of the mock module.
-func (mod *MockModule) Name() string {
-	return "mock module"
+// IsStarted is used to check module is started.
+func (mod *MockModule) IsStarted() bool {
+	mod.startedRWM.RLock()
+	defer mod.startedRWM.RUnlock()
+	return mod.started
 }
 
 // Info is used to get the information about the mock module.
@@ -656,16 +668,35 @@ func (mod *MockModule) Status() string {
 	return "mock module status(stopped)"
 }
 
-// IsStopped is used to check module is stopped.
-func (mod *MockModule) IsStopped() bool {
-	mod.startedRWM.RLock()
-	defer mod.startedRWM.RUnlock()
-	return !mod.started
+// Methods is used to get the mock module extended methods.
+func (mod *MockModule) Methods() []string {
+	return []string{"Scan"}
 }
 
 // Call is used to call the inner method about module.
-func (mod *MockModule) Call(method string, args ...interface{}) (interface{}, error) {
-	return fmt.Sprintf("method: %s, args: %s", method, args), nil
+func (mod *MockModule) Call(method string, arguments ...interface{}) (interface{}, error) {
+	switch method {
+	case "Scan":
+		if len(arguments) != 1 {
+			return nil, errors.New("invalid argument number")
+		}
+		ip, ok := arguments[0].(string)
+		if !ok {
+			return nil, errors.New("argument 1 is not a string")
+		}
+		open, err := mod.Scan(ip)
+		return []interface{}{open, err}, nil
+	default:
+		return nil, errors.New("unknown method: " + method)
+	}
+}
+
+// Scan is used to scan a ip address(fake function).
+func (mod *MockModule) Scan(ip string) (bool, error) {
+	if ip == "" {
+		return false, errors.New("empty ip")
+	}
+	return true, nil
 }
 
 // NewMockModule is used to create a mock module.
