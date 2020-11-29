@@ -2,6 +2,7 @@ package lcx
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"testing"
@@ -39,6 +40,8 @@ func TestTranner(t *testing.T) {
 	tranner := testGenerateTranner(t)
 
 	t.Log(tranner.Name())
+	t.Log(tranner.Description())
+
 	t.Log(tranner.Info())
 	t.Log(tranner.Status())
 
@@ -56,14 +59,19 @@ func TestTranner(t *testing.T) {
 		testsuite.ProxyConn(t, lConn)
 	})
 
-	t.Log(tranner.Name())
 	t.Log(tranner.Info())
 	t.Log(tranner.Status())
 
+	for _, method := range tranner.Methods() {
+		fmt.Println(method)
+	}
+
 	err = tranner.Restart()
 	require.NoError(t, err)
+	require.True(t, tranner.IsStarted())
 
 	tranner.Stop()
+	require.False(t, tranner.IsStarted())
 
 	testsuite.IsDestroyed(t, tranner)
 }
@@ -180,6 +188,122 @@ func TestTranner_Stop(t *testing.T) {
 
 		testsuite.IsDestroyed(t, tranner)
 	})
+}
+
+func TestTranner_Call(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	tranner := testGenerateTranner(t)
+
+	t.Run("List", func(t *testing.T) {
+		ret, err := tranner.Call("List")
+		require.NoError(t, err)
+		require.NotNil(t, ret)
+	})
+
+	t.Run("Kill", func(t *testing.T) {
+		// common
+		ret, err := tranner.Call("Kill", "1.1.1.1:443")
+		require.NoError(t, err)
+		require.NotNil(t, ret)
+
+		// no arguments
+		ret, err = tranner.Call("Kill")
+		require.Error(t, err)
+		require.Nil(t, ret)
+
+		// invalid argument
+		ret, err = tranner.Call("Kill", 1)
+		require.Error(t, err)
+		require.Nil(t, ret)
+	})
+
+	t.Run("unknown method", func(t *testing.T) {
+		ret, err := tranner.Call("foo")
+		require.EqualError(t, err, `unknown method: "foo"`)
+		require.Nil(t, ret)
+	})
+
+	tranner.Stop()
+
+	testsuite.IsDestroyed(t, tranner)
+}
+
+func TestTranner_List(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	tranner := testGenerateTranner(t)
+
+	err := tranner.Start()
+	require.NoError(t, err)
+
+	conn := &tConn{
+		ctx:   tranner,
+		local: testsuite.NewMockConn(),
+	}
+
+	tranner.trackConn(conn, true)
+
+	for _, addr := range tranner.List() {
+		fmt.Println(addr)
+	}
+
+	tranner.trackConn(conn, false)
+
+	tranner.Stop()
+
+	testsuite.IsDestroyed(t, tranner)
+}
+
+func TestTranner_Kill(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	tranner := testGenerateTranner(t)
+
+	err := tranner.Start()
+	require.NoError(t, err)
+
+	conn := &tConn{
+		ctx:   tranner,
+		local: testsuite.NewMockConn(),
+	}
+
+	t.Run("kill all", func(t *testing.T) {
+		tranner.trackConn(conn, true)
+		defer tranner.trackConn(conn, false)
+
+		for _, addr := range tranner.List() {
+			err = tranner.Kill(addr)
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		tranner.trackConn(conn, true)
+		defer tranner.trackConn(conn, false)
+
+		err = tranner.Kill("foo")
+		require.EqualError(t, err, `connection "foo" is not exist`)
+	})
+
+	t.Run("kill with close error", func(t *testing.T) {
+		c := &tConn{
+			ctx:   tranner,
+			local: testsuite.NewMockConnWithCloseError(),
+		}
+		tranner.trackConn(c, true)
+		defer tranner.trackConn(c, false)
+
+		err = tranner.Kill(c.local.RemoteAddr().String())
+		require.NoError(t, err)
+	})
+
+	tranner.Stop()
+
+	testsuite.IsDestroyed(t, tranner)
 }
 
 func TestTranner_serve(t *testing.T) {
