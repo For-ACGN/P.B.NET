@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"io"
@@ -687,7 +688,7 @@ func (mod *MockModule) Call(method string, args ...interface{}) (interface{}, er
 		open, err := mod.Scan(ip)
 		return []interface{}{open, err}, nil
 	default:
-		return nil, errors.New("unknown method: " + method)
+		return nil, fmt.Errorf("unknown method: \"%s\"", method)
 	}
 }
 

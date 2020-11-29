@@ -65,9 +65,17 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	if opts == nil {
 		opts = new(Options)
 	}
+	interval := opts.Interval
+	if interval < minimumRefreshInterval {
+		interval = minimumRefreshInterval
+	}
+	monitor := Monitor{
+		logger:   lg,
+		interval: interval,
+	}
 	ps, err := process.New(opts.Process)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "failed to create process module")
 	}
 	var ok bool
 	defer func() {
@@ -76,22 +84,10 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 		}
 		err := ps.Close()
 		if err != nil {
-			lg.Println(logger.Error, "process monitor", "failed to close process module:", err)
+			monitor.log(logger.Error, "failed to close process module:", err)
 		}
 	}()
-	interval := opts.Interval
-	if interval < minimumRefreshInterval {
-		interval = minimumRefreshInterval
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	monitor := Monitor{
-		logger:   lg,
-		pauser:   pauser.New(ctx),
-		process:  ps,
-		interval: interval,
-		ctx:      ctx,
-		cancel:   cancel,
-	}
+	monitor.process = ps
 	// refresh before refreshLoop, and not set eventHandler.
 	err = monitor.Refresh()
 	if err != nil {
@@ -99,7 +95,10 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	}
 	// not trigger eventHandler before first refresh.
 	monitor.handler = handler
+	// set context
+	monitor.ctx, monitor.cancel = context.WithCancel(context.Background())
 	// refreshLoop will block until call Start.
+	monitor.pauser = pauser.New(monitor.ctx)
 	monitor.pauser.Pause()
 	monitor.wg.Add(1)
 	go monitor.refreshLoop()

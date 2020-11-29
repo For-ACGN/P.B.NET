@@ -69,6 +69,14 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	if opts == nil {
 		opts = new(Options)
 	}
+	interval := opts.Interval
+	if interval < minimumRefreshInterval {
+		interval = minimumRefreshInterval
+	}
+	monitor := Monitor{
+		logger:   lg,
+		interval: interval,
+	}
 	ns, err := netstat.New(opts.Netstat)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to create netstat module")
@@ -80,22 +88,11 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 		}
 		err := ns.Close()
 		if err != nil {
-			lg.Println(logger.Error, "network monitor", "failed to close netstat:", err)
+			monitor.log(logger.Error, "failed to close netstat module:", err)
 		}
 	}()
-	interval := opts.Interval
-	if interval < minimumRefreshInterval {
-		interval = minimumRefreshInterval
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	monitor := Monitor{
-		logger:   lg,
-		pauser:   pauser.New(ctx),
-		netstat:  ns,
-		interval: interval,
-		ctx:      ctx,
-		cancel:   cancel,
-	}
+	monitor.netstat = ns
+	monitor.ctx, monitor.cancel = context.WithCancel(context.Background())
 	// refresh before refreshLoop, and not set EventHandler.
 	err = monitor.Refresh()
 	if err != nil {
@@ -104,6 +101,7 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	// not trigger eventHandler before the first refresh.
 	monitor.handler = handler
 	// refreshLoop will block until call Start.
+	monitor.pauser = pauser.New(monitor.ctx)
 	monitor.pauser.Pause()
 	monitor.wg.Add(1)
 	go monitor.refreshLoop()
@@ -181,7 +179,7 @@ func (mon *Monitor) refreshLoop() {
 		case <-timer.C:
 			err := mon.Refresh()
 			if err != nil {
-				if err != ErrMonitorClosed {
+				if err != ErrMonitorClosed && err != context.Canceled {
 					mon.log(logger.Error, "failed to refresh:", err)
 				}
 				return
