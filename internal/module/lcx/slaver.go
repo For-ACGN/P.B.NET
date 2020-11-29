@@ -180,19 +180,19 @@ func (s *Slaver) Status() string {
 func (*Slaver) Methods() []string {
 	list := module.Method{
 		Name: "List",
-		Desc: "List is used to list established connections",
+		Desc: "List is used to list established connections.",
 		Rets: []*module.Value{
-			{"addrs", "[]string"},
+			{Name: "addrs", Type: "[]string"},
 		},
 	}
 	kill := module.Method{
 		Name: "Kill",
-		Desc: "Kill is used to kill established connection by remote address",
+		Desc: "Kill is used to kill established connection by remote address.",
 		Args: []*module.Value{
-			{"addr", "string"},
+			{Name: "addr", Type: "string"},
 		},
 		Rets: []*module.Value{
-			{"err", "error"},
+			{Name: "err", Type: "error"},
 		},
 	}
 	return []string{list.String(), kill.String()}
@@ -213,7 +213,7 @@ func (s *Slaver) Call(method string, args ...interface{}) (interface{}, error) {
 		}
 		return s.Kill(addr), nil
 	default:
-		return nil, errors.New("unknown method: " + method)
+		return nil, errors.Errorf("unknown method: \"%s\"", method)
 	}
 }
 
@@ -242,7 +242,7 @@ func (s *Slaver) Kill(addr string) error {
 		}
 		return nil
 	}
-	return errors.Errorf("connection %s is not exist", addr)
+	return errors.Errorf("connection \"%s\" is not exist", addr)
 }
 
 func (s *Slaver) logf(lv logger.Level, format string, log ...interface{}) {

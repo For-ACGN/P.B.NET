@@ -1,8 +1,10 @@
 package lcx
 
 import (
+	"fmt"
 	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +34,8 @@ func TestListener(t *testing.T) {
 	listener := testGenerateListener(t)
 
 	t.Log(listener.Name())
+	t.Log(listener.Description())
+
 	t.Log(listener.Info())
 	t.Log(listener.Status())
 
@@ -72,14 +76,19 @@ func TestListener(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	t.Log(listener.Name())
 	t.Log(listener.Info())
 	t.Log(listener.Status())
 
+	for _, method := range listener.Methods() {
+		fmt.Println(method)
+	}
+
 	err = listener.Restart()
 	require.NoError(t, err)
+	require.True(t, listener.IsStarted())
 
 	listener.Stop()
+	require.False(t, listener.IsStarted())
 
 	testsuite.IsDestroyed(t, listener)
 }
@@ -220,18 +229,123 @@ func TestListener_Call(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
+	listener := testGenerateListener(t)
+
+	t.Run("List", func(t *testing.T) {
+		ret, err := listener.Call("List")
+		require.NoError(t, err)
+		require.NotNil(t, ret)
+	})
+
+	t.Run("Kill", func(t *testing.T) {
+		// common
+		ret, err := listener.Call("Kill", "1.1.1.1:443")
+		require.NoError(t, err)
+		require.NotNil(t, ret)
+
+		// no arguments
+		ret, err = listener.Call("Kill")
+		require.Error(t, err)
+		require.Nil(t, ret)
+
+		// invalid argument
+		ret, err = listener.Call("Kill", 1)
+		require.Error(t, err)
+		require.Nil(t, ret)
+	})
+
+	t.Run("unknown method", func(t *testing.T) {
+		ret, err := listener.Call("foo")
+		require.EqualError(t, err, `unknown method: "foo"`)
+		require.Nil(t, ret)
+	})
+
+	listener.Stop()
+
+	testsuite.IsDestroyed(t, listener)
 }
 
 func TestListener_List(t *testing.T) {
+	testsuite.InitHTTPServers(t)
+
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
+	listener := testGenerateListener(t)
+
+	err := listener.Start()
+	require.NoError(t, err)
+
+	conn := &lConn{
+		ctx:    listener,
+		remote: testsuite.NewMockConn(),
+		local:  testsuite.NewMockConn(),
+	}
+
+	listener.trackConn(conn, true)
+
+	for _, addr := range listener.List() {
+		fmt.Println(addr)
+	}
+
+	listener.trackConn(conn, false)
+
+	listener.Stop()
+
+	testsuite.IsDestroyed(t, listener)
 }
 
 func TestListener_Kill(t *testing.T) {
+	testsuite.InitHTTPServers(t)
+
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
+	listener := testGenerateListener(t)
+
+	err := listener.Start()
+	require.NoError(t, err)
+
+	conn := &lConn{
+		ctx:    listener,
+		remote: testsuite.NewMockConn(),
+		local:  testsuite.NewMockConn(),
+	}
+
+	t.Run("kill all", func(t *testing.T) {
+		listener.trackConn(conn, true)
+		defer listener.trackConn(conn, false)
+
+		for _, addr := range listener.List() {
+			err = listener.Kill(strings.Split(addr, " <-> ")[0])
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		listener.trackConn(conn, true)
+		defer listener.trackConn(conn, false)
+
+		err = listener.Kill("foo")
+		require.EqualError(t, err, `connection "foo" is not exist`)
+	})
+
+	t.Run("kill with close error", func(t *testing.T) {
+		c := &lConn{
+			ctx:    listener,
+			remote: testsuite.NewMockConnWithCloseError(),
+			local:  testsuite.NewMockConnWithCloseError(),
+		}
+		listener.trackConn(c, true)
+		defer listener.trackConn(c, false)
+
+		err = listener.Kill(c.remote.RemoteAddr().String())
+		require.NoError(t, err)
+	})
+
+	listener.Stop()
+
+	testsuite.IsDestroyed(t, listener)
 }
 
 func TestListener_serve(t *testing.T) {
