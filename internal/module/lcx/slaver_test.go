@@ -2,6 +2,7 @@ package lcx
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -45,6 +46,8 @@ func TestSlaver(t *testing.T) {
 	listener, slaver := testGenerateListenerAndSlaver(t)
 
 	t.Log(slaver.Name())
+	t.Log(slaver.Description())
+
 	t.Log(slaver.Info())
 	t.Log(slaver.Status())
 
@@ -62,15 +65,20 @@ func TestSlaver(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	t.Log(slaver.Name())
 	t.Log(slaver.Info())
 	t.Log(slaver.Status())
 
+	for _, method := range slaver.Methods() {
+		fmt.Println(method)
+	}
+
 	err = slaver.Restart()
 	require.NoError(t, err)
+	require.True(t, slaver.IsStarted())
 
 	slaver.Stop()
 	listener.Stop()
+	require.False(t, slaver.IsStarted())
 
 	testsuite.IsDestroyed(t, slaver)
 	testsuite.IsDestroyed(t, listener)
@@ -182,6 +190,128 @@ func TestSlaver_Stop(t *testing.T) {
 		testsuite.IsDestroyed(t, slaver)
 		testsuite.IsDestroyed(t, listener)
 	})
+}
+
+func TestSlaver_Call(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	listener, slaver := testGenerateListenerAndSlaver(t)
+
+	t.Run("List", func(t *testing.T) {
+		ret, err := slaver.Call("List")
+		require.NoError(t, err)
+		require.NotNil(t, ret)
+	})
+
+	t.Run("Kill", func(t *testing.T) {
+		// common
+		ret, err := slaver.Call("Kill", "1.1.1.1:443")
+		require.NoError(t, err)
+		require.NotNil(t, ret)
+
+		// no arguments
+		ret, err = slaver.Call("Kill")
+		require.Error(t, err)
+		require.Nil(t, ret)
+
+		// invalid argument
+		ret, err = slaver.Call("Kill", 1)
+		require.Error(t, err)
+		require.Nil(t, ret)
+	})
+
+	t.Run("unknown method", func(t *testing.T) {
+		ret, err := slaver.Call("foo")
+		require.EqualError(t, err, `unknown method: "foo"`)
+		require.Nil(t, ret)
+	})
+
+	slaver.Stop()
+	listener.Stop()
+
+	testsuite.IsDestroyed(t, slaver)
+	testsuite.IsDestroyed(t, listener)
+}
+
+func TestSlaver_List(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	listener, slaver := testGenerateListenerAndSlaver(t)
+
+	err := slaver.Start()
+	require.NoError(t, err)
+
+	conn := &sConn{
+		ctx:   slaver,
+		local: testsuite.NewMockConn(),
+	}
+
+	slaver.trackConn(conn, true)
+
+	for _, addr := range slaver.List() {
+		fmt.Println(addr)
+	}
+
+	slaver.trackConn(conn, false)
+
+	slaver.Stop()
+	listener.Stop()
+
+	testsuite.IsDestroyed(t, slaver)
+	testsuite.IsDestroyed(t, listener)
+}
+
+func TestSlaver_Kill(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	listener, slaver := testGenerateListenerAndSlaver(t)
+
+	err := slaver.Start()
+	require.NoError(t, err)
+
+	conn := &sConn{
+		ctx:   slaver,
+		local: testsuite.NewMockConn(),
+	}
+
+	t.Run("kill all", func(t *testing.T) {
+		slaver.trackConn(conn, true)
+		defer slaver.trackConn(conn, false)
+
+		for _, addr := range slaver.List() {
+			err = slaver.Kill(addr)
+			require.NoError(t, err)
+		}
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		slaver.trackConn(conn, true)
+		defer slaver.trackConn(conn, false)
+
+		err = slaver.Kill("foo")
+		require.EqualError(t, err, `connection "foo" is not exist`)
+	})
+
+	t.Run("kill with close error", func(t *testing.T) {
+		c := &sConn{
+			ctx:   slaver,
+			local: testsuite.NewMockConnWithCloseError(),
+		}
+		slaver.trackConn(c, true)
+		defer slaver.trackConn(c, false)
+
+		err = slaver.Kill(c.local.RemoteAddr().String())
+		require.NoError(t, err)
+	})
+
+	slaver.Stop()
+	listener.Stop()
+
+	testsuite.IsDestroyed(t, slaver)
+	testsuite.IsDestroyed(t, listener)
 }
 
 func TestSlaver_serve(t *testing.T) {

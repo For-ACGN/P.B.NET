@@ -266,8 +266,6 @@ func TestListener_Call(t *testing.T) {
 }
 
 func TestListener_List(t *testing.T) {
-	testsuite.InitHTTPServers(t)
-
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
@@ -296,8 +294,6 @@ func TestListener_List(t *testing.T) {
 }
 
 func TestListener_Kill(t *testing.T) {
-	testsuite.InitHTTPServers(t)
-
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
