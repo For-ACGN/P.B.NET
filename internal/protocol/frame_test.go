@@ -148,7 +148,7 @@ func benchmarkHandleConn(b *testing.B, size int) {
 		count := 0
 		HandleConn(server, func(frame []byte) {
 			if !bytes.Equal(frame, frameData) {
-				b.Fatal("different frame data:", frame, frameData)
+				b.Error("different frame data:", frame, frameData)
 			}
 			count++
 		})
@@ -167,7 +167,7 @@ func benchmarkHandleConn(b *testing.B, size int) {
 	for i := 0; i < b.N; i++ {
 		_, err := client.Write(frame)
 		if err != nil {
-			b.Fatal(err)
+			b.Error(err)
 		}
 	}
 
@@ -205,7 +205,7 @@ func benchmarkHandleConnParallel(b *testing.B, size int) {
 
 		HandleConn(server, func(frame []byte) {
 			if !bytes.Equal(frame, frameData) {
-				b.Fatal("different frame data:", frame, frameData)
+				b.Error("different frame data:", frame, frameData)
 			}
 		})
 
@@ -220,7 +220,7 @@ func benchmarkHandleConnParallel(b *testing.B, size int) {
 		for pb.Next() {
 			_, err := client.Write(frame)
 			if err != nil {
-				b.Fatal(err)
+				b.Error(err)
 			}
 		}
 	})

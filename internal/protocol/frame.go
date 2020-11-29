@@ -18,7 +18,7 @@ import (
 // frame size = command + frame id + data
 // heartbeat don't need set frame id
 
-// about connection
+// about connection.
 const (
 	MaxFrameSize = 2 * 1024 * 1024
 	SendTimeout  = time.Minute
@@ -33,7 +33,7 @@ const (
 	FrameHeaderSize = FrameLenSize + FrameCMDSize + FrameIDSize
 )
 
-// errors
+// errors about frame.
 var (
 	ErrInvalidFrameSize       = errors.New("invalid frame size")
 	ErrRecvNullFrame          = errors.New("receive null frame")
