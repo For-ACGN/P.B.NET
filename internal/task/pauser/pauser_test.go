@@ -1,7 +1,6 @@
 package pauser
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -14,7 +13,7 @@ func TestPauser(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	pauser := New(context.Background())
+	pauser := New()
 	require.Equal(t, StateRunning, pauser.State())
 
 	pauser.Pause()
@@ -29,37 +28,17 @@ func TestPauser(t *testing.T) {
 	pauser.Paused()
 	require.True(t, time.Since(now) > time.Second)
 	require.Equal(t, StateRunning, pauser.State())
-}
 
-func TestPauser_Continue(t *testing.T) {
-	gm := testsuite.MarkGoroutines(t)
-	defer gm.Compare()
-
-	ctx := context.Background()
-
-	t.Run("continue but not paused", func(t *testing.T) {
-		pauser := New(ctx)
-		pauser.Continue()
-	})
-
-	t.Run(" simulate continue too fast", func(t *testing.T) {
-		pauser := New(ctx)
-		fakeState := StatePaused
-		pauser.state = &fakeState
-
-		pauser.Continue()
-		pauser.Continue()
-	})
+	pauser.Close()
+	require.Equal(t, StateClosed, pauser.State())
 }
 
 func TestPauser_Pause(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	ctx := context.Background()
-
 	t.Run("not paused", func(t *testing.T) {
-		pauser := New(ctx)
+		pauser := New()
 
 		now := time.Now()
 		pauser.Paused()
@@ -67,24 +46,41 @@ func TestPauser_Pause(t *testing.T) {
 		require.Equal(t, StateRunning, pauser.State())
 	})
 
-	t.Run("canceled", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
+	t.Run("closed", func(t *testing.T) {
+		pauser := New()
 
-		pauser := New(ctx)
 		pauser.Pause()
 		require.Equal(t, StatePaused, pauser.State())
 
 		go func() {
 			time.Sleep(2 * time.Second)
-			cancel()
+			pauser.Close()
 		}()
 
 		now := time.Now()
 		pauser.Paused()
 		require.True(t, time.Since(now) > time.Second)
-		require.Equal(t, StateCancel, pauser.State())
+		require.Equal(t, StateClosed, pauser.State())
 
 		pauser.Paused()
+	})
+}
+
+func TestPauser_Continue(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	t.Run("continue but not paused", func(t *testing.T) {
+		pauser := New()
+		pauser.Continue()
+	})
+
+	t.Run("simulate continue too fast", func(t *testing.T) {
+		pauser := New()
+		fakeState := StatePaused
+		pauser.state = &fakeState
+
+		pauser.Continue()
+		pauser.Continue()
 	})
 }

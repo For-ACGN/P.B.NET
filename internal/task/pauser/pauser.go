@@ -5,30 +5,31 @@ import (
 	"sync/atomic"
 )
 
-// states about pauser
+// states about pauser.
 const (
 	_ int32 = iota
 	StateRunning
 	StatePaused
-	StateCancel
+	StateClosed
 )
 
-// Pauser is used to pause in a loop.
+// Pauser is used to pause a loop.
 type Pauser struct {
-	ctx     context.Context
 	state   *int32
 	pauseCh chan struct{}
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
 // New is used to create a new pauser.
-// context is used to prevent block.
-func New(ctx context.Context) *Pauser {
+func New() *Pauser {
 	state := StateRunning
-	return &Pauser{
-		ctx:     ctx,
+	p := Pauser{
 		state:   &state,
 		pauseCh: make(chan struct{}, 1),
 	}
+	p.ctx, p.cancel = context.WithCancel(context.Background())
+	return &p
 }
 
 // Paused is used to check need pause in current loop.
@@ -41,7 +42,7 @@ func (pauser *Pauser) Paused() {
 	case <-pauser.pauseCh:
 		atomic.StoreInt32(pauser.state, StateRunning)
 	case <-pauser.ctx.Done():
-		atomic.StoreInt32(pauser.state, StateCancel)
+		atomic.StoreInt32(pauser.state, StateClosed)
 	}
 }
 
@@ -59,6 +60,12 @@ func (pauser *Pauser) Continue() {
 	case pauser.pauseCh <- struct{}{}:
 	default:
 	}
+}
+
+// Close is used to close pauser.
+func (pauser *Pauser) Close() {
+	pauser.cancel()
+	atomic.StoreInt32(pauser.state, StateClosed)
 }
 
 // State is used to get current state.
