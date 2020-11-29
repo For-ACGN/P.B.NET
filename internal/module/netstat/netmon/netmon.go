@@ -101,7 +101,7 @@ func New(lg logger.Logger, handler EventHandler, opts *Options) (*Monitor, error
 	// not trigger eventHandler before the first refresh.
 	monitor.handler = handler
 	// refreshLoop will block until call Start.
-	monitor.pauser = pauser.New(monitor.ctx)
+	monitor.pauser = pauser.New()
 	monitor.pauser.Pause()
 	monitor.wg.Add(1)
 	go monitor.refreshLoop()
@@ -466,8 +466,14 @@ func (mon *Monitor) Continue() {
 	mon.pauser.Continue()
 }
 
+// IsRunning is used to check monitor is running.
+func (mon *Monitor) IsRunning() bool {
+	return mon.pauser.State() == pauser.StateRunning
+}
+
 // Close is used to close network status monitor.
 func (mon *Monitor) Close() error {
+	mon.pauser.Close()
 	mon.cancel()
 	mon.wg.Wait()
 	mon.rwm.Lock()

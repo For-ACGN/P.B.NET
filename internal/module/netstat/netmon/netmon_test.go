@@ -31,7 +31,10 @@ func TestMonitor(t *testing.T) {
 	}
 	monitor, err := New(logger.Test, handler, nil)
 	require.NoError(t, err)
+
 	monitor.Start()
+	time.Sleep(2 * time.Second)
+	require.True(t, monitor.IsRunning())
 
 	monitor.SetInterval(50 * time.Millisecond)
 
@@ -39,10 +42,12 @@ func TestMonitor(t *testing.T) {
 	require.NoError(t, err)
 
 	monitor.Pause()
-	time.Sleep(3 * time.Second)
-	monitor.Continue()
+	time.Sleep(2 * time.Second)
+	require.False(t, monitor.IsRunning())
 
-	time.Sleep(3 * time.Second)
+	monitor.Continue()
+	time.Sleep(2 * time.Second)
+	require.True(t, monitor.IsRunning())
 
 	require.NotEmpty(t, monitor.GetTCP4Conns())
 	require.NotEmpty(t, monitor.GetTCP6Conns())
@@ -51,6 +56,7 @@ func TestMonitor(t *testing.T) {
 
 	err = monitor.Close()
 	require.NoError(t, err)
+	require.False(t, monitor.IsRunning())
 
 	testsuite.IsDestroyed(t, monitor)
 }
