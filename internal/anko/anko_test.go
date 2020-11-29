@@ -17,7 +17,7 @@ func TestNewEnv(t *testing.T) {
 	require.NotNil(t, env)
 
 	fmt.Println(len(Packages))
-	fmt.Println(len(Types))
+	fmt.Println(len(PackageTypes))
 
 	v, err := env.Get("keys")
 	require.NoError(t, err)

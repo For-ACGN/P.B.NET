@@ -11,7 +11,7 @@ import (
 	"project/internal/anko"
 )
 
-// comFn is common function for Start, Stop, Name, Info and Status function.
+// comFn is common function for Name, Description, Start, Stop, Info, Status and Methods functions.
 type comFn = func(context.Context) (reflect.Value, reflect.Value)
 
 // callFn is call function for Call function.
@@ -435,10 +435,10 @@ func (ank *Anko) Call(method string, args ...interface{}) (interface{}, error) {
 	switch err := ankoErr.Interface().(type) {
 	case nil:
 	case *anko.VMError:
-		const format = "appear error when call: \"%s\" at line:%d column:%d"
-		return nil, errors.Errorf(format, err.Message, err.Pos.Line, err.Pos.Column)
+		const format = "appear error when call %s: \"%s\" at line:%d column:%d"
+		return nil, errors.Errorf(format, method, err.Message, err.Pos.Line, err.Pos.Column)
 	case error:
-		return nil, errors.Wrap(err, "failed to call")
+		return nil, errors.Wrapf(err, "failed to call %s", method)
 	default:
 		return nil, errors.Errorf("unexpected anko error type, value: %v", err)
 	}

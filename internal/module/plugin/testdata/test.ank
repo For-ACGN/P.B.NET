@@ -32,14 +32,35 @@ func Status() {
 }
 
 func Methods() {
-    method = make(mod.Method)
+    // isStarted
+    isStarted = make(mod.Method)
+    isStarted.Name = "IsStarted"
+    isStarted.Desc = "IsStarted is used to check plugin is started."
+    rets = make([]*mod.Value, 1)
+    rets[0] = new(mod.Value)
+    rets[0].Name = "started"
+    rets[0].Type = "bool"
+    isStarted.Rets = rets
 
-    return []string{"a", "b"}
+    // add
+    add = make(mod.Method)
+    add.Name = "Add"
+    add.Desc = "a + b, return c"
+    args = make([]*mod.Value, 2)
+    args[0] = new(mod.Value)
+    args[0].Name = "a"
+    args[0].Type = "int64"
+    args[1] = new(mod.Value)
+    args[1].Name = "b"
+    args[1].Type = "int64"
+    rets = make([]*mod.Value, 1)
+    rets[0] = new(mod.Value)
+    rets[0].Name = "result"
+    rets[0].Type = "int64"
+    add.Args = args
+    add.Rets = rets
 
-    // methods = make([]string, 2)
-    // methods[0] = "aa"
-    // methods[1] = "bb"
-    // return methods
+    return []string{isStarted.String(), add.String(),"c"}
 }
 
 func Call(method, args...) {

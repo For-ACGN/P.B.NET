@@ -3,14 +3,29 @@ package plugin
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"project/internal/anko"
+	"project/internal/module"
 	"project/internal/testsuite"
 
 	_ "project/internal/anko/goroot"
 )
+
+func init() {
+	anko.Packages["project/internal/module"] = map[string]reflect.Value{}
+	var (
+		method module.Method
+		value  module.Value
+	)
+	anko.PackageTypes["project/internal/module"] = map[string]reflect.Type{
+		"Method": reflect.TypeOf(&method).Elem(),
+		"Value":  reflect.TypeOf(&value).Elem(),
+	}
+}
 
 type testExternal struct {
 	sent bool
@@ -63,7 +78,7 @@ func TestAnko(t *testing.T) {
 
 	methods := ank.Methods()
 	for i := 0; i < len(methods); i++ {
-		fmt.Println(methods[i])
+		fmt.Printf("%s\n\n", methods[i])
 	}
 
 	t.Run("call-IsStarted", func(t *testing.T) {

@@ -17,9 +17,8 @@ const (
 
 const operationTimeout = 30 * time.Second
 
-// New is used to create a new plugin from script.
-// external include role functions like Sender.Send(),
-// the script can use external to call Role self function.
+// New is used to create a new plugin from script. External include role functions
+// like Sender.Send(), the script can use external to call Role self function.
 // [warning]: script string will covered after call.
 func New(external interface{}, output io.Writer, mode, script string) (module.Module, error) {
 	switch mode {

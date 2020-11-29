@@ -15,10 +15,11 @@ import (
 	"project/internal/security"
 )
 
-// shortcut for env.Package.
+// shortcut for env.Packages and env.PackageTypes, If you only
+// want to add a type, remember add package to Packages first.
 var (
-	Packages = env.Packages
-	Types    = env.PackageTypes
+	Packages     = env.Packages
+	PackageTypes = env.PackageTypes
 )
 
 // Stmt is a shortcut for ast.Stmt.
