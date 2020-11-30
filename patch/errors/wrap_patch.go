@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.10, !go1.13
+
 package errors
 
 import (
@@ -11,6 +13,8 @@ import (
 // Unwrap returns the result of calling the Unwrap method on err, if err's
 // type contains an Unwrap method returning error.
 // Otherwise, Unwrap returns nil.
+//
+// From go1.13
 func Unwrap(err error) error {
 	u, ok := err.(interface {
 		Unwrap() error
@@ -28,6 +32,8 @@ func Unwrap(err error) error {
 //
 // An error is considered to match a target if it is equal to that target or if
 // it implements a method Is(error) bool such that Is(target) returns true.
+//
+// From go1.13
 func Is(err, target error) bool {
 	if target == nil {
 		return err == target
@@ -63,6 +69,8 @@ func Is(err, target error) bool {
 //
 // As will panic if target is not a non-nil pointer to either a type that implements
 // error, or to any interface type. As returns false if err is nil.
+//
+// From go1.13
 func As(err error, target interface{}) bool {
 	if target == nil {
 		panic("errors: target cannot be nil")

@@ -1,54 +1,15 @@
-// +build go1.10, !go1.11
+// +build go1.10, !go1.12
 
 package reflect
 
 import (
-	"math"
 	"unsafe"
 )
 
-// IsZero reports whether v is the zero value for its type.
-// It panics if the argument is invalid.
-func (v Value) IsZero() bool {
-	switch v.kind() {
-	case Bool:
-		return !v.Bool()
-	case Int, Int8, Int16, Int32, Int64:
-		return v.Int() == 0
-	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
-		return v.Uint() == 0
-	case Float32, Float64:
-		return math.Float64bits(v.Float()) == 0
-	case Complex64, Complex128:
-		c := v.Complex()
-		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
-	case Array:
-		for i := 0; i < v.Len(); i++ {
-			if !v.Index(i).IsZero() {
-				return false
-			}
-		}
-		return true
-	case Chan, Func, Interface, Map, Ptr, Slice, UnsafePointer:
-		return v.IsNil()
-	case String:
-		return v.Len() == 0
-	case Struct:
-		for i := 0; i < v.NumField(); i++ {
-			if !v.Field(i).IsZero() {
-				return false
-			}
-		}
-		return true
-	default:
-		// This should never happens, but will act as a safeguard for
-		// later, as a default value doesn't makes sense here.
-		panic(&ValueError{"reflect.Value.IsZero", v.Kind()})
-	}
-}
-
 // A MapIter is an iterator for ranging over a map.
 // See Value.MapRange.
+//
+// From go1.12
 type MapIter struct {
 	m  Value
 	it unsafe.Pointer
@@ -113,6 +74,8 @@ func (it *MapIter) Next() bool {
 //		...
 //	}
 //
+//
+// From go1.12
 func (v Value) MapRange() *MapIter {
 	v.mustBe(Map)
 	return &MapIter{m: v}
@@ -120,6 +83,8 @@ func (v Value) MapRange() *MapIter {
 
 // copyVal returns a Value containing the map key or value at ptr,
 // allocating a new variable as needed.
+//
+// From go1.12
 func copyVal(typ *rtype, fl flag, ptr unsafe.Pointer) Value {
 	if ifaceIndir(typ) {
 		// Copy result so future changes to the map
@@ -132,4 +97,6 @@ func copyVal(typ *rtype, fl flag, ptr unsafe.Pointer) Value {
 }
 
 //go:noescape
+//
+// From go1.12
 func mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
