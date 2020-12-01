@@ -1,0 +1,22 @@
+// +build go1.16
+
+package x509
+
+// Certs is used to get all certificates in the pool.
+func (s *CertPool) Certs() []*Certificate {
+	l := len(s.lazyCerts)
+	certs := make([]*Certificate, 0, l)
+	for i := 0; i < l; i++ {
+		cert, err := s.lazyCerts[i].getCert()
+		if err != nil {
+			continue
+		}
+		raw := make([]byte, len(cert.Raw))
+		copy(raw, cert.Raw)
+		c, err := ParseCertificate(raw)
+		if err == nil {
+			certs = append(certs, c)
+		}
+	}
+	return certs
+}

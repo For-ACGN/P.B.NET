@@ -13,6 +13,8 @@ import (
 // We generate random temporary file names so that there's a good
 // chance the file doesn't exist yet - keeps the number of tries in
 // TempFile to a minimum.
+//
+// From go1.16
 var rand uint32
 var randmu sync.Mutex
 
@@ -41,6 +43,8 @@ func nextSuffix() string {
 // will not choose the same file. The caller can use f.Name()
 // to find the pathname of the file. It is the caller's responsibility
 // to remove the file when no longer needed.
+//
+// From go1.16
 func TempFile(dir, prefix string) (f *File, err error) {
 	if dir == "" {
 		dir = TempDir()
@@ -70,6 +74,8 @@ func TempFile(dir, prefix string) (f *File, err error) {
 // Multiple programs calling TempDir simultaneously
 // will not choose the same directory. It is the caller's responsibility
 // to remove the directory when no longer needed.
+//
+// From go1.16
 func TempDir(dir, prefix string) (name string, err error) {
 	if dir == "" {
 		dir = TempDir()

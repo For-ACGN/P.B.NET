@@ -2,10 +2,6 @@
 
 package http
 
-import (
-	"net/textproto"
-)
-
 // Clone returns a copy of h or nil if h is nil.
 //
 // From go1.13
@@ -27,15 +23,4 @@ func (h Header) Clone() Header {
 		sv = sv[n:]
 	}
 	return h2
-}
-
-// Values returns all values associated with the given key.
-// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
-// used to canonicalize the provided key. To use non-canonical
-// keys, access the map directly.
-// The returned slice is not a copy.
-//
-// From go1.14
-func (h Header) Values(key string) []string {
-	return textproto.MIMEHeader(h).Values(key)
 }

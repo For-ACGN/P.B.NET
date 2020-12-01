@@ -1,21 +1,10 @@
-// +build go1.10, !go1.12
+// +build go1.10, !go1.13
 
 package strings
 
 import (
 	"unicode/utf8"
 )
-
-// ReplaceAll returns a copy of the string s with all
-// non-overlapping instances of old replaced by new.
-// If old is empty, it matches at the beginning of the string
-// and after each UTF-8 sequence, yielding up to k+1 replacements
-// for a k-rune string.
-//
-// From go1.12
-func ReplaceAll(s, old, new string) string {
-	return Replace(s, old, new, -1)
-}
 
 // ToValidUTF8 returns a copy of the string s with each run of invalid UTF-8 byte sequences
 // replaced by the replacement string, which may be empty.

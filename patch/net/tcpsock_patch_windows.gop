@@ -1,8 +1,0 @@
-package net
-
-import "syscall"
-
-// Handle is used to get handle.
-func (c *TCPConn) Handle() syscall.Handle {
-	return c.fd.pfd.Sysfd
-}
