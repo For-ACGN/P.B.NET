@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -23,10 +22,28 @@ func init() {
 }
 
 func main() {
-	var path string
+	var (
+		path           string
+		installPatch   bool
+		uninstallPatch bool
+	)
 	flag.StringVar(&path, "config", "config.json", "configuration file path")
+	flag.BoolVar(&installPatch, "install-patch", false, "only install patch files")
+	flag.BoolVar(&uninstallPatch, "uninstall-patch", false, "only uninstall patch files")
 	flag.Parse()
 	if !config.Load(path, &cfg) {
+		return
+	}
+	switch {
+	case installPatch:
+		if installPatchFiles() {
+			log.Println(logger.Info, "install patch files successfully")
+		}
+		return
+	case uninstallPatch:
+		if uninstallPatchFiles() {
+			log.Println(logger.Info, "uninstall patch files successfully")
+		}
 		return
 	}
 	for _, step := range [...]func() bool{
@@ -44,9 +61,19 @@ func main() {
 }
 
 func installPatchFiles() bool {
-	latest := fmt.Sprintf("%s/src", cfg.Common.GoRootLatest)
-	go1108 := fmt.Sprintf("%s/src", cfg.Common.GoRoot1108)
-	dirs := []string{latest, go1108}
+	dirs := []string{
+		cfg.Common.GoRootLatest,
+		cfg.Common.GoRoot1108,
+		cfg.Common.GoRoot11113,
+		cfg.Common.GoRoot11217,
+		cfg.Common.GoRoot11315,
+		cfg.Common.GoRoot11415,
+		cfg.Common.GoRoot115x,
+	}
+	for i := 0; i < len(dirs); i++ {
+		dirs[i] += "/src"
+	}
+	var errs []error
 	walkFunc := func(path string, stat os.FileInfo, err error) error {
 		if err != nil {
 			log.Println(logger.Error, "appear error in walk function:", err)
@@ -55,15 +82,19 @@ func installPatchFiles() bool {
 		if stat.IsDir() {
 			return nil
 		}
+		var appearErr bool
 		for i := 0; i < len(dirs); i++ {
 			dst := strings.Replace(path, "patch", dirs[i], 1)
 			dst = strings.Replace(dst, ".gop", ".go", 1)
 			err = copyFileToGoRoot(path, dst)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				appearErr = true
 			}
 		}
-		log.Printf(logger.Info, "install patch file: %s", path)
+		if !appearErr {
+			log.Printf(logger.Info, "install patch file: %s", path)
+		}
 		return nil
 	}
 	err := filepath.Walk("patch", walkFunc)
@@ -71,8 +102,15 @@ func installPatchFiles() bool {
 		log.Println(logger.Error, "failed to walk patch directory:", err)
 		return false
 	}
-	log.Println(logger.Info, "install all patch files to go root path")
-	return true
+	if len(errs) == 0 {
+		log.Println(logger.Info, "install all patch files to go root path")
+		return true
+	}
+	log.Println(logger.Error, "appear error when install patch file")
+	for i := 0; i < len(errs); i++ {
+		log.Println(logger.Error, errs[i])
+	}
+	return false
 }
 
 func copyFileToGoRoot(src, dst string) error {
@@ -81,6 +119,59 @@ func copyFileToGoRoot(src, dst string) error {
 		return err
 	}
 	return system.WriteFile(dst, data)
+}
+
+func uninstallPatchFiles() bool {
+	dirs := []string{
+		cfg.Common.GoRootLatest,
+		cfg.Common.GoRoot1108,
+		cfg.Common.GoRoot11113,
+		cfg.Common.GoRoot11217,
+		cfg.Common.GoRoot11315,
+		cfg.Common.GoRoot11415,
+		cfg.Common.GoRoot115x,
+	}
+	for i := 0; i < len(dirs); i++ {
+		dirs[i] += "/src"
+	}
+	var errs []error
+	walkFunc := func(path string, stat os.FileInfo, err error) error {
+		if err != nil {
+			log.Println(logger.Error, "appear error in walk function:", err)
+			return err
+		}
+		if stat.IsDir() {
+			return nil
+		}
+		var appearErr bool
+		for i := 0; i < len(dirs); i++ {
+			dst := strings.Replace(path, "patch", dirs[i], 1)
+			dst = strings.Replace(dst, ".gop", ".go", 1)
+			err = os.Remove(dst)
+			if err != nil {
+				errs = append(errs, err)
+				appearErr = true
+			}
+		}
+		if !appearErr {
+			log.Printf(logger.Info, "uninstall patch file: %s", path)
+		}
+		return nil
+	}
+	err := filepath.Walk("patch", walkFunc)
+	if err != nil {
+		log.Println(logger.Error, "failed to walk patch directory:", err)
+		return false
+	}
+	if len(errs) == 0 {
+		log.Println(logger.Info, "uninstall all patch files in go root path")
+		return true
+	}
+	log.Println(logger.Error, "appear error when uninstall patch file")
+	for i := 0; i < len(errs); i++ {
+		log.Println(logger.Error, errs[i])
+	}
+	return false
 }
 
 func listModule() bool {
