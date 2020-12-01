@@ -2,6 +2,15 @@
 
 package http
 
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+)
+
 // NewRequestWithContext returns a new Request given a method, URL, and
 // optional body.
 //

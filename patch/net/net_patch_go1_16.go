@@ -2,6 +2,10 @@
 
 package net
 
+import (
+	"internal/poll"
+)
+
 // errClosed exists just so that the docs for ErrClosed don't mention
 // the internal package poll.
 var errClosed = poll.ErrNetClosing

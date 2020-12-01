@@ -13,4 +13,3 @@ func (p *ProcessState) ExitCode() int {
 	}
 	return p.status.ExitStatus()
 }
-
