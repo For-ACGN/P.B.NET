@@ -2,12 +2,16 @@
 
 package os
 
+import (
+	"sort"
+)
+
 // ReadDir reads the directory named by dirname and returns
 // a list of directory entries sorted by filename.
 //
 // From go1.16
-func ReadDir(dirname string) ([]os.FileInfo, error) {
-	f, err := os.Open(dirname)
+func ReadDir(dirname string) ([]FileInfo, error) {
+	f, err := Open(dirname)
 	if err != nil {
 		return nil, err
 	}

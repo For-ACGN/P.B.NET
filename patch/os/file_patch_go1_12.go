@@ -5,6 +5,7 @@ package os
 import (
 	"errors"
 	"runtime"
+	"syscall"
 )
 
 // UserHomeDir returns the current user's home directory.
