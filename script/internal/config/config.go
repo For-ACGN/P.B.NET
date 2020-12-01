@@ -23,6 +23,11 @@ type Config struct {
 	Common struct {
 		GoRootLatest  string `json:"go_root_latest"`
 		GoRoot1108    string `json:"go_root_1_10_8"`
+		GoRoot11113   string `json:"go_root_1_11_13"`
+		GoRoot11217   string `json:"go_root_1_12_17"`
+		GoRoot11315   string `json:"go_root_1_13_15"`
+		GoRoot11415   string `json:"go_root_1_14_15"`
+		GoRoot115x    string `json:"go_root_1_15_x"`
 		ProxyURL      string `json:"proxy_url"`
 		SkipTLSVerify bool   `json:"skip_tls_verify"`
 	} `json:"common"`
@@ -66,18 +71,24 @@ func Load(path string, config *Config) bool {
 	}
 	log.Println(logger.Info, "load configuration file successfully")
 	// check go root path
-	goRootLatest := config.Common.GoRootLatest
-	if !checkGoRoot(goRootLatest) {
-		log.Println(logger.Error, "invalid Go latest root path:", goRootLatest)
-		return false
+	for _, item := range [...]*struct {
+		version string
+		path    string
+	}{
+		{version: "latest", path: config.Common.GoRootLatest},
+		{version: "1.10.8", path: config.Common.GoRoot1108},
+		{version: "1.11.13", path: config.Common.GoRoot11113},
+		{version: "1.12.17", path: config.Common.GoRoot11217},
+		{version: "1.13.15", path: config.Common.GoRoot11315},
+		{version: "1.14.15", path: config.Common.GoRoot11415},
+		{version: "1.15.x", path: config.Common.GoRoot115x},
+	} {
+		if !checkGoRoot(item.path) {
+			log.Printf(logger.Error, "invalid Go %-7s root path: %s", item.version, item.path)
+			return false
+		}
+		log.Printf(logger.Info, "Go %-7s root path: %s", item.version, item.path)
 	}
-	goRoot1108 := config.Common.GoRoot1108
-	if !checkGoRoot(goRoot1108) {
-		log.Println(logger.Error, "invalid Go 1.10.8 root path:", goRoot1108)
-		return false
-	}
-	log.Println(logger.Info, "Go latest root path:", goRootLatest)
-	log.Println(logger.Info, "Go 1.10.8 root path:", goRoot1108)
 	// set proxy and TLS configuration
 	tr := http.DefaultTransport.(*http.Transport)
 	proxyURL := config.Common.ProxyURL

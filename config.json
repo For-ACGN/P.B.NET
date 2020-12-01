@@ -1,9 +1,14 @@
 {
   "common": {
-    "go_root_latest" : "D:\\Go",
-    "go_root_1_10_8" : "D:\\Go1.10",
-    "proxy_url"      : "socks5://127.0.0.1:1080/",
-    "skip_tls_verify": false
+    "go_root_latest"  : "D:\\Go",
+    "go_root_1_10_8"  : "D:\\Go1.10",
+    "go_root_1_11_13" : "D:\\Go1.11",
+    "go_root_1_12_17" : "D:\\Go1.12",
+    "go_root_1_13_15" : "D:\\Go1.13",
+    "go_root_1_14_15" : "D:\\Go1.14",
+    "go_root_1_15_x"  : "D:\\Go1.15",
+    "proxy_url"       : "socks5://127.0.0.1:1080/",
+    "skip_tls_verify" : false
   },
 
   "install": {
