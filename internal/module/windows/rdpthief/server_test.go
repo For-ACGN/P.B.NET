@@ -1,3 +1,5 @@
+// +build windows,go1.15
+
 package rdpthief
 
 import (
