@@ -21,6 +21,8 @@ func init() {
 	log.SetSource("install")
 }
 
+var showModules bool
+
 func main() {
 	var (
 		path           string
@@ -28,6 +30,7 @@ func main() {
 		uninstallPatch bool
 	)
 	flag.StringVar(&path, "config", "config.json", "configuration file path")
+	flag.BoolVar(&showModules, "show-modules", false, "show modules when list module")
 	flag.BoolVar(&installPatch, "install-patch", false, "only install patch files")
 	flag.BoolVar(&uninstallPatch, "uninstall-patch", false, "only uninstall patch files")
 	flag.Parse()
@@ -60,8 +63,8 @@ func main() {
 	log.Println(logger.Info, "install successfully")
 }
 
-func installPatchFiles() bool {
-	dirs := []string{
+func getGoRootPaths() []string {
+	list := []string{
 		cfg.Common.GoRootLatest,
 		cfg.Common.GoRoot1108,
 		cfg.Common.GoRoot11113,
@@ -70,9 +73,18 @@ func installPatchFiles() bool {
 		cfg.Common.GoRoot11415,
 		cfg.Common.GoRoot115x,
 	}
-	for i := 0; i < len(dirs); i++ {
-		dirs[i] += "/src"
+	paths := make([]string, 0, len(list))
+	for i := 0; i < len(list); i++ {
+		if list[i] == "" {
+			continue
+		}
+		paths = append(paths, list[i]+"/src")
 	}
+	return paths
+}
+
+func installPatchFiles() bool {
+	paths := getGoRootPaths()
 	var errs []error
 	walkFunc := func(path string, stat os.FileInfo, err error) error {
 		if err != nil {
@@ -83,8 +95,8 @@ func installPatchFiles() bool {
 			return nil
 		}
 		var appearErr bool
-		for i := 0; i < len(dirs); i++ {
-			dst := strings.Replace(path, "patch", dirs[i], 1)
+		for i := 0; i < len(paths); i++ {
+			dst := strings.Replace(path, "patch", paths[i], 1)
 			dst = strings.Replace(dst, ".gop", ".go", 1)
 			err = copyFileToGoRoot(path, dst)
 			if err != nil {
@@ -122,18 +134,7 @@ func copyFileToGoRoot(src, dst string) error {
 }
 
 func uninstallPatchFiles() bool {
-	dirs := []string{
-		cfg.Common.GoRootLatest,
-		cfg.Common.GoRoot1108,
-		cfg.Common.GoRoot11113,
-		cfg.Common.GoRoot11217,
-		cfg.Common.GoRoot11315,
-		cfg.Common.GoRoot11415,
-		cfg.Common.GoRoot115x,
-	}
-	for i := 0; i < len(dirs); i++ {
-		dirs[i] += "/src"
-	}
+	paths := getGoRootPaths()
 	var errs []error
 	walkFunc := func(path string, stat os.FileInfo, err error) error {
 		if err != nil {
@@ -144,8 +145,8 @@ func uninstallPatchFiles() bool {
 			return nil
 		}
 		var appearErr bool
-		for i := 0; i < len(dirs); i++ {
-			dst := strings.Replace(path, "patch", dirs[i], 1)
+		for i := 0; i < len(paths); i++ {
+			dst := strings.Replace(path, "patch", paths[i], 1)
 			dst = strings.Replace(dst, ".gop", ".go", 1)
 			err = os.Remove(dst)
 			if err != nil {
@@ -184,6 +185,9 @@ func listModule() bool {
 		}
 		return false
 	}
+	if !showModules {
+		return true
+	}
 	output = output[:len(output)-1] // remove the last "\n"
 	modules := strings.Split(output, "\n")
 	modules = modules[1:] // remove the first module "project"
@@ -221,7 +225,7 @@ func verifyModule() bool {
 	if code != 0 {
 		return false
 	}
-	log.Println(logger.Info, "verify module successfully")
+	log.Println(logger.Info, "verify modules successfully")
 	return true
 }
 

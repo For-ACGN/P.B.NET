@@ -83,6 +83,9 @@ func Load(path string, config *Config) bool {
 		{version: "1.14.15", path: config.Common.GoRoot11415},
 		{version: "1.15.x", path: config.Common.GoRoot115x},
 	} {
+		if item.path == "" {
+			continue
+		}
 		if !checkGoRoot(item.path) {
 			log.Printf(logger.Error, "invalid Go %-7s root path: %s", item.version, item.path)
 			return false
