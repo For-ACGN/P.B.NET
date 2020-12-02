@@ -98,7 +98,7 @@ func (ank *Anko) load() error {
 
 func (ank *Anko) registerFunctions(env *anko.Env) error {
 	// register common functions
-	for _, item := range []*struct {
+	for _, item := range [...]*struct {
 		method string
 		field  *comFn
 	}{
