@@ -70,7 +70,7 @@ func Load(path string, config *Config) bool {
 		return false
 	}
 	log.Println(logger.Info, "load configuration file successfully")
-	// check go root path
+	// check go root path, must need go latest and go 1.10.8
 	for _, item := range [...]*struct {
 		version string
 		path    string
@@ -83,7 +83,7 @@ func Load(path string, config *Config) bool {
 		{version: "1.14.15", path: config.Common.GoRoot11415},
 		{version: "1.15.x", path: config.Common.GoRoot115x},
 	} {
-		if item.path == "" {
+		if item.path == "" && item.version != "latest" && item.version != "1.10.8" {
 			continue
 		}
 		if !checkGoRoot(item.path) {
@@ -94,27 +94,8 @@ func Load(path string, config *Config) bool {
 	}
 	// set proxy and TLS configuration
 	tr := http.DefaultTransport.(*http.Transport)
-	proxyURL := config.Common.ProxyURL
-	if proxyURL != "" {
-		URL, err := url.Parse(proxyURL)
-		if err != nil {
-			log.Println(logger.Error, "invalid proxy url:", err)
-			return false
-		}
-		tr.Proxy = http.ProxyURL(URL)
-		// set os environment for build
-		err = os.Setenv("HTTP_PROXY", proxyURL)
-		if err != nil {
-			log.Println(logger.Error, "failed to set environment about HTTP_PROXY:", err)
-			return false
-		}
-		// go1.16, must set HTTPS_PROXY for https URL
-		err = os.Setenv("HTTPS_PROXY", proxyURL)
-		if err != nil {
-			log.Println(logger.Error, "failed to set environment about HTTPS_PROXY:", err)
-			return false
-		}
-		log.Println(logger.Info, "set proxy url:", proxyURL)
+	if !setProxy(tr, config) {
+		return false
 	}
 	if config.Common.SkipTLSVerify {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec
@@ -142,6 +123,33 @@ func checkGoRoot(path string) bool {
 	goFmtExist, _ := system.IsExist(filepath.Join(path, "bin/"+goFmtFile))
 	srcExist, _ := system.IsExist(filepath.Join(path, "src"))
 	return goExist && goFmtExist && srcExist
+}
+
+func setProxy(tr *http.Transport, cfg *Config) bool {
+	proxyURL := cfg.Common.ProxyURL
+	if proxyURL == "" {
+		return true
+	}
+	URL, err := url.Parse(proxyURL)
+	if err != nil {
+		log.Println(logger.Error, "invalid proxy url:", err)
+		return false
+	}
+	tr.Proxy = http.ProxyURL(URL)
+	// set os environment for build
+	err = os.Setenv("HTTP_PROXY", proxyURL)
+	if err != nil {
+		log.Println(logger.Error, "failed to set environment about HTTP_PROXY:", err)
+		return false
+	}
+	// go1.16, must set HTTPS_PROXY for https URL
+	err = os.Setenv("HTTPS_PROXY", proxyURL)
+	if err != nil {
+		log.Println(logger.Error, "failed to set environment about HTTPS_PROXY:", err)
+		return false
+	}
+	log.Println(logger.Info, "set proxy url:", proxyURL)
+	return true
 }
 
 // GoRoot is used to get the go root path.
