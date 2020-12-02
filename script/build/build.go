@@ -35,16 +35,19 @@ func main() {
 	}
 	switch {
 	case installHook:
-		installRuntimePatch()
-		log.Println(logger.Info, "install runtime patch for hook package successfully")
+		if installRuntimePatch() {
+			log.Println(logger.Info, "install runtime patch successfully")
+		}
 		return
 	case uninstallHook:
-		uninstallRuntimePatch()
-		log.Println(logger.Info, "uninstall runtime patch for hook package successfully")
+		if uninstallRuntimePatch() {
+			log.Println(logger.Info, "uninstall runtime patch successfully")
+		}
 		return
 	}
 	for _, step := range [...]func() bool{
 		installRuntimePatch,
+		// then
 		uninstallRuntimePatch,
 	} {
 		if !step() {
