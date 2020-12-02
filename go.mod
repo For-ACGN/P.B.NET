@@ -25,6 +25,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/traefik/yaegi v0.9.15
 	github.com/vmihailenco/msgpack/v5 v5.2.0
+	github.com/xtaci/kcp-go/v5 v5.6.1
 
 	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
 
