@@ -1,4 +1,4 @@
-// +build go1.10, !go1.12
+// +build go1.10,!go1.12
 
 package bytes
 

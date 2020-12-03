@@ -11,7 +11,7 @@
 // operations with the same key more efficient. This package refers to the RFC
 // 8032 private key as the “seed”.
 
-// +build go1.10, !go1.13
+// +build go1.10,!go1.13
 
 package ed25519
 

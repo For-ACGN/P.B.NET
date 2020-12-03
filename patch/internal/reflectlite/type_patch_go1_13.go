@@ -5,7 +5,7 @@
 // Package reflectlite implements lightweight version of reflect, not using
 // any package except for "runtime" and "unsafe".
 
-// +build go1.10, !go1.13
+// +build go1.10,!go1.13
 
 package reflectlite
 

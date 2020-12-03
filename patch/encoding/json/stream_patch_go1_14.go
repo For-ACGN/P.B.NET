@@ -1,4 +1,4 @@
-// +build go1.10, !go1.14
+// +build go1.10,!go1.14
 
 package json
 

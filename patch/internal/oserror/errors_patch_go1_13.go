@@ -6,7 +6,7 @@
 //
 // These types are defined here to permit the syscall package to reference them.
 
-// +build go1.10, !go1.13
+// +build go1.10,!go1.13
 
 package oserror
 
