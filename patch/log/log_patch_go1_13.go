@@ -1,14 +1,14 @@
-// +build go1.10, !go1.13
+// +build go1.10,!go1.13
 
 package log
 
-import "io"
+import (
+	"io"
+)
 
-// Writer returns the output destination for the logger.
+// Writer returns the output destination for the standard logger.
 //
 // From go1.13
-func (l *Logger) Writer() io.Writer {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.out
+func Writer() io.Writer {
+	return std.Writer()
 }
