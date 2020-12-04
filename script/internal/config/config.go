@@ -6,10 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"project/internal/logger"
 	"project/internal/patch/json"
@@ -21,14 +19,21 @@ import (
 // Config contains configuration about install, build, develop, test and race.
 type Config struct {
 	Common struct {
-		GoPath        string `json:"go_path"`        // must be set, <security>
-		GoRootLatest  string `json:"go_root_latest"` // must be set
-		GoRoot1108    string `json:"go_root_1_10_8"` // must be set
-		GoRoot11113   string `json:"go_root_1_11_13"`
-		GoRoot11217   string `json:"go_root_1_12_17"`
-		GoRoot11315   string `json:"go_root_1_13_15"`
-		GoRoot11415   string `json:"go_root_1_14_15"`
-		GoRoot115x    string `json:"go_root_1_15_x"`
+		// must be set
+		// <security> must be set manually for prevent
+		// leak user information.
+		GoPath     string `json:"go_path"`
+		GoRoot116x string `json:"go_root_1_16_x"`
+		GoRoot1108 string `json:"go_root_1_10_8"`
+
+		// options if you need special go version.
+		GoRoot11113 string `json:"go_root_1_11_13"`
+		GoRoot11217 string `json:"go_root_1_12_17"`
+		GoRoot11315 string `json:"go_root_1_13_15"`
+		GoRoot11415 string `json:"go_root_1_14_15"`
+		GoRoot115x  string `json:"go_root_1_15_x"`
+
+		// options about network
 		ProxyURL      string `json:"proxy_url"`
 		SkipTLSVerify bool   `json:"skip_tls_verify"`
 	} `json:"common"`
@@ -80,7 +85,7 @@ func Load(path string, config *Config) bool {
 		version string
 		path    string
 	}{
-		{version: "latest", path: config.Common.GoRootLatest},
+		{version: "1.16.x", path: config.Common.GoRoot116x},
 		{version: "1.10.8", path: config.Common.GoRoot1108},
 		{version: "1.11.13", path: config.Common.GoRoot11113},
 		{version: "1.12.17", path: config.Common.GoRoot11217},
@@ -170,22 +175,4 @@ func setProxy(tr *http.Transport, cfg *Config) bool {
 	}
 	log.Println(logger.Info, "set proxy url:", proxyURL)
 	return true
-}
-
-// GoRoot is used to get the go root path.
-func GoRoot() (string, error) {
-	return goEnv("GOROOT")
-}
-
-// GoModCache is used to get the go mod cache path.
-func GoModCache() (string, error) {
-	return goEnv("GOMODCACHE")
-}
-
-func goEnv(name string) (string, error) {
-	output, err := exec.Command("go", "env", name).CombinedOutput() // #nosec
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(output)), nil
 }
