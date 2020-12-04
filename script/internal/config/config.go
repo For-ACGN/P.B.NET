@@ -21,8 +21,9 @@ import (
 // Config contains configuration about install, build, develop, test and race.
 type Config struct {
 	Common struct {
-		GoRootLatest  string `json:"go_root_latest"`
-		GoRoot1108    string `json:"go_root_1_10_8"`
+		GoPath        string `json:"go_path"`        // must be set, <security>
+		GoRootLatest  string `json:"go_root_latest"` // must be set
+		GoRoot1108    string `json:"go_root_1_10_8"` // must be set
 		GoRoot11113   string `json:"go_root_1_11_13"`
 		GoRoot11217   string `json:"go_root_1_12_17"`
 		GoRoot11315   string `json:"go_root_1_13_15"`
@@ -70,6 +71,10 @@ func Load(path string, config *Config) bool {
 		return false
 	}
 	log.Println(logger.Info, "load configuration file successfully")
+	// print and set go path
+	if !setGoPath(config.Common.GoPath) {
+		return false
+	}
 	// check go root path, must need go latest and go 1.10.8
 	for _, item := range [...]*struct {
 		version string
@@ -87,10 +92,10 @@ func Load(path string, config *Config) bool {
 			continue
 		}
 		if !checkGoRoot(item.path) {
-			log.Printf(logger.Error, "invalid Go %-7s root path: %s", item.version, item.path)
+			log.Printf(logger.Error, "invalid go %-7s root path: %s", item.version, item.path)
 			return false
 		}
-		log.Printf(logger.Info, "Go %-7s root path: %s", item.version, item.path)
+		log.Printf(logger.Info, "go %-7s root path: %s", item.version, item.path)
 	}
 	// set proxy and TLS configuration
 	tr := http.DefaultTransport.(*http.Transport)
@@ -100,6 +105,21 @@ func Load(path string, config *Config) bool {
 	if config.Common.SkipTLSVerify {
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec
 		log.Println(logger.Warning, "skip tls verify")
+	}
+	return true
+}
+
+func setGoPath(goPath string) bool {
+	if goPath == "" {
+		log.Println(logger.Error, "go path is empty")
+		return false
+	}
+	log.Println(logger.Info, "go path:", goPath)
+	// set os environment for build
+	err := os.Setenv("GOPATH", goPath)
+	if err != nil {
+		log.Println(logger.Error, "failed to set environment about GOPATH:", err)
+		return false
 	}
 	return true
 }
