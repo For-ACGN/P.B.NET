@@ -32,11 +32,16 @@ func main() {
 		uninstallPatch bool
 		verifyPatch    bool
 	)
-	flag.StringVar(&configPath, "config", "config.json", "configuration file path")
-	flag.BoolVar(&showModules, "show-modules", false, "show modules when list module")
-	flag.BoolVar(&installPatch, "install-patch", false, "only install patch files")
-	flag.BoolVar(&uninstallPatch, "uninstall-patch", false, "only uninstall patch files")
-	flag.BoolVar(&verifyPatch, "verify-patch", false, "only verify patch files")
+	usage := "configuration file path"
+	flag.StringVar(&configPath, "config", "config.json", usage)
+	usage = "show modules when list module"
+	flag.BoolVar(&showModules, "show-modules", false, usage)
+	usage = "only install patch files"
+	flag.BoolVar(&installPatch, "install-patch", false, usage)
+	usage = "only uninstall patch files"
+	flag.BoolVar(&uninstallPatch, "uninstall-patch", false, usage)
+	usage = "only verify patch files"
+	flag.BoolVar(&verifyPatch, "verify-patch", false, usage)
 	flag.Parse()
 	if !config.Load(configPath, &cfg) {
 		return

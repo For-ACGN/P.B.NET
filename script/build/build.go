@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"flag"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 
 	"project/internal/logger"
@@ -22,29 +20,31 @@ func init() {
 
 func main() {
 	var (
-		path          string
+		configPath    string
 		installHook   bool
 		uninstallHook bool
 	)
-	flag.StringVar(&path, "config", "config.json", "configuration file path")
-	flag.BoolVar(&installHook, "install-hook", false, "only install runtime patch for hook package")
-	flag.BoolVar(&uninstallHook, "uninstall-hook", false, "only uninstall runtime patch for hook package")
+	usage := "configuration file path"
+	flag.StringVar(&configPath, "config", "config.json", usage)
+	usage = "only install runtime patch for hook package"
+	flag.BoolVar(&installHook, "install-hook", false, usage)
+	usage = "only uninstall runtime patch for hook package"
+	flag.BoolVar(&uninstallHook, "uninstall-hook", false, usage)
 	flag.Parse()
-	if !config.Load(path, &cfg) {
+	if !config.Load(configPath, &cfg) {
 		return
 	}
 	switch {
 	case installHook:
-		if installRuntimePatch() {
-			log.Println(logger.Info, "install runtime patch successfully")
-		}
-		return
+		installRuntimePatch()
 	case uninstallHook:
-		if uninstallRuntimePatch() {
-			log.Println(logger.Info, "uninstall runtime patch successfully")
-		}
-		return
+		uninstallRuntimePatch()
+	default:
+		buildDefault()
 	}
+}
+
+func buildDefault() {
 	for _, step := range [...]func() bool{
 		installRuntimePatch,
 		// then
@@ -57,30 +57,10 @@ func main() {
 	log.Println(logger.Info, "build successfully")
 }
 
-func createBackup(path string) ([]byte, error) {
-	data, err := ioutil.ReadFile(path) // #nosec
-	if err != nil {
-		return nil, err
-	}
-	err = os.Rename(path, path+".bak")
-	if err != nil {
-		return nil, err
-	}
-	err = system.WriteFile(path, data)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-func restoreBackup(path string) error {
-	return os.Rename(path+".bak", path)
-}
-
 func installRuntimePatch() bool {
-	// maybe change to string slice
-	path := filepath.Join(cfg.Common.GoRootLatest, "src/runtime/os_windows.go")
-	data, err := createBackup(path)
+	// maybe change to string slice, when new go released.
+	path := filepath.Join(cfg.Common.GoRoot116x, "src/runtime/os_windows.go")
+	data, err := config.CreateBackup(path)
 	if err != nil {
 		log.Printf(logger.Error, "failed to create backup about %s: %s", path, err)
 		return false
@@ -89,21 +69,23 @@ func installRuntimePatch() bool {
 	originCode := []byte("stdcall1(_CloseHandle, mp.thread)\n\t\tmp.thread = 0")
 	patchCode := []byte("stdcall1withlasterror(_CloseHandle, mp.thread)\n\t\tmp.thread = 0")
 	data = bytes.Replace(data, originCode, patchCode, 1)
-	// save file
+	// save changed file
 	err = system.WriteFile(path, data)
 	if err != nil {
-		log.Printf(logger.Error, "failed to save patch file %s: %s", path, err)
+		log.Printf(logger.Error, "failed to save runtime patch file %s: %s", path, err)
 		return false
 	}
+	log.Println(logger.Info, "install runtime patch successfully")
 	return true
 }
 
 func uninstallRuntimePatch() bool {
-	path := filepath.Join(cfg.Common.GoRootLatest, "src/runtime/os_windows.go")
-	err := restoreBackup(path)
+	path := filepath.Join(cfg.Common.GoRoot116x, "src/runtime/os_windows.go")
+	err := config.RestoreBackup(path)
 	if err != nil {
 		log.Printf(logger.Error, "failed to restore backup about %s: %s", path, err)
 		return false
 	}
+	log.Println(logger.Info, "uninstall runtime patch successfully")
 	return true
 }
