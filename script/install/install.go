@@ -70,7 +70,7 @@ func installDefault() {
 
 func getGoRootPaths() []string {
 	list := []string{
-		cfg.Common.GoRootLatest,
+		cfg.Common.GoRoot116x,
 		cfg.Common.GoRoot1108,
 		cfg.Common.GoRoot11113,
 		cfg.Common.GoRoot11217,
@@ -182,10 +182,20 @@ func uninstallPatchFiles() bool {
 	return false
 }
 
-func verifyPatchFiles() bool {
+func verifyPatchFiles() (ok bool) {
 	log.Println(logger.Info, "verify patch files")
+	if !config.CreateGoModBackup() {
+		return false
+	}
+	defer func() {
+		if !config.RestoreGoModBackup() {
+			ok = false
+			return
+		}
+		log.Println(logger.Info, "verify patch files successfully")
+	}()
 	list := []string{
-		cfg.Common.GoRootLatest,
+		cfg.Common.GoRoot116x,
 		cfg.Common.GoRoot1108,
 		cfg.Common.GoRoot11113,
 		cfg.Common.GoRoot11217,
@@ -225,7 +235,6 @@ func verifyPatchFiles() bool {
 			return false
 		}
 	}
-	log.Println(logger.Info, "verify patch files successfully")
 	return true
 }
 

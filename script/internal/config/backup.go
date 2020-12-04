@@ -34,6 +34,7 @@ func RestoreBackup(path string) error {
 
 // CreateGoModBackup is used to create go.mod backup, go command will change it(before go1.16).
 func CreateGoModBackup() bool {
+	log.Println(logger.Info, "create backup of go.mod")
 	_, err := CreateBackup("go.mod")
 	if err != nil {
 		log.Println(logger.Error, "failed to create backup of go.mod:", err)
@@ -44,6 +45,7 @@ func CreateGoModBackup() bool {
 
 // RestoreGoModBackup is used to restore go.mod backup.
 func RestoreGoModBackup() bool {
+	log.Println(logger.Info, "restore backup of go.mod")
 	err := RestoreBackup("go.mod")
 	if err != nil {
 		log.Println(logger.Error, "failed to restore backup of go.mod:", err)

@@ -93,7 +93,7 @@ func Load(path string, config *Config) bool {
 		{version: "1.14.15", path: config.Common.GoRoot11415},
 		{version: "1.15.x", path: config.Common.GoRoot115x},
 	} {
-		if item.path == "" && item.version != "latest" && item.version != "1.10.8" {
+		if item.path == "" && item.version != "1.16.x" && item.version != "1.10.8" {
 			continue
 		}
 		if !checkGoRoot(item.path) {
