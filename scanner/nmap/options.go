@@ -2,31 +2,11 @@ package nmap
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"project/internal/system"
 )
-
-// Job is contains job information and scanner options.
-type Job struct {
-	// Protocol is port type, it can be "tcp", "udp" and "all".
-	Protocol string `toml:"protocol" json:"protocol"`
-
-	// Target can be IP address or domain name, support IPv4 & IPv6.
-	Target string `toml:"target" json:"target"`
-
-	// Ports is the nmap argument, it can be single or a range like "80, 81-1000",
-	// but you can't not use argument like "U:53,111,137,T:21-25,80,139,8080,S:9",
-	// if you want to scan TCP and UDP, set protocol field "all", because performance.
-	// if it is empty, nmap will use the top common ports.
-	Ports string `toml:"ports" json:"ports"`
-
-	// Extra is used to store extra information like unit.
-	Extra string `toml:"extra" json:"extra"`
-
-	// Options is used to set the special options for this job
-	Options *Options `toml:"options" json:"options"`
-}
 
 // Options contains job options and scanner default job options.
 type Options struct {
@@ -64,6 +44,9 @@ type Options struct {
 
 	// LocalIP is the nmap argument "-S", it is used to specify local
 	// IP address, it can spoof source address.
+	//
+	// In Scanner default option, it will random select one to the next
+	// scan job if it Options is nil.
 	LocalIP []string `toml:"local_ip" json:"local_ip"`
 
 	// --------------------------------performance---------------------------------
@@ -112,11 +95,7 @@ func (opts *Options) ToArgs() []string {
 		args = append(args, "-e", opts.Device)
 	}
 	if len(opts.LocalIP) != 0 {
-		ipList := opts.LocalIP[0]
-		for i := 1; i < len(opts.LocalIP); i++ {
-			ipList += "," + opts.LocalIP[i]
-		}
-		args = append(args, "-S", ipList)
+		args = append(args, "-S", opts.LocalIP[0])
 	}
 	// --------------------------------performance---------------------------------
 	if opts.HostTimeout > 0 {
@@ -136,4 +115,9 @@ func (opts *Options) ToArgs() []string {
 		args = append(args, system.CommandLineToArgv(opts.Arguments)...)
 	}
 	return args
+}
+
+// String is used to print command line.
+func (opts *Options) String() string {
+	return strings.Join(opts.ToArgs(), " ")
 }
