@@ -1,0 +1,4 @@
+security_descriptor = "sd"
+message_mode        = true
+input_buffer_size   = 1024
+output_buffer_size  = 2048

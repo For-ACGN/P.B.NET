@@ -10,9 +10,9 @@ import (
 	"github.com/Microsoft/go-winio"
 )
 
-// ErrPipeListenerClosed is returned for pipe operations on listeners that have been closed.
+// ErrListenerClosed is returned for pipe operations on listeners that have been closed.
 // This error should match net.errClosing since docker takes a dependency on its text.
-var ErrPipeListenerClosed = winio.ErrPipeListenerClosed
+var ErrListenerClosed = winio.ErrPipeListenerClosed
 
 // Config contain configuration for the pipe listener.
 type Config struct {
@@ -34,9 +34,9 @@ type Config struct {
 	OutputBufferSize int32 `toml:"output_buffer_size"`
 }
 
-// ListenPipe creates a listener on a Windows named pipe path, e.g. \\.\pipe\test.
+// Listen creates a listener on a Windows named pipe path, e.g. \\.\pipe\test.
 // The pipe must not already exist.
-func ListenPipe(path string, cfg *Config) (net.Listener, error) {
+func Listen(path string, cfg *Config) (net.Listener, error) {
 	if cfg == nil {
 		return winio.ListenPipe(path, nil)
 	}
@@ -46,25 +46,24 @@ func ListenPipe(path string, cfg *Config) (net.Listener, error) {
 		InputBufferSize:    cfg.InputBufferSize,
 		OutputBufferSize:   cfg.OutputBufferSize,
 	}
-
 	return winio.ListenPipe(path, pipeCfg)
 }
 
-// DialPipe connects to a named pipe by path, timing out if the connection
+// Dial connects to a named pipe by path, timing out if the connection
 // takes longer than the specified duration. If timeout is nil, then we use
 // a default timeout of 2 seconds. (We do not use WaitNamedPipe.)
-func DialPipe(path string, timeout *time.Duration) (net.Conn, error) {
+func Dial(path string, timeout *time.Duration) (net.Conn, error) {
 	return winio.DialPipe(path, timeout)
 }
 
-// DialPipeContext attempts to connect to a named pipe by `path`
+// DialContext attempts to connect to a named pipe by `path`
 // until `ctx` cancellation or timeout.
-func DialPipeContext(ctx context.Context, path string) (net.Conn, error) {
+func DialContext(ctx context.Context, path string) (net.Conn, error) {
 	return winio.DialPipeContext(ctx, path)
 }
 
-// DialPipeAccess attempts to connect to a named pipe by `path` with
+// DialAccess attempts to connect to a named pipe by `path` with
 // `access` until `ctx` cancellation or timeout.
-func DialPipeAccess(ctx context.Context, path string, access uint32) (net.Conn, error) {
+func DialAccess(ctx context.Context, path string, access uint32) (net.Conn, error) {
 	return winio.DialPipeAccess(ctx, path, access)
 }
