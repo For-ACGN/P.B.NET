@@ -16,7 +16,7 @@ type Scanner struct {
 }
 
 // NewScanner is used to create a new nmap scanner.
-func NewScanner(jobCh <-chan *Job, opts *Options) (*Scanner, error) {
+func NewScanner(jobCh <-chan *Job, worker int, opts *Options) (*Scanner, error) {
 
 	return nil, nil
 }
