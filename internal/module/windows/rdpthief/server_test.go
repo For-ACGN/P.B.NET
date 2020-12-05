@@ -14,7 +14,7 @@ import (
 	"project/internal/testsuite"
 )
 
-// create "leaks" goroutine first in github.com/Microsoft/go-winio
+// create leaks goroutine first in github.com/Microsoft/go-winio.
 func init() {
 	_, _ = winio.MakeOpenFile(0)
 }

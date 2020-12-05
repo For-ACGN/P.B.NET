@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Microsoft/go-winio"
 	"github.com/pkg/errors"
 
 	"project/internal/convert"
@@ -18,6 +17,7 @@ import (
 	"project/internal/logger"
 	"project/internal/module/process"
 	"project/internal/module/process/psmon"
+	"project/internal/module/windows/pipe"
 	"project/internal/nettool"
 	"project/internal/patch/msgpack"
 	"project/internal/security"
@@ -78,7 +78,7 @@ func NewServer(lg logger.Logger, inj Injector, cb Callback, cfg *Config) (*Serve
 		}
 	}()
 	// create pipe listener
-	listener, err := winio.ListenPipe(`\\.\pipe\`+cfg.PipeName, nil)
+	listener, err := pipe.Listen(`\\.\pipe\`+cfg.PipeName, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to listen pipe")
 	}
