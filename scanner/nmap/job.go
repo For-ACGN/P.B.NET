@@ -2,10 +2,13 @@ package nmap
 
 import (
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 	"golang.org/x/net/idna"
+
+	"project/internal/nettool"
 )
 
 // Job is contains job information and scanner options.
@@ -19,11 +22,11 @@ type Job struct {
 	// to the end of Options.Arguments or use "-iL" argument.
 	Target string `toml:"target" json:"target"`
 
-	// Ports is the nmap argument, it can be single or a range like "80, 81-1000",
+	// Port is the nmap argument, it can be single or a range like "80, 81-1000",
 	// but you can't not use argument like "U:53,111,137,T:21-25,80,139,8080,S:9",
 	// if you want to scan TCP and UDP, set protocol field "all", because improve
 	// performance. if it is empty, nmap will use the top common ports.
-	Ports string `toml:"ports" json:"ports"`
+	Port string `toml:"port" json:"port"`
 
 	// Extra is used to store extra information like unit.
 	Extra string `toml:"extra" json:"extra"`
@@ -38,7 +41,11 @@ func (job *Job) ToArgs() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	target, needResolve, err := job.parseTarget()
+	target, needResolve, err := job.checkTarget()
+	if err != nil {
+		return nil, err
+	}
+	port, err := job.checkPort()
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +54,14 @@ func (job *Job) ToArgs() ([]string, error) {
 	if scanTech != "" {
 		args = append(args, scanTech)
 	}
-
+	// set scan port range
+	if port != "" {
+		args = append(args, "-p", port)
+	}
+	// set options
+	if job.Options != nil {
+		args = append(args, job.Options.ToArgs()...)
+	}
 	// set scan target
 	if target != "" {
 		if !needResolve {
@@ -55,7 +69,7 @@ func (job *Job) ToArgs() ([]string, error) {
 		}
 		args = append(args, target)
 	}
-	return args, err
+	return args, nil
 }
 
 func (job *Job) selectScanTech() (string, error) {
@@ -83,7 +97,7 @@ func (job *Job) selectScanTech() (string, error) {
 }
 
 // return target, need resolve domain and error.
-func (job *Job) parseTarget() (string, bool, error) {
+func (job *Job) checkTarget() (string, bool, error) {
 	if job.Target == "" {
 		return "", false, nil
 	}
@@ -153,6 +167,40 @@ func checkChar(c byte, last byte, nonNumeric *bool, partLen *int, ok *bool) {
 		*partLen = 0
 		*ok = true
 	}
+}
+
+func (job *Job) checkPort() (string, error) {
+	if job.Port == "" {
+		return "", nil
+	}
+	for _, ports := range strings.Split(strings.TrimSpace(job.Port), ",") {
+		p := strings.SplitN(ports, "-", 2)
+		switch len(p) {
+		case 0:
+			return "", errors.Errorf("invalid port range: \"%s\"", ports)
+		case 1: // single port like "80"
+			err := nettool.CheckPortString(p[0])
+			if err != nil {
+				return "", err
+			}
+		case 2: // port range like "81-82"
+			err := nettool.CheckPortString(p[0])
+			if err != nil {
+				return "", err
+			}
+			err = nettool.CheckPortString(p[1])
+			if err != nil {
+				return "", err
+			}
+			begin, _ := strconv.Atoi(p[0])
+			end, _ := strconv.Atoi(p[1])
+			if begin > end {
+				const format = "invalid port begin or end range: %d-%d"
+				return "", errors.Errorf(format, begin, end)
+			}
+		}
+	}
+	return job.Port, nil
 }
 
 // String is used to print command line.
