@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	testPassword = []byte("test password")
+	testPassword = []byte("test long password")
 	testSalt     = []byte("test salt")
 )
 

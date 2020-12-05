@@ -15,11 +15,20 @@ import (
 
 // supported modes
 const (
-	ModeQUIC  = "quic"
+	// for Node listener, internet, Node <-> (Controller, Node, Beacon)
+	ModeQUIC = "quic" // UDP, safe, fast and use default, but need latest go.
+	ModeTLS  = "tls"  // TCP, safe and use default if only TCP or go1.10.
+
+	// for intranet like beacon <-> beacon, module.
+	ModeKCP = "kcp" // UDP, need go1.11
+	ModeAES = "aes" // TCP
+
+	// can't defense MITM, and crypto is a toy.
 	ModeLight = "light"
-	ModeTLS   = "tls"
-	ModeTCP   = "tcp"
-	ModePipe  = "pipe"
+
+	// only for test
+	ModeTCP  = "tcp"
+	ModePipe = "pipe"
 )
 
 var defaultNetwork = map[string]string{
@@ -30,7 +39,7 @@ var defaultNetwork = map[string]string{
 	ModePipe:  "pipe",
 }
 
-// errors about check network
+// errors about check network.
 var (
 	ErrEmptyMode    = fmt.Errorf("empty mode")
 	ErrEmptyNetwork = fmt.Errorf("empty network")
@@ -50,12 +59,12 @@ func CheckModeNetwork(mode string, network string) error {
 		case "udp", "udp4", "udp6":
 			return nil
 		}
-	case ModeLight:
+	case ModeTLS:
 		switch network {
 		case "tcp", "tcp4", "tcp6":
 			return nil
 		}
-	case ModeTLS:
+	case ModeLight:
 		switch network {
 		case "tcp", "tcp4", "tcp6":
 			return nil
@@ -123,10 +132,10 @@ func Listen(mode, network, address string, opts *Options) (*Listener, error) {
 	switch mode {
 	case ModeQUIC:
 		listener, err = quic.Listen(network, address, opts.TLSConfig, opts.Timeout)
-	case ModeLight:
-		listener, err = light.Listen(network, address, opts.Timeout)
 	case ModeTLS:
 		listener, err = xtls.Listen(network, address, opts.TLSConfig)
+	case ModeLight:
+		listener, err = light.Listen(network, address, opts.Timeout)
 	case ModeTCP:
 		listener, err = net.Listen(network, address)
 	}
@@ -158,10 +167,10 @@ func DialContext(ctx context.Context, mode, network, address string, opts *Optio
 	switch mode {
 	case ModeQUIC:
 		conn, err = quic.DialContext(ctx, network, address, opts.TLSConfig, opts.Timeout)
-	case ModeLight:
-		conn, err = light.DialContext(ctx, network, address, opts.Timeout, opts.DialContext)
 	case ModeTLS:
 		conn, err = xtls.DialContext(ctx, network, address, opts.TLSConfig, opts.Timeout, opts.DialContext)
+	case ModeLight:
+		conn, err = light.DialContext(ctx, network, address, opts.Timeout, opts.DialContext)
 	case ModeTCP:
 		conn, err = (&net.Dialer{Timeout: opts.Timeout}).DialContext(ctx, network, address)
 	}
