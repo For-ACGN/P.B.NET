@@ -103,6 +103,8 @@ func (l *Listener) String() string {
 // Options contains options about all modes.
 type Options struct {
 	TLSConfig   *tls.Config         // tls, quic need it
+	Password    []byte              // kcp need it
+	Salt        []byte              // kcp need it
 	Timeout     time.Duration       // handshake timeout
 	DialContext nettool.DialContext // for proxy
 	Now         func() time.Time    // get connect time
