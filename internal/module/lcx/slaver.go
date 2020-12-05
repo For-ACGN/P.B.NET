@@ -27,9 +27,8 @@ type Slaver struct {
 	logger     logger.Logger
 	opts       *Options
 
-	logSrc  string
-	dialer  net.Dialer
-	sleeper *random.Sleeper
+	logSrc string
+	dialer net.Dialer
 
 	started bool
 	online  bool // prevent record a lot of logs about dial failure
@@ -78,7 +77,6 @@ func NewSlaver(tag, lNet, lAddr, dstNet, dstAddr string, lg logger.Logger, opts 
 		logger:     lg,
 		opts:       opts,
 		logSrc:     logSrc,
-		sleeper:    random.NewSleeper(),
 		conns:      make(map[*sConn]struct{}),
 	}, nil
 }
@@ -266,6 +264,8 @@ func (s *Slaver) serve() {
 	defer s.logf(logger.Info, "stop connect listener (%s %s)", s.lNetwork, s.lAddress)
 
 	// dial loop
+	sleeper := random.NewSleeper()
+	defer sleeper.Stop()
 	for {
 		if s.full() {
 			if s.online {
@@ -273,7 +273,7 @@ func (s *Slaver) serve() {
 				s.online = false
 			}
 			select {
-			case <-s.sleeper.Sleep(1, 3):
+			case <-sleeper.Sleep(1, 3):
 			case <-s.ctx.Done():
 				return
 			}
@@ -289,7 +289,7 @@ func (s *Slaver) serve() {
 				s.online = false
 			}
 			select {
-			case <-s.sleeper.Sleep(1, 10):
+			case <-sleeper.Sleep(1, 10):
 			case <-s.ctx.Done():
 				return
 			}
