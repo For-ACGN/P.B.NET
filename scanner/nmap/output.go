@@ -30,6 +30,18 @@ type Output struct {
 	RunStats         RunStats       `xml:"runstats" json:"runstats"`
 }
 
+// ParseOutput takes a byte array of nmap xml data and unmarshal it
+// into an Output structure. All elements are returned as strings,
+// it is up to the caller to check and cast them to the proper type.
+func ParseOutput(data []byte) (*Output, error) {
+	output := new(Output)
+	err := xml.Unmarshal(data, output)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse nmap output")
+	}
+	return output, nil
+}
+
 // Timestamp represents time as a UNIX timestamp in seconds.
 type Timestamp time.Time
 
@@ -124,7 +136,7 @@ type Host struct {
 	Smurfs        []Smurf       `xml:"smurf" json:"smurfs"`
 	Ports         []Port        `xml:"ports>port" json:"ports"`
 	ExtraPorts    []ExtraPorts  `xml:"ports>extraports" json:"extraports"`
-	Os            Os            `xml:"os" json:"os"`
+	OS            OS            `xml:"os" json:"os"`
 	Distance      Distance      `xml:"distance" json:"distance"`
 	Uptime        Uptime        `xml:"uptime" json:"uptime"`
 	TCPSequence   TCPSequence   `xml:"tcpsequence" json:"tcpsequence"`
@@ -237,7 +249,7 @@ type Service struct {
 	Lowver     string `xml:"lowver,attr" json:"lowver"`
 	Highver    string `xml:"hiver,attr" json:"hiver"`
 	Hostname   string `xml:"hostname,attr" json:"hostname"`
-	OsType     string `xml:"ostype,attr" json:"ostype"`
+	OSType     string `xml:"ostype,attr" json:"ostype"`
 	DeviceType string `xml:"devicetype,attr" json:"devicetype"`
 	ServiceFp  string `xml:"servicefp,attr" json:"servicefp"`
 	CPEs       []CPE  `xml:"cpe" json:"cpes"`
@@ -247,40 +259,40 @@ type Service struct {
 // software applications, operating systems, and hardware platforms.
 type CPE string
 
-// Os contains the fingerprinted operating system for a Host.
-type Os struct {
+// OS contains the fingerprinted operating system for a Host.
+type OS struct {
 	PortsUsed      []PortUsed      `xml:"portused" json:"portsused"`
-	OsMatches      []OsMatch       `xml:"osmatch" json:"osmatches"`
-	OsFingerprints []OsFingerprint `xml:"osfingerprint" json:"osfingerprints"`
+	OSMatches      []OSMatch       `xml:"osmatch" json:"osmatches"`
+	OSFingerprints []OSFingerprint `xml:"osfingerprint" json:"osfingerprints"`
 }
 
-// PortUsed is the port used to fingerprint a Os.
+// PortUsed is the port used to fingerprint a OS.
 type PortUsed struct {
 	State  string `xml:"state,attr" json:"state"`
 	Proto  string `xml:"proto,attr" json:"proto"`
 	PortID int    `xml:"portid,attr" json:"portid"`
 }
 
-// OsClass contains vendor information for an Os.
-type OsClass struct {
+// OSClass contains vendor information for an OS.
+type OSClass struct {
 	Vendor   string `xml:"vendor,attr" json:"vendor"`
-	OsGen    string `xml:"osgen,attr"`
+	OSGen    string `xml:"osgen,attr"`
 	Type     string `xml:"type,attr" json:"type"`
 	Accuracy string `xml:"accurancy,attr" json:"accurancy"`
-	OsFamily string `xml:"osfamily,attr" json:"osfamily"`
+	OSFamily string `xml:"osfamily,attr" json:"osfamily"`
 	CPEs     []CPE  `xml:"cpe" json:"cpes"`
 }
 
-// OsMatch contains detailed information regarding a Os fingerprint.
-type OsMatch struct {
+// OSMatch contains detailed information regarding a OS fingerprint.
+type OSMatch struct {
 	Name      string    `xml:"name,attr" json:"name"`
 	Accuracy  string    `xml:"accuracy,attr" json:"accuracy"`
 	Line      string    `xml:"line,attr" json:"line"`
-	OsClasses []OsClass `xml:"osclass" json:"osclasses"`
+	OSClasses []OSClass `xml:"osclass" json:"osclasses"`
 }
 
-// OsFingerprint is the actual fingerprint string.
-type OsFingerprint struct {
+// OSFingerprint is the actual fingerprint string.
+type OSFingerprint struct {
 	Fingerprint string `xml:"fingerprint,attr" json:"fingerprint"`
 }
 
@@ -351,16 +363,4 @@ type HostStats struct {
 	Up    int `xml:"up,attr" json:"up"`
 	Down  int `xml:"down,attr" json:"down"`
 	Total int `xml:"total,attr" json:"total"`
-}
-
-// ParseOutput takes a byte array of nmap xml data and unmarshal it
-// into an Output structure. All elements are returned as strings,
-// it is up to the caller to check and cast them to the proper type.
-func ParseOutput(content []byte) (*Output, error) {
-	output := new(Output)
-	err := xml.Unmarshal(content, output)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse nmap output")
-	}
-	return output, nil
 }
