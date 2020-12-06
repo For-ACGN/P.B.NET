@@ -1,13 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"project/internal/logger"
 	"project/internal/system"
@@ -195,6 +194,8 @@ func verifyPatchFiles() (ok bool) {
 	defer func() {
 		if !config.RestoreGoModBackup() {
 			ok = false
+		}
+		if !ok {
 			return
 		}
 		log.Println(logger.Info, "verify patch files successfully")
@@ -217,19 +218,15 @@ func verifyPatchFiles() (ok bool) {
 	}
 	pathsLen := len(paths)
 	errCh := make(chan error, pathsLen)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for _, path := range paths {
 		go func(path string) {
+			const verifyFilePath = "script/install/patch/verify.go"
 			var err error
 			defer func() { errCh <- err }()
-			output, code, err := exec.Run(path, "run", "script/install/patch/verify.go")
-			if err != nil {
-				return
-			}
+			output, _, err := exec.RunContext(ctx, path, "run", verifyFilePath)
 			output = output[:len(output)-1] // remove the last "\n"
-			if code != 0 {
-				err = errors.New(output)
-				return
-			}
 			log.Println(logger.Info, "go run output:\n"+output)
 		}(path)
 	}

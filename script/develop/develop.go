@@ -190,6 +190,8 @@ func buildSourceCode() bool {
 	}
 	itemsLen := len(items)
 	resultCh := make(chan bool, itemsLen)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for _, item := range items {
 		go func(name, dir, build string) {
 			var err error
@@ -215,7 +217,7 @@ func buildSourceCode() bool {
 			buildPath := filepath.Join(developDir, dir, build)
 			// go build -v -trimpath -ldflags "-s -w" -o lint.exe
 			args := []string{"build", "-v", "-trimpath", "-ldflags", "-s -w", "-o", binName}
-			cmd := exec.Command("go", args...) // #nosec
+			cmd := exec.CommandContext(ctx, "go", args...) // #nosec
 			cmd.Dir = buildPath
 			writer := logger.WrapLogger(logger.Info, "develop", logger.Common)
 			cmd.Stdout = writer
