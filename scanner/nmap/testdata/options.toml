@@ -1,0 +1,18 @@
+# baisc scan
+scan_tech = "sS"
+no_ping   = true
+service   = true
+os        = true
+
+# advanced scan
+device   = "eth0"
+local_ip = ["192.168.1.2"]
+
+# performance
+host_timeout    = "10m"
+max_rtt_timeout = "50ms"
+min_rate = 1000
+max_rate = 10000
+
+# custom
+arguments = "--ttl 128 --badsum"
