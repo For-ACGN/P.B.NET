@@ -29,6 +29,7 @@ type Job struct {
 	Port string `toml:"port" json:"port"`
 
 	// Extra is used to store extra information like unit.
+	// It is not the nmap argument.
 	Extra string `toml:"extra" json:"extra"`
 
 	// Options is used to set the special options for this job.
