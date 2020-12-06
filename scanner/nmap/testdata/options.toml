@@ -1,5 +1,4 @@
 # baisc scan
-scan_tech = "sS"
 no_ping   = true
 service   = true
 os        = true

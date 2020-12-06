@@ -16,6 +16,22 @@ type Job struct {
 	// Protocol is port type, it can be "tcp" and "udp".
 	Protocol string `toml:"protocol" json:"protocol"`
 
+	// ScanTech is use specified scan technique.
+	// TCP Scan default technique is -sS, TCP SYN.
+	// UDP Scan will be set automatically if Job.Protocol is "udp",
+	// don't set it again.
+	// Must not add "-" before it, we added it.
+	//
+	// -sS/sT/sA/sW/sM: TCP SYN/Connect()/ACK/Window/Maimon scans
+	// -sU: UDP Scan
+	// -sN/sF/sX: TCP Null, FIN, and Xmas scans
+	// --scanflags <flags>: Customize TCP scan flags
+	// -sI <zombie host[:probe port]>: Idle scan
+	// -sY/sZ: SCTP INIT/COOKIE-ECHO scans
+	// -sO: IP protocol scan
+	// -b <FTP relay host>: FTP bounce scan
+	ScanTech string `toml:"scan_tech" json:"scan_tech"`
+
 	// Target can be IP address or domain name, support IPv4 & IPv6. It is NOT
 	// support IP range or CIDR, only support single IP or domain name, if you
 	// want to scan a host list[not recommend], not use this field and add host
@@ -53,7 +69,7 @@ func (job *Job) ToArgs() ([]string, error) {
 	args := make([]string, 0, 3+8)
 	// set scan technique
 	if scanTech != "" {
-		args = append(args, scanTech)
+		args = append(args, "-"+scanTech)
 	}
 	// set scan port range
 	if port != "" {
@@ -77,20 +93,19 @@ func (job *Job) selectScanTech() (string, error) {
 	var scanTech string
 	switch strings.ToLower(job.Protocol) {
 	case "tcp":
-		if job.Options != nil && job.Options.ScanTech != "" {
-			st := job.Options.ScanTech
-			if st == "-sU" {
-				return "", errors.New("invalid TCP scan technique: " + st)
+		if job.ScanTech != "" {
+			if job.ScanTech == "sU" {
+				return "", errors.New("invalid TCP scan technique: sU")
 			}
-			// not set field, Options.ToArgs() will set it.
+			scanTech = job.ScanTech
 		} else {
-			scanTech = "-sS"
+			scanTech = "sS"
 		}
 	case "udp":
-		if job.Options != nil && job.Options.ScanTech != "" {
-			return "", errors.New("UDP scan not support technique field")
+		if job.ScanTech != "" && job.ScanTech != "sU" {
+			return "", errors.New("UDP scan not support technique field except sU")
 		}
-		scanTech = "-sU"
+		scanTech = "sU"
 	default:
 		return "", errors.New("invalid protocol: " + job.Protocol)
 	}

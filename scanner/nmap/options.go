@@ -10,22 +10,6 @@ import (
 // Options contains job options and scanner default job options.
 type Options struct {
 	// ---------------------------------basic scan---------------------------------
-	// ScanTech is use specified scan technique.
-	// TCP Scan default technique is -sS, TCP SYN.
-	// UDP Scan will be set automatically if Job.Protocol is "udp",
-	// don't set it again.
-	// Must not add "-" before it, we added it.
-	//
-	// -sS/sT/sA/sW/sM: TCP SYN/Connect()/ACK/Window/Maimon scans
-	// -sU: UDP Scan
-	// -sN/sF/sX: TCP Null, FIN, and Xmas scans
-	// --scanflags <flags>: Customize TCP scan flags
-	// -sI <zombie host[:probe port]>: Idle scan
-	// -sY/sZ: SCTP INIT/COOKIE-ECHO scans
-	// -sO: IP protocol scan
-	// -b <FTP relay host>: FTP bounce scan
-	ScanTech string `toml:"scan_tech" json:"scan_tech"`
-
 	// NoPing is the nmap argument "-Pn", treat all hosts as online.
 	NoPing bool `toml:"no_ping" json:"no_ping"`
 
@@ -79,9 +63,6 @@ type Options struct {
 func (opts *Options) ToArgs() []string {
 	args := make([]string, 0, 8)
 	// ---------------------------------basic scan---------------------------------
-	if opts.ScanTech != "" {
-		args = append(args, "-"+opts.ScanTech)
-	}
 	if opts.NoPing {
 		args = append(args, "-Pn")
 	}

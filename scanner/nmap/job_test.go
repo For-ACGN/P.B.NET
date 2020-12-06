@@ -11,15 +11,16 @@ func TestJob_ToArgs(t *testing.T) {
 	t.Run("tcp", func(t *testing.T) {
 		job := Job{
 			Protocol: "tcp",
+			ScanTech: "sA",
 			Target:   "127.0.0.1",
 			Port:     "80-81",
 			Extra:    "for test",
 			Options: &Options{
-				ScanTech:  "-sA",
+				NoPing:    true,
 				Arguments: "--ttl 128 --badsum",
 			},
 		}
-		const cmd = "-p 80-81 --sA --ttl 128 --badsum -n 127.0.0.1"
+		const cmd = "-sA -p 80-81 -Pn --ttl 128 --badsum -n 127.0.0.1"
 		require.Equal(t, cmd, job.String())
 	})
 

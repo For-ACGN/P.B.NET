@@ -12,7 +12,6 @@ import (
 
 func TestOptions_ToArgs(t *testing.T) {
 	opts := Options{
-		ScanTech:      "sS",
 		NoPing:        true,
 		Service:       true,
 		OS:            true,
@@ -24,7 +23,7 @@ func TestOptions_ToArgs(t *testing.T) {
 		MaxRate:       10000,
 		Arguments:     "--ttl 128 --badsum",
 	}
-	const cmd = "-sS -Pn -sV -O -e eth0 -S 192.168.1.2 " +
+	const cmd = "-Pn -sV -O -e eth0 -S 192.168.1.2 " +
 		"--host-timeout 10m --max-rtt-timeout 50ms " +
 		"--min-rate 1000 --max-rate 10000 --ttl 128 --badsum"
 	require.Equal(t, cmd, opts.String())
@@ -46,7 +45,6 @@ func TestOptions(t *testing.T) {
 		expected interface{}
 		actual   interface{}
 	}{
-		{expected: "sS", actual: opts.ScanTech},
 		{expected: true, actual: opts.NoPing},
 		{expected: true, actual: opts.Service},
 		{expected: true, actual: opts.OS},
