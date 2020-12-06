@@ -49,7 +49,7 @@ type Job struct {
 	Extra string `toml:"extra" json:"extra"`
 
 	// Options is used to set the special options for this job.
-	Options *Options `toml:"options" json:"options"`
+	Options *Options `toml:"options" json:"options" testsuite:"-"`
 }
 
 // ToArgs is used to convert Job config to exec arguments.
@@ -106,8 +106,10 @@ func (job *Job) selectScanTech() (string, error) {
 			return "", errors.New("UDP scan not support technique field except sU")
 		}
 		scanTech = "sU"
+	case "":
+		return "", errors.New("protocol is empty")
 	default:
-		return "", errors.New("invalid protocol: " + job.Protocol)
+		return "", errors.Errorf("invalid protocol: \"%s\"", job.Protocol)
 	}
 	return scanTech, nil
 }

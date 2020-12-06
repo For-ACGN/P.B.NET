@@ -1,10 +1,14 @@
 package nmap
 
 import (
+	"io/ioutil"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"project/internal/patch/toml"
+	"project/internal/testsuite"
 )
 
 func TestJob_ToArgs(t *testing.T) {
@@ -41,11 +45,54 @@ func TestJob_ToArgs(t *testing.T) {
 }
 
 func TestJob_selectScanTech(t *testing.T) {
+	t.Run("not set ScanTech", func(t *testing.T) {
+		job := Job{
+			Protocol: "tcp",
+			Target:   "127.0.0.1",
+			Port:     "80-81",
+		}
+		const cmd = "-sS -p 80-81 -n 127.0.0.1"
+		require.Equal(t, cmd, job.String())
+	})
 
+	t.Run("invalid TCP scan technique", func(t *testing.T) {
+		job := Job{
+			Protocol: "tcp",
+			ScanTech: "sU",
+		}
+		args, err := job.ToArgs()
+		require.EqualError(t, err, "invalid TCP scan technique: sU")
+		require.Nil(t, args)
+	})
+
+	t.Run("invalid UDP scan technique", func(t *testing.T) {
+		job := Job{
+			Protocol: "udp",
+			ScanTech: "sS",
+		}
+		args, err := job.ToArgs()
+		require.EqualError(t, err, "UDP scan not support technique field except sU")
+		require.Nil(t, args)
+	})
+
+	t.Run("empty protocol", func(t *testing.T) {
+		job := Job{}
+		args, err := job.ToArgs()
+		require.EqualError(t, err, "protocol is empty")
+		require.Nil(t, args)
+	})
+
+	t.Run("invalid protocol", func(t *testing.T) {
+		job := Job{Protocol: "foo"}
+		args, err := job.ToArgs()
+		require.EqualError(t, err, "invalid protocol: \"foo\"")
+		require.Nil(t, args)
+	})
 }
 
 func TestJob_String(t *testing.T) {
-
+	job := Job{Protocol: "foo"}
+	require.Equal(t, "invalid protocol: \"foo\"", job.String())
 }
 
 func TestIsDomainName(t *testing.T) {
@@ -74,5 +121,28 @@ func TestIsDomainName(t *testing.T) {
 }
 
 func TestJob(t *testing.T) {
+	data, err := ioutil.ReadFile("testdata/job.toml")
+	require.NoError(t, err)
 
+	// check unnecessary field
+	job := Job{}
+	err = toml.Unmarshal(data, &job)
+	require.NoError(t, err)
+
+	// check zero value
+	testsuite.ContainZeroValue(t, job)
+
+	for _, testdata := range [...]*struct {
+		expected interface{}
+		actual   interface{}
+	}{
+		{expected: "tcp", actual: job.Protocol},
+		{expected: "sS", actual: job.ScanTech},
+		{expected: "127.0.0.1", actual: job.Target},
+		{expected: "80-81", actual: job.Port},
+		{expected: "for test", actual: job.Extra},
+		{expected: true, actual: job.Options.NoPing},
+	} {
+		require.Equal(t, testdata.expected, testdata.actual)
+	}
 }
