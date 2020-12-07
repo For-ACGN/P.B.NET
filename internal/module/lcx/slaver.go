@@ -253,7 +253,6 @@ func (s *Slaver) log(lv logger.Level, log ...interface{}) {
 
 func (s *Slaver) serve() {
 	defer s.wg.Done()
-
 	defer func() {
 		if r := recover(); r != nil {
 			s.log(logger.Fatal, xpanic.Print(r, "Slaver.serve"))

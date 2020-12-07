@@ -284,7 +284,6 @@ func (l *Listener) log(lv logger.Level, log ...interface{}) {
 
 func (l *Listener) serve(iListener, lListener net.Listener) {
 	defer l.wg.Done()
-
 	defer func() {
 		if r := recover(); r != nil {
 			l.log(logger.Fatal, xpanic.Print(r, "Listener.serve"))
@@ -294,11 +293,9 @@ func (l *Listener) serve(iListener, lListener net.Listener) {
 	addr := iListener.Addr()
 	iNetwork := addr.Network()
 	iAddress := addr.String()
-
 	addr = lListener.Addr()
 	lNetwork := addr.Network()
 	lAddress := addr.String()
-
 	defer func() {
 		err := iListener.Close()
 		if err != nil && !nettool.IsNetClosingError(err) {
@@ -311,7 +308,6 @@ func (l *Listener) serve(iListener, lListener net.Listener) {
 			l.logf(logger.Error, format, lNetwork, lAddress, err)
 		}
 	}()
-
 	const format = "started income and local listener (%s %s), (%s %s)"
 	l.logf(logger.Info, format, iNetwork, iAddress, lNetwork, lAddress)
 	defer func() {
@@ -417,7 +413,6 @@ func (c *lConn) Serve() {
 
 func (c *lConn) serve() {
 	defer c.ctx.wg.Done()
-
 	const title = "lConn.serve"
 	defer func() {
 		if r := recover(); r != nil {

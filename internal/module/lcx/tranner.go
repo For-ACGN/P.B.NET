@@ -266,7 +266,6 @@ func (t *Tranner) log(lv logger.Level, log ...interface{}) {
 
 func (t *Tranner) serve(listener net.Listener) {
 	defer t.wg.Done()
-
 	defer func() {
 		if r := recover(); r != nil {
 			t.log(logger.Fatal, xpanic.Print(r, "Tranner.serve"))
@@ -275,7 +274,6 @@ func (t *Tranner) serve(listener net.Listener) {
 
 	address := listener.Addr()
 	network := address.Network()
-
 	defer func() {
 		err := listener.Close()
 		if err != nil && !nettool.IsNetClosingError(err) {
@@ -283,7 +281,6 @@ func (t *Tranner) serve(listener net.Listener) {
 			t.logf(logger.Error, format, network, address, err)
 		}
 	}()
-
 	t.logf(logger.Info, "started listener (%s %s)", network, address)
 	defer t.logf(logger.Info, "listener closed (%s %s)", network, address)
 
@@ -356,7 +353,6 @@ func (c *tConn) Serve() {
 
 func (c *tConn) serve() {
 	defer c.ctx.wg.Done()
-
 	const title = "tConn.serve"
 	defer func() {
 		if r := recover(); r != nil {
