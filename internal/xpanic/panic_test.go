@@ -92,6 +92,17 @@ func TestError(t *testing.T) {
 	testPanic()
 }
 
+func TestErrorf(t *testing.T) {
+	defer func() {
+		r := recover()
+		fmt.Println("-----begin-----")
+		fmt.Println(Errorf(r, "TestError title %s", "errorf"))
+		fmt.Println("-----end-----")
+	}()
+
+	testPanic()
+}
+
 func TestLog(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -100,6 +111,23 @@ func TestLog(t *testing.T) {
 		defer func() {
 			if r := recover(); r != nil {
 				buf := Log(r, "testLog")
+				require.NotNil(t, buf)
+			}
+		}()
+
+		testPanic()
+	}()
+	wg.Wait()
+}
+
+func TestLogf(t *testing.T) {
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				buf := Logf(r, "testLog %s", "logf")
 				require.NotNil(t, buf)
 			}
 		}()

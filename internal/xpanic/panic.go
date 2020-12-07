@@ -85,15 +85,33 @@ func Print(panic interface{}, title string) *bytes.Buffer {
 	return PrintPanic(panic, title, 3)
 }
 
+// Printf is used to printf panic and stack to a *bytes.Buffer.
+func Printf(panic interface{}, format string, args ...interface{}) *bytes.Buffer {
+	return PrintPanic(panic, fmt.Sprintf(format, args...), 3)
+}
+
 // Error is used to print panic and stack to a *bytes.Buffer buf and return an error.
 func Error(panic interface{}, title string) error {
 	return errors.New(Print(panic, title).String())
 }
 
+// Errorf is used to printf panic and stack to a *bytes.Buffer buf and return an error.
+func Errorf(panic interface{}, format string, args ...interface{}) error {
+	return errors.New(Printf(panic, format, args...).String())
+}
+
 // Log is used to call log.Println to print panic and stack.
-// It used to log in some package without logger.Logger.
+// It is used to log in some package without logger.Logger.
 func Log(panic interface{}, title string) *bytes.Buffer {
-	buf := PrintPanic(panic, title, 3)
+	buf := Print(panic, title)
+	log.Println(buf)
+	return buf
+}
+
+// Logf is used to call log.Println to printf panic and stack.
+// It is used to log in some package without logger.Logger.
+func Logf(panic interface{}, format string, args ...interface{}) *bytes.Buffer {
+	buf := Printf(panic, format, args...)
 	log.Println(buf)
 	return buf
 }
