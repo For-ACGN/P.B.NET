@@ -3,8 +3,12 @@ package nmap
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
+
+	"project/internal/logger"
+	"project/internal/task/pauser"
 )
 
 // Result contain scan output and job extra information.
@@ -27,19 +31,25 @@ type Result struct {
 // send job to worker, worker will call nmap to scan target and save
 // scan result, after scan finish, worker will parse output file.
 type Scanner struct {
-	jobCh   <-chan *Job // receive scan jobs
-	workers int         // worker number
-	opts    *Options    // default job options
+	jobCh     <-chan *Job // receive scan jobs
+	opts      *Options    // default job options
+	workerNum int         // worker number
+	logger    logger.Logger
 
-	// Result is a stream, it will never be closed.
-	Result chan *Result
+	// store workers status.
+	workerStatus    []*WorkerStatus
+	workerStatusRWM sync.RWMutex
 
 	// for load balance if scanner default options
 	// use local IP, worker will select one from it
 	localIPs   map[string]bool
 	localIPsMu sync.Mutex
 
+	// Result is a stream, it will never be closed.
+	Result chan *Result
+
 	// for control operations
+	pause   *pauser.Pauser
 	started bool
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -48,19 +58,28 @@ type Scanner struct {
 }
 
 // NewScanner is used to create a new nmap scanner.
-func NewScanner(jobCh <-chan *Job, worker int, opts *Options) *Scanner {
+func NewScanner(jobCh <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scanner {
 	scanner := Scanner{
-		jobCh:   jobCh,
-		workers: worker,
-		opts:    opts,
-		Result:  make(chan *Result, 1024),
+		jobCh:        jobCh,
+		opts:         opts,
+		workerNum:    worker,
+		logger:       logger,
+		workerStatus: make([]*WorkerStatus, worker),
+		Result:       make(chan *Result, 64*worker),
+		pause:        pauser.New(),
 	}
-	if opts != nil && len(opts.LocalIP) > 0 {
-		l := len(opts.LocalIP)
-		scanner.localIPs = make(map[string]bool, l)
-		for i := 0; i < l; i++ {
-			scanner.localIPs[opts.LocalIP[i]] = false
+	for i := 0; i < worker; i++ {
+		scanner.workerStatus[i] = &WorkerStatus{
+			Idle: time.Now().Unix(),
 		}
+	}
+	if opts == nil || len(opts.LocalIP) == 0 {
+		return &scanner
+	}
+	l := len(opts.LocalIP)
+	scanner.localIPs = make(map[string]bool, l)
+	for i := 0; i < l; i++ {
+		scanner.localIPs[opts.LocalIP[i]] = false
 	}
 	return &scanner
 }
@@ -74,10 +93,13 @@ func (s *Scanner) Start() error {
 
 func (s *Scanner) start() error {
 	if s.started {
-		return errors.New("scanner is started")
+		return errors.New("nmap scanner is started")
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-
+	for i := 0; i < s.workerNum; i++ {
+		s.wg.Add(1)
+		go s.worker(i)
+	}
 	s.started = true
 	return nil
 }
@@ -95,10 +117,11 @@ func (s *Scanner) stop() {
 		return
 	}
 	s.cancel()
+	// prevent panic before here
 	s.started = false
 }
 
-// Restart is used to restart slaver.
+// Restart is used to restart nmap scanner.
 func (s *Scanner) Restart() error {
 	s.rwm.Lock()
 	defer s.rwm.Unlock()
@@ -107,17 +130,28 @@ func (s *Scanner) Restart() error {
 	return s.start()
 }
 
-// IsStarted is used to check slaver is started.
+// IsStarted is used to check nmap scanner is started.
 func (s *Scanner) IsStarted() bool {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
 	return s.started
 }
 
+// Pause is used to pause nmap scanner, it will not pause
+// created nmap process, the next job will block.
 func (s *Scanner) Pause() {
-
+	s.pause.Pause()
 }
 
+// Continue is used to continue nmap scanner.
 func (s *Scanner) Continue() {
+	s.pause.Continue()
+}
 
+func (s *Scanner) logf(lv logger.Level, format string, log ...interface{}) {
+	s.logger.Printf(lv, "nmap scanner", format, log...)
+}
+
+func (s *Scanner) log(lv logger.Level, log ...interface{}) {
+	s.logger.Println(lv, "nmap scanner", log...)
 }
