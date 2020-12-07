@@ -89,8 +89,29 @@ func main() {
 	fmt.Println(os.MkdirTemp("", ""))
 
 	// reflect
-	fmt.Println(reflect.Value{})
+	fmt.Println(reflect.ValueOf("").IsZero()) // IsZero
 
+	m := make(map[string]string) // MapIter
+	m["test"] = "value"
+	mapIter := reflect.ValueOf(m).MapRange()
+	var ok bool
+	for mapIter.Next() {
+		if mapIter.Key().Interface().(string) != "test" {
+			fmt.Println("invalid map key")
+			os.Exit(1)
+		}
+		if mapIter.Value().Interface().(string) != "value" {
+			fmt.Println("invalid map value")
+			os.Exit(1)
+		}
+		ok = true
+	}
+	if !ok {
+		fmt.Println("invalid map iter")
+		os.Exit(1)
+	}
+
+	// runtime
 	runtime.GC()
 
 	// strings
@@ -98,6 +119,7 @@ func main() {
 	strings.ReplaceAll("", "", "")
 	strings.ToValidUTF8("", "")
 
+	// time
 	time.Duration(111).Microseconds()
 	time.Duration(111).Milliseconds()
 
