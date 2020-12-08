@@ -105,25 +105,25 @@ func TestRunMultiTimes(t *testing.T) {
 	defer gm.Compare()
 
 	test := 0
-	m := sync.Mutex{}
+	mu := sync.Mutex{}
 
 	f1 := func() {
-		m.Lock()
-		defer m.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
 		test++
 		fmt.Println("f1:", test)
 	}
 	f2 := func() {
-		m.Lock()
-		defer m.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
 		test += 2
 		fmt.Println("f2:", test)
 	}
 	f3 := func() {
-		m.Lock()
-		defer m.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
 		test += 3
 		fmt.Println("f3:", test)
@@ -153,29 +153,29 @@ func TestRunParallel(t *testing.T) {
 	defer gm.Compare()
 
 	test := 0
-	m := sync.Mutex{}
+	mu := sync.Mutex{}
 
 	init := func() {
 		test = 0
 		fmt.Println("init")
 	}
 	f1 := func() {
-		m.Lock()
-		defer m.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
 		test++
 		fmt.Println("f1:", test)
 	}
 	f2 := func() {
-		m.Lock()
-		defer m.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
 		test += 2
 		fmt.Println("f2:", test)
 	}
 	f3 := func() {
-		m.Lock()
-		defer m.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
 		test += 3
 		fmt.Println("f3:", test)
