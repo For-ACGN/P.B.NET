@@ -14,32 +14,34 @@ import (
 func TestJob_ToArgs(t *testing.T) {
 	t.Run("tcp", func(t *testing.T) {
 		job := Job{
-			Protocol: "tcp",
-			ScanTech: "sA",
-			Target:   "127.0.0.1",
-			Port:     "80-81",
-			Extra:    "for test",
+			Protocol:   "tcp",
+			ScanTech:   "sA",
+			Target:     "127.0.0.1",
+			Port:       "80-81",
+			Extra:      "for test",
+			outputPath: "output/1.xml",
 			Options: &Options{
 				NoPing:    true,
 				Arguments: "--ttl 128 --badsum",
 			},
 		}
-		const cmd = "-sA -p 80-81 -Pn --ttl 128 --badsum -n 127.0.0.1"
+		const cmd = "-sA -p 80-81 -Pn --ttl 128 --badsum -oX output/1.xml -n 127.0.0.1"
 		require.Equal(t, cmd, job.String())
 	})
 
 	t.Run("udp", func(t *testing.T) {
 		job := Job{
-			Protocol: "udp",
-			Target:   "127.0.0.1",
-			Port:     "80-81",
-			Extra:    "for test",
+			Protocol:   "udp",
+			Target:     "127.0.0.1",
+			Port:       "80-81",
+			Extra:      "for test",
+			outputPath: "output/1.xml",
 			Options: &Options{
 				NoPing:    true,
 				Arguments: "--ttl 128 --badsum",
 			},
 		}
-		const cmd = "-sU -p 80-81 -Pn --ttl 128 --badsum -n 127.0.0.1"
+		const cmd = "-sU -p 80-81 -Pn --ttl 128 --badsum -oX output/1.xml -n 127.0.0.1"
 		require.Equal(t, cmd, job.String())
 	})
 }
@@ -47,11 +49,12 @@ func TestJob_ToArgs(t *testing.T) {
 func TestJob_selectScanTech(t *testing.T) {
 	t.Run("not set ScanTech", func(t *testing.T) {
 		job := Job{
-			Protocol: "tcp",
-			Target:   "127.0.0.1",
-			Port:     "80-81",
+			Protocol:   "tcp",
+			Target:     "127.0.0.1",
+			Port:       "80-81",
+			outputPath: "output/1.xml",
 		}
-		const cmd = "-sS -p 80-81 -n 127.0.0.1"
+		const cmd = "-sS -p 80-81 -oX output/1.xml -n 127.0.0.1"
 		require.Equal(t, cmd, job.String())
 	})
 

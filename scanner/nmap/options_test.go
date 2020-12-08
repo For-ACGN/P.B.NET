@@ -55,6 +55,8 @@ func TestOptions(t *testing.T) {
 		{expected: 1000, actual: opts.MinRate},
 		{expected: 10000, actual: opts.MaxRate},
 		{expected: "--ttl 128 --badsum", actual: opts.Arguments},
+		{expected: "nmap", actual: opts.BinPath},
+		{expected: "output", actual: opts.OutputPath},
 	} {
 		require.Equal(t, testdata.expected, testdata.actual)
 	}

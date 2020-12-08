@@ -15,3 +15,7 @@ max_rate = 10000
 
 # custom
 arguments = "--ttl 128 --badsum"
+
+# scanner only
+bin_path    = "nmap"
+output_path = "output"

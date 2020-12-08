@@ -62,6 +62,14 @@ type Options struct {
 
 	// BinPath is the nmap binary file path.
 	BinPath string `toml:"bin_path" json:"bin_path"`
+
+	// OutputPath is the nmap output directory path.
+	OutputPath string `toml:"output_path" json:"output_path"`
+
+	// --------------------------------inner used----------------------------------
+
+	// isScanner is used to specify it is scanner default job option.
+	isScanner bool
 }
 
 // ToArgs is used to convert options to exec arguments.
@@ -107,4 +115,15 @@ func (opts *Options) ToArgs() []string {
 // String is used to print command line.
 func (opts *Options) String() string {
 	return strings.Join(opts.ToArgs(), " ")
+}
+
+// Clone is used to clone options.
+func (opts *Options) Clone() *Options {
+	optsCp := *opts
+	if len(opts.LocalIP) != 0 {
+		localIP := make([]string, len(opts.LocalIP))
+		copy(localIP, opts.LocalIP)
+		optsCp.LocalIP = localIP
+	}
+	return &optsCp
 }

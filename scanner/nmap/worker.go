@@ -63,6 +63,25 @@ func (s *Scanner) worker(id int) {
 	}
 }
 
+// selectLocalIP is used to random select a local IP if scanner
+// default job options use local IP.
+func (s *Scanner) selectLocalIP() string {
+	s.localIPsMu.Lock()
+	defer s.localIPsMu.Unlock()
+	for {
+		for ip, used := range s.localIPs {
+			if !used {
+				s.localIPs[ip] = true
+				return ip
+			}
+		}
+		// reset all ip used flag
+		for ip := range s.localIPs {
+			s.localIPs[ip] = false
+		}
+	}
+}
+
 func (s *Scanner) process(id int, job *Job) {
 	// update status
 	s.updateWorkerStatus(id, &WorkerStatus{
@@ -73,4 +92,5 @@ func (s *Scanner) process(id int, job *Job) {
 			Idle: time.Now().Unix(),
 		})
 	}()
+
 }

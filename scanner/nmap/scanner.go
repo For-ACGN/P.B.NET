@@ -36,9 +36,6 @@ type Scanner struct {
 	logger    logger.Logger // parent logger
 	opts      *Options      // default job options
 
-	// nmap binary file path
-	binPath string
-
 	// store workers status.
 	workerStatus    []*WorkerStatus
 	workerStatusRWM sync.RWMutex
@@ -62,12 +59,16 @@ type Scanner struct {
 
 // NewScanner is used to create a new nmap scanner.
 func NewScanner(job <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scanner {
+	if opts == nil {
+		opts = new(Options)
+	} else {
+		opts = opts.Clone()
+	}
 	scanner := Scanner{
 		jobCh:        job,
 		opts:         opts,
 		workerNum:    worker,
 		logger:       logger,
-		binPath:      "nmap",
 		workerStatus: make([]*WorkerStatus, worker),
 		Result:       make(chan *Result, 64*worker),
 		pause:        pauser.New(),
@@ -78,20 +79,21 @@ func NewScanner(job <-chan *Job, worker int, logger logger.Logger, opts *Options
 			Idle: time.Now().Unix(),
 		}
 	}
-	if opts == nil {
-		return &scanner
+	// set default flag
+	opts.isScanner = true
+	// set scanner options
+	if opts.BinPath == "" {
+		opts.BinPath = "nmap"
 	}
-	// set other options
-	if opts.BinPath != "" {
-		scanner.binPath = opts.BinPath
+	if opts.OutputPath == "" {
+		opts.OutputPath = "output"
 	}
-	if len(opts.LocalIP) == 0 {
-		return &scanner
-	}
-	l := len(opts.LocalIP)
-	scanner.localIPs = make(map[string]bool, l)
-	for i := 0; i < l; i++ {
-		scanner.localIPs[opts.LocalIP[i]] = false
+	if len(opts.LocalIP) != 0 {
+		l := len(opts.LocalIP)
+		scanner.localIPs = make(map[string]bool, l)
+		for i := 0; i < l; i++ {
+			scanner.localIPs[opts.LocalIP[i]] = false
+		}
 	}
 	return &scanner
 }

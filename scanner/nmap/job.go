@@ -50,6 +50,9 @@ type Job struct {
 
 	// Options is used to set the special options for this job.
 	Options *Options `toml:"options" json:"options" testsuite:"-"`
+
+	// scanner will set it in scanner.process()
+	outputPath string
 }
 
 // ToArgs is used to convert Job config to exec arguments.
@@ -79,6 +82,8 @@ func (job *Job) ToArgs() ([]string, error) {
 	if job.Options != nil {
 		args = append(args, job.Options.ToArgs()...)
 	}
+	// set output path
+	args = append(args, "-oX", job.outputPath)
 	// set scan target
 	if target != "" {
 		if !needResolve {
