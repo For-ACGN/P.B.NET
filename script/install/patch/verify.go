@@ -44,6 +44,7 @@ func main() {
 
 	// errors
 	errors.Is(nil, nil)
+	errors.Is(errors.New("aaa"), errors.New("bbb"))
 
 	// io
 	var sw io.StringWriter
@@ -107,7 +108,7 @@ func main() {
 		ok = true
 	}
 	if !ok {
-		fmt.Println("invalid map iter")
+		fmt.Println("invalid reflect.MapIter")
 		os.Exit(1)
 	}
 
@@ -124,6 +125,6 @@ func main() {
 	time.Duration(111).Milliseconds()
 
 	fmt.Println("--------------------------------")
-	fmt.Println("pass!")
+	fmt.Println("verify passed!")
 	fmt.Println("--------------------------------")
 }
