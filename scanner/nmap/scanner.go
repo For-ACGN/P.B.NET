@@ -31,10 +31,13 @@ type Result struct {
 // send job to worker, worker will call nmap to scan target and save
 // scan result, after scan finish, worker will parse output file.
 type Scanner struct {
-	jobCh     <-chan *Job // receive scan jobs
-	opts      *Options    // default job options
-	workerNum int         // worker number
-	logger    logger.Logger
+	jobCh     <-chan *Job   // receive scan jobs
+	workerNum int           // worker number
+	logger    logger.Logger // parent logger
+	opts      *Options      // default job options
+
+	// nmap binary file path
+	binPath string
 
 	// store workers status.
 	workerStatus    []*WorkerStatus
@@ -58,22 +61,31 @@ type Scanner struct {
 }
 
 // NewScanner is used to create a new nmap scanner.
-func NewScanner(jobCh <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scanner {
+func NewScanner(job <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scanner {
 	scanner := Scanner{
-		jobCh:        jobCh,
+		jobCh:        job,
 		opts:         opts,
 		workerNum:    worker,
 		logger:       logger,
+		binPath:      "nmap",
 		workerStatus: make([]*WorkerStatus, worker),
 		Result:       make(chan *Result, 64*worker),
 		pause:        pauser.New(),
 	}
+	// initialize worker status
 	for i := 0; i < worker; i++ {
 		scanner.workerStatus[i] = &WorkerStatus{
 			Idle: time.Now().Unix(),
 		}
 	}
-	if opts == nil || len(opts.LocalIP) == 0 {
+	if opts == nil {
+		return &scanner
+	}
+	// set other options
+	if opts.BinPath != "" {
+		scanner.binPath = opts.BinPath
+	}
+	if len(opts.LocalIP) == 0 {
 		return &scanner
 	}
 	l := len(opts.LocalIP)
@@ -146,12 +158,4 @@ func (s *Scanner) Pause() {
 // Continue is used to continue nmap scanner.
 func (s *Scanner) Continue() {
 	s.pause.Continue()
-}
-
-func (s *Scanner) logf(lv logger.Level, format string, log ...interface{}) {
-	s.logger.Printf(lv, "nmap scanner", format, log...)
-}
-
-func (s *Scanner) log(lv logger.Level, log ...interface{}) {
-	s.logger.Println(lv, "nmap scanner", log...)
 }

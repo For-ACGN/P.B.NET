@@ -57,6 +57,11 @@ type Options struct {
 	// Arguments contains extra arguments of nmap, please not conflict
 	// with above already exists options.
 	Arguments string `toml:"arguments" json:"arguments"`
+
+	// -------------------------------scanner only---------------------------------
+
+	// BinPath is the nmap binary file path.
+	BinPath string `toml:"bin_path" json:"bin_path"`
 }
 
 // ToArgs is used to convert options to exec arguments.
