@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"project/internal/logger"
+	"project/internal/system"
 	"project/internal/xpanic"
 )
 
@@ -40,6 +41,7 @@ func (s *Scanner) log(lv logger.Level, log ...interface{}) {
 }
 
 func (s *Scanner) worker(id int) {
+	s.logf(logger.Debug, "worker %d started", id)
 	defer s.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
@@ -86,6 +88,10 @@ func (s *Scanner) process(id int, job *Job) (result *Result) {
 		Extra:    job.Extra,
 		WorkerID: id,
 	}
+	var err error
+	defer func() {
+		result.Error = err
+	}()
 	// update status
 	s.updateWorkerStatus(id, &WorkerStatus{
 		Active: time.Now().Unix(),
@@ -106,19 +112,25 @@ func (s *Scanner) process(id int, job *Job) (result *Result) {
 	}
 	// set output path
 	outputFile := fmt.Sprintf("%d-%d.xml", id, time.Now().Unix())
-	job.outputPath = filepath.Join(s.opts.OutputPath, outputFile)
+	outputFile = filepath.Join(s.opts.OutputPath, outputFile)
+	// check destination directory can write
+	err = checkOutputDirectory(filepath.Dir(outputFile))
+	if err != nil {
+		err = errors.Errorf("failed to check output directory: %s", err)
+		return
+	}
+	job.outputPath = outputFile
 	// generate nmap arguments
 	args, err := job.ToArgs()
 	if err != nil {
-		result.Error = err
+		err = errors.Errorf("failed to generate nmap arguments: %s", err)
 		return
 	}
 	cmd := exec.CommandContext(s.ctx, s.binPath, args...)
 	// run nmap
 	cmdOutput, err := cmd.CombinedOutput()
 	if err != nil {
-		const format = "failed to run nmap: %s\n%s"
-		result.Error = errors.Errorf(format, err, cmdOutput)
+		err = errors.Errorf("failed to run nmap: %s\n%s", err, cmdOutput)
 		return
 	}
 	// remove nmap output file, wait output
@@ -126,19 +138,19 @@ func (s *Scanner) process(id int, job *Job) (result *Result) {
 	defer func() {
 		err = os.Remove(outputFile)
 		if err != nil {
-			s.logf(logger.Error, "failed to remove nmap output file: %s", err)
+			s.log(logger.Error, "failed to remove nmap output file:", err)
 		}
 		time.Sleep(time.Second)
 	}()
 	// parse result
 	outputData, err := ioutil.ReadFile(outputFile)
 	if err != nil {
-		result.Error = errors.New("failed to read output: " + err.Error())
+		err = errors.Errorf("failed to read output: %s", err)
 		return
 	}
 	output, err := ParseOutput(outputData)
 	if err != nil {
-		result.Error = errors.New("failed to parse nmap output: " + err.Error())
+		err = errors.Errorf("failed to parse nmap output: %s", err)
 		return
 	}
 	result.Output = output
@@ -162,4 +174,15 @@ func (s *Scanner) selectLocalIP() string {
 			s.localIPs[ip] = false
 		}
 	}
+}
+
+func checkOutputDirectory(dir string) error {
+	exist, err := system.IsExist(dir)
+	if err != nil {
+		return err
+	}
+	if exist {
+		return nil
+	}
+	return os.MkdirAll(dir, 0750)
 }

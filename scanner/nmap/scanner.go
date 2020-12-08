@@ -16,9 +16,6 @@ type Result struct {
 	// Output is the scan output.
 	Output *Output `json:"output"`
 
-	// ElapsedTime is the nmap running time.
-	ElapsedTime time.Duration `json:"elapsed_time"`
-
 	// Extra is the job extra information.
 	Extra string `json:"extra"`
 
@@ -28,6 +25,9 @@ type Result struct {
 	// WorkerID is the worker id, if worker appear panic,
 	// we can trace stack to fix problem.
 	WorkerID int `json:"worker_id"`
+
+	// ElapsedTime is the nmap running time.
+	ElapsedTime time.Duration `json:"elapsed_time"`
 }
 
 // Scanner is a nmap scanner wrapper, it will receive scan job and
