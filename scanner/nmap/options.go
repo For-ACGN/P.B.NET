@@ -65,11 +65,6 @@ type Options struct {
 
 	// OutputPath is the nmap output directory path.
 	OutputPath string `toml:"output_path" json:"output_path"`
-
-	// --------------------------------inner used----------------------------------
-
-	// isScanner is used to specify it is scanner default job option.
-	isScanner bool
 }
 
 // ToArgs is used to convert options to exec arguments.

@@ -1,7 +1,14 @@
 package nmap
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"project/internal/logger"
 	"project/internal/xpanic"
@@ -37,11 +44,11 @@ func (s *Scanner) worker(id int) {
 	defer func() {
 		if r := recover(); r != nil {
 			s.log(logger.Fatal, xpanic.Printf(r, "Scanner.worker-%d", id))
+			// restart
+			time.Sleep(time.Second)
+			s.wg.Add(1)
+			go s.worker(id)
 		}
-		// restart
-		time.Sleep(time.Second)
-		s.wg.Add(1)
-		go s.worker(id)
 	}()
 	// wait some times for prevent burst
 	select {
@@ -56,11 +63,86 @@ func (s *Scanner) worker(id int) {
 			if job == nil {
 				return
 			}
-			s.process(id, job)
+			begin := time.Now()
+			result := s.process(id, job)
+			result.ElapsedTime = time.Since(begin)
+			s.sendResult(result)
 		case <-s.ctx.Done():
 			return
 		}
 	}
+}
+
+func (s *Scanner) sendResult(result *Result) {
+	select {
+	case s.Result <- result:
+	case <-s.ctx.Done():
+		return
+	}
+}
+
+func (s *Scanner) process(id int, job *Job) (result *Result) {
+	result = &Result{
+		Extra:    job.Extra,
+		WorkerID: id,
+	}
+	// update status
+	s.updateWorkerStatus(id, &WorkerStatus{
+		Active: time.Now().Unix(),
+	})
+	defer func() {
+		s.updateWorkerStatus(id, &WorkerStatus{
+			Idle: time.Now().Unix(),
+		})
+	}()
+	// set scanner default job options
+	if job.Options == nil {
+		job.Options = s.opts
+		job.isScanner = true
+	}
+	// set random local IP if it is scanner default job options
+	if job.isScanner && s.localIPs != nil {
+		job.Options.LocalIP[0] = s.selectLocalIP()
+	}
+	// set output path
+	outputFile := fmt.Sprintf("%d-%d.xml", id, time.Now().Unix())
+	job.outputPath = filepath.Join(s.opts.OutputPath, outputFile)
+	// generate nmap arguments
+	args, err := job.ToArgs()
+	if err != nil {
+		result.Error = err
+		return
+	}
+	cmd := exec.CommandContext(s.ctx, s.binPath, args...)
+	// run nmap
+	cmdOutput, err := cmd.CombinedOutput()
+	if err != nil {
+		const format = "failed to run nmap: %s\n%s"
+		result.Error = errors.Errorf(format, err, cmdOutput)
+		return
+	}
+	// remove nmap output file, wait output
+	time.Sleep(3 * time.Second)
+	defer func() {
+		err = os.Remove(outputFile)
+		if err != nil {
+			s.logf(logger.Error, "failed to remove nmap output file: %s", err)
+		}
+		time.Sleep(time.Second)
+	}()
+	// parse result
+	outputData, err := ioutil.ReadFile(outputFile)
+	if err != nil {
+		result.Error = errors.New("failed to read output: " + err.Error())
+		return
+	}
+	output, err := ParseOutput(outputData)
+	if err != nil {
+		result.Error = errors.New("failed to parse nmap output: " + err.Error())
+		return
+	}
+	result.Output = output
+	return
 }
 
 // selectLocalIP is used to random select a local IP if scanner
@@ -80,17 +162,4 @@ func (s *Scanner) selectLocalIP() string {
 			s.localIPs[ip] = false
 		}
 	}
-}
-
-func (s *Scanner) process(id int, job *Job) {
-	// update status
-	s.updateWorkerStatus(id, &WorkerStatus{
-		Active: time.Now().Unix(),
-	})
-	defer func() {
-		s.updateWorkerStatus(id, &WorkerStatus{
-			Idle: time.Now().Unix(),
-		})
-	}()
-
 }

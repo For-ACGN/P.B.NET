@@ -14,17 +14,20 @@ import (
 // Result contain scan output and job extra information.
 type Result struct {
 	// Output is the scan output.
-	Output *Output
+	Output *Output `json:"output"`
+
+	// ElapsedTime is the nmap running time.
+	ElapsedTime time.Duration `json:"elapsed_time"`
 
 	// Extra is the job extra information.
-	Extra string
+	Extra string `json:"extra"`
 
 	// Error is the running error.
-	Error error
+	Error error `json:"error"`
 
 	// WorkerID is the worker id, if worker appear panic,
 	// we can trace stack to fix problem.
-	WorkerID int
+	WorkerID int `json:"worker_id"`
 }
 
 // Scanner is a nmap scanner wrapper, it will receive scan job and
@@ -35,6 +38,9 @@ type Scanner struct {
 	workerNum int           // worker number
 	logger    logger.Logger // parent logger
 	opts      *Options      // default job options
+
+	binPath    string // nmap binary file path.
+	outputPath string // nmap output directory path.
 
 	// store workers status.
 	workerStatus    []*WorkerStatus
@@ -57,18 +63,15 @@ type Scanner struct {
 	wg      sync.WaitGroup
 }
 
-// NewScanner is used to create a new nmap scanner.
-func NewScanner(job <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scanner {
-	if opts == nil {
-		opts = new(Options)
-	} else {
-		opts = opts.Clone()
-	}
+// New is used to create a new nmap scanner.
+func New(job <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scanner {
 	scanner := Scanner{
 		jobCh:        job,
-		opts:         opts,
 		workerNum:    worker,
 		logger:       logger,
+		opts:         opts,
+		binPath:      "nmap",
+		outputPath:   "output",
 		workerStatus: make([]*WorkerStatus, worker),
 		Result:       make(chan *Result, 64*worker),
 		pause:        pauser.New(),
@@ -79,14 +82,15 @@ func NewScanner(job <-chan *Job, worker int, logger logger.Logger, opts *Options
 			Idle: time.Now().Unix(),
 		}
 	}
-	// set default flag
-	opts.isScanner = true
 	// set scanner options
-	if opts.BinPath == "" {
-		opts.BinPath = "nmap"
+	if opts == nil {
+		return &scanner
+	}
+	if opts.BinPath != "" {
+		scanner.binPath = opts.BinPath
 	}
 	if opts.OutputPath == "" {
-		opts.OutputPath = "output"
+		scanner.outputPath = opts.OutputPath
 	}
 	if len(opts.LocalIP) != 0 {
 		l := len(opts.LocalIP)

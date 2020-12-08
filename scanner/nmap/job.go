@@ -51,7 +51,12 @@ type Job struct {
 	// Options is used to set the special options for this job.
 	Options *Options `toml:"options" json:"options" testsuite:"-"`
 
-	// scanner will set it in scanner.process()
+	// --------------------------------inner used----------------------------------
+
+	// isScanner is used to specify it is scanner default job option.
+	isScanner bool
+
+	// outputPath is the output path, scanner will set it in scanner.process()
 	outputPath string
 }
 
