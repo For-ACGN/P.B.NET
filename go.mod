@@ -28,6 +28,7 @@ require (
 	github.com/xtaci/kcp-go/v5 v5.6.1
 
 	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
+	github.com/gocolly/colly/v2 v2.1.1-0.20210315141944-34f9af5d9113
 
 	golang.org/x/arch v0.0.0-20210127225635-455c95562d18
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
