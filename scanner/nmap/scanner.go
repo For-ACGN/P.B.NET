@@ -13,11 +13,11 @@ import (
 
 // Result contain scan output and job extra information.
 type Result struct {
+	// Job contain raw job information.
+	Job *Job `json:"job"`
+
 	// Output is the scan output.
 	Output *Output `json:"output"`
-
-	// Extra is the job extra information.
-	Extra string `json:"extra"`
 
 	// Error is the running error.
 	Error error `json:"error"`

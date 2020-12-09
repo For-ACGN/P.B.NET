@@ -49,7 +49,7 @@ func TestScanner(t *testing.T) {
 	select {
 	case result := <-scanner.Result:
 		require.NoError(t, result.Error)
-		require.Equal(t, "test", result.Extra)
+		require.Equal(t, "test", result.Job.Extra)
 		spew.Dump(result.Output)
 		fmt.Println("worker id:", result.WorkerID)
 		fmt.Println("elapsed time:", result.ElapsedTime)

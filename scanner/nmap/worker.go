@@ -33,11 +33,11 @@ func (s *Scanner) updateWorkerStatus(id int, status *WorkerStatus) {
 }
 
 func (s *Scanner) logf(lv logger.Level, format string, log ...interface{}) {
-	s.logger.Printf(lv, "nmap scanner-", format, log...)
+	s.logger.Printf(lv, "nmap scanner", format, log...)
 }
 
 func (s *Scanner) log(lv logger.Level, log ...interface{}) {
-	s.logger.Println(lv, "nmap scanner-", log...)
+	s.logger.Println(lv, "nmap scanner", log...)
 }
 
 func (s *Scanner) worker(id int) {
@@ -85,14 +85,14 @@ func (s *Scanner) sendResult(result *Result) {
 
 func (s *Scanner) process(id int, job *Job) (result *Result) {
 	result = &Result{
-		Extra:    job.Extra,
+		Job:      job,
 		WorkerID: id,
 	}
 	var err error
 	defer func() {
 		result.Error = err
 	}()
-	// update status
+	// update worker status
 	s.updateWorkerStatus(id, &WorkerStatus{
 		Active: time.Now().Unix(),
 	})
