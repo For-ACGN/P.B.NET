@@ -1,0 +1,56 @@
+[
+  {
+    "url": "/install/",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+  {
+    "url": "/about/_notes/dwsync.xml",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+  {
+    "url": "/admin/_Style/_notes/dwsync.xml",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+  {
+    "url": "/apply/_notes/dwsync.xml",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+  {
+    "url": "/config/_notes/dwsync.xml",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+  {
+    "url": "/fckeditor/fckconfig.js",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+  {
+    "url": "/gbook/_notes/dwsync.xml",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+  {
+    "url": "/inc/_notes/dwsync.xml",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+  {
+    "url": "/plug/comment.html",
+    "re": "aspcms",
+    "name": "AspCMS",
+    "md5": ""
+  },
+]
