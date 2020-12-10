@@ -1,9 +1,14 @@
 package webinfo
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"project/internal/system"
 	"project/internal/testsuite"
@@ -28,4 +33,20 @@ func testDownloadWappalyzerData() {
 	defer func() { _ = resp.Body.Close() }()
 	_, err = io.Copy(file, resp.Body)
 	testsuite.TestMainCheckError(err)
+}
+
+func TestLoadWappalyzerTechFile(t *testing.T) {
+	data, err := ioutil.ReadFile(testTechFilePath)
+	require.NoError(t, err)
+	techDef, err := LoadWappalyzerTechFile(data)
+	require.NoError(t, err)
+
+	fmt.Println("categories:", len(techDef.Cats))
+	for _, cat := range techDef.Cats {
+		fmt.Println(cat.Name)
+	}
+	fmt.Println("technologies:", len(techDef.Techs))
+	for name, tech := range techDef.Techs {
+		fmt.Println(name, tech.CatNames, len(tech.CatNames))
+	}
 }
