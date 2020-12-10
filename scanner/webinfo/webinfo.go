@@ -60,10 +60,9 @@ type Config struct {
 // job and send it to worker, worker will use go-colly to crawl target
 // URL, and use wappalyzer to detect target.
 type WebInfo struct {
-	jobCh  <-chan *Job   // receive collect jobs
-	logger logger.Logger // parent logger
-
-	workerNum int // worker number
+	jobCh     <-chan *Job   // receive collect jobs
+	logger    logger.Logger // parent logger
+	workerNum int           // worker number
 
 	// store workers status.
 	workerStatus    []*WorkerStatus
@@ -151,7 +150,8 @@ func (wi *WebInfo) IsStarted() bool {
 	return wi.started
 }
 
-// Pause is used to pause web info.
+// Pause is used to pause web info, it will pause all go-colly running
+// jobs, wappalyzer will not be paused, because it only use CPU.
 func (wi *WebInfo) Pause() {
 	wi.pause.Pause()
 }
