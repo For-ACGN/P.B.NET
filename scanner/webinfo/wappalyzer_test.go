@@ -21,10 +21,9 @@ func testDownloadWappalyzerData() {
 	file, err := os.Create(testTechFilePath)
 	testsuite.TestMainCheckError(err)
 
-	const url = "https://github.com/AliasIO/wappalyzer/blob/master/src/technologies.json"
 	client := http.Client{}
 	defer client.CloseIdleConnections()
-	resp, err := client.Get(url)
+	resp, err := client.Get(WappalyzerURL)
 	testsuite.TestMainCheckError(err)
 	defer func() { _ = resp.Body.Close() }()
 	_, err = io.Copy(file, resp.Body)
