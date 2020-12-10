@@ -26,7 +26,7 @@ type Result struct {
 	// we can trace stack to fix problem.
 	WorkerID int `json:"worker_id"`
 
-	// ElapsedTime is the nmap running time.
+	// ElapsedTime is the job running time.
 	ElapsedTime time.Duration `json:"elapsed_time"`
 }
 
@@ -102,7 +102,7 @@ func New(job <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scan
 	return &scanner
 }
 
-// Start is used to start scanner, it will start to process scan jobs.
+// Start is used to start scanner, it will start to process jobs.
 func (s *Scanner) Start() error {
 	s.rwm.Lock()
 	defer s.rwm.Unlock()

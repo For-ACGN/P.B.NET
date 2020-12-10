@@ -53,8 +53,10 @@ func (s *Scanner) worker(id int) {
 		}
 	}()
 	// wait some times for prevent burst
+	timer := time.NewTimer(time.Duration(id) * 10 * time.Second)
+	defer timer.Stop()
 	select {
-	case <-time.After(time.Duration(id) * 10 * time.Second):
+	case <-timer.C:
 	case <-s.ctx.Done():
 		return
 	}

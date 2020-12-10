@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"project/internal/logger"
 	"project/internal/task/pauser"
 )
@@ -15,18 +17,17 @@ type Job struct {
 	URL string `toml:"url" json:"url"`
 
 	// Extra is used to store extra information like unit.
-	// It is not the nmap argument.
 	Extra string `toml:"extra" json:"extra"`
 }
 
 // Output contain worker detect output.
 type Output struct {
-	URL string
-	OS  []string // operating system
-	CMS []string // content management system
-	WS  []string // web server
-	DB  []string // database
-	IP  []string // IP address
+	Title string   // page title
+	OS    []string // operating system
+	CMS   []string // content management system
+	WS    []string // web server
+	DB    []string // database
+	IP    []string // IP address
 }
 
 // Result contains collected information.
@@ -34,7 +35,7 @@ type Result struct {
 	// Job contain raw job information.
 	Job *Job `json:"job"`
 
-	// Output is the scan output.
+	// Output is the collect output.
 	Output *Output `json:"output"`
 
 	// Error is the running error.
@@ -44,7 +45,7 @@ type Result struct {
 	// we can trace stack to fix problem.
 	WorkerID int `json:"worker_id"`
 
-	// ElapsedTime is the nmap running time.
+	// ElapsedTime is the job running time.
 	ElapsedTime time.Duration `json:"elapsed_time"`
 }
 
@@ -55,11 +56,11 @@ type Config struct {
 	WappalyzerDB []byte
 }
 
-// WebInfo is used to collect web information, it will receive scan
+// WebInfo is used to collect web information, it will receive collect
 // job and send it to worker, worker will use go-colly to crawl target
 // URL, and use wappalyzer to detect target.
 type WebInfo struct {
-	jobCh  <-chan *Job   // receive scan jobs
+	jobCh  <-chan *Job   // receive collect jobs
 	logger logger.Logger // parent logger
 
 	workerNum int // worker number
@@ -82,5 +83,80 @@ type WebInfo struct {
 
 // NewWebInfo is used to create a web info module.
 func NewWebInfo(job <-chan *Job, logger logger.Logger, cfg *Config) (*WebInfo, error) {
-	return nil, nil
+	workerNum := cfg.Worker
+	if workerNum < 1 {
+		workerNum = 4
+	}
+	wi := WebInfo{
+		jobCh:        job,
+		logger:       logger,
+		workerNum:    workerNum,
+		workerStatus: make([]*WorkerStatus, workerNum),
+		Result:       make(chan *Result, 64*workerNum),
+		pause:        pauser.New(),
+	}
+	return &wi, nil
+}
+
+// Start is used to start web info, it will start to process jobs.
+func (wi *WebInfo) Start() error {
+	wi.rwm.Lock()
+	defer wi.rwm.Unlock()
+	return wi.start()
+}
+
+func (wi *WebInfo) start() error {
+	if wi.started {
+		return errors.New("web info is started")
+	}
+	wi.ctx, wi.cancel = context.WithCancel(context.Background())
+	for i := 0; i < wi.workerNum; i++ {
+		wi.wg.Add(1)
+		go wi.worker(i)
+	}
+	wi.started = true
+	return nil
+}
+
+// Stop is used to stop web info, it will kill all processing jobs.
+func (wi *WebInfo) Stop() {
+	wi.rwm.Lock()
+	defer wi.rwm.Unlock()
+	wi.stop()
+	wi.wg.Wait()
+}
+
+func (wi *WebInfo) stop() {
+	if !wi.started {
+		return
+	}
+	wi.cancel()
+	// prevent panic before here
+	wi.started = false
+}
+
+// Restart is used to restart web info.
+func (wi *WebInfo) Restart() error {
+	wi.rwm.Lock()
+	defer wi.rwm.Unlock()
+	wi.stop()
+	wi.wg.Wait()
+	return wi.start()
+}
+
+// IsStarted is used to check web info is started.
+func (wi *WebInfo) IsStarted() bool {
+	wi.rwm.RLock()
+	defer wi.rwm.RUnlock()
+	return wi.started
+}
+
+// Pause is used to pause web info.
+func (wi *WebInfo) Pause() {
+	wi.pause.Pause()
+}
+
+// Continue is used to continue web info.
+func (wi *WebInfo) Continue() {
+	wi.pause.Continue()
 }
