@@ -24,6 +24,7 @@ var Symbols = map[string]map[string]reflect.Value{}
 
 func init() {
 %s}
+
 %s`
 	// TODO generate different go
 	// build.Default.GOROOT = "D:\\Go1.10"
