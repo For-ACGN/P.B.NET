@@ -18,12 +18,16 @@ type comFn = func(context.Context) (reflect.Value, reflect.Value)
 type callFn = func(context.Context, reflect.Value, ...interface{}) (reflect.Value, reflect.Value)
 
 // Anko is a plugin from anko script.
+//
+// Don't cover "external" symbol, otherwise you can't use external functions.
+// Use structure like Mutex in sync package, must use new(sync.Mutex), otherwise
+// will appear data race warning.
 type Anko struct {
 	external interface{}
 	output   io.Writer
 	stmt     anko.Stmt
 
-	// in script
+	// in anko script
 	nameFn    comFn  // func() string
 	descFn    comFn  // func() string
 	startFn   comFn  // func() error
@@ -32,8 +36,8 @@ type Anko struct {
 	statusFn  comFn  // func() string
 	methodsFn comFn  // func() []string
 	callFn    callFn // func(method string, args ...interface{}) error
-	env       *anko.Env
 
+	env     *anko.Env
 	started bool
 	ctx     context.Context
 	cancel  context.CancelFunc
