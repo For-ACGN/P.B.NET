@@ -31,7 +31,7 @@ func nonZero(v interface{}, _ string) error {
 	switch st.Kind() {
 	case reflect.String:
 		valid = utf8.RuneCountInString(st.String()) != 0
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Chan, reflect.Func, reflect.Ptr, reflect.Interface, reflect.UnsafePointer:
 		valid = !st.IsNil()
 	case reflect.Slice, reflect.Map, reflect.Array:
 		valid = st.Len() != 0
@@ -274,11 +274,11 @@ func asFloat(param string) (float64, error) {
 // nonNil validates that the given pointer is not nil
 func nonNil(v interface{}, _ string) error {
 	st := reflect.ValueOf(v)
-	// if we got a non-pointer then we most likely got
-	// the value for a pointer field, either way, its not
-	// nil
+	// if we got a non-pointer then we most likely got the
+	// value for a pointer field, either way, its not nil
 	switch st.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Chan, reflect.Func, reflect.Slice, reflect.Map,
+		reflect.Ptr, reflect.Interface, reflect.UnsafePointer:
 		if st.IsNil() {
 			return ErrZeroValue
 		}
