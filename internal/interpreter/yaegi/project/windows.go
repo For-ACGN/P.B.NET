@@ -14,11 +14,11 @@ import (
 )
 
 func init() {
-	initProjectInternalModuleWindowsWmi()
-	initProjectInternalModuleWindowsPrivilege()
+	init_project_internal_module_windows_wmi()
+	init_project_internal_module_windows_privilege()
 }
 
-func initProjectInternalModuleWindowsWmi() {
+func init_project_internal_module_windows_wmi() {
 	Symbols["project/internal/module/windows/wmi"] = map[string]reflect.Value{
 		// function, constant and variable definitions
 		"BuildWQLStatement": reflect.ValueOf(wmi.BuildWQLStatement),
@@ -48,7 +48,7 @@ func initProjectInternalModuleWindowsWmi() {
 	}
 }
 
-func initProjectInternalModuleWindowsPrivilege() {
+func init_project_internal_module_windows_privilege() {
 	Symbols["project/internal/module/windows/privilege"] = map[string]reflect.Value{
 		// function, constant and variable definitions
 		"EnableDebug":              reflect.ValueOf(privilege.EnableDebug),

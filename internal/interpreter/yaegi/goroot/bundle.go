@@ -12,12 +12,12 @@ import (
 var Symbols = map[string]map[string]reflect.Value{}
 
 func init() {
-	initArchiveZip()
-	initReflect()
-	initStrings()
+	init_archive_zip()
+	init_reflect()
+	init_strings()
 }
 
-func initArchiveZip() {
+func init_archive_zip() {
 	Symbols["archive/zip"] = map[string]reflect.Value{
 		// function, constant and variable definitions
 		"Deflate":              reflect.ValueOf(zip.Deflate),
@@ -43,7 +43,7 @@ func initArchiveZip() {
 	}
 }
 
-func initReflect() {
+func init_reflect() {
 	Symbols["reflect"] = map[string]reflect.Value{
 		// function, constant and variable definitions
 		"Append":          reflect.ValueOf(reflect.Append),
@@ -191,7 +191,7 @@ func (W _reflect_Type) PkgPath() string                               { return W
 func (W _reflect_Type) Size() uintptr                                 { return W.WSize() }
 func (W _reflect_Type) String() string                                { return W.WString() }
 
-func initStrings() {
+func init_strings() {
 	Symbols["strings"] = map[string]reflect.Value{
 		// function, constant and variable definitions
 		"Compare":        reflect.ValueOf(strings.Compare),

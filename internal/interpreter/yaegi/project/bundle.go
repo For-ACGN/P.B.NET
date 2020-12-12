@@ -12,10 +12,10 @@ import (
 var Symbols = map[string]map[string]reflect.Value{}
 
 func init() {
-	initProjectInternalModule()
+	init_project_internal_module()
 }
 
-func initProjectInternalModule() {
+func init_project_internal_module() {
 	Symbols["project/internal/module"] = map[string]reflect.Value{
 		// function, constant and variable definitions
 		"NewManager": reflect.ValueOf(module.NewManager),
