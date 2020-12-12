@@ -128,7 +128,7 @@ func (s *Scanner) process(id int, job *Job) (result *Result) {
 		err = errors.Errorf("failed to generate nmap arguments: %s", err)
 		return
 	}
-	cmd := exec.CommandContext(s.ctx, s.binPath, args...)
+	cmd := exec.CommandContext(s.ctx, s.binPath, args...) // #nosec
 	// run nmap
 	cmdOutput, err := cmd.CombinedOutput()
 	if err != nil {
@@ -145,7 +145,7 @@ func (s *Scanner) process(id int, job *Job) (result *Result) {
 		time.Sleep(time.Second)
 	}()
 	// parse result
-	outputData, err := ioutil.ReadFile(outputFile)
+	outputData, err := ioutil.ReadFile(outputFile) // #nosec
 	if err != nil {
 		err = errors.Errorf("failed to read output: %s", err)
 		return
