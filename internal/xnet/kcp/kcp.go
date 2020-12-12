@@ -29,10 +29,8 @@ func (l *listener) Accept() (net.Conn, error) {
 		return nil, err
 	}
 	conn.SetStreamMode(true)
-
-	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
-
-	io.ReadFull(conn, make([]byte, 1))
+	_ = conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	_, _ = io.ReadFull(conn, make([]byte, 1))
 	return conn, nil
 }
 
