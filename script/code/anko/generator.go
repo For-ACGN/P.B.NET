@@ -12,6 +12,45 @@ import (
 	"strings"
 )
 
+func exportDeclaration(root, path, dir, init string) (string, error) {
+	// package file path
+	packages, err := parseDir(filepath.Join(root, strings.ReplaceAll(dir, "$", "")))
+	if err != nil {
+		return "", err
+	}
+	name := getPackageName(packages)
+	// walk files
+	constants := make(map[string]struct{})
+	variables := make(map[string]struct{})
+	types := make(map[string]struct{})
+	functions := make(map[string]struct{})
+	for _, file := range packages[name].Files {
+		for _, decl := range file.Decls {
+			switch decl := decl.(type) {
+			case *ast.GenDecl:
+				switch decl.Tok {
+				case token.CONST:
+					exportValues(decl, constants)
+				case token.VAR:
+					exportValues(decl, variables)
+				case token.TYPE:
+					exportTypes(decl, types)
+				}
+			case *ast.FuncDecl:
+				exportFunction(decl, functions)
+			}
+		}
+	}
+	if dir[0] == '$' {
+		path = "project/" + path
+	}
+	cs := sortStringMap(constants)
+	vs := sortStringMap(variables)
+	ts := sortStringMap(types)
+	fs := sortStringMap(functions)
+	return generateCode(path, name, init, cs, vs, ts, fs), nil
+}
+
 func isGoFile(info os.FileInfo) bool {
 	if info.IsDir() {
 		return false
@@ -106,45 +145,6 @@ func exportFunction(decl *ast.FuncDecl, m map[string]struct{}) {
 	if decl.Name.IsExported() {
 		m[decl.Name.Name] = struct{}{}
 	}
-}
-
-func exportDeclaration(root, path, dir, init string) (string, error) {
-	// package file path
-	packages, err := parseDir(filepath.Join(root, strings.ReplaceAll(dir, "$", "")))
-	if err != nil {
-		return "", err
-	}
-	name := getPackageName(packages)
-	// walk files
-	constants := make(map[string]struct{})
-	variables := make(map[string]struct{})
-	types := make(map[string]struct{})
-	functions := make(map[string]struct{})
-	for _, file := range packages[name].Files {
-		for _, decl := range file.Decls {
-			switch decl := decl.(type) {
-			case *ast.GenDecl:
-				switch decl.Tok {
-				case token.CONST:
-					exportValues(decl, constants)
-				case token.VAR:
-					exportValues(decl, variables)
-				case token.TYPE:
-					exportTypes(decl, types)
-				}
-			case *ast.FuncDecl:
-				exportFunction(decl, functions)
-			}
-		}
-	}
-	if dir[0] == '$' {
-		path = "project/" + path
-	}
-	cs := sortStringMap(constants)
-	vs := sortStringMap(variables)
-	ts := sortStringMap(types)
-	fs := sortStringMap(functions)
-	return generateCode(path, name, init, cs, vs, ts, fs), nil
 }
 
 func sortStringMap(m map[string]struct{}) []string {
