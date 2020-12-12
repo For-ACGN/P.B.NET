@@ -21,6 +21,6 @@ func generateCode(pkg, init string) (string, error) {
 	idx := strings.Index(code, "func init()")
 	code = code[idx:]
 	// rename init like initString() for search easily
-	code = strings.Replace(code, "init", "init"+init, 1)
+	code = strings.Replace(code, "init", "init_"+init, 1)
 	return code + "\n", nil
 }
