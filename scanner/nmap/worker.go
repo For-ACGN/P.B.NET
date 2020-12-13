@@ -113,10 +113,10 @@ func (s *Scanner) process(id int, job *Job) (result *Result) {
 		job.Options.LocalIP[0] = s.selectLocalIP()
 	}
 	// set output path
-	outputFile := fmt.Sprintf("%d-%d.xml", id, time.Now().Unix())
-	outputFile = filepath.Join(s.opts.OutputPath, outputFile)
+	filePath := fmt.Sprintf("%d-%d.xml", id, time.Now().Unix())
+	outputFile := filepath.Join(s.outputPath, filePath)
 	// check destination directory can write
-	err = checkOutputDirectory(filepath.Dir(outputFile))
+	err = checkOutputDirectory(s.outputPath)
 	if err != nil {
 		err = errors.Errorf("failed to check output directory: %s", err)
 		return

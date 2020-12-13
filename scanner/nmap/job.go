@@ -201,7 +201,7 @@ func (job *Job) checkPort() (string, error) {
 	if job.Port == "" {
 		return "", nil
 	}
-	for _, ports := range strings.Split(strings.TrimSpace(job.Port), ",") {
+	for _, ports := range strings.Split(strings.ReplaceAll(job.Port, " ", ""), ",") {
 		p := strings.SplitN(ports, "-", 2)
 		switch len(p) {
 		case 0:

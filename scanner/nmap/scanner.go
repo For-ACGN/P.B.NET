@@ -89,7 +89,7 @@ func New(job <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scan
 	if opts.BinPath != "" {
 		scanner.binPath = opts.BinPath
 	}
-	if opts.OutputPath == "" {
+	if opts.OutputPath != "" {
 		scanner.outputPath = opts.OutputPath
 	}
 	if len(opts.LocalIP) != 0 {
