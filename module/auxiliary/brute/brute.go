@@ -16,7 +16,14 @@ import (
 	"project/internal/task/pauser"
 )
 
+// Login is the callback to the brute instance, if login successfully
+// it will return true, if appear error, brute will log it.
+type Login func(ctx context.Context, target interface{}, username, password string) (ok bool, err error)
+
 // Config contains brute configuration.
+// If service don't need username or password, brute instance can
+// input a fake but not zero []string for pass Apply check, and
+// in login callback don't use it.
 type Config struct {
 	Username []string `range:"nonzero"`
 	Password []string `range:"nonzero"`
