@@ -39,6 +39,7 @@ func New(network, address string, cfg *ssh.ServerConfig) (*Server, error) {
 	return &srv, nil
 }
 
+// Serve is
 func (srv *Server) Serve() {
 	listener, err := net.Listen(srv.network, srv.address)
 	if err != nil {
@@ -78,6 +79,7 @@ func (srv *Server) handleConn(conn net.Conn) {
 	}
 }
 
+// Close is
 func (srv *Server) Close() {
 	srv.listener.Close()
 }

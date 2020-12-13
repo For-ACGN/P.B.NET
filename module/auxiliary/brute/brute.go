@@ -10,10 +10,10 @@ import (
 	"github.com/pkg/errors"
 
 	"project/external/ranger"
-	"project/internal/xpanic"
 
 	"project/internal/logger"
 	"project/internal/task/pauser"
+	"project/internal/xpanic"
 )
 
 // Login is the callback to the brute instance, if login successfully
