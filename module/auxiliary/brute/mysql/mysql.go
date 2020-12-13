@@ -3,7 +3,6 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
+
+	"project/internal/convert"
 )
 
 // Brute is
@@ -86,8 +87,37 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("Error %d: %s", e.Number, e.Message)
 }
 
-// MySQL is
-type MySQL struct {
+func handleErrorPacket(data []byte) error {
+	if data[0] != iERR {
+		return errors.New("malformed packet")
+	}
+	// 0xff [1 byte], Error Number [16 bit uint]
+	errno := binary.LittleEndian.Uint16(data[1:3])
+	// 1792: ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+	// 1290: ER_OPTION_PREVENTS_STATEMENT (returned by Aurora during fail over)
+	if errno == 1792 || errno == 1290 {
+		// Oops; we are connected to a read-only connection, and won't be able
+		// to issue any write statements. Since RejectReadOnly is configured,
+		// we throw away this connection hoping this one would have write
+		// permission. This is specifically for a possible race condition
+		// during fail over (e.g. on AWS Aurora). See README.md for more.
+		//
+		// We explicitly close the connection before returning
+		// driver.ErrBadConn to ensure that `database/sql` purges this
+		// connection and initiates a new one for next statement next time.
+		return errors.New("bad connection")
+	}
+	pos := 3
+	// SQL State [optional: # + 5bytes string]
+	if data[3] == 0x23 {
+		// sqlstate := string(data[4 : 4+5])
+		pos = 9
+	}
+	// Error Message [string]
+	return &Error{
+		Number:  errno,
+		Message: string(data[pos:]),
+	}
 }
 
 // +---------------+---------------+
@@ -123,16 +153,27 @@ func (mc *mysqlConn) WritePacket(data []byte, num uint8) error {
 	return nil
 }
 
-// read will read data until reach 0x00
-func (mc *mysqlConn) readUntilNull() {
-
+// read will read data until reach 0x00.
+func readUntilNull(reader io.Reader) ([]byte, error) {
+	data := make([]byte, 0, 8)
+	buf := make([]byte, 1)
+	for {
+		n, err := reader.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, buf[:n]...)
+		if n != 0 && buf[0] == 0x00 {
+			return data[:len(data)-1], nil
+		}
+	}
 }
 
 // Greeting is the mysql server greeting, Cap is capabilities.
 type Greeting struct {
 	Protocol      uint8
 	Version       string
-	ThreadID      uint16
+	ThreadID      uint32
 	SaltFirst     []byte
 	ServerCap     uint16
 	ServerLang    uint8
@@ -143,66 +184,58 @@ type Greeting struct {
 	AuthPlugin    string
 }
 
-func parseServerGreeting(data []byte) (*Greeting, error) {
-	if data[0] != iERR {
+func parseServerGreeting(packet []byte) (*Greeting, error) {
+	if len(packet) < 1 {
 		return nil, errors.New("malformed packet")
 	}
-
-	protocol := make([]byte, 1)
-	_, err := io.ReadFull(mc.conn, protocol)
+	if packet[0] == iERR {
+		return nil, handleErrorPacket(packet)
+	}
+	// protocol
+	protocol := packet[0]
+	if protocol < minProtocolVersion {
+		const format = "unsupported protocol version %d. Version %d or higher is required"
+		return nil, fmt.Errorf(format, protocol, minProtocolVersion)
+	}
+	reader := bytes.NewReader(packet[1:])
+	// version
+	version, err := readUntilNull(reader)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read protocol")
+		return nil, errors.Wrap(err, "failed to read version")
+	}
+	threadID := make([]byte, 0, 4)
+	_, err = io.ReadFull(reader, threadID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read thread id")
+	}
+	saltFirst, err := readUntilNull(reader)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read salt about first party")
+	}
+	serverCapabilities := make([]byte, 2)
+	_, err = io.ReadFull(reader, serverCapabilities)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read server capabilities")
 	}
 
-}
-
-func handleErrorPacket(data []byte) error {
-	if data[0] != iERR {
-		return errors.New("malformed packet")
+	greeting := Greeting{
+		Protocol:  protocol,
+		Version:   string(version),
+		ThreadID:  convert.LEBytesToUint32(threadID),
+		SaltFirst: saltFirst,
+		ServerCap: convert.LEBytesToUint16(serverCapabilities),
 	}
-
-	// 0xff [1 byte]
-
-	// Error Number [16 bit uint]
-	errno := binary.LittleEndian.Uint16(data[1:3])
-
-	// 1792: ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
-	// 1290: ER_OPTION_PREVENTS_STATEMENT (returned by Aurora during failover)
-	if (errno == 1792 || errno == 1290) && mc.cfg.RejectReadOnly {
-		// Oops; we are connected to a read-only connection, and won't be able
-		// to issue any write statements. Since RejectReadOnly is configured,
-		// we throw away this connection hoping this one would have write
-		// permission. This is specifically for a possible race condition
-		// during failover (e.g. on AWS Aurora). See README.md for more.
-		//
-		// We explicitly close the connection before returning
-		// driver.ErrBadConn to ensure that `database/sql` purges this
-		// connection and initiates a new one for next statement next time.
-		mc.Close()
-		return driver.ErrBadConn
-	}
-
-	pos := 3
-
-	// SQL State [optional: # + 5bytes string]
-	if data[3] == 0x23 {
-		//sqlstate := string(data[4 : 4+5])
-		pos = 9
-	}
-
-	// Error Message [string]
-	return &MySQLError{
-		Number:  errno,
-		Message: string(data[pos:]),
-	}
+	return &greeting, nil
 }
 
 func connect(address string, username, password string) (bool, error) {
-	// TODO ser proxy
+	// TODO set proxy
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return false, err
 	}
+	defer func() { _ = conn.Close() }()
+
 	mc := mysqlConn{
 		buf:     bytes.NewBuffer(make([]byte, 0, 128)),
 		conn:    conn,
@@ -212,8 +245,12 @@ func connect(address string, username, password string) (bool, error) {
 	if err != nil {
 		return false, errors.WithMessage(err, "failed to read server greeting")
 	}
-	parseServerGreeting(packet)
 
-	fmt.Println(string(packet), num, err)
+	greeting, err := parseServerGreeting(packet)
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Println(greeting.AuthPlugin, num, err)
 	return true, nil
 }
