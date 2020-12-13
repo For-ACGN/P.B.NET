@@ -186,19 +186,19 @@ func uninstallPatchFiles() bool {
 	return false
 }
 
-func verifyPatchFiles() (ok bool) {
+func verifyPatchFiles() bool {
 	log.Println(logger.Info, "verify patch files")
-	if !config.CreateGoModBackup() {
+	// prevent change go.mod file
+	err := os.Setenv("GO111MODULE", "off")
+	if err != nil {
+		log.Println(logger.Error, "failed to disable go module:", err)
 		return false
 	}
 	defer func() {
-		if !config.RestoreGoModBackup() {
-			ok = false
+		err := os.Setenv("GO111MODULE", "on")
+		if err != nil {
+			log.Println(logger.Error, "failed to enable go module:", err)
 		}
-		if !ok {
-			return
-		}
-		log.Println(logger.Info, "verify patch files successfully")
 	}()
 	list := []string{
 		cfg.Common.GoRoot116x,
@@ -237,6 +237,7 @@ func verifyPatchFiles() (ok bool) {
 			return false
 		}
 	}
+	log.Println(logger.Info, "verify patch files successfully")
 	return true
 }
 
