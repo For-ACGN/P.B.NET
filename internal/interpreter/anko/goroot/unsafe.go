@@ -66,3 +66,5 @@ func sizeOf(i interface{}) uintptr {
 func alignOf(i interface{}) uintptr {
 	return uintptr(reflect.ValueOf(i).Type().Align())
 }
+
+// TODO add Offsetof

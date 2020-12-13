@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"project/internal/anko"
+	"project/internal/interpreter/anko"
 	"project/internal/testsuite"
 )
 

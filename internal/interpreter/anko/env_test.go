@@ -11,8 +11,8 @@ import (
 	"project/internal/patch/monkey"
 	"project/internal/testsuite"
 
-	_ "project/internal/anko/goroot"
-	_ "project/internal/anko/thirdparty"
+	_ "project/internal/interpreter/anko/goroot"
+	_ "project/internal/interpreter/anko/thirdparty"
 )
 
 func TestEnv(t *testing.T) {
