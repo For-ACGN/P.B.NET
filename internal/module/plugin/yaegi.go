@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/traefik/yaegi/interp"
 
-	"project/internal/interpreter/yaegi"
 	"project/internal/security"
 )
 
@@ -34,7 +33,7 @@ type Yaegi struct {
 	rwm     sync.RWMutex
 }
 
-// NewYaegi is used to create a custom plugin from anko script.
+// NewYaegi is used to create a custom plugin from yaegi script.
 func NewYaegi(external interface{}, output io.Writer, script string) (*Yaegi, error) {
 	// make external to a package. import "external"
 	pkg := make(interp.Exports)
@@ -58,7 +57,6 @@ func (yae *Yaegi) load() error {
 		Stdout: yae.output,
 		Stderr: yae.output,
 	})
-	ipt.Use(yaegi.Symbols)
 	ipt.Use(yae.external)
 
 	// load plugin

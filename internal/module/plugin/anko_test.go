@@ -8,11 +8,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"project/internal/anko"
+	"project/internal/interpreter/anko"
 	"project/internal/module"
 	"project/internal/testsuite"
 
-	_ "project/internal/anko/goroot"
+	_ "project/internal/interpreter/anko/goroot"
 )
 
 func init() {

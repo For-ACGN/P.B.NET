@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"project/internal/anko"
+	"project/internal/interpreter/anko"
 )
 
 // comFn is common function for Name, Description, Start, Stop, Info, Status and Methods functions.

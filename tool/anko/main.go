@@ -7,11 +7,11 @@ import (
 	"os"
 	"os/signal"
 
-	"project/internal/anko"
+	"project/internal/interpreter/anko"
 
-	_ "project/internal/anko/goroot"
-	_ "project/internal/anko/project"
-	_ "project/internal/anko/thirdparty"
+	_ "project/internal/interpreter/anko/goroot"
+	_ "project/internal/interpreter/anko/project"
+	_ "project/internal/interpreter/anko/thirdparty"
 )
 
 func main() {
