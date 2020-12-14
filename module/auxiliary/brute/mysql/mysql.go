@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"time"
 
@@ -169,7 +170,7 @@ func readUntilNull(reader io.Reader) ([]byte, error) {
 	}
 }
 
-// Greeting is the mysql server greeting, Cap is capabilities.
+// Greeting is the MySQL server greeting, Cap is capabilities.
 type Greeting struct {
 	Protocol      uint8
 	Version       string
@@ -181,13 +182,11 @@ type Greeting struct {
 	ExtServerCap  uint16
 	AuthPluginLen uint8
 	unused        [10]byte
+	SaltSecond    []byte
 	AuthPlugin    string
 }
 
 func parseServerGreeting(packet []byte) (*Greeting, error) {
-	if len(packet) < 1 {
-		return nil, errors.New("malformed packet")
-	}
 	if packet[0] == iERR {
 		return nil, handleErrorPacket(packet)
 	}
@@ -203,29 +202,91 @@ func parseServerGreeting(packet []byte) (*Greeting, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read version")
 	}
-	threadID := make([]byte, 0, 4)
+	// thread id
+	threadID := make([]byte, 4)
 	_, err = io.ReadFull(reader, threadID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read thread id")
 	}
+	// salt first part
 	saltFirst, err := readUntilNull(reader)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read salt about first party")
+		return nil, errors.Wrap(err, "failed to read salt about first part")
 	}
+	// server capabilities
 	serverCapabilities := make([]byte, 2)
 	_, err = io.ReadFull(reader, serverCapabilities)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read server capabilities")
 	}
-
+	// server language
+	serverLanguage := make([]byte, 1)
+	_, err = io.ReadFull(reader, serverLanguage)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read server language")
+	}
+	// server status
+	serverStatus := make([]byte, 2)
+	_, err = io.ReadFull(reader, serverStatus)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read server status")
+	}
+	// extended server capabilities
+	extendedServerCapabilities := make([]byte, 2)
+	_, err = io.ReadFull(reader, extendedServerCapabilities)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read extended server capabilities")
+	}
+	// authentication plugin length
+	authPluginLength := make([]byte, 1)
+	_, err = io.ReadFull(reader, authPluginLength)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read authentication plugin length")
+	}
+	// unused data
+	_, err = io.CopyN(ioutil.Discard, reader, 10)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read unused data")
+	}
+	//  salt second part
+	saltSecond, err := readUntilNull(reader)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read salt about second part")
+	}
+	// authentication plugin
+	authPlugin, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read authentication plugin")
+	}
+	end := bytes.IndexByte(authPlugin, 0x00)
+	if end != -1 {
+		authPlugin = authPlugin[:end]
+	}
 	greeting := Greeting{
-		Protocol:  protocol,
-		Version:   string(version),
-		ThreadID:  convert.LEBytesToUint32(threadID),
-		SaltFirst: saltFirst,
-		ServerCap: convert.LEBytesToUint16(serverCapabilities),
+		Protocol:      protocol,
+		Version:       string(version),
+		ThreadID:      convert.LEBytesToUint32(threadID),
+		SaltFirst:     saltFirst,
+		ServerCap:     convert.LEBytesToUint16(serverCapabilities),
+		ServerLang:    serverLanguage[0],
+		ServerStatus:  convert.LEBytesToUint16(serverStatus),
+		ExtServerCap:  convert.LEBytesToUint16(extendedServerCapabilities),
+		AuthPluginLen: authPluginLength[0],
+		SaltSecond:    saltSecond,
+		AuthPlugin:    string(authPlugin),
 	}
 	return &greeting, nil
+}
+
+// LoginRequest is the MySQL client login request.
+type LoginRequest struct {
+	ClientCap    uint16
+	ExtClientCap uint16
+	MaxPacket    uint32
+	CharSet      uint8
+	Username     string
+	Schema       string
+	AuthPlugin   string
 }
 
 func connect(address string, username, password string) (bool, error) {
@@ -245,10 +306,19 @@ func connect(address string, username, password string) (bool, error) {
 	if err != nil {
 		return false, errors.WithMessage(err, "failed to read server greeting")
 	}
-
+	if len(packet) < 1 {
+		return false, errors.New("malformed packet")
+	}
 	greeting, err := parseServerGreeting(packet)
 	if err != nil {
 		return false, err
+	}
+	authData := make([]byte, len(greeting.SaltFirst)+len(greeting.SaltSecond))
+	copy(authData, greeting.SaltFirst)
+	copy(authData[len(greeting.SaltFirst):], greeting.SaltSecond)
+	plugin := greeting.AuthPlugin
+	if plugin == "" {
+		plugin = defaultAuthPlugin
 	}
 
 	fmt.Println(greeting.AuthPlugin, num, err)
