@@ -34,7 +34,7 @@ func Login(address string, username, password string) bool {
 		User:                    username,
 		Passwd:                  password,
 		Addr:                    address,
-		DBName:                  "mysql",
+		DBName:                  "",
 		Collation:               "utf8mb4_general_ci",
 		AllowCleartextPasswords: true,
 		AllowNativePasswords:    true,
@@ -320,7 +320,6 @@ func connect(address string, username, password string) (bool, error) {
 	if plugin == "" {
 		plugin = defaultAuthPlugin
 	}
-
 	fmt.Println(greeting.AuthPlugin, num, err)
 	return true, nil
 }
