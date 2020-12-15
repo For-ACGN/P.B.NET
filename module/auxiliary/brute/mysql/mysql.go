@@ -5,15 +5,11 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-
-	"project/internal/convert"
 )
 
 // Brute is
@@ -57,7 +53,7 @@ func Login(address string, username, password string) bool {
 const (
 	defaultAuthPlugin  = "mysql_native_password"
 	minProtocolVersion = 10
-	timeFormat         = "2006-01-02 15:04:05.999999"
+	maxPacketSize      = 1<<24 - 1
 )
 
 // MySQL constants documentation:
@@ -66,7 +62,6 @@ const (
 const (
 	iOK           byte = 0x00
 	iAuthMoreData byte = 0x01
-	iLocalInFile  byte = 0xfb
 	iEOF          byte = 0xfe
 	iERR          byte = 0xff
 )
@@ -76,6 +71,59 @@ const (
 	cachingSha2PasswordFastAuthSuccess           = 3
 	cachingSha2PasswordPerformFullAuthentication = 4
 )
+
+func connect(address string, username, password string) (bool, error) {
+	conn, err := net.Dial("tcp", address) // TODO set proxy
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+	mc := mysqlConn{
+		username: username,
+		password: password,
+		timeout:  time.Minute, // TODO set able
+		buf:      bytes.NewBuffer(make([]byte, 0, 128)),
+		conn:     conn,
+	}
+	authData, plugin, err := mc.readGreetingPacket()
+	if err != nil {
+		return false, err
+	}
+	err = mc.writeLoginRequest(authData, plugin)
+	if err != nil {
+		return false, err
+	}
+	err = mc.handleAuthResult(authData, plugin)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// Ok Packet
+// http://dev.mysql.com/doc/internals/en/generic-response-packets.html#packet-OK_Packet
+func handleOkPacket(data []byte) error {
+	var n, m int
+
+	// 0x00 [1 byte]
+
+	// Affected rows [Length Coded Binary]
+	mc.affectedRows, _, n = readLengthEncodedInteger(data[1:])
+
+	// Insert id [Length Coded Binary]
+	mc.insertId, _, m = readLengthEncodedInteger(data[1+n:])
+
+	// server_status [2 bytes]
+	mc.status = readStatus(data[1+n+m : 1+n+m+2])
+	if mc.status&statusMoreResultsExists != 0 {
+		return nil
+	}
+
+	// warning count [2 bytes]
+
+	return nil
+}
 
 // Error is an error type which represents a single MySQL error.
 type Error struct {
@@ -118,251 +166,4 @@ func handleErrorPacket(data []byte) error {
 		Number:  errno,
 		Message: string(data[pos:]),
 	}
-}
-
-// +---------------+---------------+
-// | Packet Length | Packet Number |
-// +---------------+---------------+
-// |  3 bytes(LE)  |    1 byte     |
-// +---------------+---------------+
-
-type mysqlConn struct {
-	buf     *bytes.Buffer
-	conn    net.Conn
-	timeout time.Duration
-}
-
-func (mc *mysqlConn) ReadPacket() ([]byte, uint8, error) {
-	header := make([]byte, 4)
-	_ = mc.conn.SetReadDeadline(time.Now().Add(mc.timeout))
-	_, err := io.ReadFull(mc.conn, header)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to read packet header")
-	}
-	packetLen := int64(uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16)
-	packetNum := header[3]
-	// read packet data
-	mc.buf.Reset()
-	_, err = io.CopyN(mc.buf, mc.conn, packetLen)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to read packet data")
-	}
-	return mc.buf.Bytes(), packetNum, err
-}
-
-func (mc *mysqlConn) WritePacket(packet []byte, num uint8) error {
-	header := convert.LEUint32ToBytes(uint32(len(packet)))
-	header[3] = num
-	_ = mc.conn.SetWriteDeadline(time.Now().Add(mc.timeout))
-	_, err := mc.conn.Write(append(header, packet...))
-	if err != nil {
-		return errors.Wrap(err, "failed to write packet")
-	}
-	return nil
-}
-
-// read will read data until reach 0x00.
-func readUntilNull(reader io.Reader) ([]byte, error) {
-	data := make([]byte, 0, 8)
-	buf := make([]byte, 1)
-	for {
-		n, err := reader.Read(buf)
-		if err != nil {
-			return nil, err
-		}
-		data = append(data, buf[:n]...)
-		if n != 0 && buf[0] == 0x00 {
-			return data[:len(data)-1], nil
-		}
-	}
-}
-
-// Greeting is the MySQL server greeting, Cap is capabilities.
-type Greeting struct {
-	Protocol      uint8
-	Version       string
-	ThreadID      uint32
-	SaltFirst     []byte
-	ServerCap     uint16
-	ServerLang    uint8
-	ServerStatus  uint16
-	ExtServerCap  uint16
-	AuthPluginLen uint8
-	unused        [10]byte
-	SaltSecond    []byte
-	AuthPlugin    string
-}
-
-func parseServerGreeting(packet []byte) (*Greeting, error) {
-	if packet[0] == iERR {
-		return nil, handleErrorPacket(packet)
-	}
-	// protocol
-	protocol := packet[0]
-	if protocol < minProtocolVersion {
-		const format = "unsupported protocol version %d. Version %d or higher is required"
-		return nil, fmt.Errorf(format, protocol, minProtocolVersion)
-	}
-	reader := bytes.NewReader(packet[1:])
-	// version
-	version, err := readUntilNull(reader)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read version")
-	}
-	// thread id
-	threadID := make([]byte, 4)
-	_, err = io.ReadFull(reader, threadID)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read thread id")
-	}
-	// salt first part
-	saltFirst, err := readUntilNull(reader)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read salt about first part")
-	}
-	// server capabilities
-	serverCapabilities := make([]byte, 2)
-	_, err = io.ReadFull(reader, serverCapabilities)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read server capabilities")
-	}
-	// server language
-	serverLanguage := make([]byte, 1)
-	_, err = io.ReadFull(reader, serverLanguage)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read server language")
-	}
-	// server status
-	serverStatus := make([]byte, 2)
-	_, err = io.ReadFull(reader, serverStatus)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read server status")
-	}
-	// extended server capabilities
-	extendedServerCapabilities := make([]byte, 2)
-	_, err = io.ReadFull(reader, extendedServerCapabilities)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read extended server capabilities")
-	}
-	// authentication plugin length
-	authPluginLength := make([]byte, 1)
-	_, err = io.ReadFull(reader, authPluginLength)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read authentication plugin length")
-	}
-	// unused data
-	_, err = io.CopyN(ioutil.Discard, reader, 10)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read unused data")
-	}
-	//  salt second part
-	saltSecond, err := readUntilNull(reader)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read salt about second part")
-	}
-	// authentication plugin
-	authPlugin, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read authentication plugin")
-	}
-	end := bytes.IndexByte(authPlugin, 0x00)
-	if end != -1 {
-		authPlugin = authPlugin[:end]
-	}
-	greeting := Greeting{
-		Protocol:      protocol,
-		Version:       string(version),
-		ThreadID:      convert.LEBytesToUint32(threadID),
-		SaltFirst:     saltFirst,
-		ServerCap:     convert.LEBytesToUint16(serverCapabilities),
-		ServerLang:    serverLanguage[0],
-		ServerStatus:  convert.LEBytesToUint16(serverStatus),
-		ExtServerCap:  convert.LEBytesToUint16(extendedServerCapabilities),
-		AuthPluginLen: authPluginLength[0],
-		SaltSecond:    saltSecond,
-		AuthPlugin:    string(authPlugin),
-	}
-	return &greeting, nil
-}
-
-// LoginRequest is the MySQL client login request.
-type LoginRequest struct {
-	ClientCap    uint16 // 0xA285
-	ExtClientCap uint16 // 0x000A
-	MaxPacket    uint32 // 0
-	Charset      uint8  // 0x2D(45)
-	unused       [23]byte
-	Username     string
-	AuthData     []byte
-	Plugin       string
-}
-
-func (lr *LoginRequest) pack() []byte {
-	req := bytes.NewBuffer(make([]byte, 0, 128))
-	req.Write(convert.LEUint16ToBytes(lr.ClientCap))
-	req.Write(convert.LEUint16ToBytes(lr.ExtClientCap))
-	req.Write(convert.LEUint32ToBytes(lr.MaxPacket))
-	req.WriteByte(lr.Charset)
-	req.Write(lr.unused[:])
-	req.WriteString(lr.Username)
-	req.WriteByte(0x00)
-	req.WriteByte(byte(len(lr.AuthData)))
-	req.Write(lr.AuthData)
-	req.WriteString(lr.Plugin)
-	req.WriteByte(0x00)
-	return req.Bytes()
-}
-
-func connect(address string, username, password string) (bool, error) {
-	// TODO set proxy
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return false, err
-	}
-	defer func() { _ = conn.Close() }()
-
-	mc := mysqlConn{
-		buf:     bytes.NewBuffer(make([]byte, 0, 128)),
-		conn:    conn,
-		timeout: time.Minute, // TODO set able
-	}
-	packet, num, err := mc.ReadPacket()
-	if err != nil {
-		return false, errors.WithMessage(err, "failed to read server greeting")
-	}
-	if len(packet) < 1 {
-		return false, errors.New("malformed packet")
-	}
-	greeting, err := parseServerGreeting(packet)
-	if err != nil {
-		return false, err
-	}
-	authData := make([]byte, len(greeting.SaltFirst)+len(greeting.SaltSecond))
-	copy(authData, greeting.SaltFirst)
-	copy(authData[len(greeting.SaltFirst):], greeting.SaltSecond)
-	plugin := greeting.AuthPlugin
-	if plugin == "" {
-		plugin = defaultAuthPlugin
-	}
-	authResp, err := auth(authData, plugin, password)
-	if err != nil {
-		return false, err
-	}
-	lr := LoginRequest{
-		ClientCap:    0xA285,
-		ExtClientCap: 0x000A,
-		MaxPacket:    0,
-		Charset:      0x2D,
-		Username:     username,
-		AuthData:     authResp,
-		Plugin:       plugin,
-	}
-	num++
-	err = mc.WritePacket(lr.pack(), num)
-	if err != nil {
-		return false, err
-	}
-
-	fmt.Println(plugin, num, err)
-	return true, nil
 }
