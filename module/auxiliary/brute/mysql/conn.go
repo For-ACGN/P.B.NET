@@ -331,64 +331,66 @@ func (mc *mysqlConn) readAuthResult() ([]byte, string, error) {
 }
 
 func (mc *mysqlConn) handleCachingSHA2Password(oldAuthData, authData []byte) error {
-	switch len(authData) {
-	case 0:
-		return nil // auth successful
-	case 1:
-		switch authData[0] {
-		case cachingSha2PasswordFastAuthSuccess:
-			if err = mc.readResultOK(); err == nil {
-				return nil // auth successful
-			}
-		case cachingSha2PasswordPerformFullAuthentication:
-			if mc.cfg.tls != nil || mc.cfg.Net == "unix" {
-				// write cleartext auth packet
-				err = mc.writeAuthSwitchPacket(append([]byte(mc.cfg.Passwd), 0))
-				if err != nil {
-					return err
-				}
-			} else {
-				pubKey := mc.cfg.pubKey
-				if pubKey == nil {
-					// request public key from server
-					data, err := mc.buf.takeSmallBuffer(4 + 1)
-					if err != nil {
-						return err
-					}
-					data[4] = cachingSha2PasswordRequestPublicKey
-					mc.writePacket(data)
-
-					// parse public key
-					if data, err = mc.readPacket(); err != nil {
-						return err
-					}
-
-					block, _ := pem.Decode(data[1:])
-					pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
-					if err != nil {
-						return err
-					}
-					pubKey = pkix.(*rsa.PublicKey)
-				}
-
-				// send encrypted password
-				err = mc.sendEncryptedPassword(oldAuthData, pubKey)
-				if err != nil {
-					return err
-				}
-			}
-			return mc.readResultOK()
-
-		default:
-			return ErrMalformPkt
+	l := len(authData)
+	if l == 0 { // auth successful
+		return nil
+	}
+	if l != 1 {
+		return errors.New("malformed caching sha2 password packet length")
+	}
+	switch authData[0] {
+	case cachingSha2PasswordFastAuthSuccess:
+		return mc.readResultOK()
+	case cachingSha2PasswordPerformFullAuth:
+		// request public key from server
+		err := mc.writePacket([]byte{cachingSha2PasswordRequestPublicKey})
+		if err != nil {
+			return err
 		}
+		// parse public key
+		packet, err := mc.readPacket()
+		if err != nil {
+			return err
+		}
+		block, _ := pem.Decode(packet[1:])
+		if block == nil {
+			return errors.New("receive invalid public key")
+		}
+		pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
+		if err != nil {
+			return err
+		}
+		// send encrypted password
+		err = mc.sendEncryptedPassword(oldAuthData, pkix.(*rsa.PublicKey))
+		if err != nil {
+			return err
+		}
+		return mc.readResultOK()
 	default:
-		return ErrMalformPkt
+		return errors.New("malformed caching sha2 password packet")
 	}
 }
 
 func (mc *mysqlConn) handleSHA256Password(oldAuthData, authData []byte) error {
-
+	switch len(authData) {
+	case 0:
+		return nil // auth successful
+	default:
+		block, _ := pem.Decode(authData)
+		if block == nil {
+			return errors.New("receive invalid public key")
+		}
+		pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+		if err != nil {
+			return err
+		}
+		// send encrypted password
+		err = mc.sendEncryptedPassword(oldAuthData, pub.(*rsa.PublicKey))
+		if err != nil {
+			return err
+		}
+		return mc.readResultOK()
+	}
 }
 
 func (mc *mysqlConn) readResultOK() error {

@@ -67,9 +67,9 @@ const (
 )
 
 const (
-	cachingSha2PasswordRequestPublicKey          = 2
-	cachingSha2PasswordFastAuthSuccess           = 3
-	cachingSha2PasswordPerformFullAuthentication = 4
+	cachingSha2PasswordRequestPublicKey = 2
+	cachingSha2PasswordFastAuthSuccess  = 3
+	cachingSha2PasswordPerformFullAuth  = 4
 )
 
 func connect(address string, username, password string) (bool, error) {

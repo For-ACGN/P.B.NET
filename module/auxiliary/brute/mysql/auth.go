@@ -1,6 +1,8 @@
 package mysql
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 
@@ -36,6 +38,14 @@ func (mc *mysqlConn) auth(authData []byte, plugin string) ([]byte, error) {
 	default:
 		return nil, errors.Errorf("unknown auth plugin: %s", plugin)
 	}
+}
+
+func (mc *mysqlConn) sendEncryptedPassword(seed []byte, pub *rsa.PublicKey) error {
+	enc, err := encryptPassword(mc.password, seed, pub)
+	if err != nil {
+		return err
+	}
+	return mc.writePacket(enc)
 }
 
 // Hash password using MySQL 8+ method (SHA256)
@@ -173,4 +183,15 @@ func scramblePassword(scramble []byte, password string) []byte {
 		scramble[i] ^= stage1[i]
 	}
 	return scramble
+}
+
+func encryptPassword(password string, seed []byte, pub *rsa.PublicKey) ([]byte, error) {
+	plain := make([]byte, len(password)+1)
+	copy(plain, password)
+	for i := range plain {
+		j := i % len(seed)
+		plain[i] ^= seed[j]
+	}
+	hash := sha1.New()
+	return rsa.EncryptOAEP(hash, rand.Reader, pub, plain, nil)
 }
