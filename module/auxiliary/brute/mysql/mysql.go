@@ -57,7 +57,6 @@ func Login(address string, username, password string) bool {
 const (
 	defaultAuthPlugin  = "mysql_native_password"
 	minProtocolVersion = 10
-	maxPacketSize      = 1<<24 - 1
 	timeFormat         = "2006-01-02 15:04:05.999999"
 )
 
@@ -135,7 +134,7 @@ type mysqlConn struct {
 
 func (mc *mysqlConn) ReadPacket() ([]byte, uint8, error) {
 	header := make([]byte, 4)
-	_ = mc.conn.SetDeadline(time.Now().Add(mc.timeout))
+	_ = mc.conn.SetReadDeadline(time.Now().Add(mc.timeout))
 	_, err := io.ReadFull(mc.conn, header)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to read packet header")
@@ -143,6 +142,7 @@ func (mc *mysqlConn) ReadPacket() ([]byte, uint8, error) {
 	packetLen := int64(uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16)
 	packetNum := header[3]
 	// read packet data
+	mc.buf.Reset()
 	_, err = io.CopyN(mc.buf, mc.conn, packetLen)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to read packet data")
@@ -150,7 +150,14 @@ func (mc *mysqlConn) ReadPacket() ([]byte, uint8, error) {
 	return mc.buf.Bytes(), packetNum, err
 }
 
-func (mc *mysqlConn) WritePacket(data []byte, num uint8) error {
+func (mc *mysqlConn) WritePacket(packet []byte, num uint8) error {
+	header := convert.LEUint32ToBytes(uint32(len(packet)))
+	header[3] = num
+	_ = mc.conn.SetWriteDeadline(time.Now().Add(mc.timeout))
+	_, err := mc.conn.Write(append(header, packet...))
+	if err != nil {
+		return errors.Wrap(err, "failed to write packet")
+	}
 	return nil
 }
 
@@ -280,13 +287,30 @@ func parseServerGreeting(packet []byte) (*Greeting, error) {
 
 // LoginRequest is the MySQL client login request.
 type LoginRequest struct {
-	ClientCap    uint16
-	ExtClientCap uint16
-	MaxPacket    uint32
-	CharSet      uint8
+	ClientCap    uint16 // 0xA285
+	ExtClientCap uint16 // 0x000A
+	MaxPacket    uint32 // 0
+	Charset      uint8  // 0x2D(45)
+	unused       [23]byte
 	Username     string
-	Schema       string
-	AuthPlugin   string
+	AuthData     []byte
+	Plugin       string
+}
+
+func (lr *LoginRequest) pack() []byte {
+	req := bytes.NewBuffer(make([]byte, 0, 128))
+	req.Write(convert.LEUint16ToBytes(lr.ClientCap))
+	req.Write(convert.LEUint16ToBytes(lr.ExtClientCap))
+	req.Write(convert.LEUint32ToBytes(lr.MaxPacket))
+	req.WriteByte(lr.Charset)
+	req.Write(lr.unused[:])
+	req.WriteString(lr.Username)
+	req.WriteByte(0x00)
+	req.WriteByte(byte(len(lr.AuthData)))
+	req.Write(lr.AuthData)
+	req.WriteString(lr.Plugin)
+	req.WriteByte(0x00)
+	return req.Bytes()
 }
 
 func connect(address string, username, password string) (bool, error) {
@@ -320,6 +344,25 @@ func connect(address string, username, password string) (bool, error) {
 	if plugin == "" {
 		plugin = defaultAuthPlugin
 	}
-	fmt.Println(greeting.AuthPlugin, num, err)
+	authResp, err := auth(authData, plugin, password)
+	if err != nil {
+		return false, err
+	}
+	lr := LoginRequest{
+		ClientCap:    0xA285,
+		ExtClientCap: 0x000A,
+		MaxPacket:    0,
+		Charset:      0x2D,
+		Username:     username,
+		AuthData:     authResp,
+		Plugin:       plugin,
+	}
+	num++
+	err = mc.WritePacket(lr.pack(), num)
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Println(plugin, num, err)
 	return true, nil
 }

@@ -12,10 +12,9 @@ func auth(authData []byte, plugin, password string) ([]byte, error) {
 	case "caching_sha2_password":
 		authResp := scrambleSHA256Password(authData, password)
 		return authResp, nil
-
 	case "mysql_old_password":
 		// Note: there are edge cases where this should work but doesn't;
-		// this is currently "wontfix":
+		// this is currently "won't fix":
 		// https://github.com/go-sql-driver/mysql/issues/184
 		authResp := append(scrambleOldPassword(authData[:8], password), 0)
 		return authResp, nil
@@ -28,55 +27,43 @@ func auth(authData []byte, plugin, password string) ([]byte, error) {
 		// Native password authentication only need and will need 20-byte challenge.
 		authResp := scramblePassword(authData[:20], password)
 		return authResp, nil
-
-	// case "sha256_password":
-	// if len(mc.cfg.Passwd) == 0 {
-	// 	return []byte{0}, nil
-	// }
-	// if mc.cfg.tls != nil || mc.cfg.Net == "unix" {
-	// 	// write cleartext auth packet
-	// 	return append([]byte(mc.cfg.Passwd), 0), nil
-	// }
-
-	// pubKey := mc.cfg.pubKey
-	// if pubKey == nil {
-	// 	// request public key from server
-	// 	return []byte{1}, nil
-	// }
-
-	// // encrypted password
-	// enc, err := encryptPassword(mc.cfg.Passwd, authData, pubKey)
-	// return enc, err
-
+	case "sha256_password":
+		if len(password) == 0 {
+			return []byte{0}, nil
+		}
+		// request public key from server
+		return []byte{1}, nil
 	default:
 		return nil, errors.Errorf("unknown auth plugin: %s", plugin)
 	}
 }
 
-// Hash password using pre 4.1 (old password) method
-// https://github.com/atcurtis/mariadb/blob/master/mysys/my_rnd.c
-type myRnd struct {
-	seed1, seed2 uint32
-}
-
-const myRndMaxVal = 0x3FFFFFFF
-
-// Pseudo random number generator
-func newMyRnd(seed1, seed2 uint32) *myRnd {
-	return &myRnd{
-		seed1: seed1 % myRndMaxVal,
-		seed2: seed2 % myRndMaxVal,
+// Hash password using MySQL 8+ method (SHA256)
+func scrambleSHA256Password(scramble []byte, password string) []byte {
+	if len(password) == 0 {
+		return nil
 	}
-}
 
-// Tested to be equivalent to MariaDB's floating point variant
-// http://play.golang.org/p/QHvhd4qved
-// http://play.golang.org/p/RG0q4ElWDx
-func (r *myRnd) NextByte() byte {
-	r.seed1 = (r.seed1*3 + r.seed2) % myRndMaxVal
-	r.seed2 = (r.seed1 + r.seed2 + 33) % myRndMaxVal
+	// XOR(SHA256(password), SHA256(SHA256(SHA256(password)), scramble))
 
-	return byte(uint64(r.seed1) * 31 / myRndMaxVal)
+	crypt := sha256.New()
+	crypt.Write([]byte(password))
+	message1 := crypt.Sum(nil)
+
+	crypt.Reset()
+	crypt.Write(message1)
+	message1Hash := crypt.Sum(nil)
+
+	crypt.Reset()
+	crypt.Write(message1Hash)
+	crypt.Write(scramble)
+	message2 := crypt.Sum(nil)
+
+	for i := range message1 {
+		message1[i] ^= message2[i]
+	}
+
+	return message1
 }
 
 // Hash password using insecure pre 4.1 method
@@ -132,6 +119,32 @@ func pwHash(password []byte) (result [2]uint32) {
 	return
 }
 
+// Hash password using pre 4.1 (old password) method
+// https://github.com/atcurtis/mariadb/blob/master/mysys/my_rnd.c
+type myRnd struct {
+	seed1, seed2 uint32
+}
+
+const myRndMaxVal = 0x3FFFFFFF
+
+// Pseudo random number generator
+func newMyRnd(seed1, seed2 uint32) *myRnd {
+	return &myRnd{
+		seed1: seed1 % myRndMaxVal,
+		seed2: seed2 % myRndMaxVal,
+	}
+}
+
+// Tested to be equivalent to MariaDB's floating point variant
+// http://play.golang.org/p/QHvhd4qved
+// http://play.golang.org/p/RG0q4ElWDx
+func (r *myRnd) NextByte() byte {
+	r.seed1 = (r.seed1*3 + r.seed2) % myRndMaxVal
+	r.seed2 = (r.seed1 + r.seed2 + 33) % myRndMaxVal
+
+	return byte(uint64(r.seed1) * 31 / myRndMaxVal)
+}
+
 // Hash password using 4.1+ method (SHA1)
 func scramblePassword(scramble []byte, password string) []byte {
 	if len(password) == 0 {
@@ -160,32 +173,4 @@ func scramblePassword(scramble []byte, password string) []byte {
 		scramble[i] ^= stage1[i]
 	}
 	return scramble
-}
-
-// Hash password using MySQL 8+ method (SHA256)
-func scrambleSHA256Password(scramble []byte, password string) []byte {
-	if len(password) == 0 {
-		return nil
-	}
-
-	// XOR(SHA256(password), SHA256(SHA256(SHA256(password)), scramble))
-
-	crypt := sha256.New()
-	crypt.Write([]byte(password))
-	message1 := crypt.Sum(nil)
-
-	crypt.Reset()
-	crypt.Write(message1)
-	message1Hash := crypt.Sum(nil)
-
-	crypt.Reset()
-	crypt.Write(message1Hash)
-	crypt.Write(scramble)
-	message2 := crypt.Sum(nil)
-
-	for i := range message1 {
-		message1[i] ^= message2[i]
-	}
-
-	return message1
 }
