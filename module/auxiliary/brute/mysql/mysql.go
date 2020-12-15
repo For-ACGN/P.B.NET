@@ -101,30 +101,6 @@ func connect(address string, username, password string) (bool, error) {
 	return true, nil
 }
 
-// Ok Packet
-// http://dev.mysql.com/doc/internals/en/generic-response-packets.html#packet-OK_Packet
-func handleOkPacket(data []byte) error {
-	var n, m int
-
-	// 0x00 [1 byte]
-
-	// Affected rows [Length Coded Binary]
-	mc.affectedRows, _, n = readLengthEncodedInteger(data[1:])
-
-	// Insert id [Length Coded Binary]
-	mc.insertId, _, m = readLengthEncodedInteger(data[1+n:])
-
-	// server_status [2 bytes]
-	mc.status = readStatus(data[1+n+m : 1+n+m+2])
-	if mc.status&statusMoreResultsExists != 0 {
-		return nil
-	}
-
-	// warning count [2 bytes]
-
-	return nil
-}
-
 // Error is an error type which represents a single MySQL error.
 type Error struct {
 	Number  uint16

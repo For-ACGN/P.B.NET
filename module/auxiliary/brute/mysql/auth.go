@@ -7,28 +7,28 @@ import (
 	"github.com/pkg/errors"
 )
 
-func auth(authData []byte, plugin, password string) ([]byte, error) {
+func (mc *mysqlConn) auth(authData []byte, plugin string) ([]byte, error) {
 	switch plugin {
 	case "caching_sha2_password":
-		authResp := scrambleSHA256Password(authData, password)
+		authResp := scrambleSHA256Password(authData, mc.password)
 		return authResp, nil
 	case "mysql_old_password":
 		// Note: there are edge cases where this should work but doesn't;
 		// this is currently "won't fix":
 		// https://github.com/go-sql-driver/mysql/issues/184
-		authResp := append(scrambleOldPassword(authData[:8], password), 0)
+		authResp := append(scrambleOldPassword(authData[:8], mc.password), 0)
 		return authResp, nil
 	case "mysql_clear_password":
 		// http://dev.mysql.com/doc/refman/5.7/en/cleartext-authentication-plugin.html
 		// http://dev.mysql.com/doc/refman/5.7/en/pam-authentication-plugin.html
-		return append([]byte(password), 0), nil
+		return append([]byte(mc.password), 0), nil
 	case "mysql_native_password":
 		// https://dev.mysql.com/doc/internals/en/secure-password-authentication.html
 		// Native password authentication only need and will need 20-byte challenge.
-		authResp := scramblePassword(authData[:20], password)
+		authResp := scramblePassword(authData[:20], mc.password)
 		return authResp, nil
 	case "sha256_password":
-		if len(password) == 0 {
+		if len(mc.password) == 0 {
 			return []byte{0}, nil
 		}
 		// request public key from server

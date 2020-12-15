@@ -2,6 +2,9 @@ package mysql
 
 import (
 	"bytes"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -97,7 +100,7 @@ func parseGreeting(packet []byte) (*Greeting, error) {
 	// protocol
 	protocol := packet[0]
 	if protocol < minProtocolVersion {
-		const format = "unsupported protocol version %d. Version %d or higher is required"
+		const format = "unsupported protocol version %d. version %d or higher is required"
 		return nil, fmt.Errorf(format, protocol, minProtocolVersion)
 	}
 	reader := bytes.NewReader(packet[1:])
@@ -233,7 +236,7 @@ func (lr *LoginRequest) pack() []byte {
 }
 
 func (mc *mysqlConn) writeLoginRequest(authData []byte, plugin string) error {
-	authResp, err := auth(authData, plugin, mc.password)
+	authResp, err := mc.auth(authData, plugin)
 	if err != nil {
 		return err
 	}
@@ -253,6 +256,50 @@ func (mc *mysqlConn) writeLoginRequest(authData []byte, plugin string) error {
 	return nil
 }
 
+func (mc *mysqlConn) handleAuthResult(oldAuthData []byte, plugin string) error {
+	// Read Result Packet
+	authData, newPlugin, err := mc.readAuthResult()
+	if err != nil {
+		return err
+	}
+	if newPlugin != "" {
+		// if CLIENT_PLUGIN_AUTH capability is not supported, no new cipher is
+		// sent and we have to keep using the cipher sent in the init packet.
+		if authData == nil {
+			authData = oldAuthData
+		} else {
+			// copy data from read buffer to owned slice
+			copy(oldAuthData, authData)
+		}
+		plugin = newPlugin
+		authResp, err := mc.auth(authData, plugin)
+		if err != nil {
+			return err
+		}
+		err = mc.writePacket(authResp)
+		if err != nil {
+			return err
+		}
+		// read result packet
+		authData, newPlugin, err = mc.readAuthResult()
+		if err != nil {
+			return err
+		}
+		// do not allow to change the auth plugin more than once
+		if newPlugin != "" {
+			return errors.New("malformed auth result packet")
+		}
+	}
+	switch plugin {
+	case "caching_sha2_password":
+		return mc.handleCachingSHA2Password(oldAuthData, authData)
+	case "sha256_password":
+		return mc.handleSHA256Password(oldAuthData, authData)
+	default:
+		return nil // auth successful
+	}
+}
+
 func (mc *mysqlConn) readAuthResult() ([]byte, string, error) {
 	packet, err := mc.readPacket()
 	if err != nil {
@@ -263,14 +310,94 @@ func (mc *mysqlConn) readAuthResult() ([]byte, string, error) {
 	}
 	switch packet[0] {
 	case iOK:
-		return nil, "", mc.handleOkPacket(data)
+		return nil, "", nil
 	case iAuthMoreData:
+		return packet[1:], "", err
 	case iEOF:
-
+		// https://dev.mysql.com/doc/internals/en/connection-phase-packets.html
+		if len(packet) == 1 {
+			return nil, "mysql_old_password", nil
+		}
+		pluginEndIndex := bytes.IndexByte(packet, 0x00)
+		if pluginEndIndex < 0 {
+			return nil, "", errors.New("malformed auth result packet")
+		}
+		plugin := string(packet[1:pluginEndIndex])
+		authData := packet[pluginEndIndex+1:]
+		return authData, plugin, nil
+	default:
+		return nil, "", handleErrorPacket(packet)
 	}
+}
+
+func (mc *mysqlConn) handleCachingSHA2Password(oldAuthData, authData []byte) error {
+	switch len(authData) {
+	case 0:
+		return nil // auth successful
+	case 1:
+		switch authData[0] {
+		case cachingSha2PasswordFastAuthSuccess:
+			if err = mc.readResultOK(); err == nil {
+				return nil // auth successful
+			}
+		case cachingSha2PasswordPerformFullAuthentication:
+			if mc.cfg.tls != nil || mc.cfg.Net == "unix" {
+				// write cleartext auth packet
+				err = mc.writeAuthSwitchPacket(append([]byte(mc.cfg.Passwd), 0))
+				if err != nil {
+					return err
+				}
+			} else {
+				pubKey := mc.cfg.pubKey
+				if pubKey == nil {
+					// request public key from server
+					data, err := mc.buf.takeSmallBuffer(4 + 1)
+					if err != nil {
+						return err
+					}
+					data[4] = cachingSha2PasswordRequestPublicKey
+					mc.writePacket(data)
+
+					// parse public key
+					if data, err = mc.readPacket(); err != nil {
+						return err
+					}
+
+					block, _ := pem.Decode(data[1:])
+					pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
+					if err != nil {
+						return err
+					}
+					pubKey = pkix.(*rsa.PublicKey)
+				}
+
+				// send encrypted password
+				err = mc.sendEncryptedPassword(oldAuthData, pubKey)
+				if err != nil {
+					return err
+				}
+			}
+			return mc.readResultOK()
+
+		default:
+			return ErrMalformPkt
+		}
+	default:
+		return ErrMalformPkt
+	}
+}
+
+func (mc *mysqlConn) handleSHA256Password(oldAuthData, authData []byte) error {
 
 }
 
-func (mc *mysqlConn) handleAuthResult(authData []byte, plugin string) error {
-
+func (mc *mysqlConn) readResultOK() error {
+	packet, err := mc.readPacket()
+	if err != nil {
+		return err
+	}
+	if packet[0] == iOK {
+		return nil
+	}
+	return handleErrorPacket(packet)
 }
