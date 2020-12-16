@@ -3,6 +3,8 @@ package pkg
 import (
 	"fmt"
 	"log"
+	_ "log"
+	_ "strings"
 )
 
 func f2() {
