@@ -13,3 +13,9 @@ func TestCompile(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Println(code)
 }
+
+func TestCompile2(t *testing.T) {
+	code, err := Compile(&build.Default, "../../../../module/auxiliary/brute/mysql")
+	require.NoError(t, err)
+	fmt.Println(code)
+}

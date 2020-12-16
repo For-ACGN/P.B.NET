@@ -4,19 +4,23 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
+	"go/format"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 )
 
-// Load is used to import go source code in directory to a package and
-// generate it to a single go file for yaegi.
+// Compile is used to import go source code in directory to a package
+// and generate it to a single go file for yaegi.
 func Compile(ctx *build.Context, dir string) (string, error) {
 	pkg, err := ctx.ImportDir(dir, 0)
 	if err != nil {
 		return "", err
 	}
-
+	// check error in go files
+	if len(pkg.InvalidGoFiles) != 0 {
+		return "", fmt.Errorf("find error in file: %s", pkg.InvalidGoFiles[0])
+	}
 	// read go files
 	files := make(map[string]string)
 	for i := 0; i < len(pkg.GoFiles); i++ {
@@ -27,11 +31,6 @@ func Compile(ctx *build.Context, dir string) (string, error) {
 		}
 		files[path] = string(data)
 	}
-
-	// ok
-	fmt.Println(pkg.Name)
-	fmt.Println(pkg.Imports)
-
 	// get imports
 	imports := make(map[string]struct{}, len(pkg.Imports))
 	for _, posList := range pkg.ImportPos {
@@ -42,8 +41,6 @@ func Compile(ctx *build.Context, dir string) (string, error) {
 			imports[importLine] = struct{}{}
 		}
 	}
-	fmt.Println(imports)
-
 	// store files to offsets map
 	offsets := make(map[string]int, len(pkg.GoFiles))
 	for i := 0; i < len(pkg.GoFiles); i++ {
@@ -51,14 +48,23 @@ func Compile(ctx *build.Context, dir string) (string, error) {
 	}
 	for _, pos := range pkg.ImportPos {
 		for i := 0; i < len(pos); i++ {
-			if pos[i].Offset > offsets[pos[i].Filename] {
-				offsets[pos[i].Filename] = pos[i].Offset
+			offset := pos[i].Offset
+			filename := pos[i].Filename
+			if offset <= offsets[filename] {
+				continue
 			}
+			// find bracket
+			file := files[filename]
+			begin := strings.LastIndex(files[filename][:offset], "import")
+			if strings.Contains(file[begin:offset], "(") {
+				offsets[filename] = begin + strings.Index(file[begin:], ")") + 1
+			} else {
+				offsets[filename] = begin + strings.Index(file[begin:], "\n") + 1
+			}
+
 		}
 	}
-
-	fmt.Println(offsets)
-
+	// generate source code
 	code := bytes.NewBuffer(make([]byte, 0, 1024))
 	// write package
 	code.WriteString("package ")
@@ -74,7 +80,26 @@ func Compile(ctx *build.Context, dir string) (string, error) {
 		}
 		code.WriteString(")\n\n")
 	}
-	// write codes
-
-	return code.String(), err
+	// write code
+	for filename, offset := range offsets {
+		content := files[filename]
+		// no import
+		if offset == 0 {
+			// first search package
+			idx := strings.Index(content, "package")
+			// then search newline
+			offset = idx + strings.Index(content[idx:], "\n")
+		}
+		fmt.Println("===")
+		fmt.Println(content[offset:])
+		fmt.Println("===")
+		code.WriteString(content[offset:])
+		code.WriteString("\n")
+	}
+	// format
+	src, err := format.Source(code.Bytes())
+	if err != nil {
+		return "", err
+	}
+	return string(src), err
 }
