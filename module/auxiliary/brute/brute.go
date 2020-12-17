@@ -2,6 +2,7 @@ package brute
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -18,7 +19,11 @@ import (
 
 // Login is the callback to the brute instance, if login successfully
 // it will return true, if appear error, brute will log it.
-type Login func(ctx context.Context, target interface{}, username, password string) (ok bool, err error)
+type Login func(ctx context.Context, target interface{}, username, password string) (bool, error)
+
+// ErrInvalidCred is a error about login, if Login returned error
+// is not this, brute will stop current task.
+var ErrInvalidCred = fmt.Errorf("invalid username or password")
 
 // Config contains brute configuration.
 // If service don't need username or password, brute instance can
