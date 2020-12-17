@@ -3,16 +3,170 @@
 package project
 
 import (
+	"go/constant"
+	"go/token"
+	"net"
 	"reflect"
 
+	"project/internal/convert"
+	"project/internal/httptool"
+	"project/internal/logger"
 	"project/internal/module"
+	"project/internal/nettool"
+	"project/internal/option"
+	"project/internal/patch/json"
+	"project/internal/patch/msgpack"
+	"project/internal/patch/toml"
+	"project/internal/random"
+	"project/internal/security"
+	"project/internal/system"
+	"project/internal/xpanic"
+	"project/internal/xreflect"
+	"project/internal/xsync"
 )
 
 // Symbols stores the map of unsafe package symbols.
 var Symbols = map[string]map[string]reflect.Value{}
 
 func init() {
+	init_project_internal_convert()
+	init_project_internal_httptool()
+	init_project_internal_logger()
 	init_project_internal_module()
+	init_project_internal_nettool()
+	init_project_internal_option()
+	init_project_internal_patch_json()
+	init_project_internal_patch_msgpack()
+	init_project_internal_patch_toml()
+	init_project_internal_random()
+	init_project_internal_security()
+	init_project_internal_system()
+	init_project_internal_xpanic()
+	init_project_internal_xreflect()
+	init_project_internal_xsync()
+}
+
+func init_project_internal_convert() {
+	Symbols["project/internal/convert"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"AbsInt64":            reflect.ValueOf(convert.AbsInt64),
+		"BEBytesToFloat32":    reflect.ValueOf(convert.BEBytesToFloat32),
+		"BEBytesToFloat64":    reflect.ValueOf(convert.BEBytesToFloat64),
+		"BEBytesToInt16":      reflect.ValueOf(convert.BEBytesToInt16),
+		"BEBytesToInt32":      reflect.ValueOf(convert.BEBytesToInt32),
+		"BEBytesToInt64":      reflect.ValueOf(convert.BEBytesToInt64),
+		"BEBytesToUint16":     reflect.ValueOf(convert.BEBytesToUint16),
+		"BEBytesToUint32":     reflect.ValueOf(convert.BEBytesToUint32),
+		"BEBytesToUint64":     reflect.ValueOf(convert.BEBytesToUint64),
+		"BEFloat32ToBytes":    reflect.ValueOf(convert.BEFloat32ToBytes),
+		"BEFloat64ToBytes":    reflect.ValueOf(convert.BEFloat64ToBytes),
+		"BEInt16ToBytes":      reflect.ValueOf(convert.BEInt16ToBytes),
+		"BEInt32ToBytes":      reflect.ValueOf(convert.BEInt32ToBytes),
+		"BEInt64ToBytes":      reflect.ValueOf(convert.BEInt64ToBytes),
+		"BEUint16ToBytes":     reflect.ValueOf(convert.BEUint16ToBytes),
+		"BEUint32ToBytes":     reflect.ValueOf(convert.BEUint32ToBytes),
+		"BEUint64ToBytes":     reflect.ValueOf(convert.BEUint64ToBytes),
+		"Byte":                reflect.ValueOf(convert.Byte),
+		"EB":                  reflect.ValueOf(convert.EB),
+		"FormatByte":          reflect.ValueOf(convert.FormatByte),
+		"FormatNumber":        reflect.ValueOf(convert.FormatNumber),
+		"GB":                  reflect.ValueOf(convert.GB),
+		"KB":                  reflect.ValueOf(convert.KB),
+		"LEBytesToFloat32":    reflect.ValueOf(convert.LEBytesToFloat32),
+		"LEBytesToFloat64":    reflect.ValueOf(convert.LEBytesToFloat64),
+		"LEBytesToInt16":      reflect.ValueOf(convert.LEBytesToInt16),
+		"LEBytesToInt32":      reflect.ValueOf(convert.LEBytesToInt32),
+		"LEBytesToInt64":      reflect.ValueOf(convert.LEBytesToInt64),
+		"LEBytesToUint16":     reflect.ValueOf(convert.LEBytesToUint16),
+		"LEBytesToUint32":     reflect.ValueOf(convert.LEBytesToUint32),
+		"LEBytesToUint64":     reflect.ValueOf(convert.LEBytesToUint64),
+		"LEFloat32ToBytes":    reflect.ValueOf(convert.LEFloat32ToBytes),
+		"LEFloat64ToBytes":    reflect.ValueOf(convert.LEFloat64ToBytes),
+		"LEInt16ToBytes":      reflect.ValueOf(convert.LEInt16ToBytes),
+		"LEInt32ToBytes":      reflect.ValueOf(convert.LEInt32ToBytes),
+		"LEInt64ToBytes":      reflect.ValueOf(convert.LEInt64ToBytes),
+		"LEUint16ToBytes":     reflect.ValueOf(convert.LEUint16ToBytes),
+		"LEUint32ToBytes":     reflect.ValueOf(convert.LEUint32ToBytes),
+		"LEUint64ToBytes":     reflect.ValueOf(convert.LEUint64ToBytes),
+		"MB":                  reflect.ValueOf(convert.MB),
+		"OutputBytes":         reflect.ValueOf(convert.OutputBytes),
+		"OutputBytesWithSize": reflect.ValueOf(convert.OutputBytesWithSize),
+		"PB":                  reflect.ValueOf(convert.PB),
+		"TB":                  reflect.ValueOf(convert.TB),
+	}
+}
+
+func init_project_internal_httptool() {
+	Symbols["project/internal/httptool"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BodyLineLength":       reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"FprintRequest":        reflect.ValueOf(httptool.FprintRequest),
+		"MaxBodyLength":        reflect.ValueOf(constant.MakeFromLiteral("1024", token.INT, 0)),
+		"NewSubHTTPFileSystem": reflect.ValueOf(httptool.NewSubHTTPFileSystem),
+		"PrintRequest":         reflect.ValueOf(httptool.PrintRequest),
+	}
+}
+
+func init_project_internal_logger() {
+	Symbols["project/internal/logger"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"All":                 reflect.ValueOf(logger.All),
+		"Common":              reflect.ValueOf(&logger.Common).Elem(),
+		"Critical":            reflect.ValueOf(logger.Critical),
+		"Debug":               reflect.ValueOf(logger.Debug),
+		"Discard":             reflect.ValueOf(&logger.Discard).Elem(),
+		"Error":               reflect.ValueOf(logger.Error),
+		"Exploit":             reflect.ValueOf(logger.Exploit),
+		"Fatal":               reflect.ValueOf(logger.Fatal),
+		"HijackLogWriter":     reflect.ValueOf(logger.HijackLogWriter),
+		"Info":                reflect.ValueOf(logger.Info),
+		"NewMultiLogger":      reflect.ValueOf(logger.NewMultiLogger),
+		"NewWriterWithPrefix": reflect.ValueOf(logger.NewWriterWithPrefix),
+		"Off":                 reflect.ValueOf(logger.Off),
+		"Parse":               reflect.ValueOf(logger.Parse),
+		"Prefix":              reflect.ValueOf(logger.Prefix),
+		"SetErrorLogger":      reflect.ValueOf(logger.SetErrorLogger),
+		"Test":                reflect.ValueOf(&logger.Test).Elem(),
+		"TimeLayout":          reflect.ValueOf(constant.MakeFromLiteral("\"2006-01-02 15:04:05\"", token.STRING, 0)),
+		"Trace":               reflect.ValueOf(logger.Trace),
+		"Warning":             reflect.ValueOf(logger.Warning),
+		"Wrap":                reflect.ValueOf(logger.Wrap),
+		"WrapLogger":          reflect.ValueOf(logger.WrapLogger),
+
+		// type definitions
+		"Level":       reflect.ValueOf((*logger.Level)(nil)),
+		"LevelSetter": reflect.ValueOf((*logger.LevelSetter)(nil)),
+		"Logger":      reflect.ValueOf((*logger.Logger)(nil)),
+		"MultiLogger": reflect.ValueOf((*logger.MultiLogger)(nil)),
+
+		// interface wrapper definitions
+		"_LevelSetter": reflect.ValueOf((*_project_internal_logger_LevelSetter)(nil)),
+		"_Logger":      reflect.ValueOf((*_project_internal_logger_Logger)(nil)),
+	}
+}
+
+// _project_internal_logger_LevelSetter is an interface wrapper for LevelSetter type
+type _project_internal_logger_LevelSetter struct {
+	WSetLevel func(lv uint8) error
+}
+
+func (W _project_internal_logger_LevelSetter) SetLevel(lv uint8) error { return W.WSetLevel(lv) }
+
+// _project_internal_logger_Logger is an interface wrapper for Logger type
+type _project_internal_logger_Logger struct {
+	WPrint   func(lv uint8, src string, log ...interface{})
+	WPrintf  func(lv uint8, src string, format string, log ...interface{})
+	WPrintln func(lv uint8, src string, log ...interface{})
+}
+
+func (W _project_internal_logger_Logger) Print(lv uint8, src string, log ...interface{}) {
+	W.WPrint(lv, src, log...)
+}
+func (W _project_internal_logger_Logger) Printf(lv uint8, src string, format string, log ...interface{}) {
+	W.WPrintf(lv, src, format, log...)
+}
+func (W _project_internal_logger_Logger) Println(lv uint8, src string, log ...interface{}) {
+	W.WPrintln(lv, src, log...)
 }
 
 func init_project_internal_module() {
@@ -57,3 +211,180 @@ func (W _project_internal_module_Module) Restart() error      { return W.WRestar
 func (W _project_internal_module_Module) Start() error        { return W.WStart() }
 func (W _project_internal_module_Module) Status() string      { return W.WStatus() }
 func (W _project_internal_module_Module) Stop()               { W.WStop() }
+
+func init_project_internal_nettool() {
+	Symbols["project/internal/nettool"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"CheckPort":             reflect.ValueOf(nettool.CheckPort),
+		"CheckPortString":       reflect.ValueOf(nettool.CheckPortString),
+		"DeadlineConn":          reflect.ValueOf(nettool.DeadlineConn),
+		"DecodeExternalAddress": reflect.ValueOf(nettool.DecodeExternalAddress),
+		"EncodeExternalAddress": reflect.ValueOf(nettool.EncodeExternalAddress),
+		"ErrEmptyPort":          reflect.ValueOf(&nettool.ErrEmptyPort).Elem(),
+		"FprintConn":            reflect.ValueOf(nettool.FprintConn),
+		"IPEnabled":             reflect.ValueOf(nettool.IPEnabled),
+		"IPToHost":              reflect.ValueOf(nettool.IPToHost),
+		"IsNetClosingError":     reflect.ValueOf(nettool.IsNetClosingError),
+		"IsTCPNetwork":          reflect.ValueOf(nettool.IsTCPNetwork),
+		"IsUDPNetwork":          reflect.ValueOf(nettool.IsUDPNetwork),
+		"JoinHostPort":          reflect.ValueOf(nettool.JoinHostPort),
+		"PrintConn":             reflect.ValueOf(nettool.PrintConn),
+		"SplitHostPort":         reflect.ValueOf(nettool.SplitHostPort),
+		"WaitServerServe":       reflect.ValueOf(nettool.WaitServerServe),
+
+		// type definitions
+		"DialContext": reflect.ValueOf((*nettool.DialContext)(nil)),
+		"Server":      reflect.ValueOf((*nettool.Server)(nil)),
+
+		// interface wrapper definitions
+		"_Server": reflect.ValueOf((*_project_internal_nettool_Server)(nil)),
+	}
+}
+
+// _project_internal_nettool_Server is an interface wrapper for Server type
+type _project_internal_nettool_Server struct {
+	WAddresses func() []net.Addr
+}
+
+func (W _project_internal_nettool_Server) Addresses() []net.Addr { return W.WAddresses() }
+
+func init_project_internal_option() {
+	Symbols["project/internal/option"] = map[string]reflect.Value{
+		// type definitions
+		"HTTPRequest":   reflect.ValueOf((*option.HTTPRequest)(nil)),
+		"HTTPServer":    reflect.ValueOf((*option.HTTPServer)(nil)),
+		"HTTPTransport": reflect.ValueOf((*option.HTTPTransport)(nil)),
+		"TLSConfig":     reflect.ValueOf((*option.TLSConfig)(nil)),
+		"X509KeyPair":   reflect.ValueOf((*option.X509KeyPair)(nil)),
+	}
+}
+
+func init_project_internal_patch_json() {
+	Symbols["project/internal/patch/json"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Marshal":    reflect.ValueOf(json.Marshal),
+		"NewDecoder": reflect.ValueOf(json.NewDecoder),
+		"NewEncoder": reflect.ValueOf(json.NewEncoder),
+		"Unmarshal":  reflect.ValueOf(json.Unmarshal),
+
+		// type definitions
+		"Decoder": reflect.ValueOf((*json.Decoder)(nil)),
+		"Encoder": reflect.ValueOf((*json.Encoder)(nil)),
+	}
+}
+
+func init_project_internal_patch_msgpack() {
+	Symbols["project/internal/patch/msgpack"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Marshal":    reflect.ValueOf(msgpack.Marshal),
+		"NewDecoder": reflect.ValueOf(msgpack.NewDecoder),
+		"NewEncoder": reflect.ValueOf(msgpack.NewEncoder),
+		"Unmarshal":  reflect.ValueOf(msgpack.Unmarshal),
+
+		// type definitions
+		"Decoder": reflect.ValueOf((*msgpack.Decoder)(nil)),
+		"Encoder": reflect.ValueOf((*msgpack.Encoder)(nil)),
+	}
+}
+
+func init_project_internal_patch_toml() {
+	Symbols["project/internal/patch/toml"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Marshal":   reflect.ValueOf(toml.Marshal),
+		"Unmarshal": reflect.ValueOf(toml.Unmarshal),
+	}
+}
+
+func init_project_internal_random() {
+	Symbols["project/internal/random"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Bytes":        reflect.ValueOf(random.Bytes),
+		"Int":          reflect.ValueOf(random.Int),
+		"Int64":        reflect.ValueOf(random.Int64),
+		"MaxSleepTime": reflect.ValueOf(random.MaxSleepTime),
+		"NewRand":      reflect.ValueOf(random.NewRand),
+		"NewSleeper":   reflect.ValueOf(random.NewSleeper),
+		"Sleep":        reflect.ValueOf(random.Sleep),
+		"String":       reflect.ValueOf(random.String),
+		"Uint64":       reflect.ValueOf(random.Uint64),
+
+		// type definitions
+		"Rand":    reflect.ValueOf((*random.Rand)(nil)),
+		"Sleeper": reflect.ValueOf((*random.Sleeper)(nil)),
+	}
+}
+
+func init_project_internal_security() {
+	Symbols["project/internal/security"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"CoverBytes":            reflect.ValueOf(security.CoverBytes),
+		"CoverRunes":            reflect.ValueOf(security.CoverRunes),
+		"CoverString":           reflect.ValueOf(security.CoverString),
+		"ErrHasRemainingData":   reflect.ValueOf(&security.ErrHasRemainingData).Elem(),
+		"FlushMemory":           reflect.ValueOf(security.FlushMemory),
+		"LimitReadAll":          reflect.ValueOf(security.LimitReadAll),
+		"LimitReader":           reflect.ValueOf(security.LimitReader),
+		"NewBogo":               reflect.ValueOf(security.NewBogo),
+		"NewBytes":              reflect.ValueOf(security.NewBytes),
+		"NewMemory":             reflect.ValueOf(security.NewMemory),
+		"NewString":             reflect.ValueOf(security.NewString),
+		"PaddingMemory":         reflect.ValueOf(security.PaddingMemory),
+		"ReadAll":               reflect.ValueOf(security.ReadAll),
+		"SwitchThread":          reflect.ValueOf(security.SwitchThread),
+		"SwitchThreadAsync":     reflect.ValueOf(security.SwitchThreadAsync),
+		"WaitSwitchThreadAsync": reflect.ValueOf(security.WaitSwitchThreadAsync),
+
+		// type definitions
+		"Bogo":   reflect.ValueOf((*security.Bogo)(nil)),
+		"Bytes":  reflect.ValueOf((*security.Bytes)(nil)),
+		"Memory": reflect.ValueOf((*security.Memory)(nil)),
+		"String": reflect.ValueOf((*security.String)(nil)),
+	}
+}
+
+func init_project_internal_system() {
+	Symbols["project/internal/system"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ChangeCurrentDirectory": reflect.ValueOf(system.ChangeCurrentDirectory),
+		"CheckError":             reflect.ValueOf(system.CheckError),
+		"CommandLineToArgv":      reflect.ValueOf(system.CommandLineToArgv),
+		"ExecutableName":         reflect.ValueOf(system.ExecutableName),
+		"GetConnHandle":          reflect.ValueOf(system.GetConnHandle),
+		"IsExist":                reflect.ValueOf(system.IsExist),
+		"IsNotExist":             reflect.ValueOf(system.IsNotExist),
+		"OpenFile":               reflect.ValueOf(system.OpenFile),
+		"PrintError":             reflect.ValueOf(system.PrintError),
+		"WriteFile":              reflect.ValueOf(system.WriteFile),
+	}
+}
+
+func init_project_internal_xpanic() {
+	Symbols["project/internal/xpanic"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Error":           reflect.ValueOf(xpanic.Error),
+		"Errorf":          reflect.ValueOf(xpanic.Errorf),
+		"Log":             reflect.ValueOf(xpanic.Log),
+		"Logf":            reflect.ValueOf(xpanic.Logf),
+		"Print":           reflect.ValueOf(xpanic.Print),
+		"PrintPanic":      reflect.ValueOf(xpanic.PrintPanic),
+		"PrintStack":      reflect.ValueOf(xpanic.PrintStack),
+		"PrintStackTrace": reflect.ValueOf(xpanic.PrintStackTrace),
+		"Printf":          reflect.ValueOf(xpanic.Printf),
+	}
+}
+
+func init_project_internal_xreflect() {
+	Symbols["project/internal/xreflect"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"GetStructureName":          reflect.ValueOf(xreflect.GetStructureName),
+		"StructureToMap":            reflect.ValueOf(xreflect.StructureToMap),
+		"StructureToMapWithoutZero": reflect.ValueOf(xreflect.StructureToMapWithoutZero),
+	}
+}
+
+func init_project_internal_xsync() {
+	Symbols["project/internal/xsync"] = map[string]reflect.Value{
+		// type definitions
+		"Counter": reflect.ValueOf((*xsync.Counter)(nil)),
+	}
+}

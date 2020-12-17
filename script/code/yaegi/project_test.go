@@ -18,6 +18,9 @@ func TestExportProject(t *testing.T) {
 package project
 
 import (
+	"go/constant"
+	"go/token"
+	"net"
 	"reflect"
 
 %s)
@@ -35,7 +38,21 @@ func init() {
 	srcBuf := bytes.NewBuffer(make([]byte, 0, 128*1024))
 
 	for _, pkg := range []string{
+		"project/internal/convert",
+		"project/internal/httptool",
+		"project/internal/logger",
 		"project/internal/module",
+		"project/internal/nettool",
+		"project/internal/option",
+		"project/internal/patch/json",
+		"project/internal/patch/msgpack",
+		"project/internal/patch/toml",
+		"project/internal/random",
+		"project/internal/security",
+		"project/internal/system",
+		"project/internal/xpanic",
+		"project/internal/xreflect",
+		"project/internal/xsync",
 	} {
 		init := strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(pkg)
 		_, _ = fmt.Fprintf(importBuf, "\t\"%s\"\n", pkg)
