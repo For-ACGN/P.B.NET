@@ -2,10 +2,14 @@ package compiler
 
 import (
 	"go/build"
+	"go/format"
+	"io/ioutil"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"project/internal/patch/monkey"
 )
 
 func TestCompile(t *testing.T) {
@@ -56,4 +60,49 @@ func f8() {
 }
 `
 	require.Equal(t, expected[1:], code)
+}
+
+func TestCompile_Fail(t *testing.T) {
+	t.Run("failed to import dir", func(t *testing.T) {
+		code, err := Compile(&build.Default, "testdata/foo")
+		require.Error(t, err)
+		require.Zero(t, code)
+	})
+
+	t.Run("contain invalid go files", func(t *testing.T) {
+		var ctx *build.Context
+		patch := func(interface{}, string, build.ImportMode) (*build.Package, error) {
+			return &build.Package{InvalidGoFiles: []string{"foo"}}, nil
+		}
+		pg := monkey.PatchInstanceMethod(ctx, "ImportDir", patch)
+		defer pg.Unpatch()
+
+		code, err := Compile(&build.Default, "testdata/pkg")
+		require.Error(t, err)
+		require.Zero(t, code)
+	})
+
+	t.Run("failed to read file", func(t *testing.T) {
+		patch := func(string) ([]byte, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.Patch(ioutil.ReadFile, patch)
+		defer pg.Unpatch()
+
+		code, err := Compile(&build.Default, "testdata/pkg")
+		require.Error(t, err)
+		require.Zero(t, code)
+	})
+
+	t.Run("failed to format source", func(t *testing.T) {
+		patch := func([]byte) ([]byte, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.Patch(format.Source, patch)
+		defer pg.Unpatch()
+
+		code, err := Compile(&build.Default, "testdata/pkg")
+		require.Error(t, err)
+		require.Zero(t, code)
+	})
 }
