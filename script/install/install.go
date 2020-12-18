@@ -22,8 +22,6 @@ func init() {
 	log.SetSource("install")
 }
 
-var showModules bool
-
 func main() {
 	var (
 		configPath     string
@@ -33,8 +31,6 @@ func main() {
 	)
 	usage := "configuration file path"
 	flag.StringVar(&configPath, "config", "config.json", usage)
-	usage = "show modules when list module"
-	flag.BoolVar(&showModules, "show-modules", false, usage)
 	usage = "only install patch files"
 	flag.BoolVar(&installPatch, "install-patch", false, usage)
 	usage = "only uninstall patch files"
@@ -62,8 +58,8 @@ func installDefault() {
 		installPatchFiles,
 		listModule,
 		downloadAllModules,
-		verifyModule,
 		downloadModule,
+		verifyModule,
 	} {
 		if !step() {
 			return
@@ -72,29 +68,29 @@ func installDefault() {
 	log.Println(logger.Info, "install successfully")
 }
 
-func getGoRootPaths() []string {
+func getGoRootPaths(suffix string) []string {
 	list := []string{
-		cfg.Common.GoRoot116x,
-		cfg.Common.GoRoot1108,
-		cfg.Common.GoRoot11113,
-		cfg.Common.GoRoot11217,
-		cfg.Common.GoRoot11315,
-		cfg.Common.GoRoot11415,
-		cfg.Common.GoRoot115x,
+		cfg.Common.Go116x,
+		cfg.Common.Go1108,
+		cfg.Special.Go11113,
+		cfg.Special.Go11217,
+		cfg.Special.Go11315,
+		cfg.Special.Go11415,
+		cfg.Special.Go115x,
 	}
 	paths := make([]string, 0, len(list))
 	for i := 0; i < len(list); i++ {
 		if list[i] == "" {
 			continue
 		}
-		paths = append(paths, list[i]+"/src")
+		paths = append(paths, list[i]+suffix)
 	}
 	return paths
 }
 
 func installPatchFiles() bool {
 	log.Println(logger.Info, "install patch files")
-	paths := getGoRootPaths()
+	paths := getGoRootPaths("/src")
 	var errs []error
 	walkFunc := func(path string, stat os.FileInfo, err error) error {
 		if err != nil {
@@ -145,7 +141,7 @@ func copyFileToGoRoot(src, dst string) error {
 
 func uninstallPatchFiles() bool {
 	log.Println(logger.Info, "uninstall patch files")
-	paths := getGoRootPaths()
+	paths := getGoRootPaths("/src")
 	var errs []error
 	walkFunc := func(path string, stat os.FileInfo, err error) error {
 		if err != nil {
@@ -194,30 +190,8 @@ func verifyPatchFiles() bool {
 		log.Println(logger.Error, "failed to disable go module:", err)
 		return false
 	}
-	defer func() {
-		err := os.Setenv("GO111MODULE", "on")
-		if err != nil {
-			log.Println(logger.Error, "failed to enable go module:", err)
-		}
-	}()
-	list := []string{
-		cfg.Common.GoRoot116x,
-		cfg.Common.GoRoot1108,
-		cfg.Common.GoRoot11113,
-		cfg.Common.GoRoot11217,
-		cfg.Common.GoRoot11315,
-		cfg.Common.GoRoot11415,
-		cfg.Common.GoRoot115x,
-	}
-	paths := make([]string, 0, len(list))
-	for i := 0; i < len(list); i++ {
-		if list[i] == "" {
-			continue
-		}
-		paths = append(paths, list[i]+"/bin/go")
-	}
-	pathsLen := len(paths)
-	errCh := make(chan error, pathsLen)
+	paths := getGoRootPaths("/bin/go")
+	errCh := make(chan error, len(paths))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, path := range paths {
@@ -230,12 +204,18 @@ func verifyPatchFiles() bool {
 			log.Println(logger.Info, "go run output:\n"+output)
 		}(path)
 	}
-	for i := 0; i < pathsLen; i++ {
+	for i := 0; i < len(paths); i++ {
 		err := <-errCh
 		if err != nil {
 			log.Println(logger.Error, err)
 			return false
 		}
+	}
+	// recover go environment
+	err = os.Setenv("GO111MODULE", "on")
+	if err != nil {
+		log.Println(logger.Error, "failed to enable go module:", err)
+		return false
 	}
 	log.Println(logger.Info, "verify patch files successfully")
 	return true
@@ -251,7 +231,7 @@ func listModule() bool {
 		}
 		return false
 	}
-	if !showModules {
+	if !cfg.Install.ShowModules {
 		return true
 	}
 	output = output[:len(output)-1] // remove the last "\n"
@@ -280,6 +260,25 @@ func downloadAllModules() bool {
 	return true
 }
 
+func downloadModule() bool {
+	log.Println(logger.Info, "download module if it is not exist")
+	args := []string{"get", "-d"}
+	if cfg.Install.Insecure {
+		args = append(args, "-insecure")
+	}
+	args = append(args, "./...")
+	output, code, err := exec.Run("go", args...)
+	if code != 0 {
+		log.Println(logger.Error, output)
+		if err != nil {
+			log.Println(logger.Error, err)
+		}
+		return false
+	}
+	log.Println(logger.Info, "all modules downloaded")
+	return true
+}
+
 func verifyModule() bool {
 	log.Println(logger.Info, "verify modules")
 	output, code, err := exec.Run("go", "mod", "verify")
@@ -293,19 +292,5 @@ func verifyModule() bool {
 		return false
 	}
 	log.Println(logger.Info, "verify modules successfully")
-	return true
-}
-
-func downloadModule() bool {
-	log.Println(logger.Info, "download module if it is not exist")
-	output, code, err := exec.Run("go", "get", "./...")
-	if code != 0 {
-		log.Println(logger.Error, output)
-		if err != nil {
-			log.Println(logger.Error, err)
-		}
-		return false
-	}
-	log.Println(logger.Info, "all modules downloaded")
 	return true
 }

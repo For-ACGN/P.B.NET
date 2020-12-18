@@ -17,14 +17,15 @@ func TestGenerateParser(t *testing.T) {
 	err := os.Chdir("../../../../external/anko/parser")
 	require.NoError(t, err)
 	// generate parser.go
-	output, _, err := exec.Run("goyacc", "-o", "parser.go", "parser.go.y")
+	output, code, err := exec.Run("goyacc", "-o", "parser.go", "parser.go.y")
 	require.NoError(t, err)
 	fmt.Println(output)
+	require.Equal(t, 0, code)
 	// remove output file
 	err = os.Remove("y.output")
 	require.NoError(t, err)
 	// format generated code
-	output, code, err := exec.Run("gofmt", "-s", "-w", "parser.go")
+	output, code, err = exec.Run("gofmt", "-s", "-w", "parser.go")
 	require.NoError(t, err)
 	require.Equal(t, 0, code, output)
 	// add directive comment about development tools.
