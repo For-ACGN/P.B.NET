@@ -1,10 +1,7 @@
 package config
 
 import (
-	"crypto/tls"
 	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,46 +13,53 @@ import (
 	"project/script/internal/log"
 )
 
-// Config contains configuration about install, build, develop, test and race.
+// Config contains configuration about install, build, develop and test.
 type Config struct {
+	// Common contains common configuration about script,
+	// these field must be set except GoProxy and GoSumDB.
+	// <security> must be set manually for prevent leak user information.
 	Common struct {
-		// must be set
-		// <security> must be set manually for prevent
-		// leak user information.
-		GoPath     string `json:"go_path"`
-		GoRoot116x string `json:"go_root_1_16_x"`
-		GoRoot1108 string `json:"go_root_1_10_8"`
-
-		// options if you need special go version.
-		GoRoot11113 string `json:"go_root_1_11_13"`
-		GoRoot11217 string `json:"go_root_1_12_17"`
-		GoRoot11315 string `json:"go_root_1_13_15"`
-		GoRoot11415 string `json:"go_root_1_14_15"`
-		GoRoot115x  string `json:"go_root_1_15_x"`
-
-		// options about network
-		ProxyURL      string `json:"proxy_url"`
-		SkipTLSVerify bool   `json:"skip_tls_verify"`
+		Go116x  string `json:"go_1_16_x"`
+		Go1108  string `json:"go_1_10_8"`
+		GoPath  string `json:"go_path"`
+		GoProxy string `json:"go_proxy"`
+		GoSumDB string `json:"go_sum_db"`
 	} `json:"common"`
 
+	// Special contains options if you need special go version.
+	Special struct {
+		Go11113 string `json:"go_1_11_13"`
+		Go11217 string `json:"go_1_12_17"`
+		Go11315 string `json:"go_1_13_15"`
+		Go11415 string `json:"go_1_14_15"`
+		Go115x  string `json:"go_1_15_x"`
+	} `json:"special"`
+
+	// Install contains options about install script.
 	Install struct {
-		DownloadAll bool `json:"download_all"`
+		ProxyURL    string `json:"proxy_url"`
+		Insecure    bool   `json:"insecure"`
+		ShowModules bool   `json:"show_modules"`
+		DownloadAll bool   `json:"download_all"`
 	} `json:"install"`
 
+	// Build contains options about build script.
 	Build struct {
 	} `json:"build"`
 
+	// Develop contains options bout develop script.
 	Develop struct {
+		ProxyURL string `json:"proxy_url"`
+		Insecure bool   `json:"insecure"`
 	} `json:"develop"`
 
+	// Test contains options about test script.
 	Test struct {
+		Race bool `json:"race"`
 	} `json:"test"`
-
-	Race struct {
-	} `json:"race"`
 }
 
-// Load is used to load configuration file.
+// Load is used to load and verify configuration file.
 func Load(path string, config *Config) bool {
 	// print current directory
 	dir, err := os.Getwd()
@@ -75,104 +79,84 @@ func Load(path string, config *Config) bool {
 		log.Println(logger.Error, "failed to load config:", err)
 		return false
 	}
-	log.Println(logger.Info, "load configuration file successfully")
-	// print and set go path
-	if !setGoPath(config.Common.GoPath) {
+	if !setGoEnv(config) {
 		return false
 	}
-	// check go root path, must need go latest and go 1.10.8
+	if !verifyGoRoot(config) {
+		return false
+	}
+	log.Println(logger.Info, "load configuration file successfully")
+	return true
+}
+
+// setGoEnv is used to print and set go environment.
+func setGoEnv(config *Config) bool {
+	for _, item := range [...]*struct {
+		name    string
+		value   string
+		mustSet bool
+	}{
+		{"GOPATH", config.Common.GoPath, true},
+		{"GOPROXY", config.Common.GoProxy, false},
+		{"GOSUMDB", config.Common.GoSumDB, false},
+	} {
+		if item.mustSet && item.value == "" {
+			log.Printf(logger.Error, "%s is not set", item.name)
+			return false
+		}
+		log.Printf(logger.Info, "%s: %s", item.name, item.value)
+		err := os.Setenv(item.name, item.value)
+		if err != nil {
+			log.Printf(logger.Error, "failed to set env %s: %s", item.name, err)
+			return false
+		}
+	}
+	return true
+}
+
+// verifyGoRoot is used to check go root path is valid,
+// it will check go.exe, gofmt.exe and src directory,
+// go latest and go 1.10.8 must be set.
+func verifyGoRoot(config *Config) bool {
 	for _, item := range [...]*struct {
 		version string
 		path    string
 	}{
-		{version: "1.16.x", path: config.Common.GoRoot116x},
-		{version: "1.10.8", path: config.Common.GoRoot1108},
-		{version: "1.11.13", path: config.Common.GoRoot11113},
-		{version: "1.12.17", path: config.Common.GoRoot11217},
-		{version: "1.13.15", path: config.Common.GoRoot11315},
-		{version: "1.14.15", path: config.Common.GoRoot11415},
-		{version: "1.15.x", path: config.Common.GoRoot115x},
+		// common
+		{version: "1.16.x", path: config.Common.Go116x},
+		{version: "1.10.8", path: config.Common.Go1108},
+		// special
+		{version: "1.11.13", path: config.Special.Go11113},
+		{version: "1.12.17", path: config.Special.Go11217},
+		{version: "1.13.15", path: config.Special.Go11315},
+		{version: "1.14.15", path: config.Special.Go11415},
+		{version: "1.15.x", path: config.Special.Go115x},
 	} {
+		// skip
 		if item.path == "" && item.version != "1.16.x" && item.version != "1.10.8" {
 			continue
 		}
-		if !checkGoRoot(item.path) {
+		// verify
+		var (
+			goFile    string
+			goFmtFile string
+		)
+		switch runtime.GOOS {
+		case "windows":
+			goFile = "go.exe"
+			goFmtFile = "gofmt.exe"
+		default:
+			goFile = "go"
+			goFmtFile = "gofmt"
+		}
+		goExist, _ := system.IsExist(filepath.Join(item.path, "bin/"+goFile))
+		goFmtExist, _ := system.IsExist(filepath.Join(item.path, "bin/"+goFmtFile))
+		srcExist, _ := system.IsExist(filepath.Join(item.path, "src"))
+		if !(goExist && goFmtExist && srcExist) {
 			log.Printf(logger.Error, "invalid go %-7s root path: %s", item.version, item.path)
 			return false
 		}
 		log.Printf(logger.Info, "go %-7s root path: %s", item.version, item.path)
 	}
-	// set proxy and TLS configuration
-	tr := http.DefaultTransport.(*http.Transport)
-	if !setProxy(tr, config) {
-		return false
-	}
-	if config.Common.SkipTLSVerify {
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec
-		log.Println(logger.Warning, "skip tls verify")
-	}
-	return true
-}
-
-func setGoPath(goPath string) bool {
-	if goPath == "" {
-		log.Println(logger.Error, "go path is empty")
-		return false
-	}
-	log.Println(logger.Info, "go path:", goPath)
-	// set os environment for build
-	err := os.Setenv("GOPATH", goPath)
-	if err != nil {
-		log.Println(logger.Error, "failed to set environment about GOPATH:", err)
-		return false
-	}
-	return true
-}
-
-// checkGoRoot is used to check go root path is valid.
-// it will check go.exe, gofmt.exe and src directory.
-func checkGoRoot(path string) bool {
-	var (
-		goFile    string
-		goFmtFile string
-	)
-	switch runtime.GOOS {
-	case "windows":
-		goFile = "go.exe"
-		goFmtFile = "gofmt.exe"
-	default:
-		goFile = "go"
-		goFmtFile = "gofmt"
-	}
-	goExist, _ := system.IsExist(filepath.Join(path, "bin/"+goFile))
-	goFmtExist, _ := system.IsExist(filepath.Join(path, "bin/"+goFmtFile))
-	srcExist, _ := system.IsExist(filepath.Join(path, "src"))
-	return goExist && goFmtExist && srcExist
-}
-
-func setProxy(tr *http.Transport, cfg *Config) bool {
-	proxyURL := cfg.Common.ProxyURL
-	if proxyURL == "" {
-		return true
-	}
-	URL, err := url.Parse(proxyURL)
-	if err != nil {
-		log.Println(logger.Error, "invalid proxy url:", err)
-		return false
-	}
-	tr.Proxy = http.ProxyURL(URL)
-	// set os environment for build
-	err = os.Setenv("HTTP_PROXY", proxyURL)
-	if err != nil {
-		log.Println(logger.Error, "failed to set environment about HTTP_PROXY:", err)
-		return false
-	}
-	// go1.16, must set HTTPS_PROXY for https URL
-	err = os.Setenv("HTTPS_PROXY", proxyURL)
-	if err != nil {
-		log.Println(logger.Error, "failed to set environment about HTTPS_PROXY:", err)
-		return false
-	}
-	log.Println(logger.Info, "set proxy url:", proxyURL)
 	return true
 }
