@@ -108,9 +108,12 @@ func setGoEnv(config *Config) bool {
 		{"GONOPROXY", config.Special.GoNoProxy, false},
 		{"GONOSUMDB", config.Special.GoNoSumDB, false},
 	} {
-		if item.mustSet && item.value == "" {
-			log.Printf(logger.Error, "%s is not set", item.name)
-			return false
+		if item.value == "" {
+			if item.mustSet {
+				log.Printf(logger.Error, "%s is not set", item.name)
+				return false
+			}
+			continue
 		}
 		log.Printf(logger.Info, "%s: %s", item.name, item.value)
 		err := os.Setenv(item.name, item.value)

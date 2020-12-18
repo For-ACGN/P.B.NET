@@ -56,12 +56,14 @@ func main() {
 func installDefault() {
 	for _, step := range [...]func() bool{
 		installPatchFiles,
+		setupNetwork,
 		listModule,
 		downloadAllModules,
 		downloadModule,
 		verifyModule,
 	} {
 		if !step() {
+			log.Println(logger.Fatal, "install failed")
 			return
 		}
 	}
@@ -196,12 +198,12 @@ func verifyPatchFiles() bool {
 	defer cancel()
 	for _, path := range paths {
 		go func(path string) {
-			const verifyFilePath = "script/install/patch/verify.go"
+			const file = "script/install/patch/verify.go"
 			var err error
 			defer func() { errCh <- err }()
-			output, _, err := exec.RunContext(ctx, path, "run", verifyFilePath)
+			output, _, err := exec.RunContext(ctx, path, "run", file)
 			output = output[:len(output)-1] // remove the last "\n"
-			log.Println(logger.Info, "go run output:\n"+output)
+			log.Printf(logger.Info, "go run output:\n%s", output)
 		}(path)
 	}
 	for i := 0; i < len(paths); i++ {
@@ -221,11 +223,21 @@ func verifyPatchFiles() bool {
 	return true
 }
 
+func setupNetwork() bool {
+	if !config.SetProxy(cfg.Install.ProxyURL) {
+		return false
+	}
+	if cfg.Install.Insecure {
+		config.SkipTLSVerify()
+	}
+	return true
+}
+
 func listModule() bool {
 	log.Println(logger.Info, "list all modules about project")
 	output, code, err := exec.Run("go", "list", "-m", "all")
 	if code != 0 {
-		log.Println(logger.Error, output)
+		log.Printf(logger.Error, "failed to list module\n%s", output)
 		if err != nil {
 			log.Println(logger.Error, err)
 		}
@@ -250,7 +262,7 @@ func downloadAllModules() bool {
 	log.Println(logger.Info, "download all modules")
 	output, code, err := exec.Run("go", "mod", "download", "-x")
 	if code != 0 {
-		log.Println(logger.Error, output)
+		log.Printf(logger.Error, "failed to download all modules\n%s", output)
 		if err != nil {
 			log.Println(logger.Error, err)
 		}
@@ -269,7 +281,7 @@ func downloadModule() bool {
 	args = append(args, "./...")
 	output, code, err := exec.Run("go", args...)
 	if code != 0 {
-		log.Println(logger.Error, output)
+		log.Printf(logger.Error, "failed to download module\n%s", output)
 		if err != nil {
 			log.Println(logger.Error, err)
 		}
@@ -282,15 +294,15 @@ func downloadModule() bool {
 func verifyModule() bool {
 	log.Println(logger.Info, "verify modules")
 	output, code, err := exec.Run("go", "mod", "verify")
-	if err != nil {
-		log.Println(logger.Error, err)
-		return false
-	}
 	output = output[:len(output)-1] // remove the last "\n"
-	log.Println(logger.Info, output)
 	if code != 0 {
+		log.Printf(logger.Error, "some modules has been modified\n%s", output)
+		if err != nil {
+			log.Println(logger.Error, err)
+		}
 		return false
 	}
+	log.Println(logger.Info, output)
 	log.Println(logger.Info, "verify modules successfully")
 	return true
 }
