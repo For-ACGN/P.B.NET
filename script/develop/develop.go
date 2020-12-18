@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -38,18 +37,33 @@ func main() {
 		return
 	}
 	for _, step := range [...]func() bool{
+		setupNetwork,
 		downloadSourceCode,
 		extractSourceCode,
+		downloadModule,
 		buildSourceCode,
 	} {
 		if !step() {
+			log.Println(logger.Fatal, "install development tools failed")
 			return
 		}
 	}
 	log.Println(logger.Info, "install development tools successfully")
 }
 
+func setupNetwork() bool {
+	log.Println(logger.Info, "setup network")
+	if !config.SetProxy(cfg.Develop.ProxyURL) {
+		return false
+	}
+	if cfg.Develop.Insecure {
+		config.SkipTLSVerify()
+	}
+	return true
+}
+
 func downloadSourceCode() bool {
+	log.Println(logger.Info, "download source code about development tools")
 	items := [...]*struct {
 		name string
 		url  string
@@ -60,13 +74,18 @@ func downloadSourceCode() bool {
 		{name: "golangci-lint", url: "https://github.com/golangci/golangci-lint/archive/master.zip"},
 		{name: "go-tools", url: "https://github.com/golang/tools/archive/master.zip"},
 	}
-	itemsLen := len(items)
-	errCh := make(chan error, itemsLen)
+	errCh := make(chan error, len(items))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for _, item := range items {
 		go func(name, url string) {
 			var err error
 			defer func() { errCh <- err }()
-			resp, err := http.Get(url) // #nosec
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+			if err != nil {
+				return
+			}
+			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				return
 			}
@@ -92,7 +111,7 @@ func downloadSourceCode() bool {
 			log.Printf(logger.Info, "download %s successfully", name)
 		}(item.name, item.url)
 	}
-	for i := 0; i < itemsLen; i++ {
+	for i := 0; i < len(items); i++ {
 		err := <-errCh
 		if err != nil {
 			log.Println(logger.Error, "failed to download source code:", err)
@@ -104,6 +123,7 @@ func downloadSourceCode() bool {
 }
 
 func extractSourceCode() bool {
+	log.Println(logger.Info, "extract source code about development tools")
 	items := [...]*struct {
 		name string
 		dir  string
@@ -114,8 +134,9 @@ func extractSourceCode() bool {
 		{name: "golangci-lint", dir: "golangci-lint-master"},
 		{name: "go-tools", dir: "tools-master"},
 	}
-	itemsLen := len(items)
-	errCh := make(chan error, itemsLen)
+	errCh := make(chan error, len(items))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for _, item := range items {
 		go func(name, dir string) {
 			var err error
@@ -142,7 +163,7 @@ func extractSourceCode() bool {
 				uErr = err
 				return filemgr.ErrCtrlOpCancel
 			}
-			err = filemgr.UnZip(ec, src, developDir)
+			err = filemgr.UnZipWithContext(ctx, ec, src, developDir)
 			if uErr != nil {
 				err = uErr
 				return
@@ -158,7 +179,7 @@ func extractSourceCode() bool {
 			log.Printf(logger.Info, "extract %s.zip successfully", name)
 		}(item.name, item.dir)
 	}
-	for i := 0; i < itemsLen; i++ {
+	for i := 0; i < len(items); i++ {
 		err := <-errCh
 		if err != nil {
 			log.Println(logger.Error, "failed to extract source code:", err)
@@ -169,7 +190,60 @@ func extractSourceCode() bool {
 	return true
 }
 
+func downloadModule() bool {
+	log.Println(logger.Info, "download module if it is not exist")
+	items := [...]*struct {
+		name string
+		dir  string
+	}{
+		{name: "golint", dir: "lint-master"},
+		{name: "gocyclo", dir: "gocyclo-main"},
+		{name: "gosec", dir: "gosec-master"},
+		{name: "golangci-lint", dir: "golangci-lint-master"},
+		{name: "go-tools", dir: "tools-master"},
+	}
+	errCh := make(chan error, len(items))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for _, item := range items {
+		go func(name, dir string) {
+			var err error
+			defer func() { errCh <- err }()
+			args := []string{"get", "-d"}
+			if cfg.Install.Insecure {
+				args = append(args, "-insecure")
+			}
+			args = append(args, "./...")
+			cmd := exec.CommandContext(ctx, "go", args...) // #nosec
+			out, err := cmd.CombinedOutput()
+			output := string(out)
+			code := cmd.ProcessState.ExitCode()
+			if err != nil {
+				code = 1
+			}
+			if code != 0 {
+				log.Printf(logger.Error, "failed to download module\n%s", output)
+				if err != nil {
+					log.Println(logger.Error, err)
+				}
+				return
+			}
+			log.Printf(logger.Info, "download module about %s successfully", name)
+		}(item.name, item.dir)
+	}
+	for i := 0; i < len(items); i++ {
+		err := <-errCh
+		if err != nil {
+			log.Println(logger.Error, "failed to download module:", err)
+			return false
+		}
+	}
+	log.Println(logger.Info, "download module successfully")
+	return true
+}
+
 func buildSourceCode() bool {
+	log.Println(logger.Info, "build development tools")
 	goRoot, err := config.GoRoot()
 	if err != nil {
 		log.Println(logger.Error, err)
@@ -188,8 +262,7 @@ func buildSourceCode() bool {
 		{name: "golangci-lint", dir: "golangci-lint-master", build: "cmd/golangci-lint"},
 		{name: "goyacc", dir: "tools-master", build: "cmd/goyacc"},
 	}
-	itemsLen := len(items)
-	resultCh := make(chan bool, itemsLen)
+	resultCh := make(chan bool, len(items))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, item := range items {
@@ -208,11 +281,8 @@ func buildSourceCode() bool {
 			switch runtime.GOOS {
 			case "windows":
 				binName = name + ".exe"
-			case "linux":
-				binName = name
 			default:
-				err = errors.New("unsupported platform: " + runtime.GOOS)
-				return
+				binName = name
 			}
 			buildPath := filepath.Join(developDir, dir, build)
 			// go build -v -trimpath -ldflags "-s -w" -o lint.exe
@@ -235,7 +305,7 @@ func buildSourceCode() bool {
 				mvErr = err
 				return filemgr.ErrCtrlOpCancel
 			}
-			err = filemgr.Move(ec, goRoot, filepath.Join(buildPath, binName))
+			err = filemgr.MoveWithContext(ctx, ec, goRoot, filepath.Join(buildPath, binName))
 			if mvErr != nil {
 				err = mvErr
 				return
@@ -247,7 +317,7 @@ func buildSourceCode() bool {
 			err = os.RemoveAll(filepath.Join(developDir, dir))
 		}(item.name, item.dir, item.build)
 	}
-	for i := 0; i < itemsLen; i++ {
+	for i := 0; i < len(items); i++ {
 		ok := <-resultCh
 		if !ok {
 			return false

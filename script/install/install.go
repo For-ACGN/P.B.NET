@@ -55,8 +55,8 @@ func main() {
 
 func installDefault() {
 	for _, step := range [...]func() bool{
-		installPatchFiles,
 		setupNetwork,
+		installPatchFiles,
 		listModule,
 		downloadAllModules,
 		downloadModule,
@@ -68,6 +68,17 @@ func installDefault() {
 		}
 	}
 	log.Println(logger.Info, "install successfully")
+}
+
+func setupNetwork() bool {
+	log.Println(logger.Info, "setup network")
+	if !config.SetProxy(cfg.Install.ProxyURL) {
+		return false
+	}
+	if cfg.Install.Insecure {
+		config.SkipTLSVerify()
+	}
+	return true
 }
 
 func getGoRootPaths(suffix string) []string {
@@ -220,16 +231,6 @@ func verifyPatchFiles() bool {
 		return false
 	}
 	log.Println(logger.Info, "verify patch files successfully")
-	return true
-}
-
-func setupNetwork() bool {
-	if !config.SetProxy(cfg.Install.ProxyURL) {
-		return false
-	}
-	if cfg.Install.Insecure {
-		config.SkipTLSVerify()
-	}
 	return true
 }
 

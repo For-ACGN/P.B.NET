@@ -51,6 +51,7 @@ func buildDefault() {
 		uninstallRuntimePatch,
 	} {
 		if !step() {
+			log.Println(logger.Fatal, "build failed")
 			return
 		}
 	}
@@ -59,7 +60,7 @@ func buildDefault() {
 
 func installRuntimePatch() bool {
 	// maybe change to string slice, when new go released.
-	path := filepath.Join(cfg.Common.GoRoot116x, "src/runtime/os_windows.go")
+	path := filepath.Join(cfg.Common.Go116x, "src/runtime/os_windows.go")
 	data, err := config.CreateBackup(path)
 	if err != nil {
 		log.Printf(logger.Error, "failed to create backup about %s: %s", path, err)
@@ -80,7 +81,7 @@ func installRuntimePatch() bool {
 }
 
 func uninstallRuntimePatch() bool {
-	path := filepath.Join(cfg.Common.GoRoot116x, "src/runtime/os_windows.go")
+	path := filepath.Join(cfg.Common.Go116x, "src/runtime/os_windows.go")
 	err := config.RestoreBackup(path)
 	if err != nil {
 		log.Printf(logger.Error, "failed to restore backup about %s: %s", path, err)
