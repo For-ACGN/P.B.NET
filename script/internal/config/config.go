@@ -28,11 +28,15 @@ type Config struct {
 
 	// Special contains options if you need special go version.
 	Special struct {
-		Go11113 string `json:"go_1_11_13"`
-		Go11217 string `json:"go_1_12_17"`
-		Go11315 string `json:"go_1_13_15"`
-		Go11415 string `json:"go_1_14_15"`
-		Go115x  string `json:"go_1_15_x"`
+		Go11113    string `json:"go_1_11_13"`
+		Go11217    string `json:"go_1_12_17"`
+		Go11315    string `json:"go_1_13_15"`
+		Go11415    string `json:"go_1_14_15"`
+		Go115x     string `json:"go_1_15_x"`
+		GoPrivate  string `json:"go_private"`
+		GoInsecure string `json:"go_insecure"`
+		GoNoProxy  string `json:"go_no_proxy"`
+		GoNoSumDB  string `json:"go_no_sum_db"`
 	} `json:"special"`
 
 	// Install contains options about install script.
@@ -99,6 +103,10 @@ func setGoEnv(config *Config) bool {
 		{"GOPATH", config.Common.GoPath, true},
 		{"GOPROXY", config.Common.GoProxy, false},
 		{"GOSUMDB", config.Common.GoSumDB, false},
+		{"GOPRIVATE", config.Special.GoPrivate, false},
+		{"GOINSECURE", config.Special.GoInsecure, false},
+		{"GONOPROXY", config.Special.GoNoProxy, false},
+		{"GONOSUMDB", config.Special.GoNoSumDB, false},
 	} {
 		if item.mustSet && item.value == "" {
 			log.Printf(logger.Error, "%s is not set", item.name)
