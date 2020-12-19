@@ -55,8 +55,8 @@ type Scanner struct {
 	Result chan *Result
 
 	// for control operations
-	pause   *pauser.Pauser
 	started bool
+	pauser  *pauser.Pauser
 	ctx     context.Context
 	cancel  context.CancelFunc
 	rwm     sync.RWMutex
@@ -74,7 +74,6 @@ func New(job <-chan *Job, worker int, logger logger.Logger, opts *Options) *Scan
 		outputPath:   "output",
 		workerStatus: make([]*WorkerStatus, worker),
 		Result:       make(chan *Result, 64*worker),
-		pause:        pauser.New(),
 	}
 	// initialize worker status
 	for i := 0; i < worker; i++ {
@@ -113,6 +112,7 @@ func (s *Scanner) start() error {
 	if s.started {
 		return errors.New("nmap scanner is started")
 	}
+	s.pauser = pauser.New()
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	for i := 0; i < s.workerNum; i++ {
 		s.wg.Add(1)
@@ -127,14 +127,15 @@ func (s *Scanner) Stop() {
 	s.rwm.Lock()
 	defer s.rwm.Unlock()
 	s.stop()
-	s.wg.Wait()
 }
 
 func (s *Scanner) stop() {
 	if !s.started {
 		return
 	}
+	s.pauser.Close()
 	s.cancel()
+	s.wg.Wait()
 	// prevent panic before here
 	s.started = false
 }
@@ -144,7 +145,6 @@ func (s *Scanner) Restart() error {
 	s.rwm.Lock()
 	defer s.rwm.Unlock()
 	s.stop()
-	s.wg.Wait()
 	return s.start()
 }
 
@@ -155,13 +155,23 @@ func (s *Scanner) IsStarted() bool {
 	return s.started
 }
 
-// Pause is used to pause nmap scanner, it will not pause
-// created nmap process, the next job will block.
+// Pause is used to pause nmap scanner, it will not
+// pause created nmap process, the next job will block.
 func (s *Scanner) Pause() {
-	s.pause.Pause()
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	if s.pauser == nil {
+		return
+	}
+	s.pauser.Pause()
 }
 
 // Continue is used to continue nmap scanner.
 func (s *Scanner) Continue() {
-	s.pause.Continue()
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	if s.pauser == nil {
+		return
+	}
+	s.pauser.Continue()
 }

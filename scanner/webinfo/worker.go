@@ -46,6 +46,7 @@ func (wi *WebInfo) worker(id int) {
 	}()
 	// process jobs loop
 	for {
+		wi.pauser.Paused()
 		select {
 		case job := <-wi.jobCh:
 			if job == nil {

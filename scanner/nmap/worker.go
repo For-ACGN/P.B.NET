@@ -62,6 +62,7 @@ func (s *Scanner) worker(id int) {
 	}
 	// process jobs loop
 	for {
+		s.pauser.Paused()
 		select {
 		case job := <-s.jobCh:
 			if job == nil {

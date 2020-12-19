@@ -72,8 +72,8 @@ type WebInfo struct {
 	Result chan *Result
 
 	// for control operations
-	pause   *pauser.Pauser
 	started bool
+	pauser  *pauser.Pauser
 	ctx     context.Context
 	cancel  context.CancelFunc
 	rwm     sync.RWMutex
@@ -92,7 +92,6 @@ func NewWebInfo(job <-chan *Job, logger logger.Logger, cfg *Config) (*WebInfo, e
 		workerNum:    workerNum,
 		workerStatus: make([]*WorkerStatus, workerNum),
 		Result:       make(chan *Result, 64*workerNum),
-		pause:        pauser.New(),
 	}
 	return &wi, nil
 }
@@ -108,6 +107,7 @@ func (wi *WebInfo) start() error {
 	if wi.started {
 		return errors.New("web info is started")
 	}
+	wi.pauser = pauser.New()
 	wi.ctx, wi.cancel = context.WithCancel(context.Background())
 	for i := 0; i < wi.workerNum; i++ {
 		wi.wg.Add(1)
@@ -122,14 +122,15 @@ func (wi *WebInfo) Stop() {
 	wi.rwm.Lock()
 	defer wi.rwm.Unlock()
 	wi.stop()
-	wi.wg.Wait()
 }
 
 func (wi *WebInfo) stop() {
 	if !wi.started {
 		return
 	}
+	wi.pauser.Close()
 	wi.cancel()
+	wi.wg.Wait()
 	// prevent panic before here
 	wi.started = false
 }
@@ -139,7 +140,6 @@ func (wi *WebInfo) Restart() error {
 	wi.rwm.Lock()
 	defer wi.rwm.Unlock()
 	wi.stop()
-	wi.wg.Wait()
 	return wi.start()
 }
 
@@ -153,10 +153,20 @@ func (wi *WebInfo) IsStarted() bool {
 // Pause is used to pause web info, it will pause all go-colly running
 // jobs, wappalyzer will not be paused, because it only use CPU.
 func (wi *WebInfo) Pause() {
-	wi.pause.Pause()
+	wi.rwm.RLock()
+	defer wi.rwm.RUnlock()
+	if wi.pauser == nil {
+		return
+	}
+	wi.pauser.Pause()
 }
 
 // Continue is used to continue web info.
 func (wi *WebInfo) Continue() {
-	wi.pause.Continue()
+	wi.rwm.RLock()
+	defer wi.rwm.RUnlock()
+	if wi.pauser == nil {
+		return
+	}
+	wi.pauser.Continue()
 }
