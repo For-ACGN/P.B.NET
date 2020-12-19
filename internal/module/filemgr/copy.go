@@ -44,6 +44,7 @@ type copyTask struct {
 
 	// control speed watcher
 	stopSignal chan struct{}
+	wg         sync.WaitGroup
 }
 
 // NewCopyTask is used to create a copy task that implement task.Interface.
@@ -88,6 +89,7 @@ func (ct *copyTask) Prepare(context.Context) error {
 	ct.dstStat = dstStat
 	ct.basePath = basePath
 	ct.files = make([]*fileStat, 0, ct.pathsLen*4)
+	ct.wg.Add(1)
 	go ct.watcher()
 	return nil
 }
@@ -547,6 +549,7 @@ func (ct *copyTask) updateDetail(detail string) {
 
 // watcher is used to calculate current copy speed.
 func (ct *copyTask) watcher() {
+	defer ct.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			xpanic.Log(r, "copyTask.watcher")
@@ -598,6 +601,7 @@ func (ct *copyTask) watchSpeed(current *big.Float, index int) {
 // Clean is used to send stop signal to watcher.
 func (ct *copyTask) Clean() {
 	close(ct.stopSignal)
+	ct.wg.Wait()
 }
 
 // Copy is used to create a copy task to copy paths to destination.

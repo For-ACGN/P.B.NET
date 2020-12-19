@@ -40,6 +40,7 @@ type deleteTask struct {
 
 	// control speed watcher
 	stopSignal chan struct{}
+	wg         sync.WaitGroup
 }
 
 // NewDeleteTask is used to create a delete task that implement task.Interface.
@@ -67,6 +68,7 @@ func (dt *deleteTask) Prepare(context.Context) error {
 		return err
 	}
 	dt.roots = make([]*file, dt.pathsLen)
+	dt.wg.Add(1)
 	go dt.watcher()
 	return nil
 }
@@ -336,6 +338,7 @@ func (dt *deleteTask) updateDetail(detail string) {
 
 // watcher is used to calculate current delete file speed.
 func (dt *deleteTask) watcher() {
+	defer dt.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			xpanic.Log(r, "deleteTask.watcher")
@@ -387,6 +390,7 @@ func (dt *deleteTask) watchSpeed(current *big.Float, index int) {
 // Clean is used to send stop signal to watcher.
 func (dt *deleteTask) Clean() {
 	close(dt.stopSignal)
+	dt.wg.Wait()
 }
 
 // Delete is used to create a delete task to delete paths.

@@ -46,6 +46,7 @@ type zipTask struct {
 
 	// control speed watcher
 	stopSignal chan struct{}
+	wg         sync.WaitGroup
 }
 
 // NewZipTask is used to create a zip task that implement task.Interface.
@@ -89,6 +90,7 @@ func (zt *zipTask) Prepare(context.Context) error {
 	}
 	zt.zipPath = dstAbs
 	zt.files = make([]*fileStat, 0, zt.pathsLen*4)
+	zt.wg.Add(1)
 	go zt.watcher()
 	return nil
 }
@@ -406,6 +408,7 @@ func (zt *zipTask) updateDetail(detail string) {
 
 // watcher is used to calculate current compress speed.
 func (zt *zipTask) watcher() {
+	defer zt.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			xpanic.Log(r, "zipTask.watcher")
@@ -457,6 +460,7 @@ func (zt *zipTask) watchSpeed(current *big.Float, index int) {
 // Clean is used to send stop signal to watcher.
 func (zt *zipTask) Clean() {
 	close(zt.stopSignal)
+	zt.wg.Wait()
 }
 
 // Zip is used to create a zip task to compress files into a zip file.

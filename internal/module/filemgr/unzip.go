@@ -48,6 +48,7 @@ type unZipTask struct {
 
 	// control speed watcher
 	stopSignal chan struct{}
+	wg         sync.WaitGroup
 }
 
 // NewUnZipTask is used to create a unzip task that implement task.Interface.
@@ -96,6 +97,7 @@ func (ut *unZipTask) Prepare(context.Context) error {
 	ut.src = srcAbs
 	ut.dst = dstAbs
 	ut.dstStat = dstStat
+	ut.wg.Add(1)
 	go ut.watcher()
 	return nil
 }
@@ -596,6 +598,7 @@ func (ut *unZipTask) updateDetail(detail string) {
 
 // watcher is used to calculate current extract speed.
 func (ut *unZipTask) watcher() {
+	defer ut.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			xpanic.Log(r, "unZipTask.watcher")
@@ -647,6 +650,7 @@ func (ut *unZipTask) watchSpeed(current *big.Float, index int) {
 // Clean is used to send stop signal to watcher.
 func (ut *unZipTask) Clean() {
 	close(ut.stopSignal)
+	ut.wg.Wait()
 }
 
 // UnZip is used to create a unzip task to extract files from zip file.

@@ -45,6 +45,7 @@ type moveTask struct {
 
 	// control speed watcher
 	stopSignal chan struct{}
+	wg         sync.WaitGroup
 }
 
 // NewMoveTask is used to create a move task that implement task.Interface.
@@ -94,6 +95,7 @@ func (mt *moveTask) Prepare(context.Context) error {
 	mt.dstStat = dstStat
 	mt.basePath = basePath
 	mt.roots = make([]*file, mt.pathsLen)
+	mt.wg.Add(1)
 	go mt.watcher()
 	return nil
 }
@@ -713,6 +715,7 @@ func (mt *moveTask) updateDetail(detail string) {
 
 // watcher is used to calculate current move speed.
 func (mt *moveTask) watcher() {
+	defer mt.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			xpanic.Log(r, "moveTask.watcher")
@@ -764,6 +767,7 @@ func (mt *moveTask) watchSpeed(current *big.Float, index int) {
 // Clean is used to send stop signal to watcher.
 func (mt *moveTask) Clean() {
 	close(mt.stopSignal)
+	mt.wg.Wait()
 }
 
 // Move is used to create a move task to move paths to destination.
