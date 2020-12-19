@@ -35,7 +35,7 @@ func SetProxy(proxyURL string) bool {
 		log.Println(logger.Error, "failed to set HTTPS_PROXY:", err)
 		return false
 	}
-	log.Println(logger.Info, "Proxy:", proxyURL)
+	log.Println(logger.Info, "proxy:", proxyURL)
 	return true
 }
 

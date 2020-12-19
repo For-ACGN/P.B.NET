@@ -275,14 +275,13 @@ func downloadAllModules() bool {
 
 func downloadModule() bool {
 	log.Println(logger.Info, "download module if it is not exist")
-	args := []string{"get", "-d"}
-	if cfg.Install.Insecure {
-		args = append(args, "-insecure")
-	}
-	args = append(args, "./...")
-	output, code, err := exec.Run("go", args...)
+	writer := logger.WrapLogger(logger.Info, "install", logger.Common)
+	cmd := exec.Command("go", "get", "-d", "./...")
+	cmd.Stdout = writer
+	cmd.Stderr = writer
+	code, err := exec.RunCommand(cmd)
 	if code != 0 {
-		log.Printf(logger.Error, "failed to download module\n%s", output)
+		log.Println(logger.Error, "failed to download module")
 		if err != nil {
 			log.Println(logger.Error, err)
 		}

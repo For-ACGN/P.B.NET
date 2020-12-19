@@ -196,15 +196,15 @@ type wrapWriter struct {
 	src    string
 	logger Logger
 	trace  bool // print stack trace
-	skip   int
-	last   bool // reserve the last "\n"
+	skip   int  // about trace
+	last   bool // delete the last "\n"
 }
 
 func (w *wrapWriter) Write(p []byte) (int, error) {
 	l := len(p)
 	buf := bytes.NewBuffer(make([]byte, 0, l+256))
 	buf.Write(p)
-	if !w.last {
+	if w.last {
 		buf.Truncate(buf.Len() - 1)
 	}
 	if w.trace {
