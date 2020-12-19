@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"project/internal/system"
 
 	"project/script/internal/config"
+	"project/script/internal/exec"
 	"project/script/internal/log"
 )
 
@@ -202,39 +202,32 @@ func downloadModule() bool {
 		{name: "golangci-lint", dir: "golangci-lint-master"},
 		{name: "go-tools", dir: "tools-master"},
 	}
-	errCh := make(chan error, len(items))
+	resultCh := make(chan bool, len(items))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, item := range items {
 		go func(name, dir string) {
-			var err error
-			defer func() { errCh <- err }()
-			args := []string{"get", "-d"}
-			if cfg.Install.Insecure {
-				args = append(args, "-insecure")
-			}
-			args = append(args, "./...")
-			cmd := exec.CommandContext(ctx, "go", args...) // #nosec
-			out, err := cmd.CombinedOutput()
-			output := string(out)
-			code := cmd.ProcessState.ExitCode()
-			if err != nil {
-				code = 1
-			}
-			if code != 0 {
-				log.Printf(logger.Error, "failed to download module\n%s", output)
-				if err != nil {
-					log.Println(logger.Error, err)
-				}
+			writer := logger.WrapLogger(logger.Info, "develop", logger.Common)
+			cmd := exec.CommandContext(ctx, "go", "get", "-d", "./...") // #nosec
+			cmd.Dir = filepath.Join(developDir, dir)
+			cmd.Stdout = writer
+			cmd.Stderr = writer
+			code, err := exec.RunCommand(cmd)
+			if code == 0 {
+				log.Printf(logger.Info, "download module for %s successfully", name)
+				resultCh <- true
 				return
 			}
-			log.Printf(logger.Info, "download module about %s successfully", name)
+			log.Printf(logger.Error, "failed to download module for %s", name)
+			if err != nil {
+				log.Println(logger.Error, err)
+			}
+			resultCh <- false
 		}(item.name, item.dir)
 	}
 	for i := 0; i < len(items); i++ {
-		err := <-errCh
-		if err != nil {
-			log.Println(logger.Error, "failed to download module:", err)
+		ok := <-resultCh
+		if !ok {
 			return false
 		}
 	}
@@ -285,15 +278,18 @@ func buildSourceCode() bool {
 				binName = name
 			}
 			buildPath := filepath.Join(developDir, dir, build)
+			writer := logger.WrapLogger(logger.Info, "develop", logger.Common)
 			// go build -v -trimpath -ldflags "-s -w" -o lint.exe
 			args := []string{"build", "-v", "-trimpath", "-ldflags", "-s -w", "-o", binName}
 			cmd := exec.CommandContext(ctx, "go", args...) // #nosec
 			cmd.Dir = buildPath
-			writer := logger.WrapLogger(logger.Info, "develop", logger.Common)
 			cmd.Stdout = writer
 			cmd.Stderr = writer
-			err = cmd.Run()
-			if err != nil {
+			code, err := exec.RunCommand(cmd)
+			if code != 0 {
+				if err == nil {
+					err = fmt.Errorf("process exit with unexpected code: %d", code)
+				}
 				return
 			}
 			// move binary file to GOROOT
