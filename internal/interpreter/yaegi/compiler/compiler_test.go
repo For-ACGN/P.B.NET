@@ -46,7 +46,7 @@ func f2() {
 }
 
 func f3() {
-	fmt1.Println("f3")
+	_, _ = fmt1.Println("f3")
 }
 
 // no import

@@ -25,7 +25,7 @@ func Compile(ctx *build.Context, dir string) (string, error) {
 	files := make(map[string]string, len(pkg.GoFiles))
 	for i := 0; i < len(pkg.GoFiles); i++ {
 		path := filepath.Join(dir, pkg.GoFiles[i])
-		data, err := ioutil.ReadFile(path)
+		data, err := ioutil.ReadFile(path) // #nosec
 		if err != nil {
 			return "", err
 		}

@@ -151,7 +151,7 @@ func parseGreeting(packet []byte) (*Greeting, error) {
 		return nil, errors.Wrap(err, "failed to read authentication plugin length")
 	}
 	// unused data
-	_, err = io.CopyN(ioutil.Discard, reader, 10)
+	_, err = io.CopyN(ioutil.Discard, reader, int64(len(new(Greeting).unused)))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read unused data")
 	}

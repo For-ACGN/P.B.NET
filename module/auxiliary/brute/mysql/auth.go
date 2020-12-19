@@ -3,7 +3,7 @@ package mysql
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec
 	"crypto/sha256"
 
 	"github.com/pkg/errors"
@@ -46,6 +46,17 @@ func (mc *mysqlConn) sendEncryptedPassword(seed []byte, pub *rsa.PublicKey) erro
 		return err
 	}
 	return mc.writePacket(enc)
+}
+
+func encryptPassword(password string, seed []byte, pub *rsa.PublicKey) ([]byte, error) {
+	plain := make([]byte, len(password)+1)
+	copy(plain, password)
+	for i := range plain {
+		j := i % len(seed)
+		plain[i] ^= seed[j]
+	}
+	hash := sha1.New() // #nosec
+	return rsa.EncryptOAEP(hash, rand.Reader, pub, plain, nil)
 }
 
 // Hash password using MySQL 8+ method (SHA256)
@@ -162,7 +173,7 @@ func scramblePassword(scramble []byte, password string) []byte {
 	}
 
 	// stage1Hash = SHA1(password)
-	crypt := sha1.New()
+	crypt := sha1.New() // #nosec
 	crypt.Write([]byte(password))
 	stage1 := crypt.Sum(nil)
 
@@ -183,15 +194,4 @@ func scramblePassword(scramble []byte, password string) []byte {
 		scramble[i] ^= stage1[i]
 	}
 	return scramble
-}
-
-func encryptPassword(password string, seed []byte, pub *rsa.PublicKey) ([]byte, error) {
-	plain := make([]byte, len(password)+1)
-	copy(plain, password)
-	for i := range plain {
-		j := i % len(seed)
-		plain[i] ^= seed[j]
-	}
-	hash := sha1.New()
-	return rsa.EncryptOAEP(hash, rand.Reader, pub, plain, nil)
 }
