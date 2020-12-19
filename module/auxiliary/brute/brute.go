@@ -26,7 +26,10 @@ type Brute struct {
 
 // New is used to create a new common brute module.
 func New(logger logger.Logger) *Brute {
-	return &Brute{logger: logger}
+	return &Brute{
+		logger: logger,
+		tasks:  make(map[int]*task, 1),
+	}
 }
 
 // Start is used to start scanner, it will reset task ID.
@@ -40,9 +43,8 @@ func (brute *Brute) start() error {
 	if brute.started {
 		return errors.New("brute module is started")
 	}
-	// initialize
+	// reset task id
 	brute.taskID = 0
-	brute.tasks = make(map[int]*task, 1)
 	brute.started = true
 	return nil
 }
@@ -105,13 +107,63 @@ func (brute *Brute) Methods() []string {
 
 // Call is used to call brute module extended method.
 func (brute *Brute) Call(method string, args ...interface{}) (interface{}, error) {
+	// check arguments first
+	if len(args) != 1 {
+		return nil, errors.New("invalid argument number")
+	}
+	id, ok := args[0].(int)
+	if !ok {
+		return nil, errors.New("argument 1 is not a int")
+	}
 	switch method {
 	case "pause":
-
+		return brute.PauseTask(id), nil
 	case "continue":
-
+		return brute.ContinueTask(id), nil
 	case "kill":
-
+		return brute.KillTask(id), nil
+	default:
+		return nil, errors.Errorf("unknown method: \"%s\"", method)
 	}
-	return nil, nil
+}
+
+// GetTask is used to get task by ID.
+func (brute *Brute) GetTask(id int) (*task, error) {
+	brute.tasksRWM.RLock()
+	defer brute.tasksRWM.RUnlock()
+	task, ok := brute.tasks[id]
+	if !ok {
+		return nil, errors.Errorf("task %d is not exist", id)
+	}
+	return task, nil
+}
+
+// PauseTask is used to pause task by ID.
+func (brute *Brute) PauseTask(id int) error {
+	task, err := brute.GetTask(id)
+	if err != nil {
+		return err
+	}
+	task.Pause()
+	return nil
+}
+
+// ContinueTask is used to continue task by ID.
+func (brute *Brute) ContinueTask(id int) error {
+	task, err := brute.GetTask(id)
+	if err != nil {
+		return err
+	}
+	task.Continue()
+	return nil
+}
+
+// KillTask is used to Kill task by ID.
+func (brute *Brute) KillTask(id int) error {
+	task, err := brute.GetTask(id)
+	if err != nil {
+		return err
+	}
+	task.Kill()
+	return nil
 }
