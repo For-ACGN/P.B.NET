@@ -1,13 +1,19 @@
 package brute
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/pkg/errors"
 
 	"project/internal/logger"
+	"project/internal/module"
 )
+
+// Login is the callback to the brute instance, if login successfully
+// it will return true, if appear error, brute will log it.
+type Login func(ctx context.Context, target, username, password string) (bool, error)
 
 // Brute is the generic brute force attacker.
 // It is used to build brute module easily.
@@ -16,7 +22,7 @@ type Brute struct {
 
 	// contain brute tasks
 	taskID   int // auto-increment
-	tasks    map[int]*task
+	tasks    map[int]*Task
 	tasksRWM sync.RWMutex
 
 	started bool
@@ -28,7 +34,7 @@ type Brute struct {
 func New(logger logger.Logger) *Brute {
 	return &Brute{
 		logger: logger,
-		tasks:  make(map[int]*task, 1),
+		tasks:  make(map[int]*Task, 1),
 	}
 }
 
@@ -102,7 +108,37 @@ func (brute *Brute) Status() string {
 
 // Methods is used to get brute module methods.
 func (brute *Brute) Methods() []string {
-	return nil
+	pause := module.Method{
+		Name: "Pause",
+		Desc: "Pause is used to pause brute task by id.",
+		Args: []*module.Value{
+			{Name: "id", Type: "int"},
+		},
+		Rets: []*module.Value{
+			{Name: "err", Type: "error"},
+		},
+	}
+	Continue := module.Method{
+		Name: "Continue",
+		Desc: "Continue is used to continue brute task by id.",
+		Args: []*module.Value{
+			{Name: "id", Type: "int"},
+		},
+		Rets: []*module.Value{
+			{Name: "err", Type: "error"},
+		},
+	}
+	kill := module.Method{
+		Name: "Kill",
+		Desc: "Kill is used to kill brute task by id.",
+		Args: []*module.Value{
+			{Name: "id", Type: "int"},
+		},
+		Rets: []*module.Value{
+			{Name: "err", Type: "error"},
+		},
+	}
+	return []string{pause.String(), Continue.String(), kill.String()}
 }
 
 // Call is used to call brute module extended method.
@@ -128,7 +164,7 @@ func (brute *Brute) Call(method string, args ...interface{}) (interface{}, error
 }
 
 // GetTask is used to get task by ID.
-func (brute *Brute) GetTask(id int) (*task, error) {
+func (brute *Brute) GetTask(id int) (*Task, error) {
 	brute.tasksRWM.RLock()
 	defer brute.tasksRWM.RUnlock()
 	task, ok := brute.tasks[id]
@@ -138,7 +174,7 @@ func (brute *Brute) GetTask(id int) (*task, error) {
 	return task, nil
 }
 
-// PauseTask is used to pause task by ID.
+// PauseTask is used to pause brute task by ID.
 func (brute *Brute) PauseTask(id int) error {
 	task, err := brute.GetTask(id)
 	if err != nil {
@@ -148,7 +184,7 @@ func (brute *Brute) PauseTask(id int) error {
 	return nil
 }
 
-// ContinueTask is used to continue task by ID.
+// ContinueTask is used to continue brute task by ID.
 func (brute *Brute) ContinueTask(id int) error {
 	task, err := brute.GetTask(id)
 	if err != nil {
@@ -158,7 +194,7 @@ func (brute *Brute) ContinueTask(id int) error {
 	return nil
 }
 
-// KillTask is used to Kill task by ID.
+// KillTask is used to Kill brute task by ID.
 func (brute *Brute) KillTask(id int) error {
 	task, err := brute.GetTask(id)
 	if err != nil {
