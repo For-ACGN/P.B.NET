@@ -33,13 +33,13 @@ type copyTask struct {
 	files    []*fileStat // store all files and directories that will be copied
 	skipDirs []string    // store skipped directories
 
-	// about progress, detail and speed
+	// about progress, speed and detail
 	current *big.Float
 	total   *big.Float
-	detail  string
 	speed   uint64
 	speeds  [10]uint64
 	full    bool
+	detail  string
 	rwm     sync.RWMutex
 
 	// control speed watcher

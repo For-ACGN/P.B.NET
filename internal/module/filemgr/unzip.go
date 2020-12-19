@@ -37,13 +37,13 @@ type unZipTask struct {
 	dirs     []*zip.File     // set modified time after extract files
 	skipDirs []string        // store skipped directories
 
-	// about progress, detail and speed
+	// about progress, speed and detail
 	current *big.Float
 	total   *big.Float
-	detail  string
 	speed   uint64
 	speeds  [10]uint64
 	full    bool
+	detail  string
 	rwm     sync.RWMutex
 
 	// control speed watcher
