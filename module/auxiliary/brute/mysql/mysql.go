@@ -8,31 +8,30 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"project/module/auxiliary/brute"
 )
 
-const (
-	defaultAuthPlugin  = "mysql_native_password"
-	minProtocolVersion = 10
-	maxPacketSize      = 1<<24 - 1
-)
+// Brute is the brute module.
+type Brute struct {
+	*brute.Brute
+}
 
-// MySQL constants documentation:
-// http://dev.mysql.com/doc/internals/en/client-server-protocol.html
+// Name is used to get brute module name.
+func (b *Brute) Name() string {
+	return "MySQL Brute"
+}
 
-const (
-	iOK           byte = 0x00
-	iAuthMoreData byte = 0x01
-	iEOF          byte = 0xfe
-	iERR          byte = 0xff
-)
+// Description is used to get brute module description.
+func (b *Brute) Description() string {
+	return "MySQL Brute"
+}
 
-const (
-	cachingSha2PasswordRequestPublicKey = 2
-	cachingSha2PasswordFastAuthSuccess  = 3
-	cachingSha2PasswordPerformFullAuth  = 4
-)
+// Config contains configuration about mysql brute module.
+type Config struct {
+}
 
-func connect(address string, username, password string) (bool, error) {
+func connect(address, username, password string) (bool, error) {
 	conn, err := net.Dial("tcp", address) // TODO set proxy
 	if err != nil {
 		return false, err
@@ -61,13 +60,13 @@ func connect(address string, username, password string) (bool, error) {
 	return true, nil
 }
 
-// Error is an error type which represents a single MySQL error.
-type Error struct {
+// mError is an error type which represents a single MySQL error.
+type mError struct {
 	Number  uint16
 	Message string
 }
 
-func (e *Error) Error() string {
+func (e *mError) Error() string {
 	return fmt.Sprintf("Error %d: %s", e.Number, e.Message)
 }
 
@@ -98,8 +97,5 @@ func handleErrorPacket(data []byte) error {
 		pos = 9
 	}
 	// Error Message [string]
-	return &Error{
-		Number:  errno,
-		Message: string(data[pos:]),
-	}
+	return &mError{Number: errno, Message: string(data[pos:])}
 }

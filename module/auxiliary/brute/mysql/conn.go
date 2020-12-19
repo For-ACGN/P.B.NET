@@ -16,6 +16,28 @@ import (
 	"project/internal/convert"
 )
 
+const (
+	defaultAuthPlugin  = "mysql_native_password"
+	minProtocolVersion = 10
+	maxPacketSize      = 1<<24 - 1
+)
+
+// MySQL constants documentation:
+// http://dev.mysql.com/doc/internals/en/client-server-protocol.html
+
+const (
+	iOK           byte = 0x00
+	iAuthMoreData byte = 0x01
+	iEOF          byte = 0xfe
+	iERR          byte = 0xff
+)
+
+const (
+	cachingSha2PasswordRequestPublicKey = 2
+	cachingSha2PasswordFastAuthSuccess  = 3
+	cachingSha2PasswordPerformFullAuth  = 4
+)
+
 // +---------------+---------------+
 // | Packet Length | Packet Number |
 // +---------------+---------------+
