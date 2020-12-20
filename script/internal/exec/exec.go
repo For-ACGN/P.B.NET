@@ -27,12 +27,12 @@ func RunContext(ctx context.Context, name string, args ...string) (string, int, 
 
 // Command returns the Cmd struct to execute the named program with the given arguments.
 func Command(name string, args ...string) *exec.Cmd {
-	return exec.Command(name, args...)
+	return exec.Command(name, args...) // #nosec
 }
 
 // CommandContext is like Command but includes a context.
 func CommandContext(ctx context.Context, name string, args ...string) *exec.Cmd {
-	return exec.CommandContext(ctx, name, args...)
+	return exec.CommandContext(ctx, name, args...) // #nosec
 }
 
 // RunCommand is used to run exec.Cmd and get exit code.
