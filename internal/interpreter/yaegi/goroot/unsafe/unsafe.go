@@ -51,6 +51,12 @@ func convert(from, to reflect.Type) func(src, dest reflect.Value) {
 	}
 }
 
+//go:nocheckptr
+// #nosec
+func uintptrToUnsafePtr(src, dest reflect.Value) {
+	dest.SetPointer(unsafe.Pointer(src.Interface().(uintptr))) //nolint:govet
+}
+
 func sizeof(i interface{}) uintptr {
 	return reflect.ValueOf(i).Type().Size()
 }
@@ -59,7 +65,7 @@ func alignof(i interface{}) uintptr {
 	return uintptr(reflect.ValueOf(i).Type().Align())
 }
 
-// compiler will replace origin code "unsafe.Offsetof(T{}.A)" to "unsafe.Offsetof(T{}, "A")"
+// compiler will replace origin code "unsafe.Offsetof(T{}.A)" to "unsafe.Offsetof(T{}, "A")".
 func offsetof(s interface{}, f string) uintptr {
 	typ := reflect.ValueOf(s).Type()
 	sf, ok := typ.FieldByName(f)
@@ -67,10 +73,4 @@ func offsetof(s interface{}, f string) uintptr {
 		panic(fmt.Sprintf("structure %s not contain field: \"%s\"", typ, f))
 	}
 	return sf.Offset
-}
-
-//go:nocheckptr
-// #nosec
-func uintptrToUnsafePtr(src, dest reflect.Value) {
-	dest.SetPointer(unsafe.Pointer(src.Interface().(uintptr))) //nolint:govet
 }
