@@ -141,6 +141,11 @@ func ProcessUnsafeOffsetof(src string) string {
 		fieldName := src[offset+begin+1 : offset+end]
 		buf.WriteString(src[offset : offset+begin])
 		buf.WriteString(", \"")
+		// if structure field is unexported,
+		// yaegi will add "X" before field name.
+		if fieldName[0] >= 'a' && fieldName[0] <= 'z' {
+			buf.WriteString("X")
+		}
 		buf.WriteString(fieldName)
 		buf.WriteString("\")")
 		// update global offset

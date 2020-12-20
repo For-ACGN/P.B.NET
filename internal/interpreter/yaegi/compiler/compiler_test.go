@@ -63,10 +63,12 @@ func f8() {
 // T is a test structure.
 type T struct {
 	A int
+	b int
 }
 
 func f9() {
 	fmt.Println(unsafe.Offsetof(T{}, "A")) // #nosec
+	fmt.Println(unsafe.Offsetof(T{}, "Xb")) // #nosec
 }
 `
 	require.Equal(t, expected[1:], code)
