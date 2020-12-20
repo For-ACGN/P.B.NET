@@ -106,3 +106,26 @@ func TestCompile_Fail(t *testing.T) {
 		require.Zero(t, code)
 	})
 }
+
+func TestProcessUnsafeOffsetof(t *testing.T) {
+	const code = `
+func f1() {
+	unsafe.Offsetof(T{}.A)
+}
+
+func f2() {
+	unsafe.Offsetof(T{}.A)
+}
+`
+	output := ProcessUnsafeOffsetof(code[1:])
+	const expected = `
+func f1() {
+	unsafe.Offsetof(T{}, "A")
+}
+
+func f2() {
+	unsafe.Offsetof(T{}, "A")
+}
+`
+	require.Equal(t, expected[1:], output)
+}

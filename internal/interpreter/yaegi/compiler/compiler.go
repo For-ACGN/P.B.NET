@@ -12,6 +12,7 @@ import (
 
 // Compile is used to import go source code in directory to a
 // package and generate it to a single go file for yaegi.
+// If use unsafe.Offsetof function, it will process it specially.
 func Compile(ctx *build.Context, dir string) (string, error) {
 	pkg, err := ctx.ImportDir(dir, 0)
 	if err != nil {
@@ -46,34 +47,42 @@ func Compile(ctx *build.Context, dir string) (string, error) {
 	// calculate offset of code
 	offsets := calculateOffsets(pkg, dir, files)
 	// generate source code
-	code := bytes.NewBuffer(make([]byte, 0, 1024))
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	// write package name
-	code.WriteString("package ")
-	code.WriteString(pkg.Name)
-	code.WriteString("\n\n")
+	buf.WriteString("package ")
+	buf.WriteString(pkg.Name)
+	buf.WriteString("\n\n")
 	// write import
 	if len(imports) != 0 {
-		code.WriteString("import (\n")
+		buf.WriteString("import (\n")
 		for importLine := range imports {
-			code.WriteString("\t")
-			code.WriteString(importLine)
-			code.WriteString("\n")
+			buf.WriteString("\t")
+			buf.WriteString(importLine)
+			buf.WriteString("\n")
 		}
-		code.WriteString(")\n\n")
+		buf.WriteString(")\n\n")
 	}
 	// write code, use string slice for sort.
 	for i := 0; i < len(pkg.GoFiles); i++ {
 		filename := filepath.Join(dir, pkg.GoFiles[i])
 		offset := offsets[filename]
-		code.WriteString(files[filename][offset:])
-		code.WriteString("\n")
+		buf.WriteString(files[filename][offset:])
+		buf.WriteString("\n")
 	}
 	// format source code
-	src, err := format.Source(code.Bytes())
+	b, err := format.Source(buf.Bytes())
 	if err != nil {
 		return "", err
 	}
-	return string(src), err
+	code := string(b)
+	// check need process unsafe
+	for i := 0; i < len(pkg.Imports); i++ {
+		if pkg.Imports[i] == "unsafe" {
+			code = ProcessUnsafeOffsetof(code)
+			break
+		}
+	}
+	return code, nil
 }
 
 func calculateOffsets(pkg *build.Package, dir string, files map[string]string) map[string]int {
@@ -108,4 +117,34 @@ func calculateOffsets(pkg *build.Package, dir string, files map[string]string) m
 		offsets[filename] = idx + strings.Index(content[idx:], "\n")
 	}
 	return offsets
+}
+
+// ProcessUnsafeOffsetof is used to process yaegi code that use unsafe.Offsetof().
+// It will replace "unsafe.Offsetof(T{}.A)" to "unsafe.Offsetof(T{}, "A")"
+func ProcessUnsafeOffsetof(src string) string {
+	const flag = "unsafe.Offsetof("
+	buf := strings.Builder{}
+	offset := 0
+	for {
+		index := strings.Index(src[offset:], flag)
+		if index == -1 {
+			buf.WriteString(src[offset:])
+			break
+		}
+		// write code before flag
+		buf.WriteString(src[offset : offset+index+len(flag)])
+		// update offset for simplify code
+		offset = offset + index + len(flag)
+		// get field name
+		begin := strings.Index(src[offset:], ".")
+		end := strings.Index(src[offset:], ")")
+		fieldName := src[offset+begin+1 : offset+end]
+		buf.WriteString(src[offset : offset+begin])
+		buf.WriteString(", \"")
+		buf.WriteString(fieldName)
+		buf.WriteString("\")")
+		// update global offset
+		offset = offset + end + 1
+	}
+	return buf.String()
 }
