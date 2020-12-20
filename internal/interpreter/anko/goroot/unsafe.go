@@ -1,6 +1,7 @@
 package goroot
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 	"unsafe"
@@ -23,6 +24,7 @@ func initUnsafe() {
 		"ConvertWithType": reflect.ValueOf(convertWithType),
 		"Sizeof":          reflect.ValueOf(sizeOf),
 		"Alignof":         reflect.ValueOf(alignOf),
+		"Offsetof":        reflect.ValueOf(offsetOf),
 	}
 	var (
 		pointer unsafe.Pointer
@@ -67,4 +69,11 @@ func alignOf(i interface{}) uintptr {
 	return uintptr(reflect.ValueOf(i).Type().Align())
 }
 
-// TODO add Offsetof
+func offsetOf(s interface{}, f string) uintptr {
+	typ := reflect.ValueOf(s).Type()
+	sf, ok := typ.FieldByName(f)
+	if !ok {
+		panic(fmt.Sprintf("structure %s not contain field: \"%s\"", typ, f))
+	}
+	return sf.Offset
+}

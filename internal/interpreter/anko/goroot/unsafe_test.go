@@ -75,6 +75,38 @@ return true
 		testRun(t, src, false, true)
 	})
 
+	t.Run("offsetof", func(t *testing.T) {
+		const src = `
+unsafe = import("unsafe")
+
+s = make(struct {
+	A int64,
+	B int64
+})
+
+offset = unsafe.Offsetof(s, "B")
+if offset != 8 {
+	return offset
+}
+return true
+`
+		testRun(t, src, false, true)
+	})
+
+	t.Run("offsetof not exist", func(t *testing.T) {
+		const src = `
+unsafe = import("unsafe")
+
+s = make(struct {
+	A int64,
+	B int64
+})
+
+unsafe.Offsetof(s, "C")
+`
+		testRun(t, src, true, nil)
+	})
+
 	t.Run("convert to struct", func(t *testing.T) {
 		// convert to struct, like these golang code
 		// p := (*testStruct)(unsafe.Pointer(&Int64))
