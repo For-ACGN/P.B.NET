@@ -34,6 +34,7 @@ import (
 	"log"
 	_ "log"
 	_ "strings"
+	"unsafe"
 )
 
 func f1() {
@@ -57,6 +58,15 @@ func f4() {
 
 func f8() {
 	fmt.Println("f8")
+}
+
+// T is a test structure.
+type T struct {
+	A int
+}
+
+func f9() {
+	fmt.Println(unsafe.Offsetof(T{}, "A")) // #nosec
 }
 `
 	require.Equal(t, expected[1:], code)
