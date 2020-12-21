@@ -175,7 +175,7 @@ func (client *Client) SessionUpgrade(
 	case <-ctx.Done():
 		return nil, errors.WithStack(ctx.Err())
 	}
-	// must input some command, power shell will start work
+	// must input some command, powershell will start work
 	if os == "windows" {
 		_, err = client.SessionShellWrite(ctx, id, "\nwhoami\n")
 	}
