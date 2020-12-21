@@ -99,8 +99,8 @@ func readUntilNull(reader io.Reader) ([]byte, error) {
 	}
 }
 
-// Greeting is the MySQL server greeting, Cap is capabilities.
-type Greeting struct {
+// greeting is the MySQL server greeting, Cap is capabilities.
+type greeting struct {
 	Protocol      uint8
 	Version       string
 	ThreadID      uint32
@@ -115,7 +115,7 @@ type Greeting struct {
 	AuthPlugin    string
 }
 
-func parseGreeting(packet []byte) (*Greeting, error) {
+func parseGreeting(packet []byte) (*greeting, error) {
 	if packet[0] == iERR {
 		return nil, handleErrorPacket(packet)
 	}
@@ -173,7 +173,7 @@ func parseGreeting(packet []byte) (*Greeting, error) {
 		return nil, errors.Wrap(err, "failed to read authentication plugin length")
 	}
 	// unused data
-	_, err = io.CopyN(ioutil.Discard, reader, int64(len(new(Greeting).unused)))
+	_, err = io.CopyN(ioutil.Discard, reader, int64(len(new(greeting).unused)))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read unused data")
 	}
@@ -191,7 +191,7 @@ func parseGreeting(packet []byte) (*Greeting, error) {
 	if end != -1 {
 		authPlugin = authPlugin[:end]
 	}
-	greeting := Greeting{
+	greeting := greeting{
 		Protocol:      protocol,
 		Version:       string(version),
 		ThreadID:      convert.LEBytesToUint32(threadID),
@@ -229,8 +229,8 @@ func (mc *mysqlConn) readGreetingPacket() ([]byte, string, error) {
 	return authData, plugin, nil
 }
 
-// LoginRequest is the MySQL client login request.
-type LoginRequest struct {
+// loginRequest is the MySQL client login request.
+type loginRequest struct {
 	ClientCap    uint16 // 0xA285
 	ExtClientCap uint16 // 0x000A
 	MaxPacket    uint32 // 0
@@ -241,7 +241,7 @@ type LoginRequest struct {
 	Plugin       string
 }
 
-func (lr *LoginRequest) pack() []byte {
+func (lr *loginRequest) pack() []byte {
 	req := bytes.NewBuffer(make([]byte, 0, 128))
 	req.Write(convert.LEUint16ToBytes(lr.ClientCap))
 	req.Write(convert.LEUint16ToBytes(lr.ExtClientCap))
@@ -262,7 +262,7 @@ func (mc *mysqlConn) writeLoginRequest(authData []byte, plugin string) error {
 	if err != nil {
 		return err
 	}
-	lr := LoginRequest{
+	lr := loginRequest{
 		ClientCap:    0xA285,
 		ExtClientCap: 0x000A,
 		MaxPacket:    maxPacketSize,

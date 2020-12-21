@@ -3,6 +3,8 @@ package brute
 import (
 	"context"
 	"fmt"
+	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,12 +14,13 @@ import (
 	"project/external/ranger"
 
 	"project/internal/logger"
+	"project/internal/task"
 	"project/internal/task/pauser"
 	"project/internal/xpanic"
 )
 
-// ErrInvalidCred is a error about login, if Login returned error
-// is not this, brute will stop current task.
+// ErrInvalidCred is a error about login, if Login function returned
+// error is not this, brute will stop current task.
 var ErrInvalidCred = fmt.Errorf("invalid username or password")
 
 // TaskConfig contains brute task configuration.
@@ -48,13 +51,84 @@ func (cfg *TaskConfig) Apply() (*TaskConfig, error) {
 	return cp, nil
 }
 
+type bruteTask struct {
+	ctx *Brute
+
+	cfg *TaskConfig
+
+	// about progress, speed and detail
+	current *big.Float
+	total   *big.Float
+	speed   uint64
+	speeds  [10]uint64
+	full    bool
+
+	targets []string // current targets
+	detail  string
+	rwm     sync.RWMutex
+
+	// control speed watcher
+	stopSignal chan struct{}
+	wg         sync.WaitGroup
+}
+
+func newBruteTask(ctx *Brute) *task.Task {
+	bt := bruteTask{
+		ctx:        ctx,
+		current:    big.NewFloat(0),
+		total:      big.NewFloat(0),
+		stopSignal: make(chan struct{}),
+	}
+	return task.New("brute", &bt, nil)
+}
+
+func (bt *bruteTask) Prepare(context.Context) error {
+	cfg, err := bt.cfg.Apply()
+	if err != nil {
+		return err
+	}
+	bt.cfg = cfg
+
+	return nil
+}
+
+func (bt *bruteTask) Process(ctx context.Context, task *task.Task) error {
+
+	return nil
+}
+
+// Progress is used to
+func (bt *bruteTask) Progress() string {
+	return ""
+}
+
+// Detail is used to get detail about brute task.
+//
+// current target: 1.1.1.1:22, 1.1.1.2:22
+func (bt *bruteTask) Detail() string {
+	bt.rwm.RLock()
+	defer bt.rwm.RUnlock()
+	return bt.detail
+}
+
+func (bt *bruteTask) updateCurrentTargets() {
+	bt.rwm.Lock()
+	defer bt.rwm.Unlock()
+	bt.detail = "current target: " + strings.Join(bt.targets, ", ")
+}
+
+func (bt *bruteTask) Clean() {
+
+}
+
 // Task is the brute task.
 type Task struct {
+	ctx *Brute
+
 	pauser *pauser.Pauser
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	context context.Context
+	cancel  context.CancelFunc
 }
 
 // Run is used to create a brute task and running it.
@@ -77,7 +151,7 @@ func (task *Task) Kill() {
 	task.pauser.Close()
 }
 
-// Progress is used to get the current task progress.
+// Progress is used to get the current task progress and speed.
 // "15.22%|current/total|128 MB/s"
 func (task *Task) Progress() {
 

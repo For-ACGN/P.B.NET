@@ -12,7 +12,7 @@ import (
 	"project/module/auxiliary/brute"
 )
 
-// Brute is the brute module.
+// Brute is the MySQL brute module.
 type Brute struct {
 	*brute.Brute
 }
@@ -24,7 +24,7 @@ func (b *Brute) Name() string {
 
 // Description is used to get brute module description.
 func (b *Brute) Description() string {
-	return "MySQL Brute"
+	return "MySQL Brute is used to "
 }
 
 // Config contains configuration about mysql brute module.
@@ -53,11 +53,14 @@ func connect(address, username, password string) (bool, error) {
 		return false, err
 	}
 	err = mc.handleAuthResult(authData, plugin)
-	if err != nil {
-		return false, err
+	if err == nil {
+		return true, nil
 	}
-
-	return true, nil
+	me, ok := err.(*mError)
+	if ok && me.Number == 1045 {
+		return false, brute.ErrInvalidCred
+	}
+	return false, err
 }
 
 // mError is an error type which represents a single MySQL error.

@@ -18,6 +18,7 @@ type Login func(ctx context.Context, target, username, password string) (bool, e
 // Brute is the generic brute force attacker.
 // It is used to build brute module easily.
 type Brute struct {
+	src    string
 	logger logger.Logger
 
 	// contain brute tasks
@@ -31,8 +32,9 @@ type Brute struct {
 }
 
 // New is used to create a new common brute module.
-func New(logger logger.Logger) *Brute {
+func New(src string, logger logger.Logger) *Brute {
 	return &Brute{
+		src:    src,
 		logger: logger,
 		tasks:  make(map[int]*Task, 1),
 	}
@@ -103,7 +105,7 @@ func (brute *Brute) Info() string {
 func (brute *Brute) Status() string {
 	brute.tasksRWM.RLock()
 	defer brute.tasksRWM.RUnlock()
-	return fmt.Sprintf("running task: %d", len(brute.tasks))
+	return fmt.Sprintf("number of running task: %d", len(brute.tasks))
 }
 
 // Methods is used to get brute module methods.
