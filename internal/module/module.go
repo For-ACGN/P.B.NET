@@ -51,8 +51,8 @@ type Module interface {
 	Methods() []string
 
 	// Call is used to call extended method, it will return a general value
-	// and it maybe include an error(internal/module/plugin) and a general
-	// error, usually check the general error firstly, then read the general
-	// value and get the error, finally check the inner error.
+	// and it maybe include an error(return true, nil) and a general error
+	// (like call method is not exist), usually check the general error firstly,
+	// then read the general value and get the error, finally check the error.
 	Call(method string, args ...interface{}) (interface{}, error)
 }
