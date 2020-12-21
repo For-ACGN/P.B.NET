@@ -15,8 +15,8 @@ import (
 
 // Config contains configuration about install, build, develop and test.
 type Config struct {
-	// Common contains common configuration about script,
-	// these field must be set except GoProxy and GoSumDB.
+	// Common contains common configuration about script, these field
+	// must be set except GoProxy and GoSumDB.
 	// <security> must be set manually for prevent leak user information.
 	Common struct {
 		Go116x  string `json:"go_1_16_x"`
@@ -125,9 +125,8 @@ func setGoEnv(config *Config) bool {
 	return true
 }
 
-// verifyGoRoot is used to check go root path is valid,
-// it will check go.exe, gofmt.exe and src directory,
-// go latest and go 1.10.8 must be set.
+// verifyGoRoot is used to check go root path is valid, it will check
+// go.exe, gofmt.exe and src directory, go latest and go 1.10.8 must be set.
 func verifyGoRoot(config *Config) bool {
 	for _, item := range [...]*struct {
 		version string
@@ -143,11 +142,15 @@ func verifyGoRoot(config *Config) bool {
 		{version: "1.14.15", path: config.Special.Go11415},
 		{version: "1.15.x", path: config.Special.Go115x},
 	} {
-		// skip
-		if item.path == "" && item.version != "1.16.x" && item.version != "1.10.8" {
-			continue
+		// skip empty special go root path
+		if item.path == "" {
+			if item.version != "1.16.x" && item.version != "1.10.8" {
+				continue
+			}
+			log.Printf(logger.Error, "go %-7s must be set", item.version)
+			return false
 		}
-		// verify
+		// verify go root path
 		var (
 			goFile    string
 			goFmtFile string
