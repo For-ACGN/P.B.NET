@@ -28,6 +28,8 @@ func main() {
 		installPatch   bool
 		uninstallPatch bool
 		verifyPatch    bool
+		downloadModule bool
+		verifyModule   bool
 	)
 	usage := "configuration file path"
 	flag.StringVar(&configPath, "config", "config.json", usage)
@@ -37,6 +39,10 @@ func main() {
 	flag.BoolVar(&uninstallPatch, "uninstall-patch", false, usage)
 	usage = "only verify patch files"
 	flag.BoolVar(&verifyPatch, "verify-patch", false, usage)
+	usage = "only download dependent modules"
+	flag.BoolVar(&downloadModule, "download-module", false, usage)
+	usage = "only verify dependent modules"
+	flag.BoolVar(&verifyModule, "verify-module", false, usage)
 	flag.Parse()
 	if !config.Load(configPath, &cfg) {
 		return
@@ -48,19 +54,23 @@ func main() {
 		uninstallPatchFiles()
 	case verifyPatch:
 		verifyPatchFiles()
+	case downloadModule:
+		downloadModules()
+	case verifyModule:
+		verifyModules()
 	default:
-		installDefault()
+		installStandard()
 	}
 }
 
-func installDefault() {
+func installStandard() {
 	for _, step := range [...]func() bool{
 		setupNetwork,
 		installPatchFiles,
-		listModule,
+		listModules,
 		downloadAllModules,
-		downloadModule,
-		verifyModule,
+		downloadModules,
+		verifyModules,
 	} {
 		if !step() {
 			log.Println(logger.Fatal, "install failed")
@@ -234,7 +244,7 @@ func verifyPatchFiles() bool {
 	return true
 }
 
-func listModule() bool {
+func listModules() bool {
 	log.Println(logger.Info, "list all modules about project")
 	output, code, err := exec.Run("go", "list", "-m", "all")
 	if code != 0 {
@@ -273,7 +283,7 @@ func downloadAllModules() bool {
 	return true
 }
 
-func downloadModule() bool {
+func downloadModules() bool {
 	log.Println(logger.Info, "download module if it is not exist")
 	writer := logger.WrapLogger(logger.Info, "install", logger.Common)
 	cmd := exec.Command("go", "get", "-d", "./...")
@@ -291,7 +301,7 @@ func downloadModule() bool {
 	return true
 }
 
-func verifyModule() bool {
+func verifyModules() bool {
 	log.Println(logger.Info, "verify modules")
 	output, code, err := exec.Run("go", "mod", "verify")
 	output = output[:len(output)-1] // remove the last "\n"

@@ -40,11 +40,11 @@ func main() {
 	case uninstallHook:
 		uninstallRuntimePatch()
 	default:
-		buildDefault()
+		buildStandard()
 	}
 }
 
-func buildDefault() {
+func buildStandard() {
 	for _, step := range [...]func() bool{
 		installRuntimePatch,
 		// then
