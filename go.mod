@@ -8,7 +8,7 @@ require (
 	github.com/creasty/defaults v1.5.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-ole/go-ole v1.2.5
-	github.com/go-sql-driver/mysql v1.5.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/csrf v1.7.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/sessions v1.2.1
@@ -17,14 +17,14 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kardianos/service v1.2.0
 	github.com/looplab/fsm v0.2.0
-	github.com/lucas-clemente/quic-go v0.19.3
+	github.com/lucas-clemente/quic-go v0.20.0
 	github.com/Microsoft/go-winio v0.4.16
 	github.com/pelletier/go-toml v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/stretchr/testify v1.7.0
 	github.com/traefik/yaegi v0.9.15
-	github.com/vmihailenco/msgpack/v5 v5.2.0
+	github.com/vmihailenco/msgpack/v5 v5.3.1
 	github.com/xtaci/kcp-go/v5 v5.6.1
 
 	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394
