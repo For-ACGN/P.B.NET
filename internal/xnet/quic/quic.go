@@ -180,9 +180,9 @@ func Listen(network, address string, config *tls.Config, timeout time.Duration) 
 		timeout = defaultTimeout
 	}
 	quicCfg := quic.Config{
-		HandshakeTimeout: timeout,
-		MaxIdleTimeout:   timeout,
-		KeepAlive:        true,
+		HandshakeIdleTimeout: timeout,
+		MaxIdleTimeout:       timeout,
+		KeepAlive:            true,
 	}
 	if len(config.NextProtos) == 0 {
 		c := config.Clone()
@@ -255,9 +255,9 @@ func DialContext(
 		timeout = defaultTimeout
 	}
 	quicCfg := quic.Config{
-		HandshakeTimeout: timeout,
-		MaxIdleTimeout:   5 * timeout,
-		KeepAlive:        true,
+		HandshakeIdleTimeout: timeout,
+		MaxIdleTimeout:       5 * timeout,
+		KeepAlive:            true,
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

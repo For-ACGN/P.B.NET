@@ -208,7 +208,7 @@ func downloadModule() bool {
 	for _, item := range items {
 		go func(name, dir string) {
 			writer := logger.WrapLogger(logger.Info, "develop", logger.Common)
-			cmd := exec.CommandContext(ctx, "go", "get", "-d", "./...") // #nosec
+			cmd := exec.CommandContext(ctx, "go", "get", "-d", "./...")
 			cmd.Dir = filepath.Join(developDir, dir)
 			cmd.Stdout = writer
 			cmd.Stderr = writer
@@ -281,7 +281,7 @@ func buildSourceCode() bool {
 			writer := logger.WrapLogger(logger.Info, "develop", logger.Common)
 			// go build -v -trimpath -ldflags "-s -w" -o lint.exe
 			args := []string{"build", "-v", "-trimpath", "-ldflags", "-s -w", "-o", binName}
-			cmd := exec.CommandContext(ctx, "go", args...) // #nosec
+			cmd := exec.CommandContext(ctx, "go", args...)
 			cmd.Dir = buildPath
 			cmd.Stdout = writer
 			cmd.Stderr = writer
