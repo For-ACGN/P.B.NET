@@ -57,6 +57,10 @@ type Config struct {
 		Insecure bool   `json:"insecure"`
 	} `json:"develop"`
 
+	Sum struct {
+		ProxyURL string `json:"proxy_url"`
+	} `json:"sum"`
+
 	// Test contains options about test script.
 	Test struct {
 		Race bool `json:"race"`
