@@ -34,6 +34,10 @@
     "insecure" : false
   },
 
+  "sum": {
+    "proxy_url": ""
+  },
+
   "test": {
     "race": true
   }

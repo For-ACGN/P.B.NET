@@ -51,12 +51,13 @@ type Config struct {
 	Build struct {
 	} `json:"build"`
 
-	// Develop contains options bout develop script.
+	// Develop contains options about develop script.
 	Develop struct {
 		ProxyURL string `json:"proxy_url"`
 		Insecure bool   `json:"insecure"`
 	} `json:"develop"`
 
+	// Sum contains options about sum script.
 	Sum struct {
 		ProxyURL string `json:"proxy_url"`
 	} `json:"sum"`
