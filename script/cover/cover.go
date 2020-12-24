@@ -127,7 +127,7 @@ func mergeCoverResult() bool {
 		if stat.IsDir() || !strings.HasSuffix(stat.Name(), ".out") {
 			return nil
 		}
-		data, err := ioutil.ReadFile(path)
+		data, err := ioutil.ReadFile(path) // #nosec
 		if err != nil {
 			return err
 		}
