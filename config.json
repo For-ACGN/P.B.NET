@@ -39,6 +39,14 @@
   },
 
   "test": {
-    "race": true
+    "proxy_url"   : "",
+    "insecure"    : false,
+    "disable_race": false
+  },
+
+  "cover": {
+    "proxy_url"   : "",
+    "insecure"    : false,
+    "disable_race": false
   }
 }

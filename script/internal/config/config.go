@@ -64,8 +64,17 @@ type Config struct {
 
 	// Test contains options about test script.
 	Test struct {
-		Race bool `json:"race"`
+		ProxyURL    string `json:"proxy_url"`
+		Insecure    bool   `json:"insecure"`
+		DisableRace bool   `json:"disable_race"`
 	} `json:"test"`
+
+	// Cover contains options about cover script.
+	Cover struct {
+		ProxyURL    string `json:"proxy_url"`
+		Insecure    bool   `json:"insecure"`
+		DisableRace bool   `json:"disable_race"`
+	} `json:"cover"`
 }
 
 // Load is used to load and verify configuration file.
