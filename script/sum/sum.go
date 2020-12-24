@@ -33,8 +33,7 @@ func main() {
 		rebuildGoSum,
 	} {
 		if !step() {
-			log.Println(logger.Fatal, "rebuild failed")
-			return
+			log.Fatal("rebuild failed")
 		}
 	}
 	log.Println(logger.Info, "rebuild successfully")

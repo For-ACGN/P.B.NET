@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"os"
 
 	"project/internal/logger"
 
@@ -41,8 +40,7 @@ func main() {
 		}
 	}
 	if failed {
-		log.Println(logger.Fatal, "test failed")
-		os.Exit(1)
+		log.Fatal("test failed")
 	} else {
 		log.Println(logger.Info, "all tests passed")
 	}

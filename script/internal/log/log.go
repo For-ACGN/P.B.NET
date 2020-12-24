@@ -1,6 +1,8 @@
 package log
 
 import (
+	"os"
+
 	"project/internal/logger"
 )
 
@@ -19,4 +21,10 @@ func Printf(lv logger.Level, format string, log ...interface{}) {
 // Println is used to print log with new line.
 func Println(lv logger.Level, log ...interface{}) {
 	logger.Common.Println(lv, source, log...)
+}
+
+// Fatal is used to print log with new line and call os.Exit(1).
+func Fatal(log ...interface{}) {
+	logger.Common.Println(logger.Fatal, source, log...)
+	os.Exit(1)
 }

@@ -2,13 +2,14 @@ package main
 
 import (
 	"flag"
-	"os"
 
 	"project/internal/logger"
 
 	"project/script/internal/config"
 	"project/script/internal/log"
 )
+
+const coverDir = "temp/cover"
 
 var cfg config.Config
 
@@ -23,7 +24,6 @@ func main() {
 	if !config.Load(path, &cfg) {
 		return
 	}
-	var failed bool
 	for _, step := range [...]func() bool{
 		setupNetwork,
 		coverInternalPackage,
@@ -32,17 +32,13 @@ func main() {
 		coverControllerPackage,
 		coverMSFRPCPackage,
 		coverTestPackage,
+		sendResult,
 	} {
 		if !step() {
-			failed = true
+			log.Fatal("run coverage failed")
 		}
 	}
-	if failed {
-		log.Println(logger.Fatal, "run coverage failed")
-		os.Exit(1)
-	} else {
-		log.Println(logger.Info, "run coverage successfully")
-	}
+	log.Println(logger.Info, "run coverage successfully")
 }
 
 func setupNetwork() bool {
@@ -89,5 +85,9 @@ func coverMSFRPCPackage() bool {
 func coverTestPackage() bool {
 	log.Println(logger.Info, "run test package coverage")
 	log.Println(logger.Info, "run test package coverage successfully")
+	return true
+}
+
+func sendResult() bool {
 	return true
 }

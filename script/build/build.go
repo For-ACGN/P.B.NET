@@ -51,8 +51,7 @@ func buildStandard() {
 		uninstallRuntimePatch,
 	} {
 		if !step() {
-			log.Println(logger.Fatal, "build failed")
-			return
+			log.Fatal("build failed")
 		}
 	}
 	log.Println(logger.Info, "build successfully")

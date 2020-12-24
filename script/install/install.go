@@ -73,8 +73,7 @@ func installStandard() {
 		verifyModules,
 	} {
 		if !step() {
-			log.Println(logger.Fatal, "install failed")
-			return
+			log.Fatal("install failed")
 		}
 	}
 	log.Println(logger.Info, "install successfully")
