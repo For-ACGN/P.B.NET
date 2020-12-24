@@ -44,8 +44,7 @@ func main() {
 		buildSourceCode,
 	} {
 		if !step() {
-			log.Println(logger.Fatal, "install development tools failed")
-			return
+			log.Fatal("install development tools failed")
 		}
 	}
 	log.Println(logger.Info, "install development tools successfully")
@@ -73,6 +72,7 @@ func downloadSourceCode() bool {
 		{name: "gosec", url: "https://github.com/securego/gosec/archive/master.zip"},
 		{name: "golangci-lint", url: "https://github.com/golangci/golangci-lint/archive/master.zip"},
 		{name: "go-tools", url: "https://github.com/golang/tools/archive/master.zip"},
+		{name: "goveralls", url: "https://github.com/mattn/goveralls/archive/master.zip"},
 	}
 	errCh := make(chan error, len(items))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -133,6 +133,7 @@ func extractSourceCode() bool {
 		{name: "gosec", dir: "gosec-master"},
 		{name: "golangci-lint", dir: "golangci-lint-master"},
 		{name: "go-tools", dir: "tools-master"},
+		{name: "goveralls", dir: "goveralls-master"},
 	}
 	errCh := make(chan error, len(items))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -201,6 +202,7 @@ func downloadModule() bool {
 		{name: "gosec", dir: "gosec-master"},
 		{name: "golangci-lint", dir: "golangci-lint-master"},
 		{name: "go-tools", dir: "tools-master"},
+		{name: "goveralls", dir: "goveralls-master"},
 	}
 	resultCh := make(chan bool, len(items))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -254,6 +256,7 @@ func buildSourceCode() bool {
 		{name: "gosec", dir: "gosec-master", build: "cmd/gosec"},
 		{name: "golangci-lint", dir: "golangci-lint-master", build: "cmd/golangci-lint"},
 		{name: "goyacc", dir: "tools-master", build: "cmd/goyacc"},
+		{name: "goveralls", dir: "goveralls-master", build: ""},
 	}
 	resultCh := make(chan bool, len(items))
 	ctx, cancel := context.WithCancel(context.Background())
