@@ -26,6 +26,14 @@ type Config struct {
 		GoSumDB string `json:"go_sum_db"`
 	} `json:"common"`
 
+	// Original contain original go directory that without any change.
+	// Some programs will use these go to compile for hide some signature.
+	// <security> must be set manually for prevent leak user information.
+	Original struct {
+		Go116x string `json:"go_1_16_x"`
+		Go1108 string `json:"go_1_10_8"`
+	} `json:"original"`
+
 	// Special contains options if you need special go version.
 	Special struct {
 		Go11113    string `json:"go_1_11_13"`
@@ -146,7 +154,7 @@ func verifyGoRoot(config *Config) bool {
 		version string
 		path    string
 	}{
-		// common
+		// common (must set)
 		{version: "1.16.x", path: config.Common.Go116x},
 		{version: "1.10.8", path: config.Common.Go1108},
 		// special
@@ -155,10 +163,23 @@ func verifyGoRoot(config *Config) bool {
 		{version: "1.13.15", path: config.Special.Go11315},
 		{version: "1.14.15", path: config.Special.Go11415},
 		{version: "1.15.x", path: config.Special.Go115x},
+		// original (must set)
+		{version: "1.16.x_original", path: config.Original.Go116x},
+		{version: "1.10.8_original", path: config.Original.Go1108},
 	} {
 		// skip empty special go root path
 		if item.path == "" {
-			if item.version != "1.16.x" && item.version != "1.10.8" {
+			// check this go version can be skipped
+			var notSkip bool
+			for _, version := range []string{
+				"1.16.x", "1.16.x_original", "1.10.8", "1.10.8_original",
+			} {
+				if item.version == version {
+					notSkip = true
+					break
+				}
+			}
+			if !notSkip {
 				continue
 			}
 			log.Printf(logger.Error, "go %-7s must be set", item.version)
