@@ -19,9 +19,14 @@ import (
 	"project/internal/xpanic"
 )
 
-// ErrInvalidCred is a error about login, if Login function returned
-// error is not this, brute will stop current task.
-var ErrInvalidCred = fmt.Errorf("invalid username or password")
+var (
+	// ErrInvalidCred is a error about login, if Login function returned
+	// error is not this, brute will stop current task.
+	ErrInvalidCred = fmt.Errorf("invalid username or password")
+
+	// ErrHoneypotDetected is a error about honeypot detected.
+	ErrHoneypotDetected = fmt.Errorf("honeypot detected")
+)
 
 // TaskConfig contains brute task configuration.
 // If service don't need username or password, brute instance can
