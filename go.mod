@@ -17,7 +17,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kardianos/service v1.2.0
 	github.com/looplab/fsm v0.2.0
-	github.com/lucas-clemente/quic-go v0.20.0
+	github.com/lucas-clemente/quic-go v0.20.1
 	github.com/Microsoft/go-winio v0.4.16
 	github.com/pelletier/go-toml v1.9.0
 	github.com/pkg/errors v0.9.1
@@ -32,11 +32,11 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 
 	golang.org/x/arch v0.0.0-20210401203952-cd4b3ce7f712
-    golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
-    golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
-    golang.org/x/net v0.0.0-20210331212208-0fccb6fa2b5c
-    golang.org/x/sys v0.0.0-20210331175145-43e1dd70ce54
-    golang.org/x/term v0.0.0-20210317153231-de623e64d2a6
+	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
+	golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
+	golang.org/x/net v0.0.0-20210331212208-0fccb6fa2b5c
+	golang.org/x/sys v0.0.0-20210331175145-43e1dd70ce54
+	golang.org/x/term v0.0.0-20210317153231-de623e64d2a6
 
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 )
