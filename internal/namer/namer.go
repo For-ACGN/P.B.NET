@@ -14,7 +14,7 @@ import (
 // Namer is used to generate a random name from dictionary.
 type Namer interface {
 	// Load is used to load resource about namer.
-	Load(data []byte) error
+	Load(res []byte) error
 
 	// Generate is used to generate a random word.
 	Generate(opts *Options) (string, error)
@@ -41,7 +41,7 @@ func Register(typ string, fn func() Namer) error {
 	newNamersRWM.RLock()
 	defer newNamersRWM.RUnlock()
 	if _, ok := newNamers[typ]; ok {
-		return errors.New("this function already registered")
+		return errors.Errorf("namer \"%s\" is already registered", typ)
 	}
 	newNamers[typ] = fn
 	return nil
@@ -52,16 +52,6 @@ func Unregister(typ string) {
 	newNamersRWM.Lock()
 	defer newNamersRWM.Unlock()
 	delete(newNamers, typ)
-}
-
-func newNamer(typ string) (Namer, error) {
-	newNamersRWM.RLock()
-	defer newNamersRWM.RUnlock()
-	nn, ok := newNamers[typ]
-	if !ok {
-		return nil, errors.Errorf("namer %s is not registered", typ)
-	}
-	return nn(), nil
 }
 
 // Load is used to load resource and create a namer.
@@ -75,6 +65,16 @@ func Load(typ string, res []byte) (Namer, error) {
 		return nil, errors.WithMessagef(err, "failed to load namer \"%s\"", typ)
 	}
 	return namer, nil
+}
+
+func newNamer(typ string) (Namer, error) {
+	newNamersRWM.RLock()
+	defer newNamersRWM.RUnlock()
+	nn, ok := newNamers[typ]
+	if !ok {
+		return nil, errors.Errorf("namer \"%s\" is not registered", typ)
+	}
+	return nn(), nil
 }
 
 func loadWordsFromZipFile(file *zip.File) (*security.Bytes, error) {

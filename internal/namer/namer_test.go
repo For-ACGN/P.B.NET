@@ -15,6 +15,77 @@ import (
 	"project/internal/testsuite"
 )
 
+func TestLoad(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
+		res := testGenerateEnglishResource(t)
+		namer, err := Load("english", res)
+		require.NoError(t, err)
+
+		word, err := namer.Generate(nil)
+		require.NoError(t, err)
+		t.Log(word)
+
+		testsuite.IsDestroyed(t, namer)
+	})
+
+	t.Run("unregistered namer type", func(t *testing.T) {
+		namer, err := Load("foo", nil)
+		require.EqualError(t, err, "namer \"foo\" is not registered")
+		require.Nil(t, namer)
+	})
+
+	t.Run("failed to load namer resource", func(t *testing.T) {
+		namer, err := Load("english", nil)
+		require.Error(t, err)
+		require.Nil(t, namer)
+	})
+}
+
+func TestRegister(t *testing.T) {
+	regFn := func() Namer { return NewEnglish() }
+
+	t.Run("common", func(t *testing.T) {
+		err := Register("mock", regFn)
+		require.NoError(t, err)
+
+		res := testGenerateEnglishResource(t)
+		namer, err := Load("mock", res)
+		require.NoError(t, err)
+
+		word, err := namer.Generate(nil)
+		require.NoError(t, err)
+		t.Log(word)
+
+		testsuite.IsDestroyed(t, namer)
+	})
+
+	t.Run("already registered", func(t *testing.T) {
+		err := Register("english", regFn)
+		require.EqualError(t, err, "namer \"english\" is already registered")
+	})
+}
+
+func TestUnregister(t *testing.T) {
+	regFn := func() Namer { return NewEnglish() }
+	err := Register("mock", regFn)
+	require.NoError(t, err)
+
+	res := testGenerateEnglishResource(t)
+	namer, err := Load("mock", res)
+	require.NoError(t, err)
+	require.NotNil(t, namer)
+
+	Unregister("mock")
+
+	namer, err = Load("mock", res)
+	require.Error(t, err)
+	require.Nil(t, namer)
+}
+
+func TestLoad_Parallel(t *testing.T) {
+
+}
+
 func TestLoadWordsFromZipFile(t *testing.T) {
 	// create test zip file
 	buf := bytes.NewBuffer(make([]byte, 0, 64))

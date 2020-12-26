@@ -18,8 +18,7 @@ type English struct {
 	prefix *security.Bytes
 	stem   *security.Bytes
 	suffix *security.Bytes
-
-	rwm sync.RWMutex
+	rwm    sync.RWMutex
 }
 
 // NewEnglish is used to create a english word generator.
@@ -28,8 +27,8 @@ func NewEnglish() *English {
 }
 
 // Load is used to load prefix.txt, stem.txt and suffix.txt from a zip file.
-func (eng *English) Load(data []byte) error {
-	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+func (eng *English) Load(res []byte) error {
+	reader, err := zip.NewReader(bytes.NewReader(res), int64(len(res)))
 	if err != nil {
 		return errors.WithStack(err)
 	}

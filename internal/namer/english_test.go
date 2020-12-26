@@ -45,17 +45,14 @@ func TestEnglish(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	resource := testGenerateEnglishResource(t)
-
+	res := testGenerateEnglishResource(t)
 	english := NewEnglish()
-
-	err := english.Load(resource)
+	err := english.Load(res)
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
 		word, err := english.Generate(nil)
 		require.NoError(t, err)
-
 		t.Log(word)
 	}
 
@@ -100,11 +97,9 @@ func TestEnglish_Load(t *testing.T) {
 		pg := monkey.Patch(loadWordsFromZipFile, patch)
 		defer pg.Unpatch()
 
-		resource := testGenerateEnglishResource(t)
-
+		res := testGenerateEnglishResource(t)
 		english := NewEnglish()
-
-		err := english.Load(resource)
+		err := english.Load(res)
 		monkey.IsMonkeyError(t, err)
 
 		testsuite.IsDestroyed(t, english)
@@ -129,11 +124,9 @@ func TestEnglish_Generate(t *testing.T) {
 	})
 
 	t.Run("generate empty word", func(t *testing.T) {
-		resource := testGenerateEnglishResource(t)
-
+		res := testGenerateEnglishResource(t)
 		english := NewEnglish()
-
-		err := english.Load(resource)
+		err := english.Load(res)
 		require.NoError(t, err)
 
 		opts := Options{
@@ -191,13 +184,13 @@ func TestEnglish_Load_Parallel(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	resource := testGenerateEnglishResource(t)
+	res := testGenerateEnglishResource(t)
 
 	t.Run("part", func(t *testing.T) {
 		english := NewEnglish()
 
 		load := func() {
-			err := english.Load(resource)
+			err := english.Load(res)
 			require.NoError(t, err)
 		}
 		cleanup := func() {
@@ -216,7 +209,7 @@ func TestEnglish_Load_Parallel(t *testing.T) {
 			english = NewEnglish()
 		}
 		load := func() {
-			err := english.Load(resource)
+			err := english.Load(res)
 			require.NoError(t, err)
 		}
 		cleanup := func() {
@@ -233,12 +226,12 @@ func TestEnglish_Generate_Parallel(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	resource := testGenerateEnglishResource(t)
+	res := testGenerateEnglishResource(t)
 
 	t.Run("part", func(t *testing.T) {
 		english := NewEnglish()
 
-		err := english.Load(resource)
+		err := english.Load(res)
 		require.NoError(t, err)
 
 		gen := func() {
@@ -263,7 +256,7 @@ func TestEnglish_Generate_Parallel(t *testing.T) {
 		init := func() {
 			english = NewEnglish()
 
-			err := english.Load(resource)
+			err := english.Load(res)
 			require.NoError(t, err)
 		}
 		gen := func() {
@@ -287,16 +280,16 @@ func TestEnglish_Parallel(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	resource := testGenerateEnglishResource(t)
+	res := testGenerateEnglishResource(t)
 
 	t.Run("part", func(t *testing.T) {
 		english := NewEnglish()
 
-		err := english.Load(resource)
+		err := english.Load(res)
 		require.NoError(t, err)
 
 		load := func() {
-			err := english.Load(resource)
+			err := english.Load(res)
 			require.NoError(t, err)
 		}
 		gen := func() {
@@ -321,11 +314,11 @@ func TestEnglish_Parallel(t *testing.T) {
 		init := func() {
 			english = NewEnglish()
 
-			err := english.Load(resource)
+			err := english.Load(res)
 			require.NoError(t, err)
 		}
 		load := func() {
-			err := english.Load(resource)
+			err := english.Load(res)
 			require.NoError(t, err)
 		}
 		gen := func() {
