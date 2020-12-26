@@ -1,1 +1,1 @@
-go build -v -trimpath -ldflags "-s -w" -o generator
+go build -v -trimpath -ldflags "-s -w" -o certgen

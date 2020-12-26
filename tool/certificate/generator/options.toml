@@ -1,8 +1,10 @@
 algorithm    = "rsa|2048"
 dns_names    = ["localhost"]
 ip_addresses = ["127.0.0.1","::1"]
-# not_before   = 2018-11-27
-# not_after    = 2049-11-27
+# email_addresses = []
+# urls            = []
+# not_before      = 2018-11-27
+# not_after       = 2049-11-27
 
 [subject]
   common_name         = ""
@@ -14,3 +16,8 @@ ip_addresses = ["127.0.0.1","::1"]
   province            = []
   street_address      = []
   postal_code         = []
+
+[namer_opts]
+  disable_prefix = false
+  disable_stem   = false
+  disable_suffix = false
