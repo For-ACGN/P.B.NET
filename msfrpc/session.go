@@ -393,7 +393,7 @@ func (client *Client) NewShell(id uint64, interval time.Duration) *Shell {
 	}
 	shell.pr, shell.pw = io.Pipe()
 	shell.context, shell.cancel = context.WithCancel(context.Background())
-	client.addIOResourceCount(2)
+	client.increaseIOObjCount(2)
 	go shell.readLoop()
 	go shell.writeLimiter()
 	return &shell
@@ -404,13 +404,13 @@ func (shell *Shell) log(lv logger.Level, log ...interface{}) {
 }
 
 func (shell *Shell) readLoop() {
-	defer shell.ctx.deleteIOResourceCount(1)
+	defer shell.ctx.decreaseIOObjCount(1)
 	defer func() {
 		if r := recover(); r != nil {
 			shell.log(logger.Fatal, xpanic.Print(r, "Shell.readLoop"))
 			// restart readLoop
 			time.Sleep(time.Second)
-			shell.ctx.addIOResourceCount(1)
+			shell.ctx.increaseIOObjCount(1)
 			go shell.readLoop()
 			return
 		}
@@ -451,13 +451,13 @@ func (shell *Shell) read() bool {
 }
 
 func (shell *Shell) writeLimiter() {
-	defer shell.ctx.deleteIOResourceCount(1)
+	defer shell.ctx.decreaseIOObjCount(1)
 	defer func() {
 		if r := recover(); r != nil {
 			shell.log(logger.Fatal, xpanic.Print(r, "Shell.writeLimiter"))
 			// restart limiter
 			time.Sleep(time.Second)
-			shell.ctx.addIOResourceCount(1)
+			shell.ctx.increaseIOObjCount(1)
 			go shell.writeLimiter()
 		}
 	}()
@@ -563,7 +563,7 @@ func (client *Client) NewMeterpreter(id uint64, interval time.Duration) *Meterpr
 	}
 	mp.pr, mp.pw = io.Pipe()
 	mp.context, mp.cancel = context.WithCancel(context.Background())
-	client.addIOResourceCount(2)
+	client.increaseIOObjCount(2)
 	go mp.readLoop()
 	go mp.writeLimiter()
 	return &mp
@@ -574,13 +574,13 @@ func (mp *Meterpreter) log(lv logger.Level, log ...interface{}) {
 }
 
 func (mp *Meterpreter) readLoop() {
-	defer mp.ctx.deleteIOResourceCount(1)
+	defer mp.ctx.decreaseIOObjCount(1)
 	defer func() {
 		if r := recover(); r != nil {
 			mp.log(logger.Fatal, xpanic.Print(r, "Meterpreter.readLoop"))
 			// restart readLoop
 			time.Sleep(time.Second)
-			mp.ctx.addIOResourceCount(1)
+			mp.ctx.increaseIOObjCount(1)
 			go mp.readLoop()
 			return
 		}
@@ -621,13 +621,13 @@ func (mp *Meterpreter) read() bool {
 }
 
 func (mp *Meterpreter) writeLimiter() {
-	defer mp.ctx.deleteIOResourceCount(1)
+	defer mp.ctx.decreaseIOObjCount(1)
 	defer func() {
 		if r := recover(); r != nil {
 			mp.log(logger.Fatal, xpanic.Print(r, "Meterpreter.writeLimiter"))
 			// restart limiter
 			time.Sleep(time.Second)
-			mp.ctx.addIOResourceCount(1)
+			mp.ctx.increaseIOObjCount(1)
 			go mp.writeLimiter()
 		}
 	}()

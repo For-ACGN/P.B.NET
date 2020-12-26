@@ -71,8 +71,8 @@ type Client struct {
 	// protect above fields
 	rwm sync.RWMutex
 
-	// io resource counter
-	ioCounter xsync.Counter
+	// io object counter
+	ioObjCtr xsync.Counter
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -296,12 +296,12 @@ func (client *Client) log(lv logger.Level, log ...interface{}) {
 	client.logger.Println(lv, "msfrpc-client", log...)
 }
 
-func (client *Client) addIOResourceCount(delta int) {
-	client.ioCounter.Add(delta)
+func (client *Client) increaseIOObjCount(delta int) {
+	client.ioObjCtr.Add(delta)
 }
 
-func (client *Client) deleteIOResourceCount(delta int) {
-	client.ioCounter.Add(-delta)
+func (client *Client) decreaseIOObjCount(delta int) {
+	client.ioObjCtr.Add(-delta)
 }
 
 func (client *Client) trackConsole(console *Console, add bool) bool {
@@ -417,6 +417,6 @@ func (client *Client) close() {
 }
 
 func (client *Client) wait() {
-	client.ioCounter.Wait()
+	client.ioObjCtr.Wait()
 	client.client.CloseIdleConnections()
 }

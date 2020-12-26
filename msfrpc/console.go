@@ -262,7 +262,7 @@ func (client *Client) NewConsoleWithID(id string, interval time.Duration) *Conso
 	}
 	console.pr, console.pw = io.Pipe()
 	console.context, console.cancel = context.WithCancel(context.Background())
-	client.addIOResourceCount(2)
+	client.increaseIOObjCount(2)
 	go console.readLoop()
 	go console.writeLimiter()
 	return &console
@@ -275,13 +275,13 @@ func (console *Console) log(lv logger.Level, log ...interface{}) {
 // readLoop is used to call Client.ConsoleRead() high frequency and write the output
 // to a pipe and wait user call Read().
 func (console *Console) readLoop() {
-	defer console.ctx.deleteIOResourceCount(1)
+	defer console.ctx.decreaseIOObjCount(1)
 	defer func() {
 		if r := recover(); r != nil {
 			console.log(logger.Fatal, xpanic.Print(r, "Console.readLoop"))
 			// restart readLoop
 			time.Sleep(time.Second)
-			console.ctx.addIOResourceCount(1)
+			console.ctx.increaseIOObjCount(1)
 			go console.readLoop()
 			return
 		}
@@ -379,13 +379,13 @@ func (console *Console) read() bool {
 }
 
 func (console *Console) writeLimiter() {
-	defer console.ctx.deleteIOResourceCount(1)
+	defer console.ctx.decreaseIOObjCount(1)
 	defer func() {
 		if r := recover(); r != nil {
 			console.log(logger.Fatal, xpanic.Print(r, "Console.writeLimiter"))
 			// restart limiter
 			time.Sleep(time.Second)
-			console.ctx.addIOResourceCount(1)
+			console.ctx.increaseIOObjCount(1)
 			go console.writeLimiter()
 		}
 	}()
