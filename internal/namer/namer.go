@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bufio"
 	"bytes"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -29,6 +30,53 @@ type Options struct {
 	DisableSuffix bool `toml:"disable_suffix"`
 }
 
+// registered new functions
+var newNamers = map[string]func() Namer{
+	"english": func() Namer { return NewEnglish() },
+}
+var newNamersRWM sync.RWMutex
+
+// Register is used to register a new namer function.
+func Register(typ string, fn func() Namer) error {
+	newNamersRWM.RLock()
+	defer newNamersRWM.RUnlock()
+	if _, ok := newNamers[typ]; ok {
+		return errors.New("this function already registered")
+	}
+	newNamers[typ] = fn
+	return nil
+}
+
+// Unregister is used to unregister a new namer function.
+func Unregister(typ string) {
+	newNamersRWM.Lock()
+	defer newNamersRWM.Unlock()
+	delete(newNamers, typ)
+}
+
+func newNamer(typ string) (Namer, error) {
+	newNamersRWM.RLock()
+	defer newNamersRWM.RUnlock()
+	nn, ok := newNamers[typ]
+	if !ok {
+		return nil, errors.Errorf("namer %s is not registered", typ)
+	}
+	return nn(), nil
+}
+
+// Load is used to load resource and create a namer.
+func Load(typ string, res []byte) (Namer, error) {
+	namer, err := newNamer(typ)
+	if err != nil {
+		return nil, err
+	}
+	err = namer.Load(res)
+	if err != nil {
+		return nil, errors.WithMessagef(err, "failed to load namer \"%s\"", typ)
+	}
+	return namer, nil
+}
+
 func loadWordsFromZipFile(file *zip.File) (*security.Bytes, error) {
 	rc, err := file.Open()
 	if err != nil {
@@ -37,7 +85,7 @@ func loadWordsFromZipFile(file *zip.File) (*security.Bytes, error) {
 	defer func() { _ = rc.Close() }()
 	data, err := security.ReadAll(rc, 16*1024)
 	if err != nil {
-		return nil, errors.Errorf("%s, maybe zip file is too large", err)
+		return nil, errors.Errorf("%s, maybe zip file is larger than 16KB", err)
 	}
 	defer security.CoverBytes(data)
 	return security.NewBytes(data), nil
