@@ -9,8 +9,8 @@ import (
 	"project/internal/testsuite"
 )
 
-func TestNewNamer(t *testing.T) {
-	namer := NewNamer()
+func TestNamer(t *testing.T) {
+	namer := Namer()
 
 	err := namer.Load(nil)
 	require.NoError(t, err)
@@ -26,8 +26,8 @@ func TestNewNamer(t *testing.T) {
 	testsuite.IsDestroyed(t, namer)
 }
 
-func TestNewNamerWithLoadFailed(t *testing.T) {
-	namer := NewNamerWithLoadFailed()
+func TestWithLoadFailed(t *testing.T) {
+	namer := WithLoadFailed()
 
 	err := namer.Load(nil)
 	require.Error(t, err)
@@ -35,8 +35,8 @@ func TestNewNamerWithLoadFailed(t *testing.T) {
 	testsuite.IsDestroyed(t, namer)
 }
 
-func TestNewNamerWithGenerateFailed(t *testing.T) {
-	namer := NewNamerWithGenerateFailed()
+func TestWithGenerateFailed(t *testing.T) {
+	namer := WithGenerateFailed()
 
 	err := namer.Load(nil)
 	require.NoError(t, err)

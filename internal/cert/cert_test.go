@@ -27,9 +27,8 @@ import (
 
 func TestGenerateCertificate(t *testing.T) {
 	t.Run("with namer", func(t *testing.T) {
-		n := testnamer.NewNamer()
 		opts := Options{
-			Namer: n,
+			Namer: testnamer.Namer(),
 		}
 		cert, err := generateCertificate(&opts)
 		require.NoError(t, err)
@@ -38,9 +37,8 @@ func TestGenerateCertificate(t *testing.T) {
 	})
 
 	t.Run("failed to generate word", func(t *testing.T) {
-		n := testnamer.NewNamerWithGenerateFailed()
 		opts := Options{
-			Namer: n,
+			Namer: testnamer.WithGenerateFailed(),
 		}
 		cert, err := generateCertificate(&opts)
 		require.Error(t, err)
@@ -48,7 +46,7 @@ func TestGenerateCertificate(t *testing.T) {
 	})
 
 	t.Run("failed to set organization", func(t *testing.T) {
-		n := testnamer.NewNamer()
+		n := testnamer.Namer()
 		count := 0
 		patch := func(interface{}, *namer.Options) (string, error) {
 			count++

@@ -6,34 +6,61 @@ import (
 	"project/internal/namer"
 )
 
-// errors about namer.
+// errors about test namer.
 var (
-	ErrLoad     = errors.New("failed to load")
-	ErrGenerate = errors.New("failed to generate")
+	ErrLoad     = errors.New("failed to load namer resource")
+	ErrGenerate = errors.New("failed to generate word")
 )
 
-// Namer implemented namer.Namer.
-type Namer struct {
+// testNamer implemented namer.Namer.
+type testNamer struct {
 	prefixes map[string]struct{}
 	stems    map[string]struct{}
 	suffixes map[string]struct{}
 
 	// return error flag
-	load     bool
-	generate bool
+	loadErr bool
+	genErr  bool
+}
+
+// Namer is used to create a namer for test.
+func Namer() namer.Namer {
+	prefixes := make(map[string]struct{})
+	stems := make(map[string]struct{})
+	suffixes := make(map[string]struct{})
+	for _, text := range []string{
+		"dis", "in", "im", "il",
+	} {
+		prefixes[text] = struct{}{}
+	}
+	for _, text := range []string{
+		"agr", "ann", "astro", "audi",
+	} {
+		stems[text] = struct{}{}
+	}
+	for _, text := range []string{
+		"st", "eer", "er", "or",
+	} {
+		suffixes[text] = struct{}{}
+	}
+	return &testNamer{
+		prefixes: prefixes,
+		stems:    stems,
+		suffixes: suffixes,
+	}
 }
 
 // Load is a padding function.
-func (namer *Namer) Load([]byte) error {
-	if namer.load {
+func (namer *testNamer) Load([]byte) error {
+	if namer.loadErr {
 		return ErrLoad
 	}
 	return nil
 }
 
 // Generate is used to generate a random word.
-func (namer *Namer) Generate(*namer.Options) (string, error) {
-	if namer.generate {
+func (namer *testNamer) Generate(*namer.Options) (string, error) {
+	if namer.genErr {
 		return "", ErrGenerate
 	}
 	var (
@@ -51,40 +78,16 @@ func (namer *Namer) Generate(*namer.Options) (string, error) {
 }
 
 // Type is used to return the namer type.
-func (namer *Namer) Type() string {
+func (namer *testNamer) Type() string {
 	return "test"
 }
 
-// NewNamer is used to create a namer for test.
-func NewNamer() *Namer {
-	prefixes := make(map[string]struct{})
-	stems := make(map[string]struct{})
-	suffixes := make(map[string]struct{})
-	prefixes["dis"] = struct{}{}
-	prefixes["in"] = struct{}{}
-	prefixes["im"] = struct{}{}
-	prefixes["il"] = struct{}{}
-	stems["agr"] = struct{}{}
-	stems["ann"] = struct{}{}
-	stems["astro"] = struct{}{}
-	stems["audi"] = struct{}{}
-	suffixes["st"] = struct{}{}
-	suffixes["eer"] = struct{}{}
-	suffixes["er"] = struct{}{}
-	suffixes["or"] = struct{}{}
-	return &Namer{
-		prefixes: prefixes,
-		stems:    stems,
-		suffixes: suffixes,
-	}
+// WithLoadFailed is used to create a namer that will failed to load resource.
+func WithLoadFailed() namer.Namer {
+	return &testNamer{loadErr: true}
 }
 
-// NewNamerWithLoadFailed is used to create a namer that will failed to load resource.
-func NewNamerWithLoadFailed() *Namer {
-	return &Namer{load: true}
-}
-
-// NewNamerWithGenerateFailed is used to create a namer that will failed to generate word.
-func NewNamerWithGenerateFailed() *Namer {
-	return &Namer{generate: true}
+// WithGenerateFailed is used to create a namer that will failed to generate word.
+func WithGenerateFailed() namer.Namer {
+	return &testNamer{genErr: true}
 }

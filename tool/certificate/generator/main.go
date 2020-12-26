@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"os"
 
 	"project/internal/cert"
 	"project/internal/namer"
@@ -34,20 +33,10 @@ func main() {
 	err = toml.Unmarshal(options, opts)
 	system.CheckError(err)
 	// load namer
-	resource, err := ioutil.ReadFile(np) // #nosec
+	res, err := ioutil.ReadFile(np) // #nosec
 	system.CheckError(err)
-	var n namer.Namer
-	switch nt {
-	case "english":
-		english := namer.NewEnglish()
-		err = english.Load(resource)
-		system.CheckError(err)
-		n = english
-	default:
-		fmt.Printf("unsupported namer: %s\n", nt)
-		os.Exit(1)
-	}
-	opts.Namer = n
+	opts.Namer, err = namer.Load(nt, res)
+	system.CheckError(err)
 	// generate certificate
 	var certificate *x509.Certificate
 	switch {
