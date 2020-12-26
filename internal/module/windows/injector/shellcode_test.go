@@ -22,27 +22,24 @@ func TestMain(m *testing.M) {
 
 	_, _ = exec.Command("taskkill", "-im", "calculator.exe", "/F").CombinedOutput()
 	_, _ = exec.Command("taskkill", "-im", "win32calc.exe", "/F").CombinedOutput()
-	fmt.Println("clean calc processes.")
+	fmt.Println("clean calc processes")
 
 	os.Exit(code)
 }
 
 func testSelectShellcode(t *testing.T) []byte {
-	var (
-		file *os.File
-		err  error
-	)
+	var path string
 	switch runtime.GOARCH {
 	case "386":
-		file, err = os.Open("../../shellcode/testdata/windows_32.txt")
-		require.NoError(t, err)
+		path = "../../shellcode/testdata/windows_32.txt"
 	case "amd64":
-		file, err = os.Open("../../shellcode/testdata/windows_64.txt")
-		require.NoError(t, err)
+		path = "../../shellcode/testdata/windows_64.txt"
 	default:
 		t.Skip("unsupported architecture:", runtime.GOARCH)
 	}
 	t.Logf("use %s shellcode\n", runtime.GOARCH)
+	file, err := os.Open(path)
+	require.NoError(t, err)
 	defer func() { _ = file.Close() }()
 	shellcode, err := ioutil.ReadAll(hex.NewDecoder(file))
 	require.NoError(t, err)
