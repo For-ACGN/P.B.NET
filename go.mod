@@ -19,7 +19,7 @@ require (
 	github.com/looplab/fsm v0.2.0
 	github.com/lucas-clemente/quic-go v0.20.1
 	github.com/Microsoft/go-winio v0.4.16
-	github.com/pelletier/go-toml v1.9.0
+	github.com/pelletier/go-toml v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/stretchr/testify v1.7.0
