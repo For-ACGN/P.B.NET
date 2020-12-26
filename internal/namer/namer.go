@@ -38,8 +38,8 @@ var newNamersRWM sync.RWMutex
 
 // Register is used to register a new namer function.
 func Register(typ string, fn func() Namer) error {
-	newNamersRWM.RLock()
-	defer newNamersRWM.RUnlock()
+	newNamersRWM.Lock()
+	defer newNamersRWM.Unlock()
 	if _, ok := newNamers[typ]; ok {
 		return errors.Errorf("namer \"%s\" is already registered", typ)
 	}

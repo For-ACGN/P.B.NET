@@ -45,11 +45,12 @@ func TestRegister(t *testing.T) {
 	regFn := func() Namer { return NewEnglish() }
 
 	t.Run("common", func(t *testing.T) {
-		err := Register("mock", regFn)
+		err := Register("namer", regFn)
 		require.NoError(t, err)
+		defer Unregister("namer")
 
 		res := testGenerateEnglishResource(t)
-		namer, err := Load("mock", res)
+		namer, err := Load("namer", res)
 		require.NoError(t, err)
 
 		word, err := namer.Generate(nil)
@@ -67,23 +68,76 @@ func TestRegister(t *testing.T) {
 
 func TestUnregister(t *testing.T) {
 	regFn := func() Namer { return NewEnglish() }
-	err := Register("mock", regFn)
+	err := Register("namer", regFn)
 	require.NoError(t, err)
 
 	res := testGenerateEnglishResource(t)
-	namer, err := Load("mock", res)
+	namer, err := Load("namer", res)
 	require.NoError(t, err)
 	require.NotNil(t, namer)
 
-	Unregister("mock")
+	Unregister("namer")
 
-	namer, err = Load("mock", res)
+	namer, err = Load("namer", res)
 	require.Error(t, err)
 	require.Nil(t, namer)
 }
 
 func TestLoad_Parallel(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
 
+	res := testGenerateEnglishResource(t)
+	regFn := func() Namer { return NewEnglish() }
+	err := Register("namer1", regFn)
+	require.NoError(t, err)
+
+	init := func() {
+		err = Register("namer2", regFn)
+		require.NoError(t, err)
+	}
+	reg1 := func() {
+		err := Register("namer3", regFn)
+		require.NoError(t, err)
+	}
+	reg2 := func() {
+		err := Register("namer4", regFn)
+		require.NoError(t, err)
+	}
+	reg3 := func() {
+		err := Register("namer1", regFn)
+		require.Error(t, err)
+	}
+	un1 := func() {
+		Unregister("namer2")
+	}
+	un2 := func() {
+		Unregister("namer5")
+	}
+	load1 := func() {
+		namer, err := Load("english", res)
+		require.NoError(t, err)
+		require.NotNil(t, namer)
+	}
+	load2 := func() {
+		namer, err := Load("namer1", res)
+		require.NoError(t, err)
+		require.NotNil(t, namer)
+	}
+	load3 := func() {
+		namer, err := Load("namer5", nil)
+		require.Error(t, err)
+		require.Nil(t, namer)
+	}
+	cleanup := func() {
+		Unregister("namer3")
+		Unregister("namer4")
+	}
+	fns := []func(){
+		reg1, reg2, reg3, un1, un2,
+		load1, load2, load3,
+	}
+	testsuite.RunParallel(100, init, cleanup, fns...)
 }
 
 func TestLoadWordsFromZipFile(t *testing.T) {
