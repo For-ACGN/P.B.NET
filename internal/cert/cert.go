@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -25,14 +27,16 @@ import (
 
 // Options contains options about generate certificate.
 type Options struct {
-	Algorithm   string         `toml:"algorithm"` // "rsa|2048", "ecdsa|p256", "ed25519"
-	DNSNames    []string       `toml:"dns_names"`
-	IPAddresses []string       `toml:"ip_addresses"` // IP SANs
-	Subject     Subject        `toml:"subject"`
-	NotBefore   time.Time      `toml:"not_before"`
-	NotAfter    time.Time      `toml:"not_after"`
-	NamerOpts   *namer.Options `toml:"namer_opts"`
-	Namer       namer.Namer    `toml:"-" msgpack:"-"`
+	Algorithm      string         `toml:"algorithm"` // "rsa|2048", "ecdsa|p256", "ed25519"
+	DNSNames       []string       `toml:"dns_names"`
+	IPAddresses    []string       `toml:"ip_addresses"` // IP SANs
+	EmailAddresses []string       `toml:"email_addresses"`
+	URLs           []string       `toml:"urls"`
+	NotBefore      time.Time      `toml:"not_before"`
+	NotAfter       time.Time      `toml:"not_after"`
+	Subject        Subject        `toml:"subject"`
+	NamerOpts      *namer.Options `toml:"namer_opts"`
+	Namer          namer.Namer    `toml:"-" msgpack:"-"`
 }
 
 // Subject contains certificate subject information.
@@ -61,22 +65,39 @@ func generateCertificate(opts *Options) (*x509.Certificate, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to set organization: %s", err)
 	}
-	// check and set domain name
+	// check and set domain names
 	dn := opts.DNSNames
 	for i := 0; i < len(dn); i++ {
 		if !isDomainName(dn[i]) {
-			return nil, fmt.Errorf("%s is not a domain name", dn[i])
+			return nil, fmt.Errorf("%s is not a valid domain name", dn[i])
 		}
 		cert.DNSNames = append(cert.DNSNames, dn[i])
 	}
-	// check and set IP address
+	// check and set IP addresses
 	ips := opts.IPAddresses
 	for i := 0; i < len(ips); i++ {
 		ip := net.ParseIP(ips[i])
 		if ip == nil {
-			return nil, fmt.Errorf("%s is not a IP", ips[i])
+			return nil, fmt.Errorf("%s is not a valid IP address", ips[i])
 		}
 		cert.IPAddresses = append(cert.IPAddresses, ip)
+	}
+	// check and set email addresses
+	emails := opts.EmailAddresses
+	for i := 0; i < len(emails); i++ {
+		if !isEmailAddress(emails[i]) {
+			return nil, fmt.Errorf("%s is not a valid email address", emails[i])
+		}
+		cert.EmailAddresses = append(cert.EmailAddresses, emails[i])
+	}
+	// check and set URLs
+	urls := opts.URLs
+	for i := 0; i < len(urls); i++ {
+		URL, err := url.Parse(urls[i])
+		if err != nil {
+			return nil, fmt.Errorf("%s is not a valid url", urls[i])
+		}
+		cert.URIs = append(cert.URIs, URL)
 	}
 	setCertTime(cert, opts)
 	// copy []string
@@ -206,6 +227,12 @@ func checkChar(c byte, last byte, nonNumeric *bool, partLen *int, ok *bool) {
 		*partLen = 0
 		*ok = true
 	}
+}
+
+var emailAddressReg = regexp.MustCompile(`\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*`)
+
+func isEmailAddress(email string) bool {
+	return len(emailAddressReg.FindAllString(email, -1)) == 1
 }
 
 func generatePrivateKey(algorithm string) (interface{}, interface{}, error) {
@@ -389,8 +416,7 @@ const timeLayout = "2006-01-02 15:04:05"
 
 // Print is used to print certificate information.
 func Print(cert *x509.Certificate) *bytes.Buffer {
-	output := new(bytes.Buffer)
-	const certFormat = `subject
+	const format = `subject
   common name:  %s
   organization: %s
 issuer
@@ -400,13 +426,26 @@ public key algorithm: %s
 signature algorithm:  %s
 not before: %s
 not after:  %s`
-	_, _ = fmt.Fprintf(output, certFormat,
+	output := new(bytes.Buffer)
+	_, _ = fmt.Fprintf(output, format,
 		cert.Subject.CommonName, strings.Join(cert.Subject.Organization, ", "),
 		cert.Issuer.CommonName, strings.Join(cert.Issuer.Organization, ", "),
 		cert.PublicKeyAlgorithm, cert.SignatureAlgorithm,
 		cert.NotBefore.Local().Format(timeLayout),
 		cert.NotAfter.Local().Format(timeLayout),
 	)
+	if len(cert.DNSNames) != 0 {
+		_, _ = fmt.Fprintf(output, "\ndns name: %s", cert.DNSNames)
+	}
+	if len(cert.EmailAddresses) != 0 {
+		_, _ = fmt.Fprintf(output, "\nemail address: %s", cert.EmailAddresses)
+	}
+	if len(cert.IPAddresses) != 0 {
+		_, _ = fmt.Fprintf(output, "\nip address: %s", cert.IPAddresses)
+	}
+	if len(cert.URIs) != 0 {
+		_, _ = fmt.Fprintf(output, "\nurl: %s", cert.URIs)
+	}
 	return output
 }
 
