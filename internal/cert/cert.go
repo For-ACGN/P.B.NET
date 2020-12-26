@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"net/url"
@@ -52,16 +53,121 @@ type Subject struct {
 	PostalCode         []string `toml:"postal_code"`
 }
 
-func generateCertificate(opts *Options) (*x509.Certificate, error) {
-	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(random.Int64()),
-		SubjectKeyId: random.Bytes(4),
+// Pair contains certificate and private key.
+type Pair struct {
+	Certificate *x509.Certificate
+	PrivateKey  interface{}
+}
+
+// ASN1 is used to get certificate ASN1 data.
+func (p *Pair) ASN1() []byte {
+	asn1Data := make([]byte, len(p.Certificate.Raw))
+	copy(asn1Data, p.Certificate.Raw)
+	return asn1Data
+}
+
+// Encode is used to get certificate ASN1 data and encode private key to PKCS8.
+func (p *Pair) Encode() ([]byte, []byte) {
+	cert := p.ASN1()
+	key, err := x509.MarshalPKCS8PrivateKey(p.PrivateKey)
+	if err != nil {
+		panic(fmt.Sprintf("cert: internal error: %s", err))
 	}
-	err := setCertCommonName(cert, opts)
+	return cert, key
+}
+
+// EncodeToPEM is used to encode certificate and private key to PEM data.
+func (p *Pair) EncodeToPEM() ([]byte, []byte) {
+	cert, key := p.Encode()
+	defer func() {
+		security.CoverBytes(cert)
+		security.CoverBytes(key)
+	}()
+	certBlock := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert,
+	}
+	keyBlock := &pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: key,
+	}
+	return pem.EncodeToMemory(certBlock), pem.EncodeToMemory(keyBlock)
+}
+
+// TLSCertificate is used to generate tls certificate.
+func (p *Pair) TLSCertificate() tls.Certificate {
+	var cert tls.Certificate
+	cert.Certificate = make([][]byte, 1)
+	cert.Certificate[0] = make([]byte, len(p.Certificate.Raw))
+	copy(cert.Certificate[0], p.Certificate.Raw)
+	cert.PrivateKey = p.PrivateKey
+	return cert
+}
+
+// GenerateCA is used to generate a CA certificate from Options.
+func GenerateCA(opts *Options) (*Pair, error) {
+	if opts == nil {
+		opts = new(Options)
+	}
+	ca, err := generateCertificate(opts)
+	if err != nil {
+		return nil, err
+	}
+	ca.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
+	ca.BasicConstraintsValid = true
+	ca.IsCA = true
+	privateKey, publicKey, err := generatePrivateKey(opts.Algorithm)
+	if err != nil {
+		return nil, err
+	}
+	asn1Data, err := x509.CreateCertificate(rand.Reader, ca, ca, publicKey, privateKey)
+	if err != nil {
+		return nil, err
+	}
+	ca, _ = x509.ParseCertificate(asn1Data)
+	return &Pair{Certificate: ca, PrivateKey: privateKey}, nil
+}
+
+// Generate is used to generate a signed certificate by CA or self-signed
+// certificate from options.
+func Generate(parent *x509.Certificate, pri interface{}, opts *Options) (*Pair, error) {
+	if opts == nil {
+		opts = new(Options)
+	}
+	cert, err := generateCertificate(opts)
+	if err != nil {
+		return nil, err
+	}
+	cert.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
+	// generate certificate
+	privateKey, publicKey, err := generatePrivateKey(opts.Algorithm)
+	if err != nil {
+		return nil, err
+	}
+	var asn1Data []byte
+	if parent != nil && pri != nil { // by CA
+		asn1Data, err = x509.CreateCertificate(rand.Reader, cert, parent, publicKey, pri)
+	} else { // self-sign
+		asn1Data, err = x509.CreateCertificate(rand.Reader, cert, cert, publicKey, privateKey)
+	}
+	if err != nil {
+		return nil, err
+	}
+	cert, _ = x509.ParseCertificate(asn1Data)
+	return &Pair{Certificate: cert, PrivateKey: privateKey}, nil
+}
+
+func generateCertificate(opts *Options) (*x509.Certificate, error) {
+	r := random.NewRand()
+	cert := &x509.Certificate{
+		SerialNumber: big.NewInt(r.Int64()),
+		SubjectKeyId: r.Bytes(4),
+	}
+	err := setCertCommonName(r, cert, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set common name: %s", err)
 	}
-	err = setCertOrganization(cert, opts)
+	err = setCertOrganization(r, cert, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set organization: %s", err)
 	}
@@ -99,8 +205,8 @@ func generateCertificate(opts *Options) (*x509.Certificate, error) {
 		}
 		cert.URIs = append(cert.URIs, URL)
 	}
-	setCertTime(cert, opts)
-	// copy []string
+	setCertTime(r, cert, opts)
+	// copy []string in Subject
 	cert.Subject.Country = make([]string, len(opts.Subject.Country))
 	copy(cert.Subject.Country, opts.Subject.Country)
 	cert.Subject.OrganizationalUnit = make([]string, len(opts.Subject.OrganizationalUnit))
@@ -117,14 +223,14 @@ func generateCertificate(opts *Options) (*x509.Certificate, error) {
 	return cert, nil
 }
 
-func setCertCommonName(cert *x509.Certificate, opts *Options) error {
+func setCertCommonName(r *random.Rand, cert *x509.Certificate, opts *Options) error {
 	if opts.Subject.CommonName != "" {
 		cert.Subject.CommonName = opts.Subject.CommonName
 		return nil
 	}
 	// generate random common name
 	if opts.Namer == nil {
-		cert.Subject.CommonName = random.String(6 + random.Int(8))
+		cert.Subject.CommonName = r.String(6 + r.Int(8))
 		return nil
 	}
 	name, err := opts.Namer.Generate(opts.NamerOpts)
@@ -135,7 +241,7 @@ func setCertCommonName(cert *x509.Certificate, opts *Options) error {
 	return nil
 }
 
-func setCertOrganization(cert *x509.Certificate, opts *Options) error {
+func setCertOrganization(r *random.Rand, cert *x509.Certificate, opts *Options) error {
 	if len(opts.Subject.Organization) != 0 {
 		cert.Subject.Organization = make([]string, len(opts.Subject.Organization))
 		copy(cert.Subject.Organization, opts.Subject.Organization)
@@ -143,7 +249,7 @@ func setCertOrganization(cert *x509.Certificate, opts *Options) error {
 	}
 	// generate random organization
 	if opts.Namer == nil {
-		cert.Subject.Organization = []string{random.String(6 + random.Int(8))}
+		cert.Subject.Organization = []string{r.String(6 + r.Int(8))}
 		return nil
 	}
 	name, err := opts.Namer.Generate(opts.NamerOpts)
@@ -154,20 +260,20 @@ func setCertOrganization(cert *x509.Certificate, opts *Options) error {
 	return nil
 }
 
-func setCertTime(cert *x509.Certificate, opts *Options) {
+func setCertTime(r *random.Rand, cert *x509.Certificate, opts *Options) {
 	now := time.Date(2018, 11, 27, 0, 0, 0, 0, time.UTC)
 	if opts.NotBefore.IsZero() {
-		years := random.Int(10)
-		months := random.Int(12)
-		days := random.Int(31)
+		years := r.Int(10)
+		months := r.Int(12)
+		days := r.Int(31)
 		cert.NotBefore = now.AddDate(-years, -months, -days)
 	} else {
 		cert.NotBefore = opts.NotBefore
 	}
 	if opts.NotAfter.IsZero() {
-		years := 10 + random.Int(10)
-		months := random.Int(12)
-		days := random.Int(31)
+		years := 10 + r.Int(10)
+		months := r.Int(12)
+		days := r.Int(31)
 		cert.NotAfter = now.AddDate(years, months, days)
 	} else {
 		cert.NotAfter = opts.NotAfter
@@ -302,120 +408,10 @@ func generateED25519() (interface{}, interface{}, error) {
 	return privateKey, publicKey, nil
 }
 
-// Pair contains certificate and private key.
-type Pair struct {
-	Certificate *x509.Certificate
-	PrivateKey  interface{}
-}
-
-// ASN1 is used to get certificate ASN1 data.
-func (p *Pair) ASN1() []byte {
-	asn1 := make([]byte, len(p.Certificate.Raw))
-	copy(asn1, p.Certificate.Raw)
-	return asn1
-}
-
-// Encode is used to get certificate ASN1 data and encode private key to PKCS8.
-func (p *Pair) Encode() ([]byte, []byte) {
-	cert := p.ASN1()
-	key, err := x509.MarshalPKCS8PrivateKey(p.PrivateKey)
-	if err != nil {
-		panic(fmt.Sprintf("cert: internal error: %s", err))
-	}
-	return cert, key
-}
-
-// EncodeToPEM is used to encode certificate and private key to PEM data.
-func (p *Pair) EncodeToPEM() ([]byte, []byte) {
-	cert, key := p.Encode()
-	defer func() {
-		security.CoverBytes(cert)
-		security.CoverBytes(key)
-	}()
-	certBlock := &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cert,
-	}
-	keyBlock := &pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: key,
-	}
-	return pem.EncodeToMemory(certBlock), pem.EncodeToMemory(keyBlock)
-}
-
-// TLSCertificate is used to generate tls certificate.
-func (p *Pair) TLSCertificate() tls.Certificate {
-	var cert tls.Certificate
-	cert.Certificate = make([][]byte, 1)
-	cert.Certificate[0] = make([]byte, len(p.Certificate.Raw))
-	copy(cert.Certificate[0], p.Certificate.Raw)
-	cert.PrivateKey = p.PrivateKey
-	return cert
-}
-
-// GenerateCA is used to generate a CA certificate from Options.
-func GenerateCA(opts *Options) (*Pair, error) {
-	if opts == nil {
-		opts = new(Options)
-	}
-	ca, err := generateCertificate(opts)
-	if err != nil {
-		return nil, err
-	}
-	ca.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
-	ca.BasicConstraintsValid = true
-	ca.IsCA = true
-	privateKey, publicKey, err := generatePrivateKey(opts.Algorithm)
-	if err != nil {
-		return nil, err
-	}
-	asn1Data, err := x509.CreateCertificate(rand.Reader, ca, ca, publicKey, privateKey)
-	if err != nil {
-		return nil, err
-	}
-	ca, _ = x509.ParseCertificate(asn1Data)
-	return &Pair{
-		Certificate: ca,
-		PrivateKey:  privateKey,
-	}, nil
-}
-
-// Generate is used to generate a signed certificate by CA or self-signed
-// certificate from options.
-func Generate(parent *x509.Certificate, pri interface{}, opts *Options) (*Pair, error) {
-	if opts == nil {
-		opts = new(Options)
-	}
-	cert, err := generateCertificate(opts)
-	if err != nil {
-		return nil, err
-	}
-	cert.KeyUsage = x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
-	// generate certificate
-	privateKey, publicKey, err := generatePrivateKey(opts.Algorithm)
-	if err != nil {
-		return nil, err
-	}
-	var asn1Data []byte
-	if parent != nil && pri != nil { // by CA
-		asn1Data, err = x509.CreateCertificate(rand.Reader, cert, parent, publicKey, pri)
-	} else { // self-sign
-		asn1Data, err = x509.CreateCertificate(rand.Reader, cert, cert, publicKey, privateKey)
-	}
-	if err != nil {
-		return nil, err
-	}
-	cert, _ = x509.ParseCertificate(asn1Data)
-	return &Pair{
-		Certificate: cert,
-		PrivateKey:  privateKey,
-	}, nil
-}
-
 const timeLayout = "2006-01-02 15:04:05"
 
-// Print is used to print certificate information.
-func Print(cert *x509.Certificate) *bytes.Buffer {
+// Fprint is used to print certificate information to io.Writer.
+func Fprint(w io.Writer, cert *x509.Certificate) {
 	const format = `subject
   common name:  %s
   organization: %s
@@ -426,8 +422,7 @@ public key algorithm: %s
 signature algorithm:  %s
 not before: %s
 not after:  %s`
-	output := new(bytes.Buffer)
-	_, _ = fmt.Fprintf(output, format,
+	_, _ = fmt.Fprintf(w, format,
 		cert.Subject.CommonName, strings.Join(cert.Subject.Organization, ", "),
 		cert.Issuer.CommonName, strings.Join(cert.Issuer.Organization, ", "),
 		cert.PublicKeyAlgorithm, cert.SignatureAlgorithm,
@@ -435,17 +430,31 @@ not after:  %s`
 		cert.NotAfter.Local().Format(timeLayout),
 	)
 	if len(cert.DNSNames) != 0 {
-		_, _ = fmt.Fprintf(output, "\ndns name: %s", cert.DNSNames)
-	}
-	if len(cert.EmailAddresses) != 0 {
-		_, _ = fmt.Fprintf(output, "\nemail address: %s", cert.EmailAddresses)
+		_, _ = fmt.Fprintf(w, "\ndns name: %s", strings.Join(cert.DNSNames, ", "))
 	}
 	if len(cert.IPAddresses) != 0 {
-		_, _ = fmt.Fprintf(output, "\nip address: %s", cert.IPAddresses)
+		ip := make([]string, len(cert.IPAddresses))
+		for i := 0; i < len(cert.IPAddresses); i++ {
+			ip[i] = cert.IPAddresses[i].String()
+		}
+		_, _ = fmt.Fprintf(w, "\nip address: %s", strings.Join(ip, ", "))
+	}
+	if len(cert.EmailAddresses) != 0 {
+		_, _ = fmt.Fprintf(w, "\nemail address: %s", strings.Join(cert.EmailAddresses, ", "))
 	}
 	if len(cert.URIs) != 0 {
-		_, _ = fmt.Fprintf(output, "\nurl: %s", cert.URIs)
+		urls := make([]string, len(cert.URIs))
+		for i := 0; i < len(cert.URIs); i++ {
+			urls[i] = cert.URIs[i].String()
+		}
+		_, _ = fmt.Fprintf(w, "\nurl: %s", strings.Join(urls, ", "))
 	}
+}
+
+// Print is used to print certificate information.
+func Print(cert *x509.Certificate) *bytes.Buffer {
+	output := new(bytes.Buffer)
+	Fprint(output, cert)
 	return output
 }
 

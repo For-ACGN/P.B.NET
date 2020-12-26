@@ -1,19 +1,21 @@
-algorithm    = "rsa|2048"    # "rsa|2048", "ecdsa|p256", "ed25519"
-dns_names    = ["localhost"]
-ip_addresses = ["127.0.0.1", "::1"]
-not_before   = 2018-11-27
-not_after    = 2028-11-27
+algorithm       = "rsa|2048"
+dns_names       = ["localhost", "lo"]
+ip_addresses    = ["127.0.0.1", "::1"]
+email_addresses = ["admin@test.com", "user@test.com"]
+urls            = ["https://1.1.1.1/", "http://example.com/"]
+not_before      = 2018-11-27
+not_after       = 2028-11-27
 
 [subject]
-common_name         = "name"
-serial_number       = "test"
-country             = ["test1"]
-organization        = ["test2"]
-organizational_unit = ["test3"]
-locality            = ["test4"]
-province            = ["test5"]
-street_address      = ["test6"]
-postal_code         = ["test7"]
+  common_name         = "name"
+  serial_number       = "test"
+  country             = ["test1"]
+  organization        = ["test2"]
+  organizational_unit = ["test3"]
+  locality            = ["test4"]
+  province            = ["test5"]
+  street_address      = ["test6"]
+  postal_code         = ["test7"]
 
 [namer_opts]
   disable_prefix = true

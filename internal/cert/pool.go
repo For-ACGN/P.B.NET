@@ -19,18 +19,15 @@ type pair struct {
 	PrivateKey  *security.Bytes // PKCS8
 }
 
-// ToPair is used to convert *pair to *Pair.
-func (p *pair) ToPair() *Pair {
+// toPair is used to convert *pair to *Pair.
+func (p *pair) toPair() *Pair {
 	pkcs8 := p.PrivateKey.Get()
 	defer p.PrivateKey.Put(pkcs8)
 	pri, err := x509.ParsePKCS8PrivateKey(pkcs8)
 	if err != nil {
 		panic(fmt.Sprintf("cert: internal error: %s", err))
 	}
-	return &Pair{
-		Certificate: p.Certificate,
-		PrivateKey:  pri,
-	}
+	return &Pair{Certificate: p.Certificate, PrivateKey: pri}
 }
 
 // Pool include all certificates from public and private place.
@@ -336,7 +333,7 @@ func (p *Pool) GetPublicClientPairs() []*Pair {
 	l := len(p.pubClientCerts)
 	pairs := make([]*Pair, l)
 	for i := 0; i < l; i++ {
-		pairs[i] = p.pubClientCerts[i].ToPair()
+		pairs[i] = p.pubClientCerts[i].toPair()
 	}
 	return pairs
 }
@@ -348,7 +345,7 @@ func (p *Pool) GetPrivateRootCAPairs() []*Pair {
 	l := len(p.priRootCACerts)
 	pairs := make([]*Pair, l)
 	for i := 0; i < l; i++ {
-		pairs[i] = p.priRootCACerts[i].ToPair()
+		pairs[i] = p.priRootCACerts[i].toPair()
 	}
 	return pairs
 }
@@ -372,7 +369,7 @@ func (p *Pool) GetPrivateClientCAPairs() []*Pair {
 	l := len(p.priClientCACerts)
 	pairs := make([]*Pair, l)
 	for i := 0; i < l; i++ {
-		pairs[i] = p.priClientCACerts[i].ToPair()
+		pairs[i] = p.priClientCACerts[i].toPair()
 	}
 	return pairs
 }
@@ -396,7 +393,7 @@ func (p *Pool) GetPrivateClientPairs() []*Pair {
 	l := len(p.priClientCerts)
 	pairs := make([]*Pair, l)
 	for i := 0; i < l; i++ {
-		pairs[i] = p.priClientCerts[i].ToPair()
+		pairs[i] = p.priClientCerts[i].toPair()
 	}
 	return pairs
 }
@@ -436,7 +433,7 @@ func (p *Pool) ExportPublicClientPair(i int) ([]byte, []byte, error) {
 	if i < 0 || i > len(p.pubClientCerts)-1 {
 		return nil, nil, errors.Errorf("invalid id: %d", i)
 	}
-	cert, key := p.pubClientCerts[i].ToPair().EncodeToPEM()
+	cert, key := p.pubClientCerts[i].toPair().EncodeToPEM()
 	return cert, key, nil
 }
 
@@ -447,7 +444,7 @@ func (p *Pool) ExportPrivateRootCAPair(i int) ([]byte, []byte, error) {
 	if i < 0 || i > len(p.priRootCACerts)-1 {
 		return nil, nil, errors.Errorf("invalid id: %d", i)
 	}
-	cert, key := p.priRootCACerts[i].ToPair().EncodeToPEM()
+	cert, key := p.priRootCACerts[i].toPair().EncodeToPEM()
 	return cert, key, nil
 }
 
@@ -458,7 +455,7 @@ func (p *Pool) ExportPrivateClientCAPair(i int) ([]byte, []byte, error) {
 	if i < 0 || i > len(p.priClientCACerts)-1 {
 		return nil, nil, errors.Errorf("invalid id: %d", i)
 	}
-	cert, key := p.priClientCACerts[i].ToPair().EncodeToPEM()
+	cert, key := p.priClientCACerts[i].toPair().EncodeToPEM()
 	return cert, key, nil
 }
 
@@ -469,7 +466,7 @@ func (p *Pool) ExportPrivateClientPair(i int) ([]byte, []byte, error) {
 	if i < 0 || i > len(p.priClientCerts)-1 {
 		return nil, nil, errors.Errorf("invalid id: %d", i)
 	}
-	cert, key := p.priClientCerts[i].ToPair().EncodeToPEM()
+	cert, key := p.priClientCerts[i].toPair().EncodeToPEM()
 	return cert, key, nil
 }
 

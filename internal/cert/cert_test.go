@@ -70,7 +70,7 @@ func TestGenerateCertificate(t *testing.T) {
 
 	t.Run("invalid domain name", func(t *testing.T) {
 		opts := Options{
-			DNSNames: []string{"foo-"},
+			DNSNames: []string{"foo domain name"},
 		}
 		cert, err := generateCertificate(&opts)
 		require.Error(t, err)
@@ -80,6 +80,24 @@ func TestGenerateCertificate(t *testing.T) {
 	t.Run("invalid IP address", func(t *testing.T) {
 		opts := Options{
 			IPAddresses: []string{"foo ip"},
+		}
+		cert, err := generateCertificate(&opts)
+		require.Error(t, err)
+		require.Nil(t, cert)
+	})
+
+	t.Run("invalid email address", func(t *testing.T) {
+		opts := Options{
+			EmailAddresses: []string{"foo email"},
+		}
+		cert, err := generateCertificate(&opts)
+		require.Error(t, err)
+		require.Nil(t, cert)
+	})
+
+	t.Run("invalid url", func(t *testing.T) {
+		opts := Options{
+			URLs: []string{"foo url\n"},
 		}
 		cert, err := generateCertificate(&opts)
 		require.Error(t, err)
@@ -454,14 +472,18 @@ func TestPair_EncodeToPEM(t *testing.T) {
 }
 
 func TestPrint(t *testing.T) {
-	ca, err := GenerateCA(nil)
+	opts := Options{
+		DNSNames:       []string{"test.com", "foo.com"},
+		IPAddresses:    []string{"1.1.1.1", "1234::1234"},
+		EmailAddresses: []string{"admin@test.com", "user@test.com"},
+		URLs:           []string{"https://1.1.1.1/", "http://example.com/"},
+	}
+	opts.Subject.Organization = []string{"org a", "org b"}
+
+	ca, err := GenerateCA(&opts)
 	require.NoError(t, err)
 
-	org := []string{"org a", "org b"}
-	ca.Certificate.Subject.Organization = org
-	ca.Certificate.Issuer.Organization = org
-
-	t.Log("\n", Print(ca.Certificate))
+	t.Logf("\n%s", Print(ca.Certificate))
 }
 
 func TestParseCertificate(t *testing.T) {
@@ -654,8 +676,10 @@ func TestOptions(t *testing.T) {
 		actual   interface{}
 	}{
 		{expected: "rsa|2048", actual: opts.Algorithm},
-		{expected: []string{"localhost"}, actual: opts.DNSNames},
+		{expected: []string{"localhost", "lo"}, actual: opts.DNSNames},
 		{expected: []string{"127.0.0.1", "::1"}, actual: opts.IPAddresses},
+		{expected: []string{"admin@test.com", "user@test.com"}, actual: opts.EmailAddresses},
+		{expected: []string{"https://1.1.1.1/", "http://example.com/"}, actual: opts.URLs},
 		{expected: notBefore, actual: opts.NotBefore},
 		{expected: notAfter, actual: opts.NotAfter},
 		{expected: "name", actual: opts.Subject.CommonName},

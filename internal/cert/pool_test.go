@@ -12,12 +12,12 @@ import (
 	"project/internal/testsuite"
 )
 
-func TestPair_ToPair(t *testing.T) {
+func TestPair_toPair(t *testing.T) {
 	sb := security.NewBytes(make([]byte, 1024))
 	pair := pair{PrivateKey: sb}
 
 	defer testsuite.DeferForPanic(t)
-	pair.ToPair()
+	pair.toPair()
 }
 
 func testGeneratePair(t *testing.T) *Pair {
