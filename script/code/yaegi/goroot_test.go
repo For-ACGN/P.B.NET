@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/build"
+	"go/format"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -30,11 +32,11 @@ func TestExportGoRoot(t *testing.T) {
 	}{
 		{version: 16, path: cfg.Common.Go116x},
 		{version: 10, path: cfg.Common.Go1108},
-		{version: 11, path: cfg.Special.Go11113},
-		{version: 12, path: cfg.Special.Go11217},
-		{version: 13, path: cfg.Special.Go11315},
-		{version: 14, path: cfg.Special.Go11415},
-		{version: 15, path: cfg.Special.Go115x},
+		{version: 11, path: cfg.Specific.Go11113},
+		{version: 12, path: cfg.Specific.Go11217},
+		{version: 13, path: cfg.Specific.Go11315},
+		{version: 14, path: cfg.Specific.Go11415},
+		{version: 15, path: cfg.Specific.Go115x},
 	} {
 		if item.path == "" {
 			continue
@@ -52,6 +54,8 @@ func testExportGoRoot(t *testing.T, version int, path string) {
 package goroot
 
 import (
+	"go/constant"
+	"go/token"
 %s)
 
 // Symbols stores the map of unsafe package symbols.
@@ -61,16 +65,51 @@ func init() {
 %s}
 
 %s`
-	// set go root path
+	// set build context
+	var releaseTags []string
+	for i := 1; i <= version; i++ {
+		releaseTags = append(releaseTags, "go1."+strconv.Itoa(i))
+	}
+	build.Default.ReleaseTags = releaseTags
 	build.Default.GOROOT = path
+
 	importBuf := bytes.NewBuffer(make([]byte, 0, 2048))
 	initBuf := bytes.NewBuffer(make([]byte, 0, 4096))
 	srcBuf := bytes.NewBuffer(make([]byte, 0, 128*1024))
 
 	for _, pkg := range []string{
+		"archive/tar",
 		"archive/zip",
+		"bufio",
+		"bytes",
+		"compress/bzip2",
+		"compress/flate",
+		"compress/gzip",
+		"compress/lzw",
+		"compress/zlib",
+		"container/heap",
+		"container/list",
+		"container/ring",
+		"context",
+		// "crypto",
+		// "crypto/aes",
+		// "crypto/cipher",
+		// "crypto/des",
+		// "crypto/dsa",
+		// "crypto/ecdsa",
+		// "crypto/ed25519",
+		// "crypto/elliptic",
+		// "crypto/hmac",
+		// "crypto/rand", handle it!
+		"io",
+		// "math",
+		"math/big",
+		// "math/bits",
+		// "math/cmplx",
+		// "math/rand",
 		"reflect",
 		"strings",
+		"time",
 	} {
 		init := strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(pkg)
 		_, _ = fmt.Fprintf(importBuf, "\t\"%s\"\n", pkg)
@@ -80,12 +119,14 @@ func init() {
 		srcBuf.WriteString(code)
 	}
 
-	// generate code
+	// generate and format code
 	src := fmt.Sprintf(template[1:], version, version+1, importBuf, initBuf, srcBuf)
+	data, err := format.Source([]byte(src))
+	require.NoError(t, err)
 
 	// print and save code
-	fmt.Println(src)
+	fmt.Println(string(data))
 	path = fmt.Sprintf("../../../internal/interpreter/yaegi/goroot/bundle_go1_%d.go", version)
-	err := system.WriteFile(path, []byte(src))
+	err = system.WriteFile(path, data)
 	require.NoError(t, err)
 }

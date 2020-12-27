@@ -5,18 +5,87 @@
 package goroot
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"bufio"
+	"bytes"
+	"compress/bzip2"
+	"compress/flate"
+	"compress/gzip"
+	"compress/lzw"
+	"compress/zlib"
+	"container/heap"
+	"container/list"
+	"container/ring"
+	"context"
+	"go/constant"
+	"go/token"
+	"io"
+	"math/big"
 	"reflect"
 	"strings"
+	"time"
 )
 
 // Symbols stores the map of unsafe package symbols.
 var Symbols = map[string]map[string]reflect.Value{}
 
 func init() {
+	init_archive_tar()
 	init_archive_zip()
+	init_bufio()
+	init_bytes()
+	init_compress_bzip2()
+	init_compress_flate()
+	init_compress_gzip()
+	init_compress_lzw()
+	init_compress_zlib()
+	init_container_heap()
+	init_container_list()
+	init_container_ring()
+	init_context()
+	init_io()
+	init_math_big()
 	init_reflect()
 	init_strings()
+	init_time()
+}
+
+func init_archive_tar() {
+	Symbols["archive/tar"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ErrFieldTooLong":    reflect.ValueOf(&tar.ErrFieldTooLong).Elem(),
+		"ErrHeader":          reflect.ValueOf(&tar.ErrHeader).Elem(),
+		"ErrWriteAfterClose": reflect.ValueOf(&tar.ErrWriteAfterClose).Elem(),
+		"ErrWriteTooLong":    reflect.ValueOf(&tar.ErrWriteTooLong).Elem(),
+		"FileInfoHeader":     reflect.ValueOf(tar.FileInfoHeader),
+		"FormatGNU":          reflect.ValueOf(tar.FormatGNU),
+		"FormatPAX":          reflect.ValueOf(tar.FormatPAX),
+		"FormatUSTAR":        reflect.ValueOf(tar.FormatUSTAR),
+		"FormatUnknown":      reflect.ValueOf(tar.FormatUnknown),
+		"NewReader":          reflect.ValueOf(tar.NewReader),
+		"NewWriter":          reflect.ValueOf(tar.NewWriter),
+		"TypeBlock":          reflect.ValueOf(constant.MakeFromLiteral("52", token.INT, 0)),
+		"TypeChar":           reflect.ValueOf(constant.MakeFromLiteral("51", token.INT, 0)),
+		"TypeCont":           reflect.ValueOf(constant.MakeFromLiteral("55", token.INT, 0)),
+		"TypeDir":            reflect.ValueOf(constant.MakeFromLiteral("53", token.INT, 0)),
+		"TypeFifo":           reflect.ValueOf(constant.MakeFromLiteral("54", token.INT, 0)),
+		"TypeGNULongLink":    reflect.ValueOf(constant.MakeFromLiteral("75", token.INT, 0)),
+		"TypeGNULongName":    reflect.ValueOf(constant.MakeFromLiteral("76", token.INT, 0)),
+		"TypeGNUSparse":      reflect.ValueOf(constant.MakeFromLiteral("83", token.INT, 0)),
+		"TypeLink":           reflect.ValueOf(constant.MakeFromLiteral("49", token.INT, 0)),
+		"TypeReg":            reflect.ValueOf(constant.MakeFromLiteral("48", token.INT, 0)),
+		"TypeRegA":           reflect.ValueOf(constant.MakeFromLiteral("0", token.INT, 0)),
+		"TypeSymlink":        reflect.ValueOf(constant.MakeFromLiteral("50", token.INT, 0)),
+		"TypeXGlobalHeader":  reflect.ValueOf(constant.MakeFromLiteral("103", token.INT, 0)),
+		"TypeXHeader":        reflect.ValueOf(constant.MakeFromLiteral("120", token.INT, 0)),
+
+		// type definitions
+		"Format": reflect.ValueOf((*tar.Format)(nil)),
+		"Header": reflect.ValueOf((*tar.Header)(nil)),
+		"Reader": reflect.ValueOf((*tar.Reader)(nil)),
+		"Writer": reflect.ValueOf((*tar.Writer)(nil)),
+	}
 }
 
 func init_archive_zip() {
@@ -42,6 +111,594 @@ func init_archive_zip() {
 		"ReadCloser":   reflect.ValueOf((*zip.ReadCloser)(nil)),
 		"Reader":       reflect.ValueOf((*zip.Reader)(nil)),
 		"Writer":       reflect.ValueOf((*zip.Writer)(nil)),
+	}
+}
+
+func init_bufio() {
+	Symbols["bufio"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ErrAdvanceTooFar":     reflect.ValueOf(&bufio.ErrAdvanceTooFar).Elem(),
+		"ErrBufferFull":        reflect.ValueOf(&bufio.ErrBufferFull).Elem(),
+		"ErrFinalToken":        reflect.ValueOf(&bufio.ErrFinalToken).Elem(),
+		"ErrInvalidUnreadByte": reflect.ValueOf(&bufio.ErrInvalidUnreadByte).Elem(),
+		"ErrInvalidUnreadRune": reflect.ValueOf(&bufio.ErrInvalidUnreadRune).Elem(),
+		"ErrNegativeAdvance":   reflect.ValueOf(&bufio.ErrNegativeAdvance).Elem(),
+		"ErrNegativeCount":     reflect.ValueOf(&bufio.ErrNegativeCount).Elem(),
+		"ErrTooLong":           reflect.ValueOf(&bufio.ErrTooLong).Elem(),
+		"MaxScanTokenSize":     reflect.ValueOf(constant.MakeFromLiteral("65536", token.INT, 0)),
+		"NewReadWriter":        reflect.ValueOf(bufio.NewReadWriter),
+		"NewReader":            reflect.ValueOf(bufio.NewReader),
+		"NewReaderSize":        reflect.ValueOf(bufio.NewReaderSize),
+		"NewScanner":           reflect.ValueOf(bufio.NewScanner),
+		"NewWriter":            reflect.ValueOf(bufio.NewWriter),
+		"NewWriterSize":        reflect.ValueOf(bufio.NewWriterSize),
+		"ScanBytes":            reflect.ValueOf(bufio.ScanBytes),
+		"ScanLines":            reflect.ValueOf(bufio.ScanLines),
+		"ScanRunes":            reflect.ValueOf(bufio.ScanRunes),
+		"ScanWords":            reflect.ValueOf(bufio.ScanWords),
+
+		// type definitions
+		"ReadWriter": reflect.ValueOf((*bufio.ReadWriter)(nil)),
+		"Reader":     reflect.ValueOf((*bufio.Reader)(nil)),
+		"Scanner":    reflect.ValueOf((*bufio.Scanner)(nil)),
+		"SplitFunc":  reflect.ValueOf((*bufio.SplitFunc)(nil)),
+		"Writer":     reflect.ValueOf((*bufio.Writer)(nil)),
+	}
+}
+
+func init_bytes() {
+	Symbols["bytes"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Compare":         reflect.ValueOf(bytes.Compare),
+		"Contains":        reflect.ValueOf(bytes.Contains),
+		"ContainsAny":     reflect.ValueOf(bytes.ContainsAny),
+		"ContainsRune":    reflect.ValueOf(bytes.ContainsRune),
+		"Count":           reflect.ValueOf(bytes.Count),
+		"Equal":           reflect.ValueOf(bytes.Equal),
+		"EqualFold":       reflect.ValueOf(bytes.EqualFold),
+		"ErrTooLarge":     reflect.ValueOf(&bytes.ErrTooLarge).Elem(),
+		"Fields":          reflect.ValueOf(bytes.Fields),
+		"FieldsFunc":      reflect.ValueOf(bytes.FieldsFunc),
+		"HasPrefix":       reflect.ValueOf(bytes.HasPrefix),
+		"HasSuffix":       reflect.ValueOf(bytes.HasSuffix),
+		"Index":           reflect.ValueOf(bytes.Index),
+		"IndexAny":        reflect.ValueOf(bytes.IndexAny),
+		"IndexByte":       reflect.ValueOf(bytes.IndexByte),
+		"IndexFunc":       reflect.ValueOf(bytes.IndexFunc),
+		"IndexRune":       reflect.ValueOf(bytes.IndexRune),
+		"Join":            reflect.ValueOf(bytes.Join),
+		"LastIndex":       reflect.ValueOf(bytes.LastIndex),
+		"LastIndexAny":    reflect.ValueOf(bytes.LastIndexAny),
+		"LastIndexByte":   reflect.ValueOf(bytes.LastIndexByte),
+		"LastIndexFunc":   reflect.ValueOf(bytes.LastIndexFunc),
+		"Map":             reflect.ValueOf(bytes.Map),
+		"MinRead":         reflect.ValueOf(constant.MakeFromLiteral("512", token.INT, 0)),
+		"NewBuffer":       reflect.ValueOf(bytes.NewBuffer),
+		"NewBufferString": reflect.ValueOf(bytes.NewBufferString),
+		"NewReader":       reflect.ValueOf(bytes.NewReader),
+		"Repeat":          reflect.ValueOf(bytes.Repeat),
+		"Replace":         reflect.ValueOf(bytes.Replace),
+		"ReplaceAll":      reflect.ValueOf(bytes.ReplaceAll),
+		"Runes":           reflect.ValueOf(bytes.Runes),
+		"Split":           reflect.ValueOf(bytes.Split),
+		"SplitAfter":      reflect.ValueOf(bytes.SplitAfter),
+		"SplitAfterN":     reflect.ValueOf(bytes.SplitAfterN),
+		"SplitN":          reflect.ValueOf(bytes.SplitN),
+		"Title":           reflect.ValueOf(bytes.Title),
+		"ToLower":         reflect.ValueOf(bytes.ToLower),
+		"ToLowerSpecial":  reflect.ValueOf(bytes.ToLowerSpecial),
+		"ToTitle":         reflect.ValueOf(bytes.ToTitle),
+		"ToTitleSpecial":  reflect.ValueOf(bytes.ToTitleSpecial),
+		"ToUpper":         reflect.ValueOf(bytes.ToUpper),
+		"ToUpperSpecial":  reflect.ValueOf(bytes.ToUpperSpecial),
+		"ToValidUTF8":     reflect.ValueOf(bytes.ToValidUTF8),
+		"Trim":            reflect.ValueOf(bytes.Trim),
+		"TrimFunc":        reflect.ValueOf(bytes.TrimFunc),
+		"TrimLeft":        reflect.ValueOf(bytes.TrimLeft),
+		"TrimLeftFunc":    reflect.ValueOf(bytes.TrimLeftFunc),
+		"TrimPrefix":      reflect.ValueOf(bytes.TrimPrefix),
+		"TrimRight":       reflect.ValueOf(bytes.TrimRight),
+		"TrimRightFunc":   reflect.ValueOf(bytes.TrimRightFunc),
+		"TrimSpace":       reflect.ValueOf(bytes.TrimSpace),
+		"TrimSuffix":      reflect.ValueOf(bytes.TrimSuffix),
+
+		// type definitions
+		"Buffer": reflect.ValueOf((*bytes.Buffer)(nil)),
+		"Reader": reflect.ValueOf((*bytes.Reader)(nil)),
+	}
+}
+
+func init_compress_bzip2() {
+	Symbols["compress/bzip2"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"NewReader": reflect.ValueOf(bzip2.NewReader),
+
+		// type definitions
+		"StructuralError": reflect.ValueOf((*bzip2.StructuralError)(nil)),
+	}
+}
+
+func init_compress_flate() {
+	Symbols["compress/flate"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BestCompression":    reflect.ValueOf(constant.MakeFromLiteral("9", token.INT, 0)),
+		"BestSpeed":          reflect.ValueOf(constant.MakeFromLiteral("1", token.INT, 0)),
+		"DefaultCompression": reflect.ValueOf(constant.MakeFromLiteral("-1", token.INT, 0)),
+		"HuffmanOnly":        reflect.ValueOf(constant.MakeFromLiteral("-2", token.INT, 0)),
+		"NewReader":          reflect.ValueOf(flate.NewReader),
+		"NewReaderDict":      reflect.ValueOf(flate.NewReaderDict),
+		"NewWriter":          reflect.ValueOf(flate.NewWriter),
+		"NewWriterDict":      reflect.ValueOf(flate.NewWriterDict),
+		"NoCompression":      reflect.ValueOf(constant.MakeFromLiteral("0", token.INT, 0)),
+
+		// type definitions
+		"CorruptInputError": reflect.ValueOf((*flate.CorruptInputError)(nil)),
+		"InternalError":     reflect.ValueOf((*flate.InternalError)(nil)),
+		"ReadError":         reflect.ValueOf((*flate.ReadError)(nil)),
+		"Reader":            reflect.ValueOf((*flate.Reader)(nil)),
+		"Resetter":          reflect.ValueOf((*flate.Resetter)(nil)),
+		"WriteError":        reflect.ValueOf((*flate.WriteError)(nil)),
+		"Writer":            reflect.ValueOf((*flate.Writer)(nil)),
+
+		// interface wrapper definitions
+		"_Reader":   reflect.ValueOf((*_compress_flate_Reader)(nil)),
+		"_Resetter": reflect.ValueOf((*_compress_flate_Resetter)(nil)),
+	}
+}
+
+// _compress_flate_Reader is an interface wrapper for Reader type
+type _compress_flate_Reader struct {
+	WRead     func(p []byte) (n int, err error)
+	WReadByte func() (byte, error)
+}
+
+func (W _compress_flate_Reader) Read(p []byte) (n int, err error) { return W.WRead(p) }
+func (W _compress_flate_Reader) ReadByte() (byte, error)          { return W.WReadByte() }
+
+// _compress_flate_Resetter is an interface wrapper for Resetter type
+type _compress_flate_Resetter struct {
+	WReset func(r io.Reader, dict []byte) error
+}
+
+func (W _compress_flate_Resetter) Reset(r io.Reader, dict []byte) error { return W.WReset(r, dict) }
+
+func init_compress_gzip() {
+	Symbols["compress/gzip"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BestCompression":    reflect.ValueOf(constant.MakeFromLiteral("9", token.INT, 0)),
+		"BestSpeed":          reflect.ValueOf(constant.MakeFromLiteral("1", token.INT, 0)),
+		"DefaultCompression": reflect.ValueOf(constant.MakeFromLiteral("-1", token.INT, 0)),
+		"ErrChecksum":        reflect.ValueOf(&gzip.ErrChecksum).Elem(),
+		"ErrHeader":          reflect.ValueOf(&gzip.ErrHeader).Elem(),
+		"HuffmanOnly":        reflect.ValueOf(constant.MakeFromLiteral("-2", token.INT, 0)),
+		"NewReader":          reflect.ValueOf(gzip.NewReader),
+		"NewWriter":          reflect.ValueOf(gzip.NewWriter),
+		"NewWriterLevel":     reflect.ValueOf(gzip.NewWriterLevel),
+		"NoCompression":      reflect.ValueOf(constant.MakeFromLiteral("0", token.INT, 0)),
+
+		// type definitions
+		"Header": reflect.ValueOf((*gzip.Header)(nil)),
+		"Reader": reflect.ValueOf((*gzip.Reader)(nil)),
+		"Writer": reflect.ValueOf((*gzip.Writer)(nil)),
+	}
+}
+
+func init_compress_lzw() {
+	Symbols["compress/lzw"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"LSB":       reflect.ValueOf(lzw.LSB),
+		"MSB":       reflect.ValueOf(lzw.MSB),
+		"NewReader": reflect.ValueOf(lzw.NewReader),
+		"NewWriter": reflect.ValueOf(lzw.NewWriter),
+
+		// type definitions
+		"Order": reflect.ValueOf((*lzw.Order)(nil)),
+	}
+}
+
+func init_compress_zlib() {
+	Symbols["compress/zlib"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BestCompression":    reflect.ValueOf(constant.MakeFromLiteral("9", token.INT, 0)),
+		"BestSpeed":          reflect.ValueOf(constant.MakeFromLiteral("1", token.INT, 0)),
+		"DefaultCompression": reflect.ValueOf(constant.MakeFromLiteral("-1", token.INT, 0)),
+		"ErrChecksum":        reflect.ValueOf(&zlib.ErrChecksum).Elem(),
+		"ErrDictionary":      reflect.ValueOf(&zlib.ErrDictionary).Elem(),
+		"ErrHeader":          reflect.ValueOf(&zlib.ErrHeader).Elem(),
+		"HuffmanOnly":        reflect.ValueOf(constant.MakeFromLiteral("-2", token.INT, 0)),
+		"NewReader":          reflect.ValueOf(zlib.NewReader),
+		"NewReaderDict":      reflect.ValueOf(zlib.NewReaderDict),
+		"NewWriter":          reflect.ValueOf(zlib.NewWriter),
+		"NewWriterLevel":     reflect.ValueOf(zlib.NewWriterLevel),
+		"NewWriterLevelDict": reflect.ValueOf(zlib.NewWriterLevelDict),
+		"NoCompression":      reflect.ValueOf(constant.MakeFromLiteral("0", token.INT, 0)),
+
+		// type definitions
+		"Resetter": reflect.ValueOf((*zlib.Resetter)(nil)),
+		"Writer":   reflect.ValueOf((*zlib.Writer)(nil)),
+
+		// interface wrapper definitions
+		"_Resetter": reflect.ValueOf((*_compress_zlib_Resetter)(nil)),
+	}
+}
+
+// _compress_zlib_Resetter is an interface wrapper for Resetter type
+type _compress_zlib_Resetter struct {
+	WReset func(r io.Reader, dict []byte) error
+}
+
+func (W _compress_zlib_Resetter) Reset(r io.Reader, dict []byte) error { return W.WReset(r, dict) }
+
+func init_container_heap() {
+	Symbols["container/heap"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Fix":    reflect.ValueOf(heap.Fix),
+		"Init":   reflect.ValueOf(heap.Init),
+		"Pop":    reflect.ValueOf(heap.Pop),
+		"Push":   reflect.ValueOf(heap.Push),
+		"Remove": reflect.ValueOf(heap.Remove),
+
+		// type definitions
+		"Interface": reflect.ValueOf((*heap.Interface)(nil)),
+
+		// interface wrapper definitions
+		"_Interface": reflect.ValueOf((*_container_heap_Interface)(nil)),
+	}
+}
+
+// _container_heap_Interface is an interface wrapper for Interface type
+type _container_heap_Interface struct {
+	WLen  func() int
+	WLess func(i int, j int) bool
+	WPop  func() interface{}
+	WPush func(x interface{})
+	WSwap func(i int, j int)
+}
+
+func (W _container_heap_Interface) Len() int               { return W.WLen() }
+func (W _container_heap_Interface) Less(i int, j int) bool { return W.WLess(i, j) }
+func (W _container_heap_Interface) Pop() interface{}       { return W.WPop() }
+func (W _container_heap_Interface) Push(x interface{})     { W.WPush(x) }
+func (W _container_heap_Interface) Swap(i int, j int)      { W.WSwap(i, j) }
+
+func init_container_list() {
+	Symbols["container/list"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"New": reflect.ValueOf(list.New),
+
+		// type definitions
+		"Element": reflect.ValueOf((*list.Element)(nil)),
+		"List":    reflect.ValueOf((*list.List)(nil)),
+	}
+}
+
+func init_container_ring() {
+	Symbols["container/ring"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"New": reflect.ValueOf(ring.New),
+
+		// type definitions
+		"Ring": reflect.ValueOf((*ring.Ring)(nil)),
+	}
+}
+
+func init_context() {
+	Symbols["context"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Background":       reflect.ValueOf(context.Background),
+		"Canceled":         reflect.ValueOf(&context.Canceled).Elem(),
+		"DeadlineExceeded": reflect.ValueOf(&context.DeadlineExceeded).Elem(),
+		"TODO":             reflect.ValueOf(context.TODO),
+		"WithCancel":       reflect.ValueOf(context.WithCancel),
+		"WithDeadline":     reflect.ValueOf(context.WithDeadline),
+		"WithTimeout":      reflect.ValueOf(context.WithTimeout),
+		"WithValue":        reflect.ValueOf(context.WithValue),
+
+		// type definitions
+		"CancelFunc": reflect.ValueOf((*context.CancelFunc)(nil)),
+		"Context":    reflect.ValueOf((*context.Context)(nil)),
+
+		// interface wrapper definitions
+		"_Context": reflect.ValueOf((*_context_Context)(nil)),
+	}
+}
+
+// _context_Context is an interface wrapper for Context type
+type _context_Context struct {
+	WDeadline func() (deadline time.Time, ok bool)
+	WDone     func() <-chan struct{}
+	WErr      func() error
+	WValue    func(key interface{}) interface{}
+}
+
+func (W _context_Context) Deadline() (deadline time.Time, ok bool) { return W.WDeadline() }
+func (W _context_Context) Done() <-chan struct{}                   { return W.WDone() }
+func (W _context_Context) Err() error                              { return W.WErr() }
+func (W _context_Context) Value(key interface{}) interface{}       { return W.WValue(key) }
+
+func init_io() {
+	Symbols["io"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Copy":             reflect.ValueOf(io.Copy),
+		"CopyBuffer":       reflect.ValueOf(io.CopyBuffer),
+		"CopyN":            reflect.ValueOf(io.CopyN),
+		"Discard":          reflect.ValueOf(&io.Discard).Elem(),
+		"EOF":              reflect.ValueOf(&io.EOF).Elem(),
+		"ErrClosedPipe":    reflect.ValueOf(&io.ErrClosedPipe).Elem(),
+		"ErrNoProgress":    reflect.ValueOf(&io.ErrNoProgress).Elem(),
+		"ErrShortBuffer":   reflect.ValueOf(&io.ErrShortBuffer).Elem(),
+		"ErrShortWrite":    reflect.ValueOf(&io.ErrShortWrite).Elem(),
+		"ErrUnexpectedEOF": reflect.ValueOf(&io.ErrUnexpectedEOF).Elem(),
+		"LimitReader":      reflect.ValueOf(io.LimitReader),
+		"MultiReader":      reflect.ValueOf(io.MultiReader),
+		"MultiWriter":      reflect.ValueOf(io.MultiWriter),
+		"NewSectionReader": reflect.ValueOf(io.NewSectionReader),
+		"NopCloser":        reflect.ValueOf(io.NopCloser),
+		"Pipe":             reflect.ValueOf(io.Pipe),
+		"ReadAll":          reflect.ValueOf(io.ReadAll),
+		"ReadAtLeast":      reflect.ValueOf(io.ReadAtLeast),
+		"ReadFull":         reflect.ValueOf(io.ReadFull),
+		"SeekCurrent":      reflect.ValueOf(constant.MakeFromLiteral("1", token.INT, 0)),
+		"SeekEnd":          reflect.ValueOf(constant.MakeFromLiteral("2", token.INT, 0)),
+		"SeekStart":        reflect.ValueOf(constant.MakeFromLiteral("0", token.INT, 0)),
+		"TeeReader":        reflect.ValueOf(io.TeeReader),
+		"WriteString":      reflect.ValueOf(io.WriteString),
+
+		// type definitions
+		"ByteReader":      reflect.ValueOf((*io.ByteReader)(nil)),
+		"ByteScanner":     reflect.ValueOf((*io.ByteScanner)(nil)),
+		"ByteWriter":      reflect.ValueOf((*io.ByteWriter)(nil)),
+		"Closer":          reflect.ValueOf((*io.Closer)(nil)),
+		"LimitedReader":   reflect.ValueOf((*io.LimitedReader)(nil)),
+		"PipeReader":      reflect.ValueOf((*io.PipeReader)(nil)),
+		"PipeWriter":      reflect.ValueOf((*io.PipeWriter)(nil)),
+		"ReadCloser":      reflect.ValueOf((*io.ReadCloser)(nil)),
+		"ReadSeeker":      reflect.ValueOf((*io.ReadSeeker)(nil)),
+		"ReadWriteCloser": reflect.ValueOf((*io.ReadWriteCloser)(nil)),
+		"ReadWriteSeeker": reflect.ValueOf((*io.ReadWriteSeeker)(nil)),
+		"ReadWriter":      reflect.ValueOf((*io.ReadWriter)(nil)),
+		"Reader":          reflect.ValueOf((*io.Reader)(nil)),
+		"ReaderAt":        reflect.ValueOf((*io.ReaderAt)(nil)),
+		"ReaderFrom":      reflect.ValueOf((*io.ReaderFrom)(nil)),
+		"RuneReader":      reflect.ValueOf((*io.RuneReader)(nil)),
+		"RuneScanner":     reflect.ValueOf((*io.RuneScanner)(nil)),
+		"SectionReader":   reflect.ValueOf((*io.SectionReader)(nil)),
+		"Seeker":          reflect.ValueOf((*io.Seeker)(nil)),
+		"StringWriter":    reflect.ValueOf((*io.StringWriter)(nil)),
+		"WriteCloser":     reflect.ValueOf((*io.WriteCloser)(nil)),
+		"WriteSeeker":     reflect.ValueOf((*io.WriteSeeker)(nil)),
+		"Writer":          reflect.ValueOf((*io.Writer)(nil)),
+		"WriterAt":        reflect.ValueOf((*io.WriterAt)(nil)),
+		"WriterTo":        reflect.ValueOf((*io.WriterTo)(nil)),
+
+		// interface wrapper definitions
+		"_ByteReader":      reflect.ValueOf((*_io_ByteReader)(nil)),
+		"_ByteScanner":     reflect.ValueOf((*_io_ByteScanner)(nil)),
+		"_ByteWriter":      reflect.ValueOf((*_io_ByteWriter)(nil)),
+		"_Closer":          reflect.ValueOf((*_io_Closer)(nil)),
+		"_ReadCloser":      reflect.ValueOf((*_io_ReadCloser)(nil)),
+		"_ReadSeeker":      reflect.ValueOf((*_io_ReadSeeker)(nil)),
+		"_ReadWriteCloser": reflect.ValueOf((*_io_ReadWriteCloser)(nil)),
+		"_ReadWriteSeeker": reflect.ValueOf((*_io_ReadWriteSeeker)(nil)),
+		"_ReadWriter":      reflect.ValueOf((*_io_ReadWriter)(nil)),
+		"_Reader":          reflect.ValueOf((*_io_Reader)(nil)),
+		"_ReaderAt":        reflect.ValueOf((*_io_ReaderAt)(nil)),
+		"_ReaderFrom":      reflect.ValueOf((*_io_ReaderFrom)(nil)),
+		"_RuneReader":      reflect.ValueOf((*_io_RuneReader)(nil)),
+		"_RuneScanner":     reflect.ValueOf((*_io_RuneScanner)(nil)),
+		"_Seeker":          reflect.ValueOf((*_io_Seeker)(nil)),
+		"_StringWriter":    reflect.ValueOf((*_io_StringWriter)(nil)),
+		"_WriteCloser":     reflect.ValueOf((*_io_WriteCloser)(nil)),
+		"_WriteSeeker":     reflect.ValueOf((*_io_WriteSeeker)(nil)),
+		"_Writer":          reflect.ValueOf((*_io_Writer)(nil)),
+		"_WriterAt":        reflect.ValueOf((*_io_WriterAt)(nil)),
+		"_WriterTo":        reflect.ValueOf((*_io_WriterTo)(nil)),
+	}
+}
+
+// _io_ByteReader is an interface wrapper for ByteReader type
+type _io_ByteReader struct {
+	WReadByte func() (byte, error)
+}
+
+func (W _io_ByteReader) ReadByte() (byte, error) { return W.WReadByte() }
+
+// _io_ByteScanner is an interface wrapper for ByteScanner type
+type _io_ByteScanner struct {
+	WReadByte   func() (byte, error)
+	WUnreadByte func() error
+}
+
+func (W _io_ByteScanner) ReadByte() (byte, error) { return W.WReadByte() }
+func (W _io_ByteScanner) UnreadByte() error       { return W.WUnreadByte() }
+
+// _io_ByteWriter is an interface wrapper for ByteWriter type
+type _io_ByteWriter struct {
+	WWriteByte func(c byte) error
+}
+
+func (W _io_ByteWriter) WriteByte(c byte) error { return W.WWriteByte(c) }
+
+// _io_Closer is an interface wrapper for Closer type
+type _io_Closer struct {
+	WClose func() error
+}
+
+func (W _io_Closer) Close() error { return W.WClose() }
+
+// _io_ReadCloser is an interface wrapper for ReadCloser type
+type _io_ReadCloser struct {
+	WClose func() error
+	WRead  func(p []byte) (n int, err error)
+}
+
+func (W _io_ReadCloser) Close() error                     { return W.WClose() }
+func (W _io_ReadCloser) Read(p []byte) (n int, err error) { return W.WRead(p) }
+
+// _io_ReadSeeker is an interface wrapper for ReadSeeker type
+type _io_ReadSeeker struct {
+	WRead func(p []byte) (n int, err error)
+	WSeek func(offset int64, whence int) (int64, error)
+}
+
+func (W _io_ReadSeeker) Read(p []byte) (n int, err error)             { return W.WRead(p) }
+func (W _io_ReadSeeker) Seek(offset int64, whence int) (int64, error) { return W.WSeek(offset, whence) }
+
+// _io_ReadWriteCloser is an interface wrapper for ReadWriteCloser type
+type _io_ReadWriteCloser struct {
+	WClose func() error
+	WRead  func(p []byte) (n int, err error)
+	WWrite func(p []byte) (n int, err error)
+}
+
+func (W _io_ReadWriteCloser) Close() error                      { return W.WClose() }
+func (W _io_ReadWriteCloser) Read(p []byte) (n int, err error)  { return W.WRead(p) }
+func (W _io_ReadWriteCloser) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+// _io_ReadWriteSeeker is an interface wrapper for ReadWriteSeeker type
+type _io_ReadWriteSeeker struct {
+	WRead  func(p []byte) (n int, err error)
+	WSeek  func(offset int64, whence int) (int64, error)
+	WWrite func(p []byte) (n int, err error)
+}
+
+func (W _io_ReadWriteSeeker) Read(p []byte) (n int, err error) { return W.WRead(p) }
+func (W _io_ReadWriteSeeker) Seek(offset int64, whence int) (int64, error) {
+	return W.WSeek(offset, whence)
+}
+func (W _io_ReadWriteSeeker) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+// _io_ReadWriter is an interface wrapper for ReadWriter type
+type _io_ReadWriter struct {
+	WRead  func(p []byte) (n int, err error)
+	WWrite func(p []byte) (n int, err error)
+}
+
+func (W _io_ReadWriter) Read(p []byte) (n int, err error)  { return W.WRead(p) }
+func (W _io_ReadWriter) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+// _io_Reader is an interface wrapper for Reader type
+type _io_Reader struct {
+	WRead func(p []byte) (n int, err error)
+}
+
+func (W _io_Reader) Read(p []byte) (n int, err error) { return W.WRead(p) }
+
+// _io_ReaderAt is an interface wrapper for ReaderAt type
+type _io_ReaderAt struct {
+	WReadAt func(p []byte, off int64) (n int, err error)
+}
+
+func (W _io_ReaderAt) ReadAt(p []byte, off int64) (n int, err error) { return W.WReadAt(p, off) }
+
+// _io_ReaderFrom is an interface wrapper for ReaderFrom type
+type _io_ReaderFrom struct {
+	WReadFrom func(r io.Reader) (n int64, err error)
+}
+
+func (W _io_ReaderFrom) ReadFrom(r io.Reader) (n int64, err error) { return W.WReadFrom(r) }
+
+// _io_RuneReader is an interface wrapper for RuneReader type
+type _io_RuneReader struct {
+	WReadRune func() (r rune, size int, err error)
+}
+
+func (W _io_RuneReader) ReadRune() (r rune, size int, err error) { return W.WReadRune() }
+
+// _io_RuneScanner is an interface wrapper for RuneScanner type
+type _io_RuneScanner struct {
+	WReadRune   func() (r rune, size int, err error)
+	WUnreadRune func() error
+}
+
+func (W _io_RuneScanner) ReadRune() (r rune, size int, err error) { return W.WReadRune() }
+func (W _io_RuneScanner) UnreadRune() error                       { return W.WUnreadRune() }
+
+// _io_Seeker is an interface wrapper for Seeker type
+type _io_Seeker struct {
+	WSeek func(offset int64, whence int) (int64, error)
+}
+
+func (W _io_Seeker) Seek(offset int64, whence int) (int64, error) { return W.WSeek(offset, whence) }
+
+// _io_StringWriter is an interface wrapper for StringWriter type
+type _io_StringWriter struct {
+	WWriteString func(s string) (n int, err error)
+}
+
+func (W _io_StringWriter) WriteString(s string) (n int, err error) { return W.WWriteString(s) }
+
+// _io_WriteCloser is an interface wrapper for WriteCloser type
+type _io_WriteCloser struct {
+	WClose func() error
+	WWrite func(p []byte) (n int, err error)
+}
+
+func (W _io_WriteCloser) Close() error                      { return W.WClose() }
+func (W _io_WriteCloser) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+// _io_WriteSeeker is an interface wrapper for WriteSeeker type
+type _io_WriteSeeker struct {
+	WSeek  func(offset int64, whence int) (int64, error)
+	WWrite func(p []byte) (n int, err error)
+}
+
+func (W _io_WriteSeeker) Seek(offset int64, whence int) (int64, error) {
+	return W.WSeek(offset, whence)
+}
+func (W _io_WriteSeeker) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+// _io_Writer is an interface wrapper for Writer type
+type _io_Writer struct {
+	WWrite func(p []byte) (n int, err error)
+}
+
+func (W _io_Writer) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+// _io_WriterAt is an interface wrapper for WriterAt type
+type _io_WriterAt struct {
+	WWriteAt func(p []byte, off int64) (n int, err error)
+}
+
+func (W _io_WriterAt) WriteAt(p []byte, off int64) (n int, err error) { return W.WWriteAt(p, off) }
+
+// _io_WriterTo is an interface wrapper for WriterTo type
+type _io_WriterTo struct {
+	WWriteTo func(w io.Writer) (n int64, err error)
+}
+
+func (W _io_WriterTo) WriteTo(w io.Writer) (n int64, err error) { return W.WWriteTo(w) }
+
+func init_math_big() {
+	Symbols["math/big"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Above":         reflect.ValueOf(big.Above),
+		"AwayFromZero":  reflect.ValueOf(big.AwayFromZero),
+		"Below":         reflect.ValueOf(big.Below),
+		"Exact":         reflect.ValueOf(big.Exact),
+		"Jacobi":        reflect.ValueOf(big.Jacobi),
+		"MaxBase":       reflect.ValueOf(constant.MakeFromLiteral("62", token.INT, 0)),
+		"MaxExp":        reflect.ValueOf(constant.MakeFromLiteral("2147483647", token.INT, 0)),
+		"MaxPrec":       reflect.ValueOf(constant.MakeFromLiteral("4294967295", token.INT, 0)),
+		"MinExp":        reflect.ValueOf(constant.MakeFromLiteral("-2147483648", token.INT, 0)),
+		"NewFloat":      reflect.ValueOf(big.NewFloat),
+		"NewInt":        reflect.ValueOf(big.NewInt),
+		"NewRat":        reflect.ValueOf(big.NewRat),
+		"ParseFloat":    reflect.ValueOf(big.ParseFloat),
+		"ToNearestAway": reflect.ValueOf(big.ToNearestAway),
+		"ToNearestEven": reflect.ValueOf(big.ToNearestEven),
+		"ToNegativeInf": reflect.ValueOf(big.ToNegativeInf),
+		"ToPositiveInf": reflect.ValueOf(big.ToPositiveInf),
+		"ToZero":        reflect.ValueOf(big.ToZero),
+
+		// type definitions
+		"Accuracy":     reflect.ValueOf((*big.Accuracy)(nil)),
+		"ErrNaN":       reflect.ValueOf((*big.ErrNaN)(nil)),
+		"Float":        reflect.ValueOf((*big.Float)(nil)),
+		"Int":          reflect.ValueOf((*big.Int)(nil)),
+		"Rat":          reflect.ValueOf((*big.Rat)(nil)),
+		"RoundingMode": reflect.ValueOf((*big.RoundingMode)(nil)),
+		"Word":         reflect.ValueOf((*big.Word)(nil)),
 	}
 }
 
@@ -233,6 +890,7 @@ func init_strings() {
 		"ToTitleSpecial": reflect.ValueOf(strings.ToTitleSpecial),
 		"ToUpper":        reflect.ValueOf(strings.ToUpper),
 		"ToUpperSpecial": reflect.ValueOf(strings.ToUpperSpecial),
+		"ToValidUTF8":    reflect.ValueOf(strings.ToValidUTF8),
 		"Trim":           reflect.ValueOf(strings.Trim),
 		"TrimFunc":       reflect.ValueOf(strings.TrimFunc),
 		"TrimLeft":       reflect.ValueOf(strings.TrimLeft),
@@ -247,5 +905,80 @@ func init_strings() {
 		"Builder":  reflect.ValueOf((*strings.Builder)(nil)),
 		"Reader":   reflect.ValueOf((*strings.Reader)(nil)),
 		"Replacer": reflect.ValueOf((*strings.Replacer)(nil)),
+	}
+}
+
+func init_time() {
+	Symbols["time"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ANSIC":                  reflect.ValueOf(constant.MakeFromLiteral("\"Mon Jan _2 15:04:05 2006\"", token.STRING, 0)),
+		"After":                  reflect.ValueOf(time.After),
+		"AfterFunc":              reflect.ValueOf(time.AfterFunc),
+		"April":                  reflect.ValueOf(time.April),
+		"August":                 reflect.ValueOf(time.August),
+		"Date":                   reflect.ValueOf(time.Date),
+		"December":               reflect.ValueOf(time.December),
+		"February":               reflect.ValueOf(time.February),
+		"FixedZone":              reflect.ValueOf(time.FixedZone),
+		"Friday":                 reflect.ValueOf(time.Friday),
+		"Hour":                   reflect.ValueOf(time.Hour),
+		"January":                reflect.ValueOf(time.January),
+		"July":                   reflect.ValueOf(time.July),
+		"June":                   reflect.ValueOf(time.June),
+		"Kitchen":                reflect.ValueOf(constant.MakeFromLiteral("\"3:04PM\"", token.STRING, 0)),
+		"LoadLocation":           reflect.ValueOf(time.LoadLocation),
+		"LoadLocationFromTZData": reflect.ValueOf(time.LoadLocationFromTZData),
+		"Local":                  reflect.ValueOf(&time.Local).Elem(),
+		"March":                  reflect.ValueOf(time.March),
+		"May":                    reflect.ValueOf(time.May),
+		"Microsecond":            reflect.ValueOf(time.Microsecond),
+		"Millisecond":            reflect.ValueOf(time.Millisecond),
+		"Minute":                 reflect.ValueOf(time.Minute),
+		"Monday":                 reflect.ValueOf(time.Monday),
+		"Nanosecond":             reflect.ValueOf(time.Nanosecond),
+		"NewTicker":              reflect.ValueOf(time.NewTicker),
+		"NewTimer":               reflect.ValueOf(time.NewTimer),
+		"November":               reflect.ValueOf(time.November),
+		"Now":                    reflect.ValueOf(time.Now),
+		"October":                reflect.ValueOf(time.October),
+		"Parse":                  reflect.ValueOf(time.Parse),
+		"ParseDuration":          reflect.ValueOf(time.ParseDuration),
+		"ParseInLocation":        reflect.ValueOf(time.ParseInLocation),
+		"RFC1123":                reflect.ValueOf(constant.MakeFromLiteral("\"Mon, 02 Jan 2006 15:04:05 MST\"", token.STRING, 0)),
+		"RFC1123Z":               reflect.ValueOf(constant.MakeFromLiteral("\"Mon, 02 Jan 2006 15:04:05 -0700\"", token.STRING, 0)),
+		"RFC3339":                reflect.ValueOf(constant.MakeFromLiteral("\"2006-01-02T15:04:05Z07:00\"", token.STRING, 0)),
+		"RFC3339Nano":            reflect.ValueOf(constant.MakeFromLiteral("\"2006-01-02T15:04:05.999999999Z07:00\"", token.STRING, 0)),
+		"RFC822":                 reflect.ValueOf(constant.MakeFromLiteral("\"02 Jan 06 15:04 MST\"", token.STRING, 0)),
+		"RFC822Z":                reflect.ValueOf(constant.MakeFromLiteral("\"02 Jan 06 15:04 -0700\"", token.STRING, 0)),
+		"RFC850":                 reflect.ValueOf(constant.MakeFromLiteral("\"Monday, 02-Jan-06 15:04:05 MST\"", token.STRING, 0)),
+		"RubyDate":               reflect.ValueOf(constant.MakeFromLiteral("\"Mon Jan 02 15:04:05 -0700 2006\"", token.STRING, 0)),
+		"Saturday":               reflect.ValueOf(time.Saturday),
+		"Second":                 reflect.ValueOf(time.Second),
+		"September":              reflect.ValueOf(time.September),
+		"Since":                  reflect.ValueOf(time.Since),
+		"Sleep":                  reflect.ValueOf(time.Sleep),
+		"Stamp":                  reflect.ValueOf(constant.MakeFromLiteral("\"Jan _2 15:04:05\"", token.STRING, 0)),
+		"StampMicro":             reflect.ValueOf(constant.MakeFromLiteral("\"Jan _2 15:04:05.000000\"", token.STRING, 0)),
+		"StampMilli":             reflect.ValueOf(constant.MakeFromLiteral("\"Jan _2 15:04:05.000\"", token.STRING, 0)),
+		"StampNano":              reflect.ValueOf(constant.MakeFromLiteral("\"Jan _2 15:04:05.000000000\"", token.STRING, 0)),
+		"Sunday":                 reflect.ValueOf(time.Sunday),
+		"Thursday":               reflect.ValueOf(time.Thursday),
+		"Tick":                   reflect.ValueOf(time.Tick),
+		"Tuesday":                reflect.ValueOf(time.Tuesday),
+		"UTC":                    reflect.ValueOf(&time.UTC).Elem(),
+		"Unix":                   reflect.ValueOf(time.Unix),
+		"UnixDate":               reflect.ValueOf(constant.MakeFromLiteral("\"Mon Jan _2 15:04:05 MST 2006\"", token.STRING, 0)),
+		"Until":                  reflect.ValueOf(time.Until),
+		"Wednesday":              reflect.ValueOf(time.Wednesday),
+
+		// type definitions
+		"Duration":   reflect.ValueOf((*time.Duration)(nil)),
+		"Location":   reflect.ValueOf((*time.Location)(nil)),
+		"Month":      reflect.ValueOf((*time.Month)(nil)),
+		"ParseError": reflect.ValueOf((*time.ParseError)(nil)),
+		"Ticker":     reflect.ValueOf((*time.Ticker)(nil)),
+		"Time":       reflect.ValueOf((*time.Time)(nil)),
+		"Timer":      reflect.ValueOf((*time.Timer)(nil)),
+		"Weekday":    reflect.ValueOf((*time.Weekday)(nil)),
 	}
 }
