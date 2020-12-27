@@ -60,7 +60,10 @@ func Methods() {
     add.Args = args
     add.Rets = rets
 
-    return []string{isStarted.String(), add.String(),"c"}
+    ms = make([]*mod.Method, 2)
+    ms[0] = &isStarted
+    ms[1] = &add
+    return ms
 }
 
 func Call(method, args...) {

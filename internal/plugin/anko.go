@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"project/internal/interpreter/anko"
+	"project/internal/module"
 )
 
 // comFn is common function for Name, Description, Start, Stop, Info, Status and Methods functions.
@@ -34,7 +35,7 @@ type Anko struct {
 	stopFn    comFn  // func()
 	infoFn    comFn  // func() string
 	statusFn  comFn  // func() string
-	methodsFn comFn  // func() []string
+	methodsFn comFn  // func() []*module.Method
 	callFn    callFn // func(method string, args ...interface{}) error
 
 	env     *anko.Env
@@ -80,7 +81,7 @@ func (ank *Anko) load() error {
 			return errors.New("return value is false")
 		}
 	default:
-		return errors.Errorf("unexcepted return value: %s", ret)
+		return errors.Errorf("unexpected return value: %s", ret)
 	}
 	// define external
 	ext, err := env.Get("external")
@@ -393,17 +394,21 @@ func (ank *Anko) status() (string, error) {
 }
 
 // Methods is used to get the information about extended methods.
-func (ank *Anko) Methods() []string {
+func (ank *Anko) Methods() []*module.Method {
 	ank.rwm.RLock()
 	defer ank.rwm.RUnlock()
 	methods, err := ank.methods()
 	if err != nil {
-		return []string{"[error]: " + err.Error()}
+		em := module.Method{
+			Name: "error",
+			Desc: "[error]: " + err.Error(),
+		}
+		return []*module.Method{&em}
 	}
 	return methods
 }
 
-func (ank *Anko) methods() ([]string, error) {
+func (ank *Anko) methods() ([]*module.Method, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	defer cancel()
 	methods, ankoErr := ank.methodsFn(ctx)
@@ -419,9 +424,9 @@ func (ank *Anko) methods() ([]string, error) {
 		return nil, errors.Errorf("unexpected anko error type, value: %v", err)
 	}
 	// check return type
-	switch methods := methods.Interface().(type) {
-	case []string:
-		return methods, nil
+	switch ms := methods.Interface().(type) {
+	case []*module.Method:
+		return ms, nil
 	default:
 		return nil, errors.Errorf("unexpected methods type, value: %v", methods)
 	}
