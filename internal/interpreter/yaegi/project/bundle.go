@@ -3,15 +3,27 @@
 package project
 
 import (
+	"context"
 	"go/constant"
 	"go/token"
 	"net"
 	"reflect"
 
+	"project/internal/cert"
+	"project/internal/cert/certpool"
+	"project/internal/compare"
 	"project/internal/convert"
+	"project/internal/crypto/aes"
+	"project/internal/crypto/curve25519"
+	"project/internal/crypto/ed25519"
+	"project/internal/crypto/hmac"
+	"project/internal/crypto/lsb"
+	"project/internal/crypto/rand"
+	"project/internal/guid"
 	"project/internal/httptool"
 	"project/internal/logger"
 	"project/internal/module"
+	"project/internal/namer"
 	"project/internal/nettool"
 	"project/internal/option"
 	"project/internal/patch/json"
@@ -20,6 +32,7 @@ import (
 	"project/internal/random"
 	"project/internal/security"
 	"project/internal/system"
+	"project/internal/task"
 	"project/internal/xpanic"
 	"project/internal/xreflect"
 	"project/internal/xsync"
@@ -29,10 +42,21 @@ import (
 var Symbols = map[string]map[string]reflect.Value{}
 
 func init() {
+	init_project_internal_cert()
+	init_project_internal_cert_certpool()
+	init_project_internal_compare()
 	init_project_internal_convert()
+	init_project_internal_crypto_aes()
+	init_project_internal_crypto_curve25519()
+	init_project_internal_crypto_ed25519()
+	init_project_internal_crypto_hmac()
+	init_project_internal_crypto_lsb()
+	init_project_internal_crypto_rand()
+	init_project_internal_guid()
 	init_project_internal_httptool()
 	init_project_internal_logger()
 	init_project_internal_module()
+	init_project_internal_namer()
 	init_project_internal_nettool()
 	init_project_internal_option()
 	init_project_internal_patch_json()
@@ -41,10 +65,67 @@ func init() {
 	init_project_internal_random()
 	init_project_internal_security()
 	init_project_internal_system()
+	init_project_internal_task()
 	init_project_internal_xpanic()
 	init_project_internal_xreflect()
 	init_project_internal_xsync()
 }
+
+func init_project_internal_cert() {
+	Symbols["project/internal/cert"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ErrInvalidPEMBlock":     reflect.ValueOf(&cert.ErrInvalidPEMBlock).Elem(),
+		"Fprint":                 reflect.ValueOf(cert.Fprint),
+		"Generate":               reflect.ValueOf(cert.Generate),
+		"GenerateCA":             reflect.ValueOf(cert.GenerateCA),
+		"Match":                  reflect.ValueOf(cert.Match),
+		"NewPool":                reflect.ValueOf(cert.NewPool),
+		"NewPoolWithSystemCerts": reflect.ValueOf(cert.NewPoolWithSystemCerts),
+		"ParseCertificate":       reflect.ValueOf(cert.ParseCertificate),
+		"ParseCertificates":      reflect.ValueOf(cert.ParseCertificates),
+		"ParsePrivateKey":        reflect.ValueOf(cert.ParsePrivateKey),
+		"ParsePrivateKeyBytes":   reflect.ValueOf(cert.ParsePrivateKeyBytes),
+		"ParsePrivateKeys":       reflect.ValueOf(cert.ParsePrivateKeys),
+		"Print":                  reflect.ValueOf(cert.Print),
+
+		// type definitions
+		"Options": reflect.ValueOf((*cert.Options)(nil)),
+		"Pair":    reflect.ValueOf((*cert.Pair)(nil)),
+		"Pool":    reflect.ValueOf((*cert.Pool)(nil)),
+		"Subject": reflect.ValueOf((*cert.Subject)(nil)),
+	}
+}
+
+func init_project_internal_cert_certpool() {
+	Symbols["project/internal/cert/certpool"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"LoadSystemCertsWithName": reflect.ValueOf(certpool.LoadSystemCertsWithName),
+		"System":                  reflect.ValueOf(certpool.System),
+	}
+}
+
+func init_project_internal_compare() {
+	Symbols["project/internal/compare"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"UniqueSlice":   reflect.ValueOf(compare.UniqueSlice),
+		"UniqueStrings": reflect.ValueOf(compare.UniqueStrings),
+
+		// type definitions
+		"SliceI": reflect.ValueOf((*compare.SliceI)(nil)),
+
+		// interface wrapper definitions
+		"_SliceI": reflect.ValueOf((*_project_internal_compare_SliceI)(nil)),
+	}
+}
+
+// _project_internal_compare_SliceI is an interface wrapper for SliceI type
+type _project_internal_compare_SliceI struct {
+	WID  func(i int) string
+	WLen func() int
+}
+
+func (W _project_internal_compare_SliceI) ID(i int) string { return W.WID(i) }
+func (W _project_internal_compare_SliceI) Len() int        { return W.WLen() }
 
 func init_project_internal_convert() {
 	Symbols["project/internal/convert"] = map[string]reflect.Value{
@@ -93,6 +174,96 @@ func init_project_internal_convert() {
 		"OutputBytesWithSize": reflect.ValueOf(convert.OutputBytesWithSize),
 		"PB":                  reflect.ValueOf(convert.PB),
 		"TB":                  reflect.ValueOf(convert.TB),
+	}
+}
+
+func init_project_internal_crypto_aes() {
+	Symbols["project/internal/crypto/aes"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BlockSize":             reflect.ValueOf(constant.MakeFromLiteral("16", token.INT, 0)),
+		"CBCDecrypt":            reflect.ValueOf(aes.CBCDecrypt),
+		"CBCEncrypt":            reflect.ValueOf(aes.CBCEncrypt),
+		"ErrEmptyData":          reflect.ValueOf(&aes.ErrEmptyData).Elem(),
+		"ErrInvalidCipherData":  reflect.ValueOf(&aes.ErrInvalidCipherData).Elem(),
+		"ErrInvalidIVSize":      reflect.ValueOf(&aes.ErrInvalidIVSize).Elem(),
+		"ErrInvalidPaddingSize": reflect.ValueOf(&aes.ErrInvalidPaddingSize).Elem(),
+		"IVSize":                reflect.ValueOf(constant.MakeFromLiteral("16", token.INT, 0)),
+		"Key128Bit":             reflect.ValueOf(constant.MakeFromLiteral("16", token.INT, 0)),
+		"Key192Bit":             reflect.ValueOf(constant.MakeFromLiteral("24", token.INT, 0)),
+		"Key256Bit":             reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+		"NewCBC":                reflect.ValueOf(aes.NewCBC),
+
+		// type definitions
+		"CBC": reflect.ValueOf((*aes.CBC)(nil)),
+	}
+}
+
+func init_project_internal_crypto_curve25519() {
+	Symbols["project/internal/crypto/curve25519"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ScalarBaseMult": reflect.ValueOf(curve25519.ScalarBaseMult),
+		"ScalarMult":     reflect.ValueOf(curve25519.ScalarMult),
+		"ScalarSize":     reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+	}
+}
+
+func init_project_internal_crypto_ed25519() {
+	Symbols["project/internal/crypto/ed25519"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ErrInvalidPrivateKey": reflect.ValueOf(&ed25519.ErrInvalidPrivateKey).Elem(),
+		"ErrInvalidPublicKey":  reflect.ValueOf(&ed25519.ErrInvalidPublicKey).Elem(),
+		"GenerateKey":          reflect.ValueOf(ed25519.GenerateKey),
+		"ImportPrivateKey":     reflect.ValueOf(ed25519.ImportPrivateKey),
+		"ImportPublicKey":      reflect.ValueOf(ed25519.ImportPublicKey),
+		"NewKeyFromSeed":       reflect.ValueOf(ed25519.NewKeyFromSeed),
+		"PrivateKeySize":       reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"PublicKeySize":        reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+		"SeedSize":             reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+		"Sign":                 reflect.ValueOf(ed25519.Sign),
+		"SignatureSize":        reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"Verify":               reflect.ValueOf(ed25519.Verify),
+
+		// type definitions
+		"PrivateKey": reflect.ValueOf((*ed25519.PrivateKey)(nil)),
+		"PublicKey":  reflect.ValueOf((*ed25519.PublicKey)(nil)),
+	}
+}
+
+func init_project_internal_crypto_hmac() {
+	Symbols["project/internal/crypto/hmac"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Equal": reflect.ValueOf(hmac.Equal),
+		"New":   reflect.ValueOf(hmac.New),
+	}
+}
+
+func init_project_internal_crypto_lsb() {
+	Symbols["project/internal/crypto/lsb"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"CalculateStorageSize": reflect.ValueOf(lsb.CalculateStorageSize),
+		"Decrypt":              reflect.ValueOf(lsb.Decrypt),
+		"DecryptFromPNG":       reflect.ValueOf(lsb.DecryptFromPNG),
+		"Encrypt":              reflect.ValueOf(lsb.Encrypt),
+		"EncryptToPNG":         reflect.ValueOf(lsb.EncryptToPNG),
+	}
+}
+
+func init_project_internal_crypto_rand() {
+	Symbols["project/internal/crypto/rand"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Reader": reflect.ValueOf(&rand.Reader).Elem(),
+	}
+}
+
+func init_project_internal_guid() {
+	Symbols["project/internal/guid"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"New":  reflect.ValueOf(guid.New),
+		"Size": reflect.ValueOf(guid.Size),
+
+		// type definitions
+		"GUID":      reflect.ValueOf((*guid.GUID)(nil)),
+		"Generator": reflect.ValueOf((*guid.Generator)(nil)),
 	}
 }
 
@@ -191,7 +362,7 @@ type _project_internal_module_Module struct {
 	WDescription func() string
 	WInfo        func() string
 	WIsStarted   func() bool
-	WMethods     func() []string
+	WMethods     func() []*module.Method
 	WName        func() string
 	WRestart     func() error
 	WStart       func() error
@@ -202,15 +373,46 @@ type _project_internal_module_Module struct {
 func (W _project_internal_module_Module) Call(method string, args ...interface{}) (interface{}, error) {
 	return W.WCall(method, args...)
 }
-func (W _project_internal_module_Module) Description() string { return W.WDescription() }
-func (W _project_internal_module_Module) Info() string        { return W.WInfo() }
-func (W _project_internal_module_Module) IsStarted() bool     { return W.WIsStarted() }
-func (W _project_internal_module_Module) Methods() []string   { return W.WMethods() }
-func (W _project_internal_module_Module) Name() string        { return W.WName() }
-func (W _project_internal_module_Module) Restart() error      { return W.WRestart() }
-func (W _project_internal_module_Module) Start() error        { return W.WStart() }
-func (W _project_internal_module_Module) Status() string      { return W.WStatus() }
-func (W _project_internal_module_Module) Stop()               { W.WStop() }
+func (W _project_internal_module_Module) Description() string       { return W.WDescription() }
+func (W _project_internal_module_Module) Info() string              { return W.WInfo() }
+func (W _project_internal_module_Module) IsStarted() bool           { return W.WIsStarted() }
+func (W _project_internal_module_Module) Methods() []*module.Method { return W.WMethods() }
+func (W _project_internal_module_Module) Name() string              { return W.WName() }
+func (W _project_internal_module_Module) Restart() error            { return W.WRestart() }
+func (W _project_internal_module_Module) Start() error              { return W.WStart() }
+func (W _project_internal_module_Module) Status() string            { return W.WStatus() }
+func (W _project_internal_module_Module) Stop()                     { W.WStop() }
+
+func init_project_internal_namer() {
+	Symbols["project/internal/namer"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Load":       reflect.ValueOf(namer.Load),
+		"NewEnglish": reflect.ValueOf(namer.NewEnglish),
+		"Register":   reflect.ValueOf(namer.Register),
+		"Unregister": reflect.ValueOf(namer.Unregister),
+
+		// type definitions
+		"English": reflect.ValueOf((*namer.English)(nil)),
+		"Namer":   reflect.ValueOf((*namer.Namer)(nil)),
+		"Options": reflect.ValueOf((*namer.Options)(nil)),
+
+		// interface wrapper definitions
+		"_Namer": reflect.ValueOf((*_project_internal_namer_Namer)(nil)),
+	}
+}
+
+// _project_internal_namer_Namer is an interface wrapper for Namer type
+type _project_internal_namer_Namer struct {
+	WGenerate func(opts *namer.Options) (string, error)
+	WLoad     func(res []byte) error
+	WType     func() string
+}
+
+func (W _project_internal_namer_Namer) Generate(opts *namer.Options) (string, error) {
+	return W.WGenerate(opts)
+}
+func (W _project_internal_namer_Namer) Load(res []byte) error { return W.WLoad(res) }
+func (W _project_internal_namer_Namer) Type() string          { return W.WType() }
 
 func init_project_internal_nettool() {
 	Symbols["project/internal/nettool"] = map[string]reflect.Value{
@@ -357,6 +559,49 @@ func init_project_internal_system() {
 		"WriteFile":              reflect.ValueOf(system.WriteFile),
 	}
 }
+
+func init_project_internal_task() {
+	Symbols["project/internal/task"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"EventCancel":   reflect.ValueOf(constant.MakeFromLiteral("\"cancel\"", token.STRING, 0)),
+		"EventComplete": reflect.ValueOf(constant.MakeFromLiteral("\"complete\"", token.STRING, 0)),
+		"EventContinue": reflect.ValueOf(constant.MakeFromLiteral("\"continue\"", token.STRING, 0)),
+		"EventPause":    reflect.ValueOf(constant.MakeFromLiteral("\"pause\"", token.STRING, 0)),
+		"EventProcess":  reflect.ValueOf(constant.MakeFromLiteral("\"process\"", token.STRING, 0)),
+		"EventStart":    reflect.ValueOf(constant.MakeFromLiteral("\"start\"", token.STRING, 0)),
+		"New":           reflect.ValueOf(task.New),
+		"StateCancel":   reflect.ValueOf(constant.MakeFromLiteral("\"cancel\"", token.STRING, 0)),
+		"StateComplete": reflect.ValueOf(constant.MakeFromLiteral("\"complete\"", token.STRING, 0)),
+		"StatePause":    reflect.ValueOf(constant.MakeFromLiteral("\"pause\"", token.STRING, 0)),
+		"StatePrepare":  reflect.ValueOf(constant.MakeFromLiteral("\"prepare\"", token.STRING, 0)),
+		"StateProcess":  reflect.ValueOf(constant.MakeFromLiteral("\"process\"", token.STRING, 0)),
+		"StateReady":    reflect.ValueOf(constant.MakeFromLiteral("\"ready\"", token.STRING, 0)),
+
+		// type definitions
+		"Interface": reflect.ValueOf((*task.Interface)(nil)),
+		"Task":      reflect.ValueOf((*task.Task)(nil)),
+
+		// interface wrapper definitions
+		"_Interface": reflect.ValueOf((*_project_internal_task_Interface)(nil)),
+	}
+}
+
+// _project_internal_task_Interface is an interface wrapper for Interface type
+type _project_internal_task_Interface struct {
+	WClean    func()
+	WDetail   func() string
+	WPrepare  func(ctx context.Context) error
+	WProcess  func(ctx context.Context, task *task.Task) error
+	WProgress func() string
+}
+
+func (W _project_internal_task_Interface) Clean()                            { W.WClean() }
+func (W _project_internal_task_Interface) Detail() string                    { return W.WDetail() }
+func (W _project_internal_task_Interface) Prepare(ctx context.Context) error { return W.WPrepare(ctx) }
+func (W _project_internal_task_Interface) Process(ctx context.Context, task *task.Task) error {
+	return W.WProcess(ctx, task)
+}
+func (W _project_internal_task_Interface) Progress() string { return W.WProgress() }
 
 func init_project_internal_xpanic() {
 	Symbols["project/internal/xpanic"] = map[string]reflect.Value{
