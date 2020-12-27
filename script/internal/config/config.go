@@ -26,26 +26,22 @@ type Config struct {
 		GoSumDB string `json:"go_sum_db"`
 	} `json:"common"`
 
-	// Original contain original go directory that without any change.
-	// Some programs will use these go to compile for hide some signature.
-	// <security> must be set manually for prevent leak user information.
-	Original struct {
-		Go116x string `json:"go_1_16_x"`
-		Go1108 string `json:"go_1_10_8"`
-	} `json:"original"`
+	// Specific contains go root path that if you need specific go version.
+	Specific struct {
+		Go11113 string `json:"go_1_11_13"`
+		Go11217 string `json:"go_1_12_17"`
+		Go11315 string `json:"go_1_13_15"`
+		Go11415 string `json:"go_1_14_15"`
+		Go115x  string `json:"go_1_15_x"`
+	} `json:"specific"`
 
-	// Special contains options if you need special go version.
-	Special struct {
-		Go11113    string `json:"go_1_11_13"`
-		Go11217    string `json:"go_1_12_17"`
-		Go11315    string `json:"go_1_13_15"`
-		Go11415    string `json:"go_1_14_15"`
-		Go115x     string `json:"go_1_15_x"`
+	// Environment contains environments about go.
+	Environment struct {
 		GoPrivate  string `json:"go_private"`
 		GoInsecure string `json:"go_insecure"`
 		GoNoProxy  string `json:"go_no_proxy"`
 		GoNoSumDB  string `json:"go_no_sum_db"`
-	} `json:"special"`
+	} `json:"environment"`
 
 	// Install contains options about install script.
 	Install struct {
@@ -125,10 +121,10 @@ func setGoEnv(config *Config) bool {
 		{"GOPATH", config.Common.GoPath, true},
 		{"GOPROXY", config.Common.GoProxy, false},
 		{"GOSUMDB", config.Common.GoSumDB, false},
-		{"GOPRIVATE", config.Special.GoPrivate, false},
-		{"GOINSECURE", config.Special.GoInsecure, false},
-		{"GONOPROXY", config.Special.GoNoProxy, false},
-		{"GONOSUMDB", config.Special.GoNoSumDB, false},
+		{"GOPRIVATE", config.Environment.GoPrivate, false},
+		{"GOINSECURE", config.Environment.GoInsecure, false},
+		{"GONOPROXY", config.Environment.GoNoProxy, false},
+		{"GONOSUMDB", config.Environment.GoNoSumDB, false},
 	} {
 		if item.value == "" {
 			if item.mustSet {
@@ -157,17 +153,14 @@ func verifyGoRoot(config *Config) bool {
 		// common (must set)
 		{version: "1.16.x", path: config.Common.Go116x},
 		{version: "1.10.8", path: config.Common.Go1108},
-		// special
-		{version: "1.11.13", path: config.Special.Go11113},
-		{version: "1.12.17", path: config.Special.Go11217},
-		{version: "1.13.15", path: config.Special.Go11315},
-		{version: "1.14.15", path: config.Special.Go11415},
-		{version: "1.15.x", path: config.Special.Go115x},
-		// original (must set)
-		{version: "1.16.x_original", path: config.Original.Go116x},
-		{version: "1.10.8_original", path: config.Original.Go1108},
+		// specific
+		{version: "1.11.13", path: config.Specific.Go11113},
+		{version: "1.12.17", path: config.Specific.Go11217},
+		{version: "1.13.15", path: config.Specific.Go11315},
+		{version: "1.14.15", path: config.Specific.Go11415},
+		{version: "1.15.x", path: config.Specific.Go115x},
 	} {
-		// skip empty special go root path
+		// skip empty go root path in specific
 		if item.path == "" {
 			// check this go version can be skipped
 			var notSkip bool

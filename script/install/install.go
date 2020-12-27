@@ -94,11 +94,11 @@ func getGoRootPaths(suffix string) []string {
 	list := []string{
 		cfg.Common.Go116x,
 		cfg.Common.Go1108,
-		cfg.Special.Go11113,
-		cfg.Special.Go11217,
-		cfg.Special.Go11315,
-		cfg.Special.Go11415,
-		cfg.Special.Go115x,
+		cfg.Specific.Go11113,
+		cfg.Specific.Go11217,
+		cfg.Specific.Go11315,
+		cfg.Specific.Go11415,
+		cfg.Specific.Go115x,
 	}
 	paths := make([]string, 0, len(list))
 	for i := 0; i < len(list); i++ {
