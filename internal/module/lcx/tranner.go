@@ -188,7 +188,7 @@ func (t *Tranner) Status() string {
 }
 
 // Methods is used to get the information about extended methods.
-func (*Tranner) Methods() []string {
+func (*Tranner) Methods() []*module.Method {
 	list := module.Method{
 		Name: "List",
 		Desc: "List is used to list established connections.",
@@ -206,7 +206,7 @@ func (*Tranner) Methods() []string {
 			{Name: "err", Type: "error"},
 		},
 	}
-	return []string{list.String(), kill.String()}
+	return []*module.Method{&list, &kill}
 }
 
 // Call is used to call extended methods.

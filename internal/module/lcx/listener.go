@@ -204,7 +204,7 @@ func (l *Listener) Status() string {
 }
 
 // Methods is used to get the information about extended methods.
-func (*Listener) Methods() []string {
+func (*Listener) Methods() []*module.Method {
 	list := module.Method{
 		Name: "List",
 		Desc: "List is used to list established connections.",
@@ -222,7 +222,7 @@ func (*Listener) Methods() []string {
 			{Name: "err", Type: "error"},
 		},
 	}
-	return []string{list.String(), kill.String()}
+	return []*module.Method{&list, &kill}
 }
 
 // Call is used to call extended methods.

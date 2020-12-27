@@ -70,6 +70,7 @@ func TestSlaver(t *testing.T) {
 
 	for _, method := range slaver.Methods() {
 		fmt.Println(method)
+		fmt.Println()
 	}
 
 	err = slaver.Restart()

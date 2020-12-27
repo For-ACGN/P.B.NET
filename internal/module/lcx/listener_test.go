@@ -81,6 +81,7 @@ func TestListener(t *testing.T) {
 
 	for _, method := range listener.Methods() {
 		fmt.Println(method)
+		fmt.Println()
 	}
 
 	err = listener.Restart()

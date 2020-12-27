@@ -64,6 +64,7 @@ func TestTranner(t *testing.T) {
 
 	for _, method := range tranner.Methods() {
 		fmt.Println(method)
+		fmt.Println()
 	}
 
 	err = tranner.Restart()
