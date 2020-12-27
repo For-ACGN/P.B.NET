@@ -7,17 +7,15 @@
     "go_sum_db": "gosum.io+ce6e7565+AY5qEHUk/qmHc5btzW45JVoENfazw8LielDsaI+lEbq6"
   },
 
-  "original": {
-    "go_1_16_x": "D:\\Go1.16_Original",
-    "go_1_10_8": "D:\\Go1.10_Original"
+  "specific": {
+    "go_1_11_13": "D:\\GoSpec\\Go1.11",
+    "go_1_12_17": "D:\\GoSpec\\Go1.12",
+    "go_1_13_15": "D:\\GoSpec\\Go1.13",
+    "go_1_14_15": "D:\\GoSpec\\Go1.14",
+    "go_1_15_x" : "D:\\GoSpec\\Go1.15"
   },
 
-  "special": {
-    "go_1_11_13"  : "D:\\Go1.11",
-    "go_1_12_17"  : "D:\\Go1.12",
-    "go_1_13_15"  : "D:\\Go1.13",
-    "go_1_14_15"  : "D:\\Go1.14",
-    "go_1_15_x"   : "D:\\Go1.15",
+  "environment": {
     "go_private"  : "",
     "go_insecure" : "",
     "go_no_proxy" : "",
