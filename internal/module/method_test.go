@@ -11,26 +11,26 @@ import (
 func TestMethod_String(t *testing.T) {
 	t.Run("full", func(t *testing.T) {
 		const expected = `
-------------------------------------------------
+----------------------------------------------------------------
 Method: Scan
-------------------------------------------------
+----------------------------------------------------------------
 Description:
-  Scan is used to scan a host with port, it will
-  return the port status.
-------------------------------------------------
+  Scan is used to scan a host with port, it will return the port
+  status about this host.
+----------------------------------------------------------------
 Parameter:
   host string
   port uint16
-------------------------------------------------
+----------------------------------------------------------------
 Return Value:
   open bool
   err  error
-------------------------------------------------
+----------------------------------------------------------------
 `
 		method := &Method{
 			Name: "Scan",
 			Desc: "Scan is used to scan a host with port," +
-				" it will return the port status.",
+				" it will return the port status about this host.",
 			Args: []*Value{
 				{"host", "string"},
 				{"port", "uint16"},
@@ -48,16 +48,16 @@ Return Value:
 
 	t.Run("no parameter", func(t *testing.T) {
 		const expected = `
-------------------------------------------------
+----------------------------------------------------------------
 Method: Kill
-------------------------------------------------
+----------------------------------------------------------------
 Description:
   Kill is used to kill current scan task.
-------------------------------------------------
+----------------------------------------------------------------
 Return Value:
   ok  bool
   err error
-------------------------------------------------
+----------------------------------------------------------------
 `
 		method := &Method{
 			Name: "Kill",
@@ -75,16 +75,16 @@ Return Value:
 
 	t.Run("no return value", func(t *testing.T) {
 		const expected = `
-------------------------------------------------
+----------------------------------------------------------------
 Method: Kill
-------------------------------------------------
+----------------------------------------------------------------
 Description:
   Kill is used to kill current scan task.
-------------------------------------------------
+----------------------------------------------------------------
 Parameter:
   pid   uint32
   force bool
-------------------------------------------------
+----------------------------------------------------------------
 `
 		method := &Method{
 			Name: "Kill",
@@ -102,12 +102,12 @@ Parameter:
 
 	t.Run("only name", func(t *testing.T) {
 		const expected = `
-------------------------------------------------
+----------------------------------------------------------------
 Method: Stop
-------------------------------------------------
+----------------------------------------------------------------
 Description:
   Stop is used to stop all scan tasks.
-------------------------------------------------
+----------------------------------------------------------------
 `
 		method := &Method{
 			Name: "Stop",
@@ -123,11 +123,11 @@ Description:
 func TestMethod_printDescription(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		const expected = `
-------------------------------------------------
+----------------------------------------------------------------
 Method: Stop
-------------------------------------------------
+----------------------------------------------------------------
 Description:
-------------------------------------------------
+----------------------------------------------------------------
 `
 		method := &Method{
 			Name: "Stop",
@@ -140,16 +140,16 @@ Description:
 
 	t.Run("equal one line", func(t *testing.T) {
 		const expected = `
-------------------------------------------------
+----------------------------------------------------------------
 Method: Stop
-------------------------------------------------
+----------------------------------------------------------------
 Description:
-  a a a a a a a a a a a a a a a a a a a a a a a 
-------------------------------------------------
+  a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a 
+----------------------------------------------------------------
 `
 		method := &Method{
 			Name: "Stop",
-			Desc: strings.Repeat("a ", 23),
+			Desc: strings.Repeat("a ", (maxLineSize-2)/2),
 		}
 
 		str := method.String()
@@ -159,17 +159,17 @@ Description:
 
 	t.Run("long", func(t *testing.T) {
 		const expected = `
-------------------------------------------------
+----------------------------------------------------------------
 Method: Stop
-------------------------------------------------
+----------------------------------------------------------------
 Description:
-  a a a a a a a a a a a a a a a a a a a a a a a 
-  a a a a a a a a a a a a a a a a a a a a a a a 
-------------------------------------------------
+  a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a 
+  a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a 
+----------------------------------------------------------------
 `
 		method := &Method{
 			Name: "Stop",
-			Desc: strings.Repeat("a ", 46),
+			Desc: strings.Repeat("a ", maxLineSize-2),
 		}
 
 		str := method.String()

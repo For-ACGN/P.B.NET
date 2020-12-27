@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const maxLineSize = 64
+
 // Method contain method function information.
 type Method struct {
 	Name string   `json:"name"` // method name
@@ -24,39 +26,39 @@ type Value struct {
 
 // String is used to print method definition.
 // output:
-// ------------------------------------------------
+// ----------------------------------------------------------------
 // Method: Scan
-// ------------------------------------------------
+// ----------------------------------------------------------------
 // Description:
-//   Scan is used to scan a host with port, it will
-//   return the port status.
-// ------------------------------------------------
+//   Scan is used to scan a host with port, it will return the port
+//   status about this host.
+// ----------------------------------------------------------------
 // Parameter:
 //   host string
 //   port uint16
-// ------------------------------------------------
+// ----------------------------------------------------------------
 // Return Value:
 //   open bool
 //   err  error
-// ------------------------------------------------
+// ----------------------------------------------------------------
 func (m *Method) String() string {
-	buf := bytes.NewBuffer(make([]byte, 0, 48*3+64))
+	buf := bytes.NewBuffer(make([]byte, 0, maxLineSize*3+maxLineSize))
 	m.printMethodName(buf)
 	m.printDescription(buf)
 	m.printParameters(buf)
 	m.printReturnValue(buf)
-	buf.WriteString("------------------------------------------------")
+	buf.WriteString("----------------------------------------------------------------")
 	return buf.String()
 }
 
 func (m *Method) printMethodName(buf *bytes.Buffer) {
-	buf.WriteString("------------------------------------------------\n")
+	buf.WriteString("----------------------------------------------------------------\n")
 	_, _ = fmt.Fprintf(buf, "Method: %s\n", m.Name)
-	buf.WriteString("------------------------------------------------\n")
+	buf.WriteString("----------------------------------------------------------------\n")
 }
 
 func (m *Method) printDescription(buf *bytes.Buffer) {
-	const lineLen = 48 - 2 // already added "  " before each line
+	const lineLen = maxLineSize - 2 // already added "  " before each line
 	_, _ = fmt.Fprintln(buf, "Description:")
 	if len(m.Desc) == 0 {
 		return
@@ -100,7 +102,7 @@ func (m *Method) printParameters(buf *bytes.Buffer) {
 	}
 	format := "  %-" + strconv.Itoa(maxLine) + "s %s\n"
 	// print parameter
-	buf.WriteString("------------------------------------------------\n")
+	buf.WriteString("----------------------------------------------------------------\n")
 	buf.WriteString("Parameter:\n")
 	for i := 0; i < len(m.Args); i++ {
 		name := m.Args[i].Name
@@ -123,7 +125,7 @@ func (m *Method) printReturnValue(buf *bytes.Buffer) {
 	}
 	format := "  %-" + strconv.Itoa(maxLine) + "s %s\n"
 	// print return value
-	buf.WriteString("------------------------------------------------\n")
+	buf.WriteString("----------------------------------------------------------------\n")
 	buf.WriteString("Return Value:\n")
 	for i := 0; i < len(m.Rets); i++ {
 		name := m.Rets[i].Name
