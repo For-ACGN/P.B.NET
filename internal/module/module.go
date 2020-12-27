@@ -48,7 +48,7 @@ type Module interface {
 	// Methods is used to get the definitions of extended methods that can
 	// be called by Module.Call function, use String() for get help.
 	// The detailed information include name, parameter and return value.
-	Methods() []string
+	Methods() []*Method
 
 	// Call is used to call extended method, it will return a general value
 	// and it maybe include an error(return true, nil) and a general error

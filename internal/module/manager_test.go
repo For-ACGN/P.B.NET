@@ -15,7 +15,7 @@ func TestManager_Add(t *testing.T) {
 	manager := NewManager()
 
 	t.Run("ok", func(t *testing.T) {
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add("test", module)
 		require.NoError(t, err)
@@ -29,7 +29,7 @@ func TestManager_Add(t *testing.T) {
 	t.Run("is already exists", func(t *testing.T) {
 		const tag = "test1"
 
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add(tag, module)
 		require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestManager_Delete(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		const tag = "test"
 
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add(tag, module)
 		require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestManager_Get(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		const tag = "test"
 
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add(tag, module)
 		require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestManager_Start(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		const tag = "test"
 
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add(tag, module)
 		require.NoError(t, err)
@@ -152,7 +152,7 @@ func TestManager_Stop(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		const tag = "test"
 
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add(tag, module)
 		require.NoError(t, err)
@@ -179,7 +179,7 @@ func TestManager_Restart(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		const tag = "test"
 
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add(tag, module)
 		require.NoError(t, err)
@@ -206,7 +206,7 @@ func TestManager_Info(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		const tag = "test"
 
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add(tag, module)
 		require.NoError(t, err)
@@ -235,7 +235,7 @@ func TestManager_Status(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		const tag = "test"
 
-		module := testsuite.NewMockModule()
+		module := new(mockModule)
 
 		err := manager.Add(tag, module)
 		require.NoError(t, err)
@@ -264,7 +264,7 @@ func TestManager_Modules(t *testing.T) {
 	modules := manager.Modules()
 	require.Empty(t, modules)
 
-	module := testsuite.NewMockModule()
+	module := new(mockModule)
 	err := manager.Add("tag", module)
 	require.NoError(t, err)
 	require.Len(t, manager.Modules(), 1)
@@ -286,7 +286,7 @@ func TestManager_Parallel(t *testing.T) {
 	const deleteTag = "delete"
 
 	manager := NewManager()
-	module := testsuite.NewMockModule()
+	module := new(mockModule)
 
 	init := func() {
 		err := manager.Add(deleteTag, module)

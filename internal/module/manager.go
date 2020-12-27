@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Manager is the module manager, map key is module tag.
+// Manager is the module manager, map key is the module tag.
 type Manager struct {
 	modules map[string]Module
 	closed  bool

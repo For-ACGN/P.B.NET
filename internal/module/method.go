@@ -8,18 +8,18 @@ import (
 	"strings"
 )
 
-// Method contain method function information, it used to generate Methods []string.
+// Method contain method function information.
 type Method struct {
-	Name string   // method name
-	Desc string   // description
-	Args []*Value // argument
-	Rets []*Value // return value
+	Name string   `json:"name"` // method name
+	Desc string   `json:"desc"` // description
+	Args []*Value `json:"args"` // argument
+	Rets []*Value `json:"rets"` // return value
 }
 
 // Value is the method argument or return value.
 type Value struct {
-	Name string // value name
-	Type string // value type
+	Name string `json:"name"` // value name
+	Type string `json:"type"` // value type
 }
 
 // String is used to print method definition.
