@@ -6,14 +6,76 @@ import (
 	"go/build"
 	"go/format"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
-// Compile is used to import go source code in directory to a
-// package and generate it to a single go file for yaegi.
+var defaultContext = cloneBuildContext(&build.Default)
+
+func cloneBuildContext(ctx *build.Context) *build.Context {
+	clone := *ctx
+	clone.ReleaseTags = append([]string{}, ctx.ReleaseTags...)
+	return &clone
+}
+
+// Compile is used to compile go source code in path with default build context.
+func Compile(path string) (string, error) {
+	return CompileWithContext(defaultContext, path)
+}
+
+// CompileWithContext is used to compile go source code in directory
+// to a package and generate it to a single go file for yaegi.
+func CompileWithContext(ctx *build.Context, path string) (string, error) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if fi.IsDir() {
+		return MergeDir(ctx, path)
+	}
+	dir := filepath.Dir(path)
+	file := filepath.Base(path)
+	return MergeFiles(ctx, dir, []string{file})
+}
+
+// CompileFiles is used to compile go source code files in directory with default build context.
+func CompileFiles(dir string, filenames []string) (string, error) {
+	return CompileFilesWithContext(defaultContext, dir, filenames)
+}
+
+// CompileFilesWithContext is used to compile go source code files in directory.
+func CompileFilesWithContext(ctx *build.Context, dir string, filenames []string) (string, error) {
+	return MergeFiles(ctx, dir, filenames)
+}
+
+// MergeFiles is used to files in directory to a single go code file for yaegi.
+// Files must in the same directory, if file not in the directory, it will skip it.
+func MergeFiles(ctx *build.Context, dir string, filenames []string) (string, error) {
+	ctx = cloneBuildContext(ctx)
+	// set ReadDir to filter files
+	ctx.ReadDir = func(dir string) ([]os.FileInfo, error) {
+		list, err := ioutil.ReadDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		var files []os.FileInfo
+		for _, item := range list {
+			for _, filename := range filenames {
+				if item.Name() == filename {
+					files = append(files, item)
+					break
+				}
+			}
+		}
+		return files, err
+	}
+	return MergeDir(ctx, dir)
+}
+
+// MergeDir is used to all files in directory to a single go code file.
 // If use unsafe.Offsetof function, it will process it specially.
-func Compile(ctx *build.Context, dir string) (string, error) {
+func MergeDir(ctx *build.Context, dir string) (string, error) {
 	pkg, err := ctx.ImportDir(dir, 0)
 	if err != nil {
 		return "", err
@@ -85,6 +147,7 @@ func Compile(ctx *build.Context, dir string) (string, error) {
 	return code, nil
 }
 
+// calculateOffsets is used to calculate offset about code that after "package" and "import".
 func calculateOffsets(pkg *build.Package, dir string, files map[string]string) map[string]int {
 	// store files to offsets map
 	offsets := make(map[string]int, len(pkg.GoFiles))

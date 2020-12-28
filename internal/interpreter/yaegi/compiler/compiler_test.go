@@ -4,6 +4,7 @@ import (
 	"go/build"
 	"go/format"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"testing"
 
@@ -13,19 +14,21 @@ import (
 )
 
 func TestCompile(t *testing.T) {
-	ctx := build.Default
-	ctx.GOOS = "windows"
-	ctx.GOARCH = "amd64"
-	// set release tags
-	releaseTags := make([]string, 0, 16)
-	for i := 1; i <= 16; i++ {
-		releaseTags = append(releaseTags, "go1."+strconv.Itoa(i))
-	}
-	ctx.BuildTags = releaseTags
+	t.Run("dir", func(t *testing.T) {
+		ctx := build.Default
+		ctx.GOOS = "windows"
+		ctx.GOARCH = "amd64"
+		// set release tags
+		releaseTags := make([]string, 0, 16)
+		for i := 1; i <= 16; i++ {
+			releaseTags = append(releaseTags, "go1."+strconv.Itoa(i))
+		}
+		ctx.BuildTags = releaseTags
+		ctx.ReleaseTags = releaseTags
 
-	code, err := Compile(&ctx, "testdata/pkg")
-	require.NoError(t, err)
-	const expected = `
+		code, err := CompileWithContext(&ctx, "testdata/pkg")
+		require.NoError(t, err)
+		const expected = `
 package pkg
 
 import (
@@ -71,12 +74,73 @@ func f9() {
 	fmt.Println(unsafe.Offsetof(T{}, "Xb")) // #nosec
 }
 `
+		require.Equal(t, expected[1:], code)
+	})
+
+	t.Run("file", func(t *testing.T) {
+		code, err := Compile("testdata/pkg/a.go")
+		require.NoError(t, err)
+		const expected = `
+package pkg
+
+import (
+	"fmt"
+)
+
+func f1() {
+	fmt.Println("f1")
+}
+`
+		require.Equal(t, expected[1:], code)
+	})
+
+	t.Run("invalid path", func(t *testing.T) {
+		code, err := Compile("testdata/foo")
+		require.Error(t, err)
+		require.Zero(t, code)
+	})
+}
+
+func TestCompileFiles(t *testing.T) {
+	code, err := CompileFiles("testdata/pkg", []string{"a.go", "b.go", "foo.go"})
+	require.NoError(t, err)
+	const expected = `
+package pkg
+
+import (
+	"fmt"
+	"log"
+	_ "log"
+	_ "strings"
+)
+
+func f1() {
+	fmt.Println("f1")
+}
+
+func f2() {
+	fmt.Println("f2")
+	log.Println("f2")
+}
+`
 	require.Equal(t, expected[1:], code)
 }
 
-func TestCompile_Fail(t *testing.T) {
+func TestMergeFiles(t *testing.T) {
+	patch := func(string) ([]os.FileInfo, error) {
+		return nil, monkey.Error
+	}
+	pg := monkey.Patch(ioutil.ReadDir, patch)
+	defer pg.Unpatch()
+
+	code, err := MergeFiles(defaultContext, "testdata/pkg", []string{"a.go", "b.go"})
+	require.Error(t, err)
+	require.Zero(t, code)
+}
+
+func TestMergeDir(t *testing.T) {
 	t.Run("failed to import dir", func(t *testing.T) {
-		code, err := Compile(&build.Default, "testdata/foo")
+		code, err := MergeDir(defaultContext, "testdata/foo")
 		require.Error(t, err)
 		require.Zero(t, code)
 	})
@@ -89,7 +153,7 @@ func TestCompile_Fail(t *testing.T) {
 		pg := monkey.PatchInstanceMethod(ctx, "ImportDir", patch)
 		defer pg.Unpatch()
 
-		code, err := Compile(&build.Default, "testdata/pkg")
+		code, err := MergeDir(defaultContext, "testdata/pkg")
 		require.Error(t, err)
 		require.Zero(t, code)
 	})
@@ -101,7 +165,7 @@ func TestCompile_Fail(t *testing.T) {
 		pg := monkey.Patch(ioutil.ReadFile, patch)
 		defer pg.Unpatch()
 
-		code, err := Compile(&build.Default, "testdata/pkg")
+		code, err := MergeDir(defaultContext, "testdata/pkg")
 		require.Error(t, err)
 		require.Zero(t, code)
 	})
@@ -113,7 +177,7 @@ func TestCompile_Fail(t *testing.T) {
 		pg := monkey.Patch(format.Source, patch)
 		defer pg.Unpatch()
 
-		code, err := Compile(&build.Default, "testdata/pkg")
+		code, err := MergeDir(defaultContext, "testdata/pkg")
 		require.Error(t, err)
 		require.Zero(t, code)
 	})
