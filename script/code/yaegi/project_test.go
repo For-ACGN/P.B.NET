@@ -3,12 +3,11 @@ package yaegi
 import (
 	"bytes"
 	"fmt"
+	"go/build"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"project/internal/system"
 )
 
 func TestExportProject(t *testing.T) {
@@ -36,7 +35,7 @@ func init() {
 
 	importBuf := bytes.NewBuffer(make([]byte, 0, 2048))
 	initBuf := bytes.NewBuffer(make([]byte, 0, 4096))
-	srcBuf := bytes.NewBuffer(make([]byte, 0, 128*1024))
+	codeBuf := bytes.NewBuffer(make([]byte, 0, 128*1024))
 
 	for _, pkg := range []string{
 		"project/internal/cert",
@@ -67,22 +66,17 @@ func init() {
 		"project/internal/xreflect",
 		"project/internal/xsync",
 	} {
-		init := strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(pkg)
 		_, _ = fmt.Fprintf(importBuf, "\t\"%s\"\n", pkg)
+		init := strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(pkg)
 		_, _ = fmt.Fprintf(initBuf, "\tinit_%s()\n", init)
 		code, err := generateCode(pkg, init)
 		require.NoError(t, err)
-		srcBuf.WriteString(code)
+		codeBuf.WriteString(code)
 	}
 
-	// generate code
-	src := fmt.Sprintf(template[1:], importBuf, initBuf, srcBuf)
-
-	// print and save code
-	fmt.Println(src)
+	code := fmt.Sprintf(template[1:], importBuf, initBuf, codeBuf)
 	const path = "../../../internal/interpreter/yaegi/project/bundle.go"
-	err := system.WriteFile(path, []byte(src))
-	require.NoError(t, err)
+	formatCodeAndSave(t, code, path)
 }
 
 func TestExportProject_Windows(t *testing.T) {
@@ -106,28 +100,27 @@ func init() {
 
 %s`
 
+	goos := build.Default.GOOS
+	build.Default.GOOS = "windows"
+	defer func() { build.Default.GOOS = goos }()
+
 	importBuf := bytes.NewBuffer(make([]byte, 0, 2048))
 	initBuf := bytes.NewBuffer(make([]byte, 0, 4096))
-	srcBuf := bytes.NewBuffer(make([]byte, 0, 128*1024))
+	codeBuf := bytes.NewBuffer(make([]byte, 0, 128*1024))
 
 	for _, pkg := range []string{
 		"project/internal/module/windows/wmi",
 		"project/internal/module/windows/privilege",
 	} {
-		init := strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(pkg)
 		_, _ = fmt.Fprintf(importBuf, "\t\"%s\"\n", pkg)
+		init := strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(pkg)
 		_, _ = fmt.Fprintf(initBuf, "\tinit_%s()\n", init)
 		code, err := generateCode(pkg, init)
 		require.NoError(t, err)
-		srcBuf.WriteString(code)
+		codeBuf.WriteString(code)
 	}
 
-	// generate code
-	src := fmt.Sprintf(template[1:], importBuf, initBuf, srcBuf)
-
-	// print and save code
-	fmt.Println(src)
+	code := fmt.Sprintf(template[1:], importBuf, initBuf, codeBuf)
 	const path = "../../../internal/interpreter/yaegi/project/windows.go"
-	err := system.WriteFile(path, []byte(src))
-	require.NoError(t, err)
+	formatCodeAndSave(t, code, path)
 }
