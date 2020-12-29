@@ -18,6 +18,16 @@ import (
 	"container/list"
 	"container/ring"
 	"context"
+	"crypto"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/des"
+	"crypto/dsa"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/hmac"
+	crypto_rand "crypto/rand"
 	"go/constant"
 	"go/token"
 	"io"
@@ -44,6 +54,16 @@ func init() {
 	init_container_list()
 	init_container_ring()
 	init_context()
+	init_crypto()
+	init_crypto_aes()
+	init_crypto_cipher()
+	init_crypto_des()
+	init_crypto_dsa()
+	init_crypto_ecdsa()
+	init_crypto_ed25519()
+	init_crypto_elliptic()
+	init_crypto_hmac()
+	init_crypto_rand()
 	init_io()
 	init_math_big()
 	init_reflect()
@@ -416,6 +436,305 @@ func (W _context_Context) Deadline() (deadline time.Time, ok bool) { return W.WD
 func (W _context_Context) Done() <-chan struct{}                   { return W.WDone() }
 func (W _context_Context) Err() error                              { return W.WErr() }
 func (W _context_Context) Value(key interface{}) interface{}       { return W.WValue(key) }
+
+func init_crypto() {
+	Symbols["crypto"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BLAKE2b_256":  reflect.ValueOf(crypto.BLAKE2b_256),
+		"BLAKE2b_384":  reflect.ValueOf(crypto.BLAKE2b_384),
+		"BLAKE2b_512":  reflect.ValueOf(crypto.BLAKE2b_512),
+		"BLAKE2s_256":  reflect.ValueOf(crypto.BLAKE2s_256),
+		"MD4":          reflect.ValueOf(crypto.MD4),
+		"MD5":          reflect.ValueOf(crypto.MD5),
+		"MD5SHA1":      reflect.ValueOf(crypto.MD5SHA1),
+		"RIPEMD160":    reflect.ValueOf(crypto.RIPEMD160),
+		"RegisterHash": reflect.ValueOf(crypto.RegisterHash),
+		"SHA1":         reflect.ValueOf(crypto.SHA1),
+		"SHA224":       reflect.ValueOf(crypto.SHA224),
+		"SHA256":       reflect.ValueOf(crypto.SHA256),
+		"SHA384":       reflect.ValueOf(crypto.SHA384),
+		"SHA3_224":     reflect.ValueOf(crypto.SHA3_224),
+		"SHA3_256":     reflect.ValueOf(crypto.SHA3_256),
+		"SHA3_384":     reflect.ValueOf(crypto.SHA3_384),
+		"SHA3_512":     reflect.ValueOf(crypto.SHA3_512),
+		"SHA512":       reflect.ValueOf(crypto.SHA512),
+		"SHA512_224":   reflect.ValueOf(crypto.SHA512_224),
+		"SHA512_256":   reflect.ValueOf(crypto.SHA512_256),
+
+		// type definitions
+		"Decrypter":     reflect.ValueOf((*crypto.Decrypter)(nil)),
+		"DecrypterOpts": reflect.ValueOf((*crypto.DecrypterOpts)(nil)),
+		"Hash":          reflect.ValueOf((*crypto.Hash)(nil)),
+		"PrivateKey":    reflect.ValueOf((*crypto.PrivateKey)(nil)),
+		"PublicKey":     reflect.ValueOf((*crypto.PublicKey)(nil)),
+		"Signer":        reflect.ValueOf((*crypto.Signer)(nil)),
+		"SignerOpts":    reflect.ValueOf((*crypto.SignerOpts)(nil)),
+
+		// interface wrapper definitions
+		"_Decrypter":     reflect.ValueOf((*_crypto_Decrypter)(nil)),
+		"_DecrypterOpts": reflect.ValueOf((*_crypto_DecrypterOpts)(nil)),
+		"_PrivateKey":    reflect.ValueOf((*_crypto_PrivateKey)(nil)),
+		"_PublicKey":     reflect.ValueOf((*_crypto_PublicKey)(nil)),
+		"_Signer":        reflect.ValueOf((*_crypto_Signer)(nil)),
+		"_SignerOpts":    reflect.ValueOf((*_crypto_SignerOpts)(nil)),
+	}
+}
+
+// _crypto_Decrypter is an interface wrapper for Decrypter type
+type _crypto_Decrypter struct {
+	WDecrypt func(rand io.Reader, msg []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error)
+	WPublic  func() crypto.PublicKey
+}
+
+func (W _crypto_Decrypter) Decrypt(rand io.Reader, msg []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
+	return W.WDecrypt(rand, msg, opts)
+}
+func (W _crypto_Decrypter) Public() crypto.PublicKey { return W.WPublic() }
+
+// _crypto_DecrypterOpts is an interface wrapper for DecrypterOpts type
+type _crypto_DecrypterOpts struct {
+}
+
+// _crypto_PrivateKey is an interface wrapper for PrivateKey type
+type _crypto_PrivateKey struct {
+}
+
+// _crypto_PublicKey is an interface wrapper for PublicKey type
+type _crypto_PublicKey struct {
+}
+
+// _crypto_Signer is an interface wrapper for Signer type
+type _crypto_Signer struct {
+	WPublic func() crypto.PublicKey
+	WSign   func(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error)
+}
+
+func (W _crypto_Signer) Public() crypto.PublicKey { return W.WPublic() }
+func (W _crypto_Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	return W.WSign(rand, digest, opts)
+}
+
+// _crypto_SignerOpts is an interface wrapper for SignerOpts type
+type _crypto_SignerOpts struct {
+	WHashFunc func() crypto.Hash
+}
+
+func (W _crypto_SignerOpts) HashFunc() crypto.Hash { return W.WHashFunc() }
+
+func init_crypto_aes() {
+	Symbols["crypto/aes"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BlockSize": reflect.ValueOf(constant.MakeFromLiteral("16", token.INT, 0)),
+		"NewCipher": reflect.ValueOf(aes.NewCipher),
+
+		// type definitions
+		"KeySizeError": reflect.ValueOf((*aes.KeySizeError)(nil)),
+	}
+}
+
+func init_crypto_cipher() {
+	Symbols["crypto/cipher"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"NewCBCDecrypter":     reflect.ValueOf(cipher.NewCBCDecrypter),
+		"NewCBCEncrypter":     reflect.ValueOf(cipher.NewCBCEncrypter),
+		"NewCFBDecrypter":     reflect.ValueOf(cipher.NewCFBDecrypter),
+		"NewCFBEncrypter":     reflect.ValueOf(cipher.NewCFBEncrypter),
+		"NewCTR":              reflect.ValueOf(cipher.NewCTR),
+		"NewGCM":              reflect.ValueOf(cipher.NewGCM),
+		"NewGCMWithNonceSize": reflect.ValueOf(cipher.NewGCMWithNonceSize),
+		"NewGCMWithTagSize":   reflect.ValueOf(cipher.NewGCMWithTagSize),
+		"NewOFB":              reflect.ValueOf(cipher.NewOFB),
+
+		// type definitions
+		"AEAD":         reflect.ValueOf((*cipher.AEAD)(nil)),
+		"Block":        reflect.ValueOf((*cipher.Block)(nil)),
+		"BlockMode":    reflect.ValueOf((*cipher.BlockMode)(nil)),
+		"Stream":       reflect.ValueOf((*cipher.Stream)(nil)),
+		"StreamReader": reflect.ValueOf((*cipher.StreamReader)(nil)),
+		"StreamWriter": reflect.ValueOf((*cipher.StreamWriter)(nil)),
+
+		// interface wrapper definitions
+		"_AEAD":      reflect.ValueOf((*_crypto_cipher_AEAD)(nil)),
+		"_Block":     reflect.ValueOf((*_crypto_cipher_Block)(nil)),
+		"_BlockMode": reflect.ValueOf((*_crypto_cipher_BlockMode)(nil)),
+		"_Stream":    reflect.ValueOf((*_crypto_cipher_Stream)(nil)),
+	}
+}
+
+// _crypto_cipher_AEAD is an interface wrapper for AEAD type
+type _crypto_cipher_AEAD struct {
+	WNonceSize func() int
+	WOpen      func(dst []byte, nonce []byte, ciphertext []byte, additionalData []byte) ([]byte, error)
+	WOverhead  func() int
+	WSeal      func(dst []byte, nonce []byte, plaintext []byte, additionalData []byte) []byte
+}
+
+func (W _crypto_cipher_AEAD) NonceSize() int { return W.WNonceSize() }
+func (W _crypto_cipher_AEAD) Open(dst []byte, nonce []byte, ciphertext []byte, additionalData []byte) ([]byte, error) {
+	return W.WOpen(dst, nonce, ciphertext, additionalData)
+}
+func (W _crypto_cipher_AEAD) Overhead() int { return W.WOverhead() }
+func (W _crypto_cipher_AEAD) Seal(dst []byte, nonce []byte, plaintext []byte, additionalData []byte) []byte {
+	return W.WSeal(dst, nonce, plaintext, additionalData)
+}
+
+// _crypto_cipher_Block is an interface wrapper for Block type
+type _crypto_cipher_Block struct {
+	WBlockSize func() int
+	WDecrypt   func(dst []byte, src []byte)
+	WEncrypt   func(dst []byte, src []byte)
+}
+
+func (W _crypto_cipher_Block) BlockSize() int                 { return W.WBlockSize() }
+func (W _crypto_cipher_Block) Decrypt(dst []byte, src []byte) { W.WDecrypt(dst, src) }
+func (W _crypto_cipher_Block) Encrypt(dst []byte, src []byte) { W.WEncrypt(dst, src) }
+
+// _crypto_cipher_BlockMode is an interface wrapper for BlockMode type
+type _crypto_cipher_BlockMode struct {
+	WBlockSize   func() int
+	WCryptBlocks func(dst []byte, src []byte)
+}
+
+func (W _crypto_cipher_BlockMode) BlockSize() int                     { return W.WBlockSize() }
+func (W _crypto_cipher_BlockMode) CryptBlocks(dst []byte, src []byte) { W.WCryptBlocks(dst, src) }
+
+// _crypto_cipher_Stream is an interface wrapper for Stream type
+type _crypto_cipher_Stream struct {
+	WXORKeyStream func(dst []byte, src []byte)
+}
+
+func (W _crypto_cipher_Stream) XORKeyStream(dst []byte, src []byte) { W.WXORKeyStream(dst, src) }
+
+func init_crypto_des() {
+	Symbols["crypto/des"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BlockSize":          reflect.ValueOf(constant.MakeFromLiteral("8", token.INT, 0)),
+		"NewCipher":          reflect.ValueOf(des.NewCipher),
+		"NewTripleDESCipher": reflect.ValueOf(des.NewTripleDESCipher),
+
+		// type definitions
+		"KeySizeError": reflect.ValueOf((*des.KeySizeError)(nil)),
+	}
+}
+
+func init_crypto_dsa() {
+	Symbols["crypto/dsa"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ErrInvalidPublicKey": reflect.ValueOf(&dsa.ErrInvalidPublicKey).Elem(),
+		"GenerateKey":         reflect.ValueOf(dsa.GenerateKey),
+		"GenerateParameters":  reflect.ValueOf(dsa.GenerateParameters),
+		"L1024N160":           reflect.ValueOf(dsa.L1024N160),
+		"L2048N224":           reflect.ValueOf(dsa.L2048N224),
+		"L2048N256":           reflect.ValueOf(dsa.L2048N256),
+		"L3072N256":           reflect.ValueOf(dsa.L3072N256),
+		"Sign":                reflect.ValueOf(dsa.Sign),
+		"Verify":              reflect.ValueOf(dsa.Verify),
+
+		// type definitions
+		"ParameterSizes": reflect.ValueOf((*dsa.ParameterSizes)(nil)),
+		"Parameters":     reflect.ValueOf((*dsa.Parameters)(nil)),
+		"PrivateKey":     reflect.ValueOf((*dsa.PrivateKey)(nil)),
+		"PublicKey":      reflect.ValueOf((*dsa.PublicKey)(nil)),
+	}
+}
+
+func init_crypto_ecdsa() {
+	Symbols["crypto/ecdsa"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"GenerateKey": reflect.ValueOf(ecdsa.GenerateKey),
+		"Sign":        reflect.ValueOf(ecdsa.Sign),
+		"SignASN1":    reflect.ValueOf(ecdsa.SignASN1),
+		"Verify":      reflect.ValueOf(ecdsa.Verify),
+		"VerifyASN1":  reflect.ValueOf(ecdsa.VerifyASN1),
+
+		// type definitions
+		"PrivateKey": reflect.ValueOf((*ecdsa.PrivateKey)(nil)),
+		"PublicKey":  reflect.ValueOf((*ecdsa.PublicKey)(nil)),
+	}
+}
+
+func init_crypto_ed25519() {
+	Symbols["crypto/ed25519"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"GenerateKey":    reflect.ValueOf(ed25519.GenerateKey),
+		"NewKeyFromSeed": reflect.ValueOf(ed25519.NewKeyFromSeed),
+		"PrivateKeySize": reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"PublicKeySize":  reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+		"SeedSize":       reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+		"Sign":           reflect.ValueOf(ed25519.Sign),
+		"SignatureSize":  reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"Verify":         reflect.ValueOf(ed25519.Verify),
+
+		// type definitions
+		"PrivateKey": reflect.ValueOf((*ed25519.PrivateKey)(nil)),
+		"PublicKey":  reflect.ValueOf((*ed25519.PublicKey)(nil)),
+	}
+}
+
+func init_crypto_elliptic() {
+	Symbols["crypto/elliptic"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"GenerateKey":         reflect.ValueOf(elliptic.GenerateKey),
+		"Marshal":             reflect.ValueOf(elliptic.Marshal),
+		"MarshalCompressed":   reflect.ValueOf(elliptic.MarshalCompressed),
+		"P224":                reflect.ValueOf(elliptic.P224),
+		"P256":                reflect.ValueOf(elliptic.P256),
+		"P384":                reflect.ValueOf(elliptic.P384),
+		"P521":                reflect.ValueOf(elliptic.P521),
+		"Unmarshal":           reflect.ValueOf(elliptic.Unmarshal),
+		"UnmarshalCompressed": reflect.ValueOf(elliptic.UnmarshalCompressed),
+
+		// type definitions
+		"Curve":       reflect.ValueOf((*elliptic.Curve)(nil)),
+		"CurveParams": reflect.ValueOf((*elliptic.CurveParams)(nil)),
+
+		// interface wrapper definitions
+		"_Curve": reflect.ValueOf((*_crypto_elliptic_Curve)(nil)),
+	}
+}
+
+// _crypto_elliptic_Curve is an interface wrapper for Curve type
+type _crypto_elliptic_Curve struct {
+	WAdd            func(x1 *big.Int, y1 *big.Int, x2 *big.Int, y2 *big.Int) (x *big.Int, y *big.Int)
+	WDouble         func(x1 *big.Int, y1 *big.Int) (x *big.Int, y *big.Int)
+	WIsOnCurve      func(x *big.Int, y *big.Int) bool
+	WParams         func() *elliptic.CurveParams
+	WScalarBaseMult func(k []byte) (x *big.Int, y *big.Int)
+	WScalarMult     func(x1 *big.Int, y1 *big.Int, k []byte) (x *big.Int, y *big.Int)
+}
+
+func (W _crypto_elliptic_Curve) Add(x1 *big.Int, y1 *big.Int, x2 *big.Int, y2 *big.Int) (x *big.Int, y *big.Int) {
+	return W.WAdd(x1, y1, x2, y2)
+}
+func (W _crypto_elliptic_Curve) Double(x1 *big.Int, y1 *big.Int) (x *big.Int, y *big.Int) {
+	return W.WDouble(x1, y1)
+}
+func (W _crypto_elliptic_Curve) IsOnCurve(x *big.Int, y *big.Int) bool { return W.WIsOnCurve(x, y) }
+func (W _crypto_elliptic_Curve) Params() *elliptic.CurveParams         { return W.WParams() }
+func (W _crypto_elliptic_Curve) ScalarBaseMult(k []byte) (x *big.Int, y *big.Int) {
+	return W.WScalarBaseMult(k)
+}
+func (W _crypto_elliptic_Curve) ScalarMult(x1 *big.Int, y1 *big.Int, k []byte) (x *big.Int, y *big.Int) {
+	return W.WScalarMult(x1, y1, k)
+}
+
+func init_crypto_hmac() {
+	Symbols["crypto/hmac"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Equal": reflect.ValueOf(hmac.Equal),
+		"New":   reflect.ValueOf(hmac.New),
+	}
+}
+
+func init_crypto_rand() {
+	Symbols["crypto/rand"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Int":    reflect.ValueOf(crypto_rand.Int),
+		"Prime":  reflect.ValueOf(crypto_rand.Prime),
+		"Read":   reflect.ValueOf(crypto_rand.Read),
+		"Reader": reflect.ValueOf(&crypto_rand.Reader).Elem(),
+	}
+}
 
 func init_io() {
 	Symbols["io"] = map[string]reflect.Value{
