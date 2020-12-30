@@ -20,6 +20,11 @@ const (
 	ListenerModeBlock
 )
 
+const (
+	defaultMaxConnPerAddr = 500
+	defaultMaxConnTotal   = 10000
+)
+
 // ListenerMode is the firewall listener mode.
 type ListenerMode int
 
@@ -36,6 +41,37 @@ func (l ListenerMode) String() string {
 	}
 }
 
+type maxConnError struct {
+	total bool
+	addr  string
+}
+
+func (m *maxConnError) Error() string {
+	if m.total {
+		return "listener accepted too many connections"
+	}
+	return fmt.Sprintf("listener accepted too many connections about %s", m.addr)
+}
+
+func (m *maxConnError) Timeout() bool {
+	return false
+}
+
+func (m *maxConnError) Temporary() bool {
+	return true
+}
+
+// Conn is the connection that Listener accepted.
+type Conn struct {
+	l *Listener
+	net.Conn
+}
+
+func (conn *Conn) Close() error {
+
+	return conn.Conn.Close()
+}
+
 // Listener is used to limit address and the number of connections of each address.
 type Listener struct {
 	listener    net.Listener
@@ -49,7 +85,7 @@ type Listener struct {
 	blockListRWM sync.RWMutex
 
 	// store raw connections that can kill it ,key = remote address
-	conns    map[string]map[*net.Conn]struct{}
+	conns    map[string]map[*Conn]struct{}
 	connsRWM sync.RWMutex
 
 	maxConnPerAddr atomic.Value
@@ -94,14 +130,14 @@ func NewListener(listener net.Listener, opts *ListenerOptions) (*Listener, error
 	default:
 		return nil, errors.New(lm.String())
 	}
-	l.conns = make(map[string]map[*net.Conn]struct{}, 1)
+	l.conns = make(map[string]map[*Conn]struct{}, 1)
 	maxConnPerAddr := opts.MaxConnPerAddr
 	if maxConnPerAddr < 1 {
-		maxConnPerAddr = 500
+		maxConnPerAddr = defaultMaxConnPerAddr
 	}
 	maxConnTotal := opts.MaxConnTotal
 	if maxConnTotal < 1 {
-		maxConnTotal = 10000
+		maxConnTotal = defaultMaxConnTotal
 	}
 	l.maxConnPerAddr.Store(maxConnPerAddr)
 	l.maxConnTotal.Store(maxConnTotal)
@@ -111,41 +147,128 @@ func NewListener(listener net.Listener, opts *ListenerOptions) (*Listener, error
 // Accept is used to wait for and returns the next connection to the listener.
 func (l *Listener) Accept() (net.Conn, error) {
 	for {
-		conn, err := l.accept()
+		conn, addr, err := l.accept()
 		if err != nil {
 			return nil, err
 		}
-		if conn != nil {
-			return conn, nil
+		if conn == nil {
+			continue
 		}
+		c := &Conn{
+			l:    l,
+			Conn: conn,
+		}
+		l.trackConn(c, addr, true)
+		return c, nil
 	}
 }
 
-func (l *Listener) accept() (net.Conn, error) {
+func (l *Listener) accept() (net.Conn, string, error) {
+	// check the number of total connections
+	if l.GetConnsNumTotal() >= l.GetMaxConnTotal() {
+		return nil, "", errors.WithStack(&maxConnError{total: true})
+	}
+	// accept connection
 	conn, err := l.listener.Accept()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	// check the number of connections
-
+	addr := conn.RemoteAddr().String()
+	// check the number of connection about this address
+	if l.GetConnsNumWithAddr(addr) >= l.GetMaxConnPerAddr() {
+		_ = conn.Close()
+		return nil, "", errors.WithStack(&maxConnError{addr: addr})
+	}
 	// check remote address is allowed
 	switch l.mode {
 	case ListenerModeDefault:
-		return conn, nil
+		return conn, addr, nil
 	case ListenerModeAllow:
-		if l.isAllowedAddr(conn.RemoteAddr().String()) {
-			return conn, nil
+		if l.isAllowedAddr(addr) {
+			return conn, addr, nil
 		}
 		l.onBlockConn(conn)
 	case ListenerModeBlock:
-		if !l.isBlockedAddr(conn.RemoteAddr().String()) {
-			return conn, nil
+		if !l.isBlockedAddr(addr) {
+			return conn, addr, nil
 		}
 		l.onBlockConn(conn)
 	default:
 		panic(fmt.Sprintf("firewall listener internal error: %s", l.mode))
 	}
-	return nil, nil
+	return nil, "", nil
+}
+
+func (l *Listener) trackConn(conn *Conn, addr string, add bool) {
+	l.connsRWM.Lock()
+	defer l.connsRWM.Unlock()
+	if add {
+		conns := l.conns[addr]
+		if conns == nil {
+			conns = make(map[*Conn]struct{})
+			l.conns[addr] = conns
+		}
+		conns[conn] = struct{}{}
+	} else {
+		delete(l.conns[addr], conn)
+	}
+}
+
+// GetMaxConnPerAddr is used to get the maximum connection per-address.
+func (l *Listener) GetMaxConnPerAddr() int {
+	return l.maxConnPerAddr.Load().(int)
+}
+
+// GetMaxConnTotal is used to get the maximum connection total.
+func (l *Listener) GetMaxConnTotal() int {
+	return l.maxConnTotal.Load().(int)
+}
+
+// SetMaxConnPerAddr is used to set the maximum connection per-address.
+func (l *Listener) SetMaxConnPerAddr(v int) {
+	if v < 1 {
+		v = defaultMaxConnPerAddr
+	}
+	l.maxConnPerAddr.Store(v)
+}
+
+// SetMaxConnTotal is used to set the maximum connection total.
+func (l *Listener) SetMaxConnTotal(v int) {
+	if v < 1 {
+		v = defaultMaxConnTotal
+	}
+	l.maxConnTotal.Store(v)
+}
+
+// GetConnsNumTotal is used to get the number of the connections.
+func (l *Listener) GetConnsNumTotal() int {
+	l.connsRWM.RLock()
+	defer l.connsRWM.RUnlock()
+	var num int
+	for _, conns := range l.conns {
+		num += len(conns)
+	}
+	return num
+}
+
+// GetConnsNumWithAddr is used to get the number of the connections about address.
+func (l *Listener) GetConnsNumWithAddr(addr string) int {
+	l.connsRWM.RLock()
+	defer l.connsRWM.RUnlock()
+	return len(l.conns[addr])
+}
+
+// GetConns is used to get the all connections.
+func (l *Listener) GetConns() []*Conn {
+	var cs []*Conn
+	l.connsRWM.RLock()
+	defer l.connsRWM.RUnlock()
+	for _, conns := range l.conns {
+		for conn := range conns {
+			cs = append(cs, conn)
+		}
+	}
+	return cs
 }
 
 func (l *Listener) isAllowedAddr(addr string) bool {
@@ -162,8 +285,8 @@ func (l *Listener) isBlockedAddr(addr string) bool {
 	return ok
 }
 
-// IsAllowedAddress is used to check this address is allowed.
-func (l *Listener) IsAllowedAddress(addr string) bool {
+// IsAllowedAddr is used to check this address is allowed.
+func (l *Listener) IsAllowedAddr(addr string) bool {
 	switch l.mode {
 	case ListenerModeDefault:
 		return true
@@ -176,8 +299,8 @@ func (l *Listener) IsAllowedAddress(addr string) bool {
 	}
 }
 
-// IsBlockedAddress is used to check this address is blocked.
-func (l *Listener) IsBlockedAddress(addr string) bool {
+// IsBlockedAddr is used to check this address is blocked.
+func (l *Listener) IsBlockedAddr(addr string) bool {
 	switch l.mode {
 	case ListenerModeDefault:
 		return false
@@ -228,8 +351,8 @@ func (l *Listener) AddAllowedAddress(addr string) {
 	l.allowList[addr] = struct{}{}
 }
 
-// AddBlockedAddress is used to add address to block list.
-func (l *Listener) AddBlockedAddress(addr string) {
+// AddBlockedAddr is used to add address to block list.
+func (l *Listener) AddBlockedAddr(addr string) {
 	if l.mode != ListenerModeBlock {
 		return
 	}
@@ -238,8 +361,8 @@ func (l *Listener) AddBlockedAddress(addr string) {
 	l.blockList[addr] = struct{}{}
 }
 
-// DeleteAllowedAddress is used to delete address from allow list.
-func (l *Listener) DeleteAllowedAddress(addr string) {
+// DeleteAllowedAddr is used to delete address from allow list.
+func (l *Listener) DeleteAllowedAddr(addr string) {
 	if l.mode != ListenerModeAllow {
 		return
 	}
@@ -248,8 +371,8 @@ func (l *Listener) DeleteAllowedAddress(addr string) {
 	delete(l.allowList, addr)
 }
 
-// DeleteBlockedAddress is used to delete address from block list.
-func (l *Listener) DeleteBlockedAddress(addr string) {
+// DeleteBlockedAddr is used to delete address from block list.
+func (l *Listener) DeleteBlockedAddr(addr string) {
 	if l.mode != ListenerModeBlock {
 		return
 	}
