@@ -36,7 +36,7 @@ func (l ListenerMode) String() string {
 	}
 }
 
-// Listener is used to limit IP address and the number of connections of each IP address.
+// Listener is used to limit address and the number of connections of each address.
 type Listener struct {
 	listener    net.Listener
 	mode        ListenerMode
@@ -48,7 +48,7 @@ type Listener struct {
 	blockList    map[string]struct{}
 	blockListRWM sync.RWMutex
 
-	// key = remote address
+	// store raw connections that can kill it ,key = remote address
 	conns    map[string]map[*net.Conn]struct{}
 	connsRWM sync.RWMutex
 
@@ -69,7 +69,7 @@ type ListenerOptions struct {
 	OnBlockConn func(conn net.Conn) `json:"-"`
 }
 
-// NewListener is used to create a new limit listener.
+// NewListener is used to create a new firewall listener.
 func NewListener(listener net.Listener, opts *ListenerOptions) (*Listener, error) {
 	if opts == nil {
 		opts = new(ListenerOptions)
@@ -133,12 +133,12 @@ func (l *Listener) accept() (net.Conn, error) {
 	case ListenerModeDefault:
 		return conn, nil
 	case ListenerModeAllow:
-		if l.isAllowed(conn.RemoteAddr().String()) {
+		if l.isAllowedAddr(conn.RemoteAddr().String()) {
 			return conn, nil
 		}
 		l.onBlockConn(conn)
 	case ListenerModeBlock:
-		if !l.isBlocked(conn.RemoteAddr().String()) {
+		if !l.isBlockedAddr(conn.RemoteAddr().String()) {
 			return conn, nil
 		}
 		l.onBlockConn(conn)
@@ -148,16 +148,122 @@ func (l *Listener) accept() (net.Conn, error) {
 	return nil, nil
 }
 
-func (l *Listener) isAllowed(addr string) bool {
+func (l *Listener) isAllowedAddr(addr string) bool {
 	l.allowListRWM.RLock()
 	defer l.allowListRWM.RUnlock()
 	_, ok := l.allowList[addr]
 	return ok
 }
 
-func (l *Listener) isBlocked(addr string) bool {
+func (l *Listener) isBlockedAddr(addr string) bool {
 	l.blockListRWM.RLock()
 	defer l.blockListRWM.RUnlock()
 	_, ok := l.blockList[addr]
 	return ok
+}
+
+// IsAllowedAddress is used to check this address is allowed.
+func (l *Listener) IsAllowedAddress(addr string) bool {
+	switch l.mode {
+	case ListenerModeDefault:
+		return true
+	case ListenerModeAllow:
+		return l.isAllowedAddr(addr)
+	case ListenerModeBlock:
+		return !l.isBlockedAddr(addr)
+	default:
+		panic(fmt.Sprintf("firewall listener internal error: %s", l.mode))
+	}
+}
+
+// IsBlockedAddress is used to check this address is blocked.
+func (l *Listener) IsBlockedAddress(addr string) bool {
+	switch l.mode {
+	case ListenerModeDefault:
+		return false
+	case ListenerModeAllow:
+		return !l.isAllowedAddr(addr)
+	case ListenerModeBlock:
+		return l.isBlockedAddr(addr)
+	default:
+		panic(fmt.Sprintf("firewall listener internal error: %s", l.mode))
+	}
+}
+
+// AllowList is used to get allow address list.
+func (l *Listener) AllowList() []string {
+	if l.mode != ListenerModeAllow {
+		return nil
+	}
+	l.allowListRWM.RLock()
+	defer l.allowListRWM.RUnlock()
+	list := make([]string, 0, len(l.allowList))
+	for addr := range l.allowList {
+		list = append(list, addr)
+	}
+	return list
+}
+
+// BlockList is used to get block address list.
+func (l *Listener) BlockList() []string {
+	if l.mode != ListenerModeBlock {
+		return nil
+	}
+	l.blockListRWM.RLock()
+	defer l.blockListRWM.RUnlock()
+	list := make([]string, 0, len(l.blockList))
+	for addr := range l.blockList {
+		list = append(list, addr)
+	}
+	return list
+}
+
+// AddAllowedAddress is used to add address to allow list.
+func (l *Listener) AddAllowedAddress(addr string) {
+	if l.mode != ListenerModeAllow {
+		return
+	}
+	l.allowListRWM.Lock()
+	defer l.allowListRWM.Unlock()
+	l.allowList[addr] = struct{}{}
+}
+
+// AddBlockedAddress is used to add address to block list.
+func (l *Listener) AddBlockedAddress(addr string) {
+	if l.mode != ListenerModeBlock {
+		return
+	}
+	l.blockListRWM.Lock()
+	defer l.blockListRWM.Unlock()
+	l.blockList[addr] = struct{}{}
+}
+
+// DeleteAllowedAddress is used to delete address from allow list.
+func (l *Listener) DeleteAllowedAddress(addr string) {
+	if l.mode != ListenerModeAllow {
+		return
+	}
+	l.allowListRWM.Lock()
+	defer l.allowListRWM.Unlock()
+	delete(l.allowList, addr)
+}
+
+// DeleteBlockedAddress is used to delete address from block list.
+func (l *Listener) DeleteBlockedAddress(addr string) {
+	if l.mode != ListenerModeBlock {
+		return
+	}
+	l.blockListRWM.Lock()
+	defer l.blockListRWM.Unlock()
+	delete(l.blockList, addr)
+}
+
+// Addr is used to get the listener's network address.
+func (l *Listener) Addr() net.Addr {
+	return l.listener.Addr()
+}
+
+// Close is used to close the listener.
+func (l *Listener) Close() error {
+	return l.listener.Close()
 }
