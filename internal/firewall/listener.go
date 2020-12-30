@@ -38,8 +38,9 @@ func (l ListenerMode) String() string {
 
 // Listener is used to limit IP address and the number of connections of each IP address.
 type Listener struct {
-	listener net.Listener
-	mode     ListenerMode
+	listener    net.Listener
+	mode        ListenerMode
+	onBlockConn func(conn net.Conn)
 
 	// key = remote address
 	allowList    map[string]struct{}
@@ -60,6 +61,12 @@ type ListenerOptions struct {
 	Mode           int `json:"mode"`
 	MaxConnPerAddr int `json:"max_conn_per_addr"`
 	MaxConnTotal   int `json:"max_conn_total"`
+
+	// OnBlockConn is used to let listener user handle blocked connection
+	// with another handler, for example: allowed connection will reach
+	// common server but blocked connection will reach the fake http server
+	// that always return 404 page or 503 page ...(you can think it).
+	OnBlockConn func(conn net.Conn) `json:"-"`
 }
 
 // NewListener is used to create a new limit listener.
@@ -69,8 +76,14 @@ func NewListener(listener net.Listener, opts *ListenerOptions) (*Listener, error
 	}
 	lm := ListenerMode(opts.Mode)
 	l := Listener{
-		listener: listener,
-		mode:     lm,
+		listener:    listener,
+		mode:        lm,
+		onBlockConn: opts.OnBlockConn,
+	}
+	if l.onBlockConn == nil {
+		l.onBlockConn = func(conn net.Conn) {
+			_ = conn.Close()
+		}
 	}
 	switch lm {
 	case ListenerModeDefault:
@@ -97,14 +110,54 @@ func NewListener(listener net.Listener, opts *ListenerOptions) (*Listener, error
 
 // Accept is used to wait for and returns the next connection to the listener.
 func (l *Listener) Accept() (net.Conn, error) {
+	for {
+		conn, err := l.accept()
+		if err != nil {
+			return nil, err
+		}
+		if conn != nil {
+			return conn, nil
+		}
+	}
+}
+
+func (l *Listener) accept() (net.Conn, error) {
 	conn, err := l.listener.Accept()
 	if err != nil {
 		return nil, err
 	}
-	// check remote address is allowed
-	if l.mode == ListenerModeDefault {
-		return conn, nil
-	}
+	// check the number of connections
 
-	return conn, nil
+	// check remote address is allowed
+	switch l.mode {
+	case ListenerModeDefault:
+		return conn, nil
+	case ListenerModeAllow:
+		if l.isAllowed(conn.RemoteAddr().String()) {
+			return conn, nil
+		}
+		l.onBlockConn(conn)
+	case ListenerModeBlock:
+		if !l.isBlocked(conn.RemoteAddr().String()) {
+			return conn, nil
+		}
+		l.onBlockConn(conn)
+	default:
+		panic(fmt.Sprintf("firewall listener internal error: %s", l.mode))
+	}
+	return nil, nil
+}
+
+func (l *Listener) isAllowed(addr string) bool {
+	l.allowListRWM.RLock()
+	defer l.allowListRWM.RUnlock()
+	_, ok := l.allowList[addr]
+	return ok
+}
+
+func (l *Listener) isBlocked(addr string) bool {
+	l.blockListRWM.RLock()
+	defer l.blockListRWM.RUnlock()
+	_, ok := l.blockList[addr]
+	return ok
 }
