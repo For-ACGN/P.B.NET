@@ -126,9 +126,9 @@ type Config struct {
 
 // TestOptions include test options.
 type TestOptions struct {
-	Domain     string        `toml:"domain"` // about Node.global.DNSClient.TestServers()
-	DNSOptions dns.Options   `toml:"dns"`
-	Timeout    time.Duration `toml:"timeout"` // Node running timeout
+	Domain  string        `toml:"domain"` // about Node.global.DNSClient.TestServers()
+	DNSOpts dns.Options   `toml:"dns"`
+	Timeout time.Duration `toml:"timeout"` // Node running timeout
 }
 
 // Run is used to create a Node with current configuration and run it to check error.
@@ -255,7 +255,7 @@ func (cfg *Config) DNSServers(
 		_, _ = fmt.Fprintf(output, format, tag, server.SkipTest, server.Method, server.Address)
 	}
 	// resolve domain name
-	result, err := node.global.DNSClient.TestServers(ctx, opts.Domain, &opts.DNSOptions)
+	result, err := node.global.DNSClient.TestServers(ctx, opts.Domain, &opts.DNSOpts)
 	if err != nil {
 		return buf.String(), err
 	}

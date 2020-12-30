@@ -114,9 +114,9 @@ type Config struct {
 
 // TestOptions include test options.
 type TestOptions struct {
-	Domain     string        `toml:"domain"` // about Beacon.global.DNSClient.TestServers()
-	DNSOptions dns.Options   `toml:"dns"`
-	Timeout    time.Duration `toml:"timeout"` // Beacon running timeout
+	Domain  string        `toml:"domain"` // about Beacon.global.DNSClient.TestServers()
+	DNSOpts dns.Options   `toml:"dns"`
+	Timeout time.Duration `toml:"timeout"` // Beacon running timeout
 }
 
 // Run is used to create a Beacon with current configuration and run it to check error.
@@ -243,7 +243,7 @@ func (cfg *Config) DNSServers(
 		_, _ = fmt.Fprintf(output, format, tag, server.SkipTest, server.Method, server.Address)
 	}
 	// resolve domain name
-	result, err := beacon.global.DNSClient.TestServers(ctx, opts.Domain, &opts.DNSOptions)
+	result, err := beacon.global.DNSClient.TestServers(ctx, opts.Domain, &opts.DNSOpts)
 	if err != nil {
 		return buf.String(), err
 	}
