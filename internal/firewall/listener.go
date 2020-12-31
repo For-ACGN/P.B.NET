@@ -96,9 +96,9 @@ type Listener struct {
 
 // ListenerOptions contains options about Listener.
 type ListenerOptions struct {
-	Mode            int `json:"mode"`
-	MaxConnsPerHost int `json:"max_conn_per_host"`
-	MaxConnsTotal   int `json:"max_conn_total"`
+	Mode            ListenerMode `json:"mode"`
+	MaxConnsPerHost int          `json:"max_conns_per_host"`
+	MaxConnsTotal   int          `json:"max_conns_total"`
 
 	// OnBlockedConn is used to let listener user handle blocked connection
 	// with another handler, for example: allowed connection will reach
@@ -112,20 +112,19 @@ func NewListener(listener net.Listener, opts *ListenerOptions) (*Listener, error
 	if opts == nil {
 		opts = new(ListenerOptions)
 	}
-	lm := ListenerMode(opts.Mode)
 	l := Listener{
 		listener:      listener,
-		mode:          lm,
+		mode:          opts.Mode,
 		onBlockedConn: opts.OnBlockedConn,
 	}
-	switch lm {
+	switch opts.Mode {
 	case ListenerModeDefault:
 	case ListenerModeAllow:
 		l.allowList = make(map[string]struct{}, 1)
 	case ListenerModeBlock:
 		l.blockList = make(map[string]struct{}, 1)
 	default:
-		return nil, errors.New(lm.String())
+		return nil, errors.New(opts.Mode.String())
 	}
 	if l.onBlockedConn == nil {
 		l.onBlockedConn = func(conn net.Conn) {
@@ -193,6 +192,7 @@ func (l *Listener) accept() (net.Conn, string, error) {
 	// check host is allowed
 	switch l.mode {
 	case ListenerModeDefault:
+		ok = true
 		return conn, host, nil
 	case ListenerModeAllow:
 		if l.isAllowedHost(host) {
