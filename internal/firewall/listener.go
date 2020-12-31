@@ -10,14 +10,14 @@ import (
 )
 
 const (
-	// ListenerModeDefault allow all connections, only use limit connections.
-	ListenerModeDefault ListenerMode = iota
+	// FilterModeDefault allow all connections, only use limit number.
+	FilterModeDefault FilterMode = iota
 
-	// ListenerModeAllow only allow connection with host in allow list.
-	ListenerModeAllow
+	// FilterModeAllow only allow connection with host in allow list.
+	FilterModeAllow
 
-	// ListenerModeBlock is block connection with host in block list.
-	ListenerModeBlock
+	// FilterModeBlock is block connection with host in block list.
+	FilterModeBlock
 )
 
 const (
@@ -25,19 +25,19 @@ const (
 	defaultMaxConnsTotal   = 10000
 )
 
-// ListenerMode is the firewall listener mode.
-type ListenerMode int
+// FilterMode is the firewall listener filter mode.
+type FilterMode int
 
-func (l ListenerMode) String() string {
-	switch l {
-	case ListenerModeDefault:
+func (fm FilterMode) String() string {
+	switch fm {
+	case FilterModeDefault:
 		return "default"
-	case ListenerModeAllow:
+	case FilterModeAllow:
 		return "allow"
-	case ListenerModeBlock:
+	case FilterModeBlock:
 		return "block"
 	default:
-		return fmt.Sprintf("invalid firewall listener mode: %d", l)
+		return fmt.Sprintf("invalid firewall listener filter mode: %d", fm)
 	}
 }
 
@@ -53,13 +53,9 @@ func (e *maxConnsError) Error() string {
 	return fmt.Sprintf("listener accepted too many connections about %s", e.host)
 }
 
-func (*maxConnsError) Timeout() bool {
-	return false
-}
+func (*maxConnsError) Timeout() bool { return false }
 
-func (*maxConnsError) Temporary() bool {
-	return true
-}
+func (*maxConnsError) Temporary() bool { return true }
 
 // Conn is the connection that Listener accepted.
 type Conn struct {
@@ -77,7 +73,7 @@ func (conn *Conn) Close() error {
 // Listener is used to limit host and the number of connections of each host.
 type Listener struct {
 	listener      net.Listener
-	mode          ListenerMode
+	filterMode    FilterMode
 	onBlockedConn func(conn net.Conn)
 
 	// key = host
@@ -96,9 +92,9 @@ type Listener struct {
 
 // ListenerOptions contains options about Listener.
 type ListenerOptions struct {
-	Mode            ListenerMode `json:"mode"`
-	MaxConnsPerHost int          `json:"max_conns_per_host"`
-	MaxConnsTotal   int          `json:"max_conns_total"`
+	FilterMode      FilterMode `json:"filter_mode"`
+	MaxConnsPerHost int        `json:"max_conns_per_host"`
+	MaxConnsTotal   int        `json:"max_conns_total"`
 
 	// OnBlockedConn is used to let listener user handle blocked connection
 	// with another handler, for example: allowed connection will reach
@@ -114,17 +110,17 @@ func NewListener(listener net.Listener, opts *ListenerOptions) (*Listener, error
 	}
 	l := Listener{
 		listener:      listener,
-		mode:          opts.Mode,
+		filterMode:    opts.FilterMode,
 		onBlockedConn: opts.OnBlockedConn,
 	}
-	switch opts.Mode {
-	case ListenerModeDefault:
-	case ListenerModeAllow:
+	switch opts.FilterMode {
+	case FilterModeDefault:
+	case FilterModeAllow:
 		l.allowList = make(map[string]struct{}, 1)
-	case ListenerModeBlock:
+	case FilterModeBlock:
 		l.blockList = make(map[string]struct{}, 1)
 	default:
-		return nil, errors.New(opts.Mode.String())
+		return nil, errors.New(opts.FilterMode.String())
 	}
 	if l.onBlockedConn == nil {
 		l.onBlockedConn = func(conn net.Conn) {
@@ -190,24 +186,24 @@ func (l *Listener) accept() (net.Conn, string, error) {
 		return nil, "", &maxConnsError{host: host}
 	}
 	// check host is allowed
-	switch l.mode {
-	case ListenerModeDefault:
+	switch l.filterMode {
+	case FilterModeDefault:
 		ok = true
 		return conn, host, nil
-	case ListenerModeAllow:
+	case FilterModeAllow:
 		if l.isAllowedHost(host) {
 			ok = true
 			return conn, host, nil
 		}
 		l.onBlockedConn(conn)
-	case ListenerModeBlock:
+	case FilterModeBlock:
 		if !l.isBlockedHost(host) {
 			ok = true
 			return conn, host, nil
 		}
 		l.onBlockedConn(conn)
 	default:
-		panic(fmt.Sprintf("firewall listener internal error: %s", l.mode))
+		panic(fmt.Sprintf("firewall listener internal error: %s", l.filterMode))
 	}
 	return nil, "", nil
 }
@@ -300,35 +296,35 @@ func (l *Listener) isBlockedHost(host string) bool {
 
 // IsAllowedHost is used to check this host is allowed.
 func (l *Listener) IsAllowedHost(host string) bool {
-	switch l.mode {
-	case ListenerModeDefault:
+	switch l.filterMode {
+	case FilterModeDefault:
 		return true
-	case ListenerModeAllow:
+	case FilterModeAllow:
 		return l.isAllowedHost(host)
-	case ListenerModeBlock:
+	case FilterModeBlock:
 		return !l.isBlockedHost(host)
 	default:
-		panic(fmt.Sprintf("firewall listener internal error: %s", l.mode))
+		panic(fmt.Sprintf("firewall listener internal error: %s", l.filterMode))
 	}
 }
 
 // IsBlockedHost is used to check this host is blocked.
 func (l *Listener) IsBlockedHost(host string) bool {
-	switch l.mode {
-	case ListenerModeDefault:
+	switch l.filterMode {
+	case FilterModeDefault:
 		return false
-	case ListenerModeAllow:
+	case FilterModeAllow:
 		return !l.isAllowedHost(host)
-	case ListenerModeBlock:
+	case FilterModeBlock:
 		return l.isBlockedHost(host)
 	default:
-		panic(fmt.Sprintf("firewall listener internal error: %s", l.mode))
+		panic(fmt.Sprintf("firewall listener internal error: %s", l.filterMode))
 	}
 }
 
 // AllowList is used to get allow host list.
 func (l *Listener) AllowList() []string {
-	if l.mode != ListenerModeAllow {
+	if l.filterMode != FilterModeAllow {
 		return nil
 	}
 	l.allowListRWM.RLock()
@@ -342,7 +338,7 @@ func (l *Listener) AllowList() []string {
 
 // BlockList is used to get block host list.
 func (l *Listener) BlockList() []string {
-	if l.mode != ListenerModeBlock {
+	if l.filterMode != FilterModeBlock {
 		return nil
 	}
 	l.blockListRWM.RLock()
@@ -356,7 +352,7 @@ func (l *Listener) BlockList() []string {
 
 // AddAllowedHost is used to add host to allow list.
 func (l *Listener) AddAllowedHost(host string) {
-	if l.mode != ListenerModeAllow {
+	if l.filterMode != FilterModeAllow {
 		return
 	}
 	l.allowListRWM.Lock()
@@ -366,7 +362,7 @@ func (l *Listener) AddAllowedHost(host string) {
 
 // AddBlockedHost is used to add host to block list.
 func (l *Listener) AddBlockedHost(host string) {
-	if l.mode != ListenerModeBlock {
+	if l.filterMode != FilterModeBlock {
 		return
 	}
 	l.blockListRWM.Lock()
@@ -382,7 +378,7 @@ func (l *Listener) AddBlockedHost(host string) {
 
 // DeleteAllowedHost is used to delete host from allow list.
 func (l *Listener) DeleteAllowedHost(host string) {
-	if l.mode != ListenerModeAllow {
+	if l.filterMode != FilterModeAllow {
 		return
 	}
 	l.allowListRWM.Lock()
@@ -392,7 +388,7 @@ func (l *Listener) DeleteAllowedHost(host string) {
 
 // DeleteBlockedHost is used to delete host from block list.
 func (l *Listener) DeleteBlockedHost(host string) {
-	if l.mode != ListenerModeBlock {
+	if l.filterMode != FilterModeBlock {
 		return
 	}
 	l.blockListRWM.Lock()
