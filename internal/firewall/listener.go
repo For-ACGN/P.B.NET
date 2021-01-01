@@ -396,6 +396,11 @@ func (l *Listener) DeleteBlockedHost(host string) {
 	delete(l.blockList, host)
 }
 
+// FilterMode is used to get the firewall listener filter mode.
+func (l *Listener) FilterMode() FilterMode {
+	return l.filterMode
+}
+
 // Addr is used to get the listener's network host.
 func (l *Listener) Addr() net.Addr {
 	return l.listener.Addr()

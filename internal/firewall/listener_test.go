@@ -220,3 +220,57 @@ func TestListener(t *testing.T) {
 		testsuite.IsDestroyed(t, listener)
 	})
 }
+
+func TestListener_Testsuite(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	t.Run("default mode", func(t *testing.T) {
+		rawListener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		listener, err := NewListener(rawListener, nil)
+		require.NoError(t, err)
+		addr := listener.Addr().String()
+
+		testsuite.ListenerAndDial(t, listener, func() (net.Conn, error) {
+			return net.Dial("tcp", addr)
+		}, true)
+	})
+
+	t.Run("allow mode", func(t *testing.T) {
+		rawListener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		opts := ListenerOptions{
+			FilterMode: FilterModeAllow,
+		}
+		listener, err := NewListener(rawListener, &opts)
+		require.NoError(t, err)
+		addr := listener.Addr().String()
+		listener.AddAllowedHost("127.0.0.1")
+
+		testsuite.ListenerAndDial(t, listener, func() (net.Conn, error) {
+			testDial(t, "127.0.0.2:0", addr)
+			testDial(t, "127.0.0.3:0", addr)
+			return net.Dial("tcp", addr)
+		}, true)
+	})
+
+	t.Run("block mode", func(t *testing.T) {
+		rawListener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		opts := ListenerOptions{
+			FilterMode: FilterModeBlock,
+		}
+		listener, err := NewListener(rawListener, &opts)
+		require.NoError(t, err)
+		addr := listener.Addr().String()
+		listener.AddBlockedHost("127.0.0.2")
+		listener.AddBlockedHost("127.0.0.3")
+
+		testsuite.ListenerAndDial(t, listener, func() (net.Conn, error) {
+			testDial(t, "127.0.0.2:0", addr)
+			testDial(t, "127.0.0.3:0", addr)
+			return net.Dial("tcp", addr)
+		}, true)
+	})
+}
