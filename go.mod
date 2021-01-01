@@ -18,12 +18,12 @@ require (
 	github.com/kardianos/service v1.2.0
 	github.com/looplab/fsm v0.2.0
 	github.com/lucas-clemente/quic-go v0.20.1
-	github.com/Microsoft/go-winio v0.4.16
+	github.com/Microsoft/go-winio v0.4.18
 	github.com/pelletier/go-toml v1.8.1
 	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/stretchr/testify v1.7.0
-	github.com/traefik/yaegi v0.9.16
+	github.com/traefik/yaegi v0.9.17
 	github.com/vmihailenco/msgpack/v5 v5.3.1
 	github.com/xtaci/kcp-go/v5 v5.6.1
 
