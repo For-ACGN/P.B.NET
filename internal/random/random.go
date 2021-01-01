@@ -181,6 +181,7 @@ const MaxSleepTime = 30 * time.Minute
 type Sleeper struct {
 	timer *time.Timer
 	rand  *Rand
+	once  sync.Once
 }
 
 // NewSleeper is used to create a sleeper.
@@ -221,7 +222,7 @@ func (s *Sleeper) calculateDuration(fixed, random uint) time.Duration {
 
 // Stop is used to stop timer in sleeper.
 func (s *Sleeper) Stop() {
-	s.timer.Stop()
+	s.once.Do(func() { s.timer.Stop() })
 }
 
 // SleepSecond is used to sleep random second.

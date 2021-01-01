@@ -358,8 +358,7 @@ func (l *mockListener) Addr() net.Addr {
 // NewMockListenerWithAcceptError is used to create a mock listener
 // that return a temporary error call Accept().
 func NewMockListenerWithAcceptError() net.Listener {
-	l := &mockListener{error: true}
-	return l
+	return &mockListener{error: true}
 }
 
 // IsMockListenerAcceptFatal is used to check err is errMockListenerAcceptFatal.
@@ -370,8 +369,7 @@ func IsMockListenerAcceptFatal(t testing.TB, err error) {
 // NewMockListenerWithAcceptPanic is used to create a mock listener
 // that panic when call Accept().
 func NewMockListenerWithAcceptPanic() net.Listener {
-	l := &mockListener{panic: true}
-	return l
+	return &mockListener{panic: true}
 }
 
 // IsMockListenerAcceptPanic is used to check err.Error()
