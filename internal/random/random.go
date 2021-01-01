@@ -173,10 +173,11 @@ func Uint64() uint64 {
 	return gRand.Uint64()
 }
 
-// MaxSleepTime is used to prevent sleep dead!
+// MaxSleepTime is used to prevent sleep dead.
 const MaxSleepTime = 30 * time.Minute
 
 // Sleeper contain a timer and rand for reuse.
+// Sleep total time = fixed + [0, random)
 type Sleeper struct {
 	timer *time.Timer
 	rand  *Rand
@@ -186,14 +187,16 @@ type Sleeper struct {
 func NewSleeper() *Sleeper {
 	timer := time.NewTimer(time.Minute)
 	timer.Stop()
-	return &Sleeper{
-		timer: timer,
-		rand:  NewRand(),
-	}
+	return &Sleeper{timer: timer, rand: NewRand()}
 }
 
-// Sleep is used to sleep with fixed + random time.
-func (s *Sleeper) Sleep(fixed, random uint) <-chan time.Time {
+// SleepSecond is used to sleep random second.
+func (s *Sleeper) SleepSecond(fixed, random uint) <-chan time.Time {
+	return s.SleepMillisecond(fixed*1000, random*1000)
+}
+
+// SleepMillisecond is used to sleep random millisecond.
+func (s *Sleeper) SleepMillisecond(fixed, random uint) <-chan time.Time {
 	d := s.calculateDuration(fixed, random)
 	s.timer.Reset(d)
 	select {
@@ -204,14 +207,12 @@ func (s *Sleeper) Sleep(fixed, random uint) <-chan time.Time {
 }
 
 // calculateDuration is used to calculate actual duration.
-// fixed <= time < fixed + random
-// all time is fixed time + random time
 func (s *Sleeper) calculateDuration(fixed, random uint) time.Duration {
 	if fixed+random < 1 {
-		fixed = 1
+		fixed = 1000
 	}
 	random = uint(s.rand.Int(int(random)))
-	total := time.Duration(fixed+random) * time.Second
+	total := time.Duration(fixed+random) * time.Millisecond
 	if total > MaxSleepTime {
 		total = MaxSleepTime
 	}
@@ -223,12 +224,23 @@ func (s *Sleeper) Stop() {
 	s.timer.Stop()
 }
 
-// Sleep is used to sleep a random time.
+// SleepSecond is used to sleep random second.
 //
-// done, sleeper := random.Sleep(1, 1)
+// done, sleeper := random.SleepSecond(1, 1)
 // defer sleeper.Stop()
-// <-done
-func Sleep(fixed, random uint) (<-chan time.Time, *Sleeper) {
+// select {
+// case <-done:
+// case <-ctx.Done():
+//     return ctx.Err()
+// }
+// ...
+func SleepSecond(fixed, random uint) (<-chan time.Time, *Sleeper) {
 	sleeper := NewSleeper()
-	return sleeper.Sleep(fixed, random), sleeper
+	return sleeper.SleepSecond(fixed, random), sleeper
+}
+
+// SleepMillisecond is used to sleep random millisecond.
+func SleepMillisecond(fixed, random uint) (<-chan time.Time, *Sleeper) {
+	sleeper := NewSleeper()
+	return sleeper.SleepMillisecond(fixed, random), sleeper
 }

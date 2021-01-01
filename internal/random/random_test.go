@@ -93,30 +93,60 @@ func TestRandomEqual(t *testing.T) {
 }
 
 func TestSleeper(t *testing.T) {
-	t.Run("common", func(t *testing.T) {
-		done, sleeper := Sleep(1, 2)
+	t.Run("SleepSecond", func(t *testing.T) {
+		now := time.Now()
+
+		done, sleeper := SleepSecond(2, 2)
 		defer sleeper.Stop()
 		<-done
+
+		// maybe CPU is full
+		d := time.Since(now)
+
+		require.True(t, d > 2*time.Second)
+		require.True(t, d < 5*time.Second)
+	})
+
+	t.Run("SleepMillisecond", func(t *testing.T) {
+		now := time.Now()
+
+		done, sleeper := SleepMillisecond(100, 200)
+		defer sleeper.Stop()
+		<-done
+
+		// maybe CPU is full
+		d := time.Since(now)
+
+		require.True(t, d > 100*time.Millisecond)
+		require.True(t, d < 500*time.Millisecond)
 	})
 
 	t.Run("zero", func(t *testing.T) {
-		done, sleeper := Sleep(0, 0)
+		now := time.Now()
+
+		done, sleeper := SleepSecond(0, 0)
 		defer sleeper.Stop()
 		<-done
+
+		// maybe CPU is full
+		d := time.Since(now)
+
+		require.True(t, d > 1*time.Second)
+		require.True(t, d < 2*time.Second)
 	})
 
 	t.Run("not read", func(t *testing.T) {
 		sleeper := NewSleeper()
 
-		sleeper.Sleep(0, 0)
+		sleeper.SleepSecond(0, 0)
 		time.Sleep(time.Second + 100*time.Millisecond)
-		sleeper.Sleep(0, 0)
+		sleeper.SleepSecond(0, 0)
 	})
 
 	t.Run("max duration", func(t *testing.T) {
 		sleeper := NewSleeper()
 
-		d := sleeper.calculateDuration(3600, 3600)
+		d := sleeper.calculateDuration(3600*1000, 3600*1000)
 		require.Equal(t, MaxSleepTime, d)
 	})
 }
