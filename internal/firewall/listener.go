@@ -186,25 +186,23 @@ func (l *Listener) accept() (net.Conn, string, error) {
 		return nil, "", &maxConnsError{host: host}
 	}
 	// check host is allowed
+	ok = true
 	switch l.filterMode {
 	case FilterModeDefault:
-		ok = true
 		return conn, host, nil
 	case FilterModeAllow:
 		if l.isAllowedHost(host) {
-			ok = true
 			return conn, host, nil
 		}
-		l.onBlockedConn(conn)
 	case FilterModeBlock:
 		if !l.isBlockedHost(host) {
-			ok = true
 			return conn, host, nil
 		}
-		l.onBlockedConn(conn)
 	default:
+		ok = false
 		panic(fmt.Sprintf("firewall listener internal error: %s", l.filterMode))
 	}
+	l.onBlockedConn(conn)
 	return nil, "", nil
 }
 
@@ -237,6 +235,10 @@ func (l *Listener) GetMaxConnsTotal() int {
 func (l *Listener) SetMaxConnsPerHost(v int) {
 	if v < 1 {
 		v = defaultMaxConnsPerHost
+	}
+	n := l.GetMaxConnsTotal()
+	if v > n {
+		v = n
 	}
 	l.maxConnsPerHost.Store(v)
 }

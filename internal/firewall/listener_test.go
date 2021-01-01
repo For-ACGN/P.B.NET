@@ -32,6 +32,7 @@ func TestListener(t *testing.T) {
 		}
 		listener, err := NewListener(rawListener, &opts)
 		require.NoError(t, err)
+		t.Log(listener.FilterMode())
 		addr := listener.Addr().String()
 
 		go func() {
@@ -44,6 +45,9 @@ func TestListener(t *testing.T) {
 			require.Error(t, err)
 			t.Log(err)
 			require.Nil(t, conn3)
+
+			conns := listener.GetConns()
+			require.Len(t, conns, 2)
 
 			err = conn1.Close()
 			require.NoError(t, err)
@@ -85,6 +89,7 @@ func TestListener(t *testing.T) {
 		}
 		listener, err := NewListener(rawListener, &opts)
 		require.NoError(t, err)
+		t.Log(listener.FilterMode())
 		addr := listener.Addr().String()
 
 		go func() {
@@ -97,6 +102,9 @@ func TestListener(t *testing.T) {
 			require.Error(t, err)
 			t.Log(err)
 			require.Nil(t, conn3)
+
+			conns := listener.GetConns()
+			require.Len(t, conns, 2)
 
 			err = conn1.Close()
 			require.NoError(t, err)
@@ -140,12 +148,16 @@ func TestListener(t *testing.T) {
 		}
 		listener, err := NewListener(rawListener, &opts)
 		require.NoError(t, err)
+		t.Log(listener.FilterMode())
 		addr := listener.Addr().String()
 		listener.AddAllowedHost("127.0.0.1")
 
 		go func() {
 			conn1, err := listener.Accept()
 			require.NoError(t, err)
+
+			conns := listener.GetConns()
+			require.Len(t, conns, 1)
 
 			err = conn1.Close()
 			require.NoError(t, err)
@@ -184,12 +196,16 @@ func TestListener(t *testing.T) {
 		}
 		listener, err := NewListener(rawListener, &opts)
 		require.NoError(t, err)
+		t.Log(listener.FilterMode())
 		addr := listener.Addr().String()
 		listener.AddBlockedHost("127.0.0.2")
 
 		go func() {
 			conn1, err := listener.Accept()
 			require.NoError(t, err)
+
+			conns := listener.GetConns()
+			require.Len(t, conns, 1)
 
 			err = conn1.Close()
 			require.NoError(t, err)
@@ -273,4 +289,105 @@ func TestListener_Testsuite(t *testing.T) {
 			return net.Dial("tcp", addr)
 		}, true)
 	})
+}
+
+func TestListener_SetMaxConns(t *testing.T) {
+	rawListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	listener, err := NewListener(rawListener, nil)
+	require.NoError(t, err)
+
+	n := listener.GetMaxConnsPerHost()
+	require.Equal(t, defaultMaxConnsPerHost, n)
+	n = listener.GetMaxConnsTotal()
+	require.Equal(t, defaultMaxConnsTotal, n)
+
+	listener.SetMaxConnsPerHost(1000000)
+	n = listener.GetMaxConnsPerHost()
+	require.Equal(t, defaultMaxConnsTotal, n)
+
+	listener.SetMaxConnsPerHost(0)
+	n = listener.GetMaxConnsPerHost()
+	require.Equal(t, defaultMaxConnsPerHost, n)
+
+	listener.SetMaxConnsTotal(0)
+	n = listener.GetMaxConnsTotal()
+	require.Equal(t, defaultMaxConnsTotal, n)
+
+	err = listener.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, listener)
+}
+
+func TestListener_AllowHost(t *testing.T) {
+	const host = "127.0.0.1"
+
+	rawListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	opts := ListenerOptions{
+		FilterMode: FilterModeAllow,
+	}
+	listener, err := NewListener(rawListener, &opts)
+	require.NoError(t, err)
+
+	listener.AddAllowedHost(host)
+	listener.AddBlockedHost(host)
+
+	list := listener.AllowList()
+	require.Equal(t, []string{host}, list)
+	list = listener.BlockList()
+	require.Zero(t, list)
+
+	allowed := listener.IsAllowedHost(host)
+	require.True(t, allowed)
+	blocked := listener.IsBlockedHost(host)
+	require.False(t, blocked)
+
+	listener.DeleteAllowedHost(host)
+	listener.DeleteBlockedHost(host)
+
+	list = listener.AllowList()
+	require.Empty(t, list)
+
+	err = listener.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, listener)
+}
+
+func TestListener_BlockHost(t *testing.T) {
+	const host = "127.0.0.1"
+
+	rawListener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	opts := ListenerOptions{
+		FilterMode: FilterModeBlock,
+	}
+	listener, err := NewListener(rawListener, &opts)
+	require.NoError(t, err)
+
+	listener.AddAllowedHost(host)
+	listener.AddBlockedHost(host)
+
+	list := listener.AllowList()
+	require.Zero(t, list)
+	list = listener.BlockList()
+	require.Equal(t, []string{host}, list)
+
+	allowed := listener.IsAllowedHost(host)
+	require.False(t, allowed)
+	blocked := listener.IsBlockedHost(host)
+	require.True(t, blocked)
+
+	listener.DeleteAllowedHost(host)
+	listener.DeleteBlockedHost(host)
+
+	list = listener.BlockList()
+	require.Empty(t, list)
+
+	err = listener.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, listener)
 }
