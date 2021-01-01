@@ -500,15 +500,16 @@ func init_project_internal_patch_toml() {
 func init_project_internal_random() {
 	Symbols["project/internal/random"] = map[string]reflect.Value{
 		// function, constant and variable definitions
-		"Bytes":        reflect.ValueOf(random.Bytes),
-		"Int":          reflect.ValueOf(random.Int),
-		"Int64":        reflect.ValueOf(random.Int64),
-		"MaxSleepTime": reflect.ValueOf(random.MaxSleepTime),
-		"NewRand":      reflect.ValueOf(random.NewRand),
-		"NewSleeper":   reflect.ValueOf(random.NewSleeper),
-		"Sleep":        reflect.ValueOf(random.Sleep),
-		"String":       reflect.ValueOf(random.String),
-		"Uint64":       reflect.ValueOf(random.Uint64),
+		"Bytes":            reflect.ValueOf(random.Bytes),
+		"Int":              reflect.ValueOf(random.Int),
+		"Int64":            reflect.ValueOf(random.Int64),
+		"MaxSleepTime":     reflect.ValueOf(random.MaxSleepTime),
+		"NewRand":          reflect.ValueOf(random.NewRand),
+		"NewSleeper":       reflect.ValueOf(random.NewSleeper),
+		"SleepMillisecond": reflect.ValueOf(random.SleepMillisecond),
+		"SleepSecond":      reflect.ValueOf(random.SleepSecond),
+		"String":           reflect.ValueOf(random.String),
+		"Uint64":           reflect.ValueOf(random.Uint64),
 
 		// type definitions
 		"Rand":    reflect.ValueOf((*random.Rand)(nil)),

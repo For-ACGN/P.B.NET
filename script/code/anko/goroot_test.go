@@ -251,7 +251,7 @@ func init() {
 
 	// print and save code
 	fmt.Println(src)
-	const path = "../../../internal/anko/goroot/bundle.go"
+	const path = "../../../internal/interpreter/anko/goroot/bundle.go"
 	err = system.WriteFile(path, []byte(src))
 	require.NoError(t, err)
 }

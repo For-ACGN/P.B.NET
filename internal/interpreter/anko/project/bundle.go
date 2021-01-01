@@ -80,6 +80,7 @@ func initInternalCert() {
 		"ErrInvalidPEMBlock": reflect.ValueOf(cert.ErrInvalidPEMBlock),
 
 		// define functions
+		"Fprint":                 reflect.ValueOf(cert.Fprint),
 		"Generate":               reflect.ValueOf(cert.Generate),
 		"GenerateCA":             reflect.ValueOf(cert.GenerateCA),
 		"Match":                  reflect.ValueOf(cert.Match),
@@ -428,7 +429,10 @@ func initInternalNamer() {
 		// define variables
 
 		// define functions
+		"Load":       reflect.ValueOf(namer.Load),
 		"NewEnglish": reflect.ValueOf(namer.NewEnglish),
+		"Register":   reflect.ValueOf(namer.Register),
+		"Unregister": reflect.ValueOf(namer.Unregister),
 	}
 	var (
 		english namer.English
@@ -676,14 +680,15 @@ func initInternalRandom() {
 		// define variables
 
 		// define functions
-		"Bytes":      reflect.ValueOf(random.Bytes),
-		"Int":        reflect.ValueOf(random.Int),
-		"Int64":      reflect.ValueOf(random.Int64),
-		"NewRand":    reflect.ValueOf(random.NewRand),
-		"NewSleeper": reflect.ValueOf(random.NewSleeper),
-		"Sleep":      reflect.ValueOf(random.Sleep),
-		"String":     reflect.ValueOf(random.String),
-		"Uint64":     reflect.ValueOf(random.Uint64),
+		"Bytes":            reflect.ValueOf(random.Bytes),
+		"Int":              reflect.ValueOf(random.Int),
+		"Int64":            reflect.ValueOf(random.Int64),
+		"NewRand":          reflect.ValueOf(random.NewRand),
+		"NewSleeper":       reflect.ValueOf(random.NewSleeper),
+		"SleepMillisecond": reflect.ValueOf(random.SleepMillisecond),
+		"SleepSecond":      reflect.ValueOf(random.SleepSecond),
+		"String":           reflect.ValueOf(random.String),
+		"Uint64":           reflect.ValueOf(random.Uint64),
 	}
 	var (
 		r       random.Rand
@@ -794,11 +799,14 @@ func initInternalXPanic() {
 
 		// define functions
 		"Error":           reflect.ValueOf(xpanic.Error),
+		"Errorf":          reflect.ValueOf(xpanic.Errorf),
 		"Log":             reflect.ValueOf(xpanic.Log),
+		"Logf":            reflect.ValueOf(xpanic.Logf),
 		"Print":           reflect.ValueOf(xpanic.Print),
 		"PrintPanic":      reflect.ValueOf(xpanic.PrintPanic),
 		"PrintStack":      reflect.ValueOf(xpanic.PrintStack),
 		"PrintStackTrace": reflect.ValueOf(xpanic.PrintStackTrace),
+		"Printf":          reflect.ValueOf(xpanic.Printf),
 	}
 	var ()
 	env.PackageTypes["project/internal/xpanic"] = map[string]reflect.Type{}

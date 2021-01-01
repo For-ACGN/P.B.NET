@@ -113,7 +113,7 @@ func init() {
 
 	// print and save code
 	fmt.Println(src)
-	const path = "../../../internal/anko/project/bundle.go"
+	const path = "../../../internal/interpreter/anko/project/bundle.go"
 	err = system.WriteFile(path, []byte(src))
 	require.NoError(t, err)
 }
@@ -177,7 +177,7 @@ func init() {
 
 	// print and save code
 	fmt.Println(src)
-	const path = "../../../internal/anko/project/windows.go"
+	const path = "../../../internal/interpreter/anko/project/windows.go"
 	err = system.WriteFile(path, []byte(src))
 	require.NoError(t, err)
 }
