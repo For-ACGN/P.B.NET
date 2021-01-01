@@ -20,9 +20,9 @@ func (cla *channelListenerAddr) String() string {
 	return cla.str
 }
 
-// ChannelListener is a special listener that accept connection
-// from a net.Conn channel, use SendConn to add connection and
-// wait ChannelListener call Accept.
+// ChannelListener is a special listener that accept connection from
+// a net.Conn channel, use SendConn to add connection and wait it
+// call Accept. It can assist firewall ListenerOptions.OnBlockedConn.
 type ChannelListener struct {
 	connCh chan net.Conn
 	addr   net.Addr
@@ -32,11 +32,12 @@ type ChannelListener struct {
 
 // NewChannelListener is used to create a channel listener.
 func NewChannelListener() *ChannelListener {
+	ch := make(chan net.Conn, 16)
 	cl := ChannelListener{
-		connCh: make(chan net.Conn, 16),
-	}
-	cl.addr = &channelListenerAddr{
-		str: fmt.Sprintf("channel listener pointer: 0x%X", &cl.connCh),
+		connCh: ch,
+		addr: &channelListenerAddr{
+			str: fmt.Sprintf("channel listener pointer: 0x%X", &ch),
+		},
 	}
 	cl.ctx, cl.cancel = context.WithCancel(context.Background())
 	return &cl
@@ -54,10 +55,10 @@ func (cl *ChannelListener) SendConn(conn net.Conn) {
 func (cl *ChannelListener) Accept() (net.Conn, error) {
 	select {
 	case conn := <-cl.connCh:
-		if conn != nil {
-			return conn, nil
+		if conn == nil {
+			return nil, errors.New("accept nil net.Conn")
 		}
-		return nil, errors.New("accept nil net.Conn")
+		return conn, nil
 	case <-cl.ctx.Done():
 		return nil, cl.ctx.Err()
 	}
