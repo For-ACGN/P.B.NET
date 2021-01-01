@@ -177,7 +177,7 @@ func Uint64() uint64 {
 const MaxSleepTime = 30 * time.Minute
 
 // Sleeper contain a timer and rand for reuse.
-// Sleep total time = fixed + [0, random)
+// sleep total time = fixed + [0, random)
 type Sleeper struct {
 	timer *time.Timer
 	rand  *Rand
@@ -225,8 +225,6 @@ func (s *Sleeper) Stop() {
 	s.once.Do(func() { s.timer.Stop() })
 }
 
-// SleepSecond is used to sleep random second.
-//
 // done, sleeper := random.SleepSecond(1, 1)
 // defer sleeper.Stop()
 // select {
@@ -235,6 +233,8 @@ func (s *Sleeper) Stop() {
 //     return ctx.Err()
 // }
 // ...
+
+// SleepSecond is used to sleep random second.
 func SleepSecond(fixed, random uint) (<-chan time.Time, *Sleeper) {
 	sleeper := NewSleeper()
 	return sleeper.SleepSecond(fixed, random), sleeper
@@ -244,4 +244,16 @@ func SleepSecond(fixed, random uint) (<-chan time.Time, *Sleeper) {
 func SleepMillisecond(fixed, random uint) (<-chan time.Time, *Sleeper) {
 	sleeper := NewSleeper()
 	return sleeper.SleepMillisecond(fixed, random), sleeper
+}
+
+// Sleep is used to sleep random second, it will not longer than 3 minutes.
+func Sleep(fixed, random uint) {
+	done, sleeper := SleepSecond(fixed, random)
+	defer sleeper.Stop()
+	timer := time.NewTimer(3 * time.Minute)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
 }

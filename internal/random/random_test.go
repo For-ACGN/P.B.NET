@@ -151,6 +151,41 @@ func TestSleeper(t *testing.T) {
 	})
 }
 
+func TestSleep(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
+		now := time.Now()
+
+		Sleep(2, 2)
+
+		// maybe CPU is full
+		d := time.Since(now)
+
+		require.True(t, d > 2*time.Second)
+		require.True(t, d < 5*time.Second)
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		var pg *monkey.PatchGuard
+		patch := func(time.Duration) *time.Timer {
+			pg.Unpatch()
+			defer pg.Restore()
+			return time.NewTimer(2 * time.Second)
+		}
+		pg = monkey.Patch(time.NewTimer, patch)
+		defer pg.Unpatch()
+
+		now := time.Now()
+
+		Sleep(100, 100)
+
+		// maybe CPU is full
+		d := time.Since(now)
+
+		require.True(t, d > 2*time.Second)
+		require.True(t, d < 5*time.Second)
+	})
+}
+
 func BenchmarkNew(b *testing.B) {
 	b.ReportAllocs()
 
