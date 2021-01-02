@@ -7,7 +7,6 @@ import (
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
 
-	"project/internal/interpreter/yaegi/compiler"
 	"project/internal/interpreter/yaegi/goroot/unsafe"
 )
 
@@ -79,6 +78,6 @@ func main(){
 	fmt.Println(unsafe.Offsetof(at{}.BB))
 }
 `
-	_, err := i.Eval(compiler.ProcessUnsafeOffsetof(src))
+	_, err := i.Eval(ProcessUnsafeOffsetof(src))
 	require.NoError(t, err)
 }
