@@ -4,12 +4,18 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"project/internal/system"
 )
 
 func exportDeclaration(root, path, dir, init string) (string, error) {
@@ -218,4 +224,12 @@ func init%s() {
 	vpStr := vpBuf.String()
 	ts := buf.String()
 	return fmt.Sprintf(template, init, path, cs, vs, fs, vpStr, path, ts)
+}
+
+func formatCodeAndSave(t *testing.T, code, path string) {
+	data, err := format.Source([]byte(code))
+	require.NoError(t, err)
+	fmt.Println(string(data))
+	err = system.WriteFile(path, data)
+	require.NoError(t, err)
 }

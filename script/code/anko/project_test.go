@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"project/internal/system"
 )
 
 func TestExportProject(t *testing.T) {
@@ -111,11 +109,8 @@ func init() {
 		src = strings.ReplaceAll(src, item.old, item.new)
 	}
 
-	// print and save code
-	fmt.Println(src)
 	const path = "../../../internal/interpreter/anko/project/bundle.go"
-	err = system.WriteFile(path, []byte(src))
-	require.NoError(t, err)
+	formatCodeAndSave(t, src, path)
 }
 
 func TestExportProject_Windows(t *testing.T) {
@@ -175,9 +170,6 @@ func init() {
 		src = strings.ReplaceAll(src, item.old, item.new)
 	}
 
-	// print and save code
-	fmt.Println(src)
 	const path = "../../../internal/interpreter/anko/project/windows.go"
-	err = system.WriteFile(path, []byte(src))
-	require.NoError(t, err)
+	formatCodeAndSave(t, src, path)
 }

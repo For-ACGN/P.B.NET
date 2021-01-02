@@ -9,8 +9,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"project/internal/system"
-
 	"project/script/internal/config"
 )
 
@@ -249,9 +247,6 @@ func init() {
 		src = strings.ReplaceAll(src, item.old, item.new)
 	}
 
-	// print and save code
-	fmt.Println(src)
 	const path = "../../../internal/interpreter/anko/goroot/bundle.go"
-	err = system.WriteFile(path, []byte(src))
-	require.NoError(t, err)
+	formatCodeAndSave(t, src, path)
 }

@@ -8,8 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"project/internal/system"
-
 	"project/script/internal/config"
 )
 
@@ -96,11 +94,8 @@ func init() {
 		src = strings.ReplaceAll(src, item, "")
 	}
 
-	// print and save code
-	fmt.Println(src)
 	const path = "../../../internal/interpreter/anko/thirdparty/bundle.go"
-	err = system.WriteFile(path, []byte(src))
-	require.NoError(t, err)
+	formatCodeAndSave(t, src, path)
 }
 
 func TestExportThirdParty_Windows(t *testing.T) {
@@ -186,9 +181,6 @@ func init() {
 	// 	src = strings.ReplaceAll(src, item, "")
 	// }
 
-	// print and save code
-	fmt.Println(src)
 	const path = "../../../internal/interpreter/anko/thirdparty/windows.go"
-	err = system.WriteFile(path, []byte(src))
-	require.NoError(t, err)
+	formatCodeAndSave(t, src, path)
 }
