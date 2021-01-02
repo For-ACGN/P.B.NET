@@ -98,7 +98,7 @@ func (client *Client) sendCred(sleeper *random.Sleeper, cred *Credential) {
 			break
 		}
 		select {
-		case <-sleeper.Sleep(5, 15):
+		case <-sleeper.SleepSecond(5, 15):
 		case <-client.ctx.Done():
 			return
 		}

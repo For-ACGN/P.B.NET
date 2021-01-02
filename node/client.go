@@ -254,7 +254,7 @@ func (client *Client) sendHeartbeatLoop() {
 	defer sleeper.Stop()
 	for {
 		select {
-		case <-sleeper.Sleep(30, 60):
+		case <-sleeper.SleepSecond(30, 60):
 			// <security> fake traffic like client
 			fakeSize := 64 + client.rand.Int(256)
 			// size(4 Bytes) + heartbeat(1 byte) + fake data
@@ -272,7 +272,7 @@ func (client *Client) sendHeartbeatLoop() {
 			// receive reply
 			select {
 			case <-client.heartbeat:
-			case <-sleeper.Sleep(30, 60):
+			case <-sleeper.SleepSecond(30, 60):
 				client.Conn.Log(logger.Warning, "receive heartbeat timeout")
 				_ = client.Conn.Close()
 				return

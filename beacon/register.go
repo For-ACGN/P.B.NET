@@ -26,7 +26,7 @@ import (
 type register struct {
 	ctx *Beacon
 
-	// about random.Sleep() in Register()
+	// about Sleeper.SleepSecond() in Register()
 	sleepFixed  uint
 	sleepRandom uint
 
@@ -213,7 +213,7 @@ func (register *register) Register() error {
 		}
 		register.log(logger.Error, err)
 		select {
-		case <-sleeper.Sleep(register.sleepFixed, register.sleepRandom):
+		case <-sleeper.SleepSecond(register.sleepFixed, register.sleepRandom):
 		case <-register.context.Done():
 			return register.context.Err()
 		}
@@ -233,7 +233,7 @@ func (register *register) Register() error {
 			register.log(logger.Error, err)
 			if i != 2 {
 				select {
-				case <-sleeper.Sleep(register.sleepFixed, register.sleepRandom):
+				case <-sleeper.SleepSecond(register.sleepFixed, register.sleepRandom):
 				case <-register.context.Done():
 					return register.context.Err()
 				}

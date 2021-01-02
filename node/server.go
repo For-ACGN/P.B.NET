@@ -790,7 +790,7 @@ func (srv *server) registerNode(conn *xnet.Conn, guid *guid.GUID) {
 		_ = conn.Send(response.NodeListeners)
 	case messages.RegisterResultRefused:
 		srv.fakeTimeout(begin, conn)
-		// TODO add IP black list only register(other role still pass)
+		// TODO add IP block list only register(other role still pass)
 		// and <firewall> rate limit
 	default:
 		const format = "unknown node register result: %d"
@@ -959,7 +959,7 @@ func (srv *server) registerBeacon(conn *xnet.Conn, guid *guid.GUID) {
 		_ = conn.Send(response.NodeListeners)
 	case messages.RegisterResultRefused:
 		srv.fakeTimeout(begin, conn)
-		// TODO add IP black list only register(other role still pass)
+		// TODO add IP block list only register(other role still pass)
 		// and <firewall> rate limit
 	default:
 		const format = "unknown beacon register result: %d"

@@ -32,7 +32,7 @@ type driver struct {
 	nodeListenersIndex uint64
 	nodeListenersRWM   sync.RWMutex
 
-	// about Sleeper.Sleep() in query
+	// about Sleeper.SleepSecond() in query
 	sleepFixed  atomic.Value
 	sleepRandom atomic.Value
 
@@ -294,7 +294,7 @@ func (driver *driver) clientWatcher() {
 	defer sleeper.Stop()
 	for {
 		select {
-		case <-sleeper.Sleep(5, 10):
+		case <-sleeper.SleepSecond(5, 10):
 			driver.watchClient()
 		case <-driver.context.Done():
 			return
@@ -346,7 +346,7 @@ func (driver *driver) queryLoop() {
 		sleepFixed := driver.sleepFixed.Load().(uint)
 		sleepRandom := driver.sleepRandom.Load().(uint)
 		select {
-		case <-sleeper.Sleep(sleepFixed, sleepRandom):
+		case <-sleeper.SleepSecond(sleepFixed, sleepRandom):
 			driver.query()
 		case <-driver.context.Done():
 			return

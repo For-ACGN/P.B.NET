@@ -330,7 +330,7 @@ func TestSlaver_serve(t *testing.T) {
 		patch := func(interface{}, uint, uint) <-chan time.Time {
 			return time.After(500 * time.Millisecond)
 		}
-		pg := monkey.PatchInstanceMethod(sleeper, "Sleep", patch)
+		pg := monkey.PatchInstanceMethod(sleeper, "SleepSecond", patch)
 		defer pg.Unpatch()
 
 		err := slaver.Start()
@@ -362,7 +362,7 @@ func TestSlaver_serve(t *testing.T) {
 		patch1 := func(interface{}, uint, uint) <-chan time.Time {
 			return time.After(500 * time.Millisecond)
 		}
-		pg1 := monkey.PatchInstanceMethod(sleeper, "Sleep", patch1)
+		pg1 := monkey.PatchInstanceMethod(sleeper, "SleepSecond", patch1)
 		defer pg1.Unpatch()
 
 		dialer := new(net.Dialer)

@@ -1095,16 +1095,12 @@ func TestSyncer_Parallel(t *testing.T) {
 				require.Equal(t, interval, i)
 			}
 			now1 := func() {
-				done, sleeper := random.Sleep(2, 5)
-				defer sleeper.Stop()
-				<-done
+				random.Sleep(2, 5)
 
 				t.Log("now1:", syncer.Now())
 			}
 			now2 := func() {
-				done, sleeper := random.Sleep(2, 5)
-				defer sleeper.Stop()
-				<-done
+				random.Sleep(2, 5)
 
 				t.Log("now2:", syncer.Now())
 			}
@@ -1113,9 +1109,7 @@ func TestSyncer_Parallel(t *testing.T) {
 				_ = syncer.Synchronize()
 			}
 			stop := func() {
-				done, sleeper := random.Sleep(2, 5)
-				defer sleeper.Stop()
-				<-done
+				random.Sleep(2, 5)
 
 				syncer.Stop()
 			}
@@ -1189,16 +1183,12 @@ func TestSyncer_Parallel(t *testing.T) {
 				require.Equal(t, interval, i)
 			}
 			now1 := func() {
-				done, sleeper := random.Sleep(2, 5)
-				defer sleeper.Stop()
-				<-done
+				random.Sleep(2, 5)
 
 				t.Log("now1:", syncer.Now())
 			}
 			now2 := func() {
-				done, sleeper := random.Sleep(2, 5)
-				defer sleeper.Stop()
-				<-done
+				random.Sleep(2, 5)
 
 				t.Log("now2:", syncer.Now())
 			}
@@ -1207,9 +1197,7 @@ func TestSyncer_Parallel(t *testing.T) {
 				require.NoError(t, err)
 			}
 			stop := func() {
-				done, sleeper := random.Sleep(2, 5)
-				defer sleeper.Stop()
-				<-done
+				random.Sleep(2, 5)
 
 				syncer.Stop()
 			}

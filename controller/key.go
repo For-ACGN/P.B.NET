@@ -28,9 +28,9 @@ import (
 //
 // use flate to compress(random + ed25519 key + random + broadcast key + random)
 //
-// Session key is the Private Key + Broadcast Key
-// Private Key = ed25519 Private Key(64 Bytes)
-// Broadcast Key = AES Key(256 Bit) + AES IV (32 Bytes + 16 Bytes, AES CBC)
+// Session key:   Private Key + Broadcast Key
+// Private Key:   ed25519 Private Key(64 Bytes)
+// Broadcast Key: AES Key(256 Bit) + AES IV (32 Bytes + 16 Bytes, AES CBC)
 
 // SessionKeyFilePath is the session key file path.
 const SessionKeyFilePath = "key/session.key"

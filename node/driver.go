@@ -67,7 +67,7 @@ func (driver *driver) clientWatcher() {
 	defer sleeper.Stop()
 	for {
 		select {
-		case <-sleeper.Sleep(5, 10):
+		case <-sleeper.SleepSecond(5, 10):
 			driver.watchClient()
 		case <-driver.context.Done():
 			return

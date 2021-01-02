@@ -272,7 +272,7 @@ func (s *Slaver) serve() {
 				s.online = false
 			}
 			select {
-			case <-sleeper.Sleep(1, 3):
+			case <-sleeper.SleepSecond(1, 3):
 			case <-s.ctx.Done():
 				return
 			}
@@ -288,7 +288,7 @@ func (s *Slaver) serve() {
 				s.online = false
 			}
 			select {
-			case <-sleeper.Sleep(1, 10):
+			case <-sleeper.SleepSecond(1, 10):
 			case <-s.ctx.Done():
 				return
 			}

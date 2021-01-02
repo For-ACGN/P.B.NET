@@ -56,7 +56,7 @@ type Syncer struct {
 	dnsClient *dns.Client
 	logger    logger.Logger
 
-	// about Sleeper.Sleep() in Start()
+	// about Sleeper.SleepSecond() in Start()
 	sleepFixed  uint
 	sleepRandom uint
 
@@ -217,7 +217,7 @@ func (syncer *Syncer) Start() error {
 			syncer.dnsClient.FlushCache()
 			syncer.log(logger.Warning, ErrAllClientsFailed)
 			select {
-			case <-sleeper.Sleep(syncer.sleepFixed, syncer.sleepFixed):
+			case <-sleeper.SleepSecond(syncer.sleepFixed, syncer.sleepFixed):
 			case <-syncer.ctx.Done():
 				return syncer.ctx.Err()
 			}
