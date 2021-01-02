@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"runtime"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -217,55 +218,58 @@ func AbsInt64(n int64) int64 {
 	return (n ^ y) - y
 }
 
-// unit about storage
+// storage unit
 const (
 	Byte uint64 = 1
-	KB          = Byte * 1024
-	MB          = KB * 1024
-	GB          = MB * 1024
-	TB          = GB * 1024
-	PB          = TB * 1024
-	EB          = PB * 1024
+	KiB         = Byte * 1024
+	MiB         = KiB * 1024
+	GiB         = MiB * 1024
+	TiB         = GiB * 1024
+	PiB         = TiB * 1024
+	EiB         = PiB * 1024
 )
 
-// FormatByte is used to covert Byte to KB, MB, GB or TB.
-func FormatByte(n uint64) string {
-	if n < KB {
+// ByteUnit is used to convert byte to larger unit.
+// output unit are KB KiB, MB MiB ...
+func ByteUnit(n uint64) string {
+	if n < KiB {
 		return strconv.Itoa(int(n)) + " Byte"
 	}
-	bn := new(big.Float).SetUint64(n)
 	var (
 		unit string
 		div  uint64
 	)
 	switch {
-	case n < MB:
-		unit = "KB"
-		div = KB
-	case n < GB:
-		unit = "MB"
-		div = MB
-	case n < TB:
-		unit = "GB"
-		div = GB
-	case n < PB:
-		unit = "TB"
-		div = TB
-	case n < EB:
-		unit = "PB"
-		div = PB
+	case n < MiB:
+		unit = "KiB"
+		div = KiB
+	case n < GiB:
+		unit = "MiB"
+		div = MiB
+	case n < TiB:
+		unit = "GiB"
+		div = GiB
+	case n < PiB:
+		unit = "TiB"
+		div = TiB
+	case n < EiB:
+		unit = "PiB"
+		div = PiB
 	default:
-		unit = "EB"
-		div = EB
+		unit = "EiB"
+		div = EiB
 	}
-	bn.Quo(bn, new(big.Float).SetUint64(div))
+	// a history of habit
+	if runtime.GOOS == "windows" {
+		unit = strings.ReplaceAll(unit, "iB", "B")
+	}
+	bf := new(big.Float).SetUint64(n)
+	bf.Quo(bf, new(big.Float).SetUint64(div))
 	// 1.99999999 -> 1.999
-	text := bn.Text('G', 64)
+	text := bf.Text('G', 64)
 	offset := strings.Index(text, ".")
-	if offset != -1 {
-		if len(text[offset+1:]) > 3 {
-			text = text[:offset+1+3]
-		}
+	if offset != -1 && len(text[offset+1:]) > 3 {
+		text = text[:offset+1+3]
 	}
 	// delete zero: 1.100 -> 1.1
 	result, err := strconv.ParseFloat(text, 64)
@@ -276,8 +280,8 @@ func FormatByte(n uint64) string {
 	return value + " " + unit
 }
 
-// FormatNumber is used to convert "123456.789" to "123,456.789".
-func FormatNumber(str string) string {
+// SplitNumber is used to convert "123456.789" to "123,456.789".
+func SplitNumber(str string) string {
 	length := len(str)
 	if length < 4 {
 		return str
@@ -338,8 +342,9 @@ func OutputBytesWithSize(b []byte, line int) string {
 	if l == 0 {
 		return begin + end
 	}
+	// invalid line size
 	if line < 1 {
-		line = 1
+		line = 8
 	}
 	// create builder
 	builder := new(strings.Builder)

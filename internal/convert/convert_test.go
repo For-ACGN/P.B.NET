@@ -2,7 +2,9 @@ package convert
 
 import (
 	"bytes"
+	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -236,29 +238,32 @@ func TestAbsInt64(t *testing.T) {
 	}
 }
 
-func TestFormatByte(t *testing.T) {
+func TestByteUnit(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
 		for _, testdata := range [...]*struct {
 			input  uint64
 			output string
 		}{
 			{1023 * Byte, "1023 Byte"},
-			{1024 * Byte, "1 KB"},
-			{1536 * Byte, "1.5 KB"},
-			{MB, "1 MB"},
-			{1536 * KB, "1.5 MB"},
-			{GB, "1 GB"},
-			{1536 * MB, "1.5 GB"},
-			{TB, "1 TB"},
-			{1536 * GB, "1.5 TB"},
-			{PB, "1 PB"},
-			{1536 * TB, "1.5 PB"},
-			{EB, "1 EB"},
-			{1536 * PB, "1.5 EB"},
-			{1264, "1.234 KB"},  // 1264/1024 = 1.234375
-			{1153539, "1.1 MB"}, // 1.1001 MB
+			{1024 * Byte, "1 KiB"},
+			{1536 * Byte, "1.5 KiB"},
+			{MiB, "1 MiB"},
+			{1536 * KiB, "1.5 MiB"},
+			{GiB, "1 GiB"},
+			{1536 * MiB, "1.5 GiB"},
+			{TiB, "1 TiB"},
+			{1536 * GiB, "1.5 TiB"},
+			{PiB, "1 PiB"},
+			{1536 * TiB, "1.5 PiB"},
+			{EiB, "1 EiB"},
+			{1536 * PiB, "1.5 EiB"},
+			{1264, "1.234 KiB"},  // 1264/1024 = 1.234375
+			{1153539, "1.1 MiB"}, // 1.1001 MiB
 		} {
-			require.Equal(t, testdata.output, FormatByte(testdata.input))
+			if runtime.GOOS == "windows" {
+				testdata.output = strings.ReplaceAll(testdata.output, "iB", "B")
+			}
+			require.Equal(t, testdata.output, ByteUnit(testdata.input))
 		}
 	})
 
@@ -270,11 +275,11 @@ func TestFormatByte(t *testing.T) {
 		defer pg.Unpatch()
 
 		defer testDeferForPanic(t)
-		FormatByte(1024)
+		ByteUnit(1024)
 	})
 }
 
-func TestFormatNumber(t *testing.T) {
+func TestSplitNumber(t *testing.T) {
 	for _, testdata := range [...]*struct {
 		input  string
 		output string
@@ -299,7 +304,7 @@ func TestFormatNumber(t *testing.T) {
 		{"0.123456", "0.123456"},
 		{"123456.789", "123,456.789"},
 	} {
-		require.Equal(t, testdata.output, FormatNumber(testdata.input))
+		require.Equal(t, testdata.output, SplitNumber(testdata.input))
 	}
 }
 
@@ -339,12 +344,9 @@ func TestOutputBytes(t *testing.T) {
 }
 
 func TestOutputBytesWithSize(t *testing.T) {
-	expected := `[]byte{
-	0x00,
-	0x00,
-	0x00,
-}`
+	const expected = `
+[]byte{0x00, 0x00, 0x00}`
 	b := []byte{0, 0, 0}
 	str := OutputBytesWithSize(b, 0)
-	require.Equal(t, expected, str)
+	require.Equal(t, expected[1:], str)
 }
