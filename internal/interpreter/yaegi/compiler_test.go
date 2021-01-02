@@ -26,8 +26,10 @@ func TestCompile(t *testing.T) {
 		ctx.BuildTags = releaseTags
 		ctx.ReleaseTags = releaseTags
 
-		code, err := CompileWithContext(&ctx, "testdata/pkg")
+		code, pkg, err := CompileWithContext(&ctx, "testdata/pkg")
 		require.NoError(t, err)
+		require.Equal(t, "pkg", pkg.Name)
+
 		const expected = `
 package pkg
 
@@ -78,8 +80,10 @@ func f9() {
 	})
 
 	t.Run("file", func(t *testing.T) {
-		code, err := Compile("testdata/pkg/a.go")
+		code, pkg, err := Compile("testdata/pkg/a.go")
 		require.NoError(t, err)
+		require.Equal(t, "pkg", pkg.Name)
+
 		const expected = `
 package pkg
 
@@ -95,15 +99,18 @@ func f1() {
 	})
 
 	t.Run("invalid path", func(t *testing.T) {
-		code, err := Compile("testdata/foo")
+		code, pkg, err := Compile("testdata/foo")
 		require.Error(t, err)
+		require.Nil(t, pkg)
 		require.Zero(t, code)
 	})
 }
 
 func TestCompileFiles(t *testing.T) {
-	code, err := CompileFiles("testdata/pkg", []string{"a.go", "b.go", "foo.go"})
+	code, pkg, err := CompileFiles("testdata/pkg", []string{"a.go", "b.go", "foo.go"})
 	require.NoError(t, err)
+	require.Equal(t, "pkg", pkg.Name)
+
 	const expected = `
 package pkg
 
@@ -133,15 +140,17 @@ func TestMergeFiles(t *testing.T) {
 	pg := monkey.Patch(ioutil.ReadDir, patch)
 	defer pg.Unpatch()
 
-	code, err := MergeFiles(defaultContext, "testdata/pkg", []string{"a.go", "b.go"})
+	code, pkg, err := MergeFiles(defaultContext, "testdata/pkg", []string{"a.go", "b.go"})
 	require.Error(t, err)
+	require.Nil(t, pkg)
 	require.Zero(t, code)
 }
 
 func TestMergeDir(t *testing.T) {
 	t.Run("failed to import dir", func(t *testing.T) {
-		code, err := MergeDir(defaultContext, "testdata/foo")
+		code, pkg, err := MergeDir(defaultContext, "testdata/foo")
 		require.Error(t, err)
+		require.Nil(t, pkg)
 		require.Zero(t, code)
 	})
 
@@ -153,8 +162,9 @@ func TestMergeDir(t *testing.T) {
 		pg := monkey.PatchInstanceMethod(ctx, "ImportDir", patch)
 		defer pg.Unpatch()
 
-		code, err := MergeDir(defaultContext, "testdata/pkg")
+		code, pkg, err := MergeDir(defaultContext, "testdata/pkg")
 		require.Error(t, err)
+		require.Nil(t, pkg)
 		require.Zero(t, code)
 	})
 
@@ -165,8 +175,9 @@ func TestMergeDir(t *testing.T) {
 		pg := monkey.Patch(ioutil.ReadFile, patch)
 		defer pg.Unpatch()
 
-		code, err := MergeDir(defaultContext, "testdata/pkg")
+		code, pkg, err := MergeDir(defaultContext, "testdata/pkg")
 		require.Error(t, err)
+		require.Nil(t, pkg)
 		require.Zero(t, code)
 	})
 
@@ -177,8 +188,9 @@ func TestMergeDir(t *testing.T) {
 		pg := monkey.Patch(format.Source, patch)
 		defer pg.Unpatch()
 
-		code, err := MergeDir(defaultContext, "testdata/pkg")
+		code, pkg, err := MergeDir(defaultContext, "testdata/pkg")
 		require.Error(t, err)
+		require.Nil(t, pkg)
 		require.Zero(t, code)
 	})
 }
