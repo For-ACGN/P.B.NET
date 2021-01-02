@@ -31,7 +31,7 @@ var (
 	Discard Logger = new(discard)
 )
 
-// [2020-01-21 12:36:41] [info] <test src> test-format test log
+// [2020-01-21 12:36:41 +08:00] [info] <test src> test-format test log
 type common struct{}
 
 func (common) Printf(lv Level, src, format string, log ...interface{}) {
@@ -61,7 +61,7 @@ func (common) Println(lv Level, src string, log ...interface{}) {
 	fmt.Print(output)
 }
 
-// [Test] [2020-01-21 12:36:41] [debug] <test src> test-format test log
+// [Test] [2020-01-21 12:36:41 +08:00] [debug] <test src> test-format test log
 type test struct{}
 
 var testLoggerPrefix = []byte("[Test] ")
@@ -204,11 +204,10 @@ func (w *wrapWriter) Write(p []byte) (int, error) {
 	l := len(p)
 	buf := bytes.NewBuffer(make([]byte, 0, l+256))
 	buf.Write(p)
-	if w.last {
+	if w.last && p[len(p)-1] == '\n' {
 		buf.Truncate(buf.Len() - 1)
 	}
 	if w.trace {
-		buf.WriteString("\n")
 		xpanic.PrintStackTrace(buf, w.skip)
 	}
 	w.logger.Print(w.level, w.src, buf)

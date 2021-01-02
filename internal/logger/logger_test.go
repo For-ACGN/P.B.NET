@@ -80,13 +80,15 @@ func TestNewWriterWithPrefix(t *testing.T) {
 }
 
 func TestWrapLogger(t *testing.T) {
-	w := WrapLogger(Debug, "test wrap", Test)
-	_, err := w.Write([]byte("test data"))
+	w := WrapLogger(Error, "test wrap", Test)
+	_, err := w.Write([]byte("test data\n"))
+	require.NoError(t, err)
+	_, err = w.Write([]byte("test data"))
 	require.NoError(t, err)
 }
 
 func TestWrap(t *testing.T) {
-	l := Wrap(Debug, "test wrap", Test)
+	l := Wrap(Error, "test wrap", Test)
 	l.Printf("Printf")
 	l.Print("Print")
 	l.Println("Println")

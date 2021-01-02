@@ -37,7 +37,7 @@ const (
 )
 
 // TimeLayout is used to provide a parameter to time.Time.Format().
-const TimeLayout = "2006-01-02 15:04:05"
+const TimeLayout = "2006-01-02 15:04:05 Z07:00"
 
 // Parse is used to parse logger level from string.
 func Parse(level string) (Level, error) {
@@ -74,8 +74,7 @@ func Parse(level string) (Level, error) {
 // time + level + source + log
 // source usually like: class name + "-" + instance tag
 //
-// [2018-11-27 00:00:00] [info] <main> controller is running
-// [2018-11-27 00:00:00] [info] <socks5-test> test log
+// [2018-11-27 00:00:00 +08:00] [info] <main> controller is running
 func Prefix(time time.Time, level Level, src string) *bytes.Buffer {
 	var lv string
 	switch level {
