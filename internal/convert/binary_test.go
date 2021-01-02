@@ -2,14 +2,9 @@ package convert
 
 import (
 	"bytes"
-	"runtime"
-	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"project/internal/patch/monkey"
 )
 
 // copy from internal/testsuite/testsuite.go
@@ -221,132 +216,4 @@ func TestLEBytesToNumberWithInvalidBytes(t *testing.T) {
 		defer testDeferForPanic(t)
 		LEBytesToFloat64([]byte{1})
 	})
-}
-
-func TestAbsInt64(t *testing.T) {
-	for _, testdata := range [...]*struct {
-		input  int64
-		output int64
-	}{
-		{-1, 1},
-		{0, 0},
-		{1, 1},
-		{-10, 10},
-		{10, 10},
-	} {
-		require.Equal(t, testdata.output, AbsInt64(testdata.input))
-	}
-}
-
-func TestByteUnit(t *testing.T) {
-	t.Run("common", func(t *testing.T) {
-		for _, testdata := range [...]*struct {
-			input  uint64
-			output string
-		}{
-			{1023 * Byte, "1023 Byte"},
-			{1024 * Byte, "1 KiB"},
-			{1536 * Byte, "1.5 KiB"},
-			{MiB, "1 MiB"},
-			{1536 * KiB, "1.5 MiB"},
-			{GiB, "1 GiB"},
-			{1536 * MiB, "1.5 GiB"},
-			{TiB, "1 TiB"},
-			{1536 * GiB, "1.5 TiB"},
-			{PiB, "1 PiB"},
-			{1536 * TiB, "1.5 PiB"},
-			{EiB, "1 EiB"},
-			{1536 * PiB, "1.5 EiB"},
-			{1264, "1.234 KiB"},  // 1264/1024 = 1.234375
-			{1153539, "1.1 MiB"}, // 1.1001 MiB
-		} {
-			if runtime.GOOS == "windows" {
-				testdata.output = strings.ReplaceAll(testdata.output, "iB", "B")
-			}
-			require.Equal(t, testdata.output, ByteUnit(testdata.input))
-		}
-	})
-
-	t.Run("internal error", func(t *testing.T) {
-		patch := func(string, int) (float64, error) {
-			return 0, monkey.Error
-		}
-		pg := monkey.Patch(strconv.ParseFloat, patch)
-		defer pg.Unpatch()
-
-		defer testDeferForPanic(t)
-		ByteUnit(1024)
-	})
-}
-
-func TestSplitNumber(t *testing.T) {
-	for _, testdata := range [...]*struct {
-		input  string
-		output string
-	}{
-		{"1", "1"},
-		{"12", "12"},
-		{"123", "123"},
-		{"1234", "1,234"},
-		{"12345", "12,345"},
-		{"123456", "123,456"},
-		{"1234567", "1,234,567"},
-		{"12345678", "12,345,678"},
-		{"123456789", "123,456,789"},
-		{"123456789.1", "123,456,789.1"},
-		{"123456789.12", "123,456,789.12"},
-		{"123456789.123", "123,456,789.123"},
-		{"123456789.1234", "123,456,789.1234"},
-		{"0.123", "0.123"},
-		{"0.1234", "0.1234"},
-		{".1234", ".1234"},
-		{".12", ".12"},
-		{"0.123456", "0.123456"},
-		{"123456.789", "123,456.789"},
-	} {
-		require.Equal(t, testdata.output, SplitNumber(testdata.input))
-	}
-}
-
-func TestOutputBytes(t *testing.T) {
-	for _, testdata := range [...]*struct {
-		input  []byte
-		output string
-	}{
-		{[]byte{}, "[]byte{}"},
-		{[]byte{1}, `[]byte{0x01}`},
-		{[]byte{255, 254}, `[]byte{0xFF, 0xFE}`},
-		{[]byte{0, 0, 0, 0, 0, 0, 255, 254},
-			`[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFE}`},
-		{[]byte{0, 0, 0, 0, 0, 0, 255, 254, 1}, `[]byte{
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFE,
-	0x01,
-}`},
-		{[]byte{
-			0, 0, 0, 0, 0, 0, 255, 254,
-			1, 2, 2, 2, 2, 2, 2, 2,
-		}, `[]byte{
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFE,
-	0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
-}`},
-		{[]byte{
-			0, 0, 0, 0, 0, 0, 255, 254,
-			1, 2, 2, 2, 2, 2, 2, 2,
-			4, 5,
-		}, `[]byte{
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFE,
-	0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
-	0x04, 0x05,
-}`},
-	} {
-		require.Equal(t, testdata.output, OutputBytes(testdata.input))
-	}
-}
-
-func TestOutputBytesWithSize(t *testing.T) {
-	const expected = `
-[]byte{0x00, 0x00, 0x00}`
-	b := []byte{0, 0, 0}
-	str := OutputBytesWithSize(b, 0)
-	require.Equal(t, expected[1:], str)
 }
