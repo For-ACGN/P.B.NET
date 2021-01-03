@@ -21,13 +21,17 @@ import (
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/des"
-	"crypto/dsa"
+	"crypto/des" // #nosec
+	"crypto/dsa" // #nosec
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/hmac"
+	"crypto/md5" // #nosec
 	crypto_rand "crypto/rand"
+	"crypto/rc4" // #nosec
+	"crypto/rsa"
+	"crypto/sha1" // #nosec
 	"go/constant"
 	"go/token"
 	"io"
@@ -63,7 +67,11 @@ func init() {
 	init_crypto_ed25519()
 	init_crypto_elliptic()
 	init_crypto_hmac()
+	init_crypto_md5()
 	init_crypto_rand()
+	init_crypto_rc4()
+	init_crypto_rsa()
+	init_crypto_sha1()
 	init_io()
 	init_math_big()
 	init_reflect()
@@ -720,6 +728,16 @@ func init_crypto_hmac() {
 	}
 }
 
+func init_crypto_md5() {
+	Symbols["crypto/md5"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BlockSize": reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"New":       reflect.ValueOf(md5.New),
+		"Size":      reflect.ValueOf(constant.MakeFromLiteral("16", token.INT, 0)),
+		"Sum":       reflect.ValueOf(md5.Sum),
+	}
+}
+
 func init_crypto_rand() {
 	Symbols["crypto/rand"] = map[string]reflect.Value{
 		// function, constant and variable definitions
@@ -727,6 +745,58 @@ func init_crypto_rand() {
 		"Prime":  reflect.ValueOf(crypto_rand.Prime),
 		"Read":   reflect.ValueOf(crypto_rand.Read),
 		"Reader": reflect.ValueOf(&crypto_rand.Reader).Elem(),
+	}
+}
+
+func init_crypto_rc4() {
+	Symbols["crypto/rc4"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"NewCipher": reflect.ValueOf(rc4.NewCipher),
+
+		// type definitions
+		"Cipher":       reflect.ValueOf((*rc4.Cipher)(nil)),
+		"KeySizeError": reflect.ValueOf((*rc4.KeySizeError)(nil)),
+	}
+}
+
+func init_crypto_rsa() {
+	Symbols["crypto/rsa"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"DecryptOAEP":               reflect.ValueOf(rsa.DecryptOAEP),
+		"DecryptPKCS1v15":           reflect.ValueOf(rsa.DecryptPKCS1v15),
+		"DecryptPKCS1v15SessionKey": reflect.ValueOf(rsa.DecryptPKCS1v15SessionKey),
+		"EncryptOAEP":               reflect.ValueOf(rsa.EncryptOAEP),
+		"EncryptPKCS1v15":           reflect.ValueOf(rsa.EncryptPKCS1v15),
+		"ErrDecryption":             reflect.ValueOf(&rsa.ErrDecryption).Elem(),
+		"ErrMessageTooLong":         reflect.ValueOf(&rsa.ErrMessageTooLong).Elem(),
+		"ErrVerification":           reflect.ValueOf(&rsa.ErrVerification).Elem(),
+		"GenerateKey":               reflect.ValueOf(rsa.GenerateKey),
+		"GenerateMultiPrimeKey":     reflect.ValueOf(rsa.GenerateMultiPrimeKey),
+		"PSSSaltLengthAuto":         reflect.ValueOf(constant.MakeFromLiteral("0", token.INT, 0)),
+		"PSSSaltLengthEqualsHash":   reflect.ValueOf(constant.MakeFromLiteral("-1", token.INT, 0)),
+		"SignPKCS1v15":              reflect.ValueOf(rsa.SignPKCS1v15),
+		"SignPSS":                   reflect.ValueOf(rsa.SignPSS),
+		"VerifyPKCS1v15":            reflect.ValueOf(rsa.VerifyPKCS1v15),
+		"VerifyPSS":                 reflect.ValueOf(rsa.VerifyPSS),
+
+		// type definitions
+		"CRTValue":               reflect.ValueOf((*rsa.CRTValue)(nil)),
+		"OAEPOptions":            reflect.ValueOf((*rsa.OAEPOptions)(nil)),
+		"PKCS1v15DecryptOptions": reflect.ValueOf((*rsa.PKCS1v15DecryptOptions)(nil)),
+		"PSSOptions":             reflect.ValueOf((*rsa.PSSOptions)(nil)),
+		"PrecomputedValues":      reflect.ValueOf((*rsa.PrecomputedValues)(nil)),
+		"PrivateKey":             reflect.ValueOf((*rsa.PrivateKey)(nil)),
+		"PublicKey":              reflect.ValueOf((*rsa.PublicKey)(nil)),
+	}
+}
+
+func init_crypto_sha1() {
+	Symbols["crypto/sha1"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BlockSize": reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"New":       reflect.ValueOf(sha1.New),
+		"Size":      reflect.ValueOf(constant.MakeFromLiteral("20", token.INT, 0)),
+		"Sum":       reflect.ValueOf(sha1.Sum),
 	}
 }
 
