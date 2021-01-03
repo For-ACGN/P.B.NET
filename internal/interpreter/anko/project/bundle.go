@@ -138,7 +138,7 @@ func initInternalConvert() {
 		"BEUint16ToBytes":        reflect.ValueOf(convert.BEUint16ToBytes),
 		"BEUint32ToBytes":        reflect.ValueOf(convert.BEUint32ToBytes),
 		"BEUint64ToBytes":        reflect.ValueOf(convert.BEUint64ToBytes),
-		"ByteUnit":               reflect.ValueOf(convert.ByteUnit),
+		"StorageUnit":            reflect.ValueOf(convert.StorageUnit),
 		"DumpBytes":              reflect.ValueOf(convert.DumpBytes),
 		"DumpBytesWithLineSize":  reflect.ValueOf(convert.DumpBytesWithLineSize),
 		"FdumpBytes":             reflect.ValueOf(convert.FdumpBytes),

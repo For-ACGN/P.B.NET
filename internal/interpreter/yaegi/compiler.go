@@ -70,7 +70,7 @@ func MergeFiles(ctx *build.Context, dir string, filenames []string) (string, *bu
 				}
 			}
 		}
-		return files, err
+		return files, nil
 	}
 	return MergeDir(ctx, dir)
 }

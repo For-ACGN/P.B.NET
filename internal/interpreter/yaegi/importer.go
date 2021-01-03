@@ -10,6 +10,7 @@ type Importer struct {
 	Context *build.Context
 }
 
+// Import is
 func (im *Importer) Import(pkg string) map[string]string {
 	return nil
 }

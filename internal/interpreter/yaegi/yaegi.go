@@ -1,9 +1,8 @@
 package yaegi
 
 import (
-	"bufio"
+	"go/build"
 	"reflect"
-	"strings"
 
 	"github.com/traefik/yaegi/interp"
 )
@@ -12,6 +11,8 @@ import (
 // source files to a single file, Process unsafe.Offsetof() and remote importer.
 type Interpreter struct {
 	yip *interp.Interpreter
+
+	packages map[string]struct{}
 }
 
 // NewInterpreter is used to create a new interpreter.
@@ -20,14 +21,19 @@ func NewInterpreter() *Interpreter {
 	return &i
 }
 
+// EvalPath is
 func (ip *Interpreter) EvalPath(path string) (reflect.Value, error) {
+	// CompileWithContext()
+
 	return reflect.Value{}, nil
 }
 
+// EvalFiles is
 func (ip *Interpreter) EvalFiles(files []string) (reflect.Value, error) {
 	return reflect.Value{}, nil
 }
 
+// Eval is
 func (ip *Interpreter) Eval(src string) (reflect.Value, error) {
 	// ctx.ReadDir = func(string) ([]os.FileInfo, error) {
 	// 	return []os.FileInfo{fakeDirInfo("foo")}, nil
@@ -35,29 +41,17 @@ func (ip *Interpreter) Eval(src string) (reflect.Value, error) {
 	// ctx.OpenFile = func(string) (io.ReadCloser, error) {
 	//
 	// }
-	return ip.eval(ProcessUnsafeOffsetof(src))
-}
-
-func (ip *Interpreter) eval(src string) (reflect.Value, error) {
-	// process import
-	scanner := bufio.NewScanner(strings.NewReader(src))
-	getPackageName(scanner)
-
-	// ip.yip.EvalWithContext()
+	// 	return ip.eval(ProcessUnsafeOffsetof(src))
 
 	return reflect.Value{}, nil
 }
 
-func getPackageName(scanner *bufio.Scanner) string {
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, " package ") {
+func (ip *Interpreter) eval(pkg *build.Package, src string) (reflect.Value, error) {
+	// pkg.Imports
 
-		}
-	}
-	return ""
-}
+	// process import
 
-func getImport(scanner *bufio.Scanner) []string {
-	return nil
+	// ip.yip.EvalWithContext()
+
+	return reflect.Value{}, nil
 }

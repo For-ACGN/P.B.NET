@@ -148,7 +148,7 @@ func init_project_internal_convert() {
 		"BEUint32ToBytes":        reflect.ValueOf(convert.BEUint32ToBytes),
 		"BEUint64ToBytes":        reflect.ValueOf(convert.BEUint64ToBytes),
 		"Byte":                   reflect.ValueOf(convert.Byte),
-		"ByteUnit":               reflect.ValueOf(convert.ByteUnit),
+		"StorageUnit":            reflect.ValueOf(convert.StorageUnit),
 		"DumpBytes":              reflect.ValueOf(convert.DumpBytes),
 		"DumpBytesWithLineSize":  reflect.ValueOf(convert.DumpBytesWithLineSize),
 		"EiB":                    reflect.ValueOf(convert.EiB),
