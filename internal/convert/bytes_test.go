@@ -43,18 +43,19 @@ func TestDumpBytes(t *testing.T) {
 	}
 
 	b := []byte{0, 0, 0}
-	t.Run("with line size", func(t *testing.T) {
-		str := SdumpBytesWithLineSize(b, 0)
+	t.Run("with line length", func(t *testing.T) {
+		str := SdumpBytesWithLineLength(b, 0)
 		require.Equal(t, "[]byte{0x00, 0x00, 0x00}", str)
 	})
 
-	t.Run("other", func(t *testing.T) {
+	t.Run("FdumpBytes", func(t *testing.T) {
 		_, err := FdumpBytes(os.Stdout, b)
 		require.NoError(t, err)
 
-		DumpBytes(b)
-
-		// prevent goland test failed
 		fmt.Println()
+	})
+
+	t.Run("DumpBytes", func(t *testing.T) {
+		DumpBytes(b)
 	})
 }

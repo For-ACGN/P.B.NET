@@ -7,38 +7,38 @@ import (
 	"os"
 )
 
-const defaultLineSize = 8
+const defaultLineLength = 8
 
 // FdumpBytes is used to convert []byte to go source and dump it to io.Writer.
 func FdumpBytes(w io.Writer, b []byte) (int, error) {
-	return FdumpBytesWithLineSize(w, b, defaultLineSize)
+	return FdumpBytesWithLineLength(w, b, defaultLineLength)
 }
 
 // SdumpBytes is used to convert []byte to go source and dump it to a string.
 func SdumpBytes(b []byte) string {
-	return SdumpBytesWithLineSize(b, defaultLineSize)
+	return SdumpBytesWithLineLength(b, defaultLineLength)
 }
 
 // DumpBytes is used to convert []byte to go source and dump it to a os.Stdout.
 func DumpBytes(b []byte) {
-	DumpBytesWithLineSize(b, defaultLineSize)
+	DumpBytesWithLineLength(b, defaultLineLength)
 }
 
-// FdumpBytesWithLineSize is used to convert []byte to go source and dump it to io.Writer.
-func FdumpBytesWithLineSize(w io.Writer, b []byte, size int) (int, error) {
-	return fdumpBytes(w, b, size)
+// FdumpBytesWithLineLength is used to convert []byte to go source with line length and dump it to io.Writer.
+func FdumpBytesWithLineLength(w io.Writer, b []byte, l int) (int, error) {
+	return w.Write(fdumpBytes(b, l).Bytes())
 }
 
-// SdumpBytesWithLineSize is used to convert []byte to go source and dump it to a string.
-func SdumpBytesWithLineSize(b []byte, size int) string {
-	buf := bytes.NewBuffer(make([]byte, 0, (6+1)*len(b)))
-	_, _ = fdumpBytes(buf, b, size)
-	return buf.String()
+// SdumpBytesWithLineLength is used to convert []byte to go source with line length and dump it to a string.
+func SdumpBytesWithLineLength(b []byte, l int) string {
+	return fdumpBytes(b, l).String()
 }
 
-// DumpBytesWithLineSize is used to convert []byte to go source and dump it to a os.Stdout.
-func DumpBytesWithLineSize(b []byte, size int) {
-	_, _ = fdumpBytes(os.Stdout, b, size)
+// DumpBytesWithLineLength is used to convert []byte to go source with line length and dump it to a os.Stdout.
+func DumpBytesWithLineLength(b []byte, l int) {
+	buf := fdumpBytes(b, l)
+	buf.WriteString("\n")
+	_, _ = os.Stdout.Write(buf.Bytes())
 }
 
 // fdumpBytes is used to convert byte slice to go code, usually it used for go template code.
@@ -57,7 +57,7 @@ func DumpBytesWithLineSize(b []byte, size int) {
 //		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 //		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 // }
-func fdumpBytes(w io.Writer, b []byte, lineSize int) (int, error) {
+func fdumpBytes(b []byte, lineLength int) *bytes.Buffer {
 	const (
 		begin = "[]byte{"
 		end   = "}"
@@ -65,11 +65,11 @@ func fdumpBytes(w io.Writer, b []byte, lineSize int) (int, error) {
 	// special: empty data
 	l := len(b)
 	if l == 0 {
-		return w.Write([]byte(begin + end))
+		return bytes.NewBuffer([]byte(begin + end))
 	}
 	// invalid line size
-	if lineSize < 1 {
-		lineSize = 8
+	if lineLength < 1 {
+		lineLength = 8
 	}
 	// create buffer
 	bufSize := len(begin+end) + len("0x00, ")*l + l/8
@@ -78,7 +78,7 @@ func fdumpBytes(w io.Writer, b []byte, lineSize int) (int, error) {
 	buf.WriteString("[]byte{")
 	hexBuf := make([]byte, 2)
 	// special: one line
-	if l <= lineSize {
+	if l <= lineLength {
 		for i := 0; i < l; i++ {
 			hex.Encode(hexBuf, []byte{b[i]})
 			buf.WriteString("0x")
@@ -88,8 +88,7 @@ func fdumpBytes(w io.Writer, b []byte, lineSize int) (int, error) {
 			}
 		}
 		buf.WriteString("}")
-		n, err := buf.WriteTo(w)
-		return int(n), err
+		return buf
 	}
 	// write begin string
 	var counter int // need new line
@@ -102,7 +101,7 @@ func fdumpBytes(w io.Writer, b []byte, lineSize int) (int, error) {
 		buf.WriteString("0x")
 		buf.Write(bytes.ToUpper(hexBuf))
 		counter++
-		if counter == lineSize {
+		if counter == lineLength {
 			buf.WriteString(",\n")
 			counter = 0
 		} else {
@@ -113,10 +112,8 @@ func fdumpBytes(w io.Writer, b []byte, lineSize int) (int, error) {
 	if counter != 0 { // delete last space
 		buf.Truncate(buf.Len() - 1)
 		buf.WriteString("\n}")
-		n, err := buf.WriteTo(w)
-		return int(n), err
+		return buf
 	}
 	buf.WriteString("}")
-	n, err := buf.WriteTo(w)
-	return int(n), err
+	return buf
 }
