@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 const (
@@ -39,7 +40,11 @@ func FdumpRequestWithBM(w io.Writer, r *http.Request, bll, mbl int) (int, error)
 // bll is the body line length, mbl is the max body length.
 func SdumpRequestWithBM(r *http.Request, bll, mbl int) string {
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	_, _ = dumpRequest(buf, r, bll, mbl)
+	n, err := dumpRequest(buf, r, bll, mbl)
+	if err != nil {
+		buf.WriteString("\n[error] appear error when dump http request:\n" + err.Error())
+		buf.WriteString("\nwritten bytes: " + strconv.Itoa(n))
+	}
 	return buf.String()
 }
 
@@ -47,7 +52,11 @@ func SdumpRequestWithBM(r *http.Request, bll, mbl int) string {
 // bll is the body line length, mbl is the max body length.
 func DumpRequestWithBM(r *http.Request, bll, mbl int) {
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	_, _ = dumpRequest(buf, r, bll, mbl)
+	n, err := dumpRequest(buf, r, bll, mbl)
+	if err != nil {
+		buf.WriteString("\n[error] appear error when dump http request:\n" + err.Error())
+		buf.WriteString("\nwritten bytes: " + strconv.Itoa(n))
+	}
 	buf.WriteString("\n")
 	_, _ = os.Stdout.Write(buf.Bytes())
 }

@@ -109,7 +109,7 @@ func TestDumpRequest(t *testing.T) {
 	})
 }
 
-func TestFdumpRequestWithError(t *testing.T) {
+func TestDumpRequestWithError(t *testing.T) {
 	req := testGenerateRequest(t)
 
 	for _, testdata := range [...]*struct {
@@ -138,9 +138,29 @@ func TestFdumpRequestWithError(t *testing.T) {
 			fmt.Println()
 		})
 	}
+
+	t.Run("SdumpRequestWithBM", func(t *testing.T) {
+		patch := func(w io.Writer, format string, a ...interface{}) (int, error) {
+			return 0, monkey.Error
+		}
+		pg := monkey.Patch(fmt.Fprintf, patch)
+		defer pg.Unpatch()
+
+		fmt.Println(SdumpRequest(req))
+	})
+
+	t.Run("DumpRequestWithBM", func(t *testing.T) {
+		patch := func(w io.Writer, format string, a ...interface{}) (int, error) {
+			return 0, monkey.Error
+		}
+		pg := monkey.Patch(fmt.Fprintf, patch)
+		defer pg.Unpatch()
+
+		DumpRequest(req)
+	})
 }
 
-func TestDumpBody(t *testing.T) {
+func TestDumpBodyWithError(t *testing.T) {
 	req := testGenerateRequest(t)
 
 	t.Run("size < bodyLineLength", func(t *testing.T) {
