@@ -10,8 +10,8 @@ import (
 const defaultLineSize = 8
 
 // FdumpBytes is used to convert []byte to go source and dump it to io.Writer.
-func FdumpBytes(w io.Writer, b []byte) {
-	FdumpBytesWithLineSize(w, b, defaultLineSize)
+func FdumpBytes(w io.Writer, b []byte) (int, error) {
+	return FdumpBytesWithLineSize(w, b, defaultLineSize)
 }
 
 // SdumpBytes is used to convert []byte to go source and dump it to a string.
@@ -25,22 +25,24 @@ func DumpBytes(b []byte) {
 }
 
 // FdumpBytesWithLineSize is used to convert []byte to go source and dump it to io.Writer.
-func FdumpBytesWithLineSize(w io.Writer, b []byte, lineSize int) {
-	fdumpBytes(w, b, lineSize)
+func FdumpBytesWithLineSize(w io.Writer, b []byte, size int) (int, error) {
+	return fdumpBytes(w, b, size)
 }
 
 // SdumpBytesWithLineSize is used to convert []byte to go source and dump it to a string.
-func SdumpBytesWithLineSize(b []byte, lineSize int) string {
+func SdumpBytesWithLineSize(b []byte, size int) string {
 	buf := bytes.NewBuffer(make([]byte, 0, (6+1)*len(b)))
-	fdumpBytes(buf, b, lineSize)
+	_, _ = fdumpBytes(buf, b, size)
 	return buf.String()
 }
 
 // DumpBytesWithLineSize is used to convert []byte to go source and dump it to a os.Stdout.
-func DumpBytesWithLineSize(b []byte, lineSize int) {
-	fdumpBytes(os.Stdout, b, lineSize)
+func DumpBytesWithLineSize(b []byte, size int) {
+	_, _ = fdumpBytes(os.Stdout, b, size)
 }
 
+// fdumpBytes is used to convert byte slice to go code, usually it used for go template code.
+//
 // Output:
 // ------one line------
 // []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
@@ -55,7 +57,7 @@ func DumpBytesWithLineSize(b []byte, lineSize int) {
 //		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 //		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 // }
-func fdumpBytes(w io.Writer, b []byte, lineSize int) {
+func fdumpBytes(w io.Writer, b []byte, lineSize int) (int, error) {
 	const (
 		begin = "[]byte{"
 		end   = "}"
@@ -63,8 +65,7 @@ func fdumpBytes(w io.Writer, b []byte, lineSize int) {
 	// special: empty data
 	l := len(b)
 	if l == 0 {
-		_, _ = w.Write([]byte(begin + end))
-		return
+		return w.Write([]byte(begin + end))
 	}
 	// invalid line size
 	if lineSize < 1 {
@@ -87,8 +88,8 @@ func fdumpBytes(w io.Writer, b []byte, lineSize int) {
 			}
 		}
 		buf.WriteString("}")
-		_, _ = buf.WriteTo(w)
-		return
+		n, err := buf.WriteTo(w)
+		return int(n), err
 	}
 	// write begin string
 	var counter int // need new line
@@ -112,9 +113,10 @@ func fdumpBytes(w io.Writer, b []byte, lineSize int) {
 	if counter != 0 { // delete last space
 		buf.Truncate(buf.Len() - 1)
 		buf.WriteString("\n}")
-		_, _ = buf.WriteTo(w)
-		return
+		n, err := buf.WriteTo(w)
+		return int(n), err
 	}
 	buf.WriteString("}")
-	_, _ = buf.WriteTo(w)
+	n, err := buf.WriteTo(w)
+	return int(n), err
 }

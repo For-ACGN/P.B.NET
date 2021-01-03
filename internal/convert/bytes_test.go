@@ -49,7 +49,9 @@ func TestDumpBytes(t *testing.T) {
 	})
 
 	t.Run("other", func(t *testing.T) {
-		FdumpBytes(os.Stdout, b)
+		_, err := FdumpBytes(os.Stdout, b)
+		require.NoError(t, err)
+
 		DumpBytes(b)
 
 		// prevent goland test failed
