@@ -6,19 +6,56 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 )
 
 const (
-	// BodyLineLength is the post data length in one line
-	BodyLineLength = 64
-
-	// MaxBodyLength is the maximum body length.
-	// <security> prevent too large resp.Body
-	MaxBodyLength = 1024
+	defaultBodyLineLength = 64   // default post data length in one line.
+	defaultMaxBodyLength  = 1024 // default maximum body length.
 )
 
-// FprintRequest is used to print *http.Request to a io.Writer.
+// FdumpRequest is used to dump http request to a io.Writer.
+func FdumpRequest(w io.Writer, r *http.Request) (int, error) {
+	return FdumpRequestWithBM(w, r, defaultBodyLineLength, defaultMaxBodyLength)
+}
+
+// SdumpRequest is used to dump http request to a string.
+func SdumpRequest(r *http.Request) string {
+	return SdumpRequestWithBM(r, defaultBodyLineLength, defaultMaxBodyLength)
+}
+
+// DumpRequest is used to dump http request to os.Stdout.
+func DumpRequest(r *http.Request) {
+	DumpRequestWithBM(r, defaultBodyLineLength, defaultMaxBodyLength)
+}
+
+// FdumpRequestWithBM is used to dump http request to a io.Writer.
+// bll is the body line length, mbl is the max body length.
+func FdumpRequestWithBM(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
+	return dumpRequest(w, r, bll, mbl)
+}
+
+// SdumpRequestWithBM is used to dump http request to a string.
+// bll is the body line length, mbl is the max body length.
+func SdumpRequestWithBM(r *http.Request, bll, mbl int) string {
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
+	_, _ = dumpRequest(buf, r, bll, mbl)
+	return buf.String()
+}
+
+// DumpRequestWithBM is used to dump http request to os.Stdout.
+// bll is the body line length, mbl is the max body length.
+func DumpRequestWithBM(r *http.Request, bll, mbl int) {
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
+	_, _ = dumpRequest(buf, r, bll, mbl)
+	buf.WriteString("\n")
+	_, _ = os.Stdout.Write(buf.Bytes())
+}
+
+// dumpRequest is used to dump http request to io.Writer.
+// bll is the body line length, mbl is the max body size.
 //
+// Output:
 // Remote: 127.0.0.1:1234
 // POST /index HTTP/1.1
 // Host: github.com
@@ -28,7 +65,7 @@ const (
 //
 // post data...
 // post data...
-func FprintRequest(w io.Writer, r *http.Request) (int, error) {
+func dumpRequest(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 	n, err := fmt.Fprintf(w, "Remote: %s\n", r.RemoteAddr)
 	if err != nil {
 		return n, err
@@ -40,13 +77,13 @@ func FprintRequest(w io.Writer, r *http.Request) (int, error) {
 		return n + nn, err
 	}
 	n += nn
-	// host
+	// dump host
 	nn, err = fmt.Fprintf(w, "\nHost: %s", r.Host)
 	if err != nil {
 		return n + nn, err
 	}
 	n += nn
-	// header
+	// dump header
 	for k, v := range r.Header {
 		nn, err = fmt.Fprintf(w, "\n%s: %s", k, v[0])
 		if err != nil {
@@ -57,11 +94,12 @@ func FprintRequest(w io.Writer, r *http.Request) (int, error) {
 	if r.Body == nil {
 		return n, nil
 	}
-	nn, err = printBody(w, r)
+	nn, err = dumpBody(w, r, bll, mbl)
 	return n + nn, err
 }
 
-func printBody(w io.Writer, r *http.Request) (int, error) {
+// dumpBody is used to dump http response body to io.Writer.
+func dumpBody(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 	rawBody := new(bytes.Buffer)
 	defer func() { r.Body = ioutil.NopCloser(io.MultiReader(rawBody, r.Body)) }()
 	var (
@@ -69,7 +107,7 @@ func printBody(w io.Writer, r *http.Request) (int, error) {
 		err   error
 	)
 	// check body
-	buffer := make([]byte, BodyLineLength)
+	buffer := make([]byte, bll)
 	n, err := io.ReadFull(r.Body, buffer)
 	if err != nil {
 		if n == 0 { // no body
@@ -91,7 +129,8 @@ func printBody(w io.Writer, r *http.Request) (int, error) {
 	total += n
 	rawBody.Write(buffer)
 	for {
-		if rawBody.Len() > MaxBodyLength {
+		// <security> prevent too large resp.Body
+		if rawBody.Len() > mbl {
 			break
 		}
 		n, err = io.ReadFull(r.Body, buffer)
@@ -116,13 +155,6 @@ func printBody(w io.Writer, r *http.Request) (int, error) {
 	return total, nil
 }
 
-// PrintRequest is used to print *http.Request to a buffer.
-func PrintRequest(r *http.Request) *bytes.Buffer {
-	buf := bytes.NewBuffer(make([]byte, 0, 128))
-	_, _ = FprintRequest(buf, r)
-	return buf
-}
-
 // subHTTPFileSystem is used to open sub directory for http file server.
 type subHTTPFileSystem struct {
 	hfs  http.FileSystem
@@ -134,6 +166,6 @@ func NewSubHTTPFileSystem(hfs http.FileSystem, path string) http.FileSystem {
 	return &subHTTPFileSystem{hfs: hfs, path: path + "/"}
 }
 
-func (s *subHTTPFileSystem) Open(name string) (http.File, error) {
-	return s.hfs.Open(s.path + name)
+func (sfs *subHTTPFileSystem) Open(name string) (http.File, error) {
+	return sfs.hfs.Open(sfs.path + name)
 }
