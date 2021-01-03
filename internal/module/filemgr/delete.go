@@ -275,9 +275,8 @@ func (dt *deleteTask) Progress() string {
 		total := dt.total.Text('G', 64)
 		return fmt.Sprintf("error: current %s > total %s", current, total)
 	}
-	value := new(big.Float).Quo(dt.current, dt.total)
 	// split result
-	text := value.Text('G', 64)
+	text := new(big.Float).Quo(dt.current, dt.total).Text('G', 64)
 	// 0.999999999...999 -> 0.9999
 	if len(text) > 6 {
 		text = text[:6]
@@ -290,15 +289,13 @@ func (dt *deleteTask) Progress() string {
 	// 0.9999 -> 99.99%
 	progress := strconv.FormatFloat(result*100, 'f', -1, 64)
 	offset := strings.Index(progress, ".")
-	if offset != -1 {
-		if len(progress[offset+1:]) > 2 {
-			progress = progress[:offset+3]
-		}
+	if offset != -1 && len(progress[offset+1:]) > 2 {
+		progress = progress[:offset+3]
 	}
 	// progress|current/total|speed
 	current := dt.current.Text('G', 64)
 	total := dt.total.Text('G', 64)
-	speed := convert.FormatNumber(strconv.FormatUint(dt.speed, 10))
+	speed := convert.SplitNumber(strconv.FormatUint(dt.speed, 10))
 	return fmt.Sprintf("%s%%|%s/%s|%s file/s", progress, current, total, speed)
 }
 

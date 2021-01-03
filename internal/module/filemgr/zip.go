@@ -254,7 +254,7 @@ func (zt *zipTask) writeFile(ctx context.Context, task *task.Task, file *fileSta
 	//   dst: zip/testdata/test.dat
 	const format = "compress file, name: %s, size: %s\nsrc: %s\ndst: zip/%s"
 	fileName := filepath.Base(file.path)
-	fileSize := convert.FormatByte(uint64(file.stat.Size()))
+	fileSize := convert.StorageUnit(uint64(file.stat.Size()))
 	zt.updateDetail(fmt.Sprintf(format, fileName, fileSize, file.path, relPath))
 retry:
 	// check task is canceled
@@ -344,9 +344,8 @@ func (zt *zipTask) Progress() string {
 		total := zt.total.Text('G', 64)
 		return fmt.Sprintf("error: current %s > total %s", current, total)
 	}
-	value := new(big.Float).Quo(zt.current, zt.total)
 	// split result
-	text := value.Text('G', 64)
+	text := new(big.Float).Quo(zt.current, zt.total).Text('G', 64)
 	// 0.999999999...999 -> 0.9999
 	if len(text) > 6 {
 		text = text[:6]
@@ -359,15 +358,13 @@ func (zt *zipTask) Progress() string {
 	// 0.9999 -> 99.99%
 	progress := strconv.FormatFloat(result*100, 'f', -1, 64)
 	offset := strings.Index(progress, ".")
-	if offset != -1 {
-		if len(progress[offset+1:]) > 2 {
-			progress = progress[:offset+3]
-		}
+	if offset != -1 && len(progress[offset+1:]) > 2 {
+		progress = progress[:offset+3]
 	}
 	// progress|current/total|speed
 	current := zt.current.Text('G', 64)
 	total := zt.total.Text('G', 64)
-	speed := convert.FormatByte(zt.speed)
+	speed := convert.StorageUnit(zt.speed)
 	return fmt.Sprintf("%s%%|%s/%s|%s/s", progress, current, total, speed)
 }
 

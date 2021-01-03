@@ -351,7 +351,7 @@ func (ut *unZipTask) extractFile(
 	//   dst: C:\testdata\test.dat
 	const format = "extract file, name: %s, size: %s\nsrc: zip/%s\ndst: %s"
 	fileName := filepath.Base(src)
-	fileSize := convert.FormatByte(uint64(file.stat.Size()))
+	fileSize := convert.StorageUnit(uint64(file.stat.Size()))
 	ut.updateDetail(fmt.Sprintf(format, fileName, fileSize, src, file.path))
 	// check destination
 	skipped, err := ut.checkDst(ctx, task, src, file)
@@ -528,9 +528,8 @@ func (ut *unZipTask) Progress() string {
 		total := ut.total.Text('G', 64)
 		return fmt.Sprintf("error: current %s > total %s", current, total)
 	}
-	value := new(big.Float).Quo(ut.current, ut.total)
 	// split result
-	text := value.Text('G', 64)
+	text := new(big.Float).Quo(ut.current, ut.total).Text('G', 64)
 	// 0.999999999...999 -> 0.9999
 	if len(text) > 6 {
 		text = text[:6]
@@ -543,15 +542,13 @@ func (ut *unZipTask) Progress() string {
 	// 0.9999 -> 99.99%
 	progress := strconv.FormatFloat(result*100, 'f', -1, 64)
 	offset := strings.Index(progress, ".")
-	if offset != -1 {
-		if len(progress[offset+1:]) > 2 {
-			progress = progress[:offset+3]
-		}
+	if offset != -1 && len(progress[offset+1:]) > 2 {
+		progress = progress[:offset+3]
 	}
 	// progress|current/total|speed
 	current := ut.current.Text('G', 64)
 	total := ut.total.Text('G', 64)
-	speed := convert.FormatByte(ut.speed)
+	speed := convert.StorageUnit(ut.speed)
 	return fmt.Sprintf("%s%%|%s/%s|%s/s", progress, current, total, speed)
 }
 

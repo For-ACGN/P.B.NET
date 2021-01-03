@@ -278,7 +278,7 @@ func (ct *copyTask) copyFile(ctx context.Context, task *task.Task, stats *SrcDst
 	//   dst: D:\testdata\test.dat
 	const format = "copy file, name: %s, size: %s\nsrc: %s\ndst: %s"
 	fileName := filepath.Base(stats.SrcAbs)
-	fileSize := convert.FormatByte(uint64(stats.SrcStat.Size()))
+	fileSize := convert.StorageUnit(uint64(stats.SrcStat.Size()))
 	ct.updateDetail(fmt.Sprintf(format, fileName, fileSize, stats.SrcAbs, stats.DstAbs))
 	// check destination file
 	skipped, err := ct.checkDstFile(ctx, task, stats)
@@ -480,9 +480,8 @@ func (ct *copyTask) Progress() string {
 		total := ct.total.Text('G', 64)
 		return fmt.Sprintf("error: current %s > total %s", current, total)
 	}
-	value := new(big.Float).Quo(ct.current, ct.total)
 	// split result
-	text := value.Text('G', 64)
+	text := new(big.Float).Quo(ct.current, ct.total).Text('G', 64)
 	// 0.999999999...999 -> 0.9999
 	if len(text) > 6 {
 		text = text[:6]
@@ -495,15 +494,13 @@ func (ct *copyTask) Progress() string {
 	// 0.9999 -> 99.99%
 	progress := strconv.FormatFloat(result*100, 'f', -1, 64)
 	offset := strings.Index(progress, ".")
-	if offset != -1 {
-		if len(progress[offset+1:]) > 2 {
-			progress = progress[:offset+3]
-		}
+	if offset != -1 && len(progress[offset+1:]) > 2 {
+		progress = progress[:offset+3]
 	}
 	// progress|current/total|speed
 	current := ct.current.Text('G', 64)
 	total := ct.total.Text('G', 64)
-	speed := convert.FormatByte(ct.speed)
+	speed := convert.StorageUnit(ct.speed)
 	return fmt.Sprintf("%s%%|%s/%s|%s/s", progress, current, total, speed)
 }
 

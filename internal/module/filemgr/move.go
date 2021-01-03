@@ -391,7 +391,7 @@ func (mt *moveTask) moveFile(ctx context.Context, task *task.Task, file *file) (
 	//   dst: D:\testdata\test.dat
 	const format = "move file, name: %s, size: %s\nsrc: %s\ndst: %s"
 	fileName := filepath.Base(dstAbs)
-	fileSize := convert.FormatByte(uint64(file.stat.Size()))
+	fileSize := convert.StorageUnit(uint64(file.stat.Size()))
 	mt.updateDetail(fmt.Sprintf(format, fileName, fileSize, file.path, dstAbs))
 	// check destination file
 	stats := &SrcDstStat{
@@ -646,9 +646,8 @@ func (mt *moveTask) Progress() string {
 		total := mt.total.Text('G', 64)
 		return fmt.Sprintf("error: current %s > total %s", current, total)
 	}
-	value := new(big.Float).Quo(mt.current, mt.total)
 	// split result
-	text := value.Text('G', 64)
+	text := new(big.Float).Quo(mt.current, mt.total).Text('G', 64)
 	// 0.999999999...999 -> 0.9999
 	if len(text) > 6 {
 		text = text[:6]
@@ -661,15 +660,13 @@ func (mt *moveTask) Progress() string {
 	// 0.9999 -> 99.99%
 	progress := strconv.FormatFloat(result*100, 'f', -1, 64)
 	offset := strings.Index(progress, ".")
-	if offset != -1 {
-		if len(progress[offset+1:]) > 2 {
-			progress = progress[:offset+3]
-		}
+	if offset != -1 && len(progress[offset+1:]) > 2 {
+		progress = progress[:offset+3]
 	}
 	// progress|current/total|speed
 	current := mt.current.Text('G', 64)
 	total := mt.total.Text('G', 64)
-	speed := convert.FormatByte(mt.speed)
+	speed := convert.StorageUnit(mt.speed)
 	return fmt.Sprintf("%s%%|%s/%s|%s/s", progress, current, total, speed)
 }
 
