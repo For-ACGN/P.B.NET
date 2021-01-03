@@ -91,8 +91,8 @@ func init() {
 		"crypto",
 		"crypto/aes",
 		"crypto/cipher",
-		"crypto/des", // #nosec
-		"crypto/dsa", // #nosec  // md5
+		"crypto/des",
+		"crypto/dsa",
 		"crypto/ecdsa",
 		"crypto/ed25519",
 		"crypto/elliptic",
@@ -113,8 +113,10 @@ func init() {
 		"time",
 	} {
 		switch pkg {
-		case "crypto/rand":
+		case "crypto/rand": // same package name with "math/rand"
 			_, _ = fmt.Fprintln(importBuf, "\tcrypto_rand  \"crypto/rand\"")
+		case "crypto/aes", "crypto/dsa", "crypto/md5", "crypto/rc4", "crypto/sha1": // insecure package
+			_, _ = fmt.Fprintf(importBuf, "\t\"%s\" // #nosec\n", pkg)
 		default:
 			_, _ = fmt.Fprintf(importBuf, "\t\"%s\"\n", pkg)
 		}
