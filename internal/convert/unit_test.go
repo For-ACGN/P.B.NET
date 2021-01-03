@@ -11,7 +11,7 @@ import (
 	"project/internal/patch/monkey"
 )
 
-func TestByteUnit(t *testing.T) {
+func TestStorageUnit(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
 		for _, testdata := range [...]*struct {
 			input  uint64
@@ -36,7 +36,7 @@ func TestByteUnit(t *testing.T) {
 			if runtime.GOOS == "windows" {
 				testdata.output = strings.ReplaceAll(testdata.output, "iB", "B")
 			}
-			require.Equal(t, testdata.output, ByteUnit(testdata.input))
+			require.Equal(t, testdata.output, StorageUnit(testdata.input))
 		}
 	})
 
@@ -48,6 +48,6 @@ func TestByteUnit(t *testing.T) {
 		defer pg.Unpatch()
 
 		defer testDeferForPanic(t)
-		ByteUnit(1024)
+		StorageUnit(1024)
 	})
 }

@@ -19,9 +19,9 @@ const (
 	EiB         = PiB * 1024
 )
 
-// ByteUnit is used to convert byte to larger unit.
+// StorageUnit is used to convert byte to larger unit.
 // output unit are KB KiB, MB MiB ...
-func ByteUnit(n uint64) string {
+func StorageUnit(n uint64) string {
 	if n < KiB {
 		return strconv.Itoa(int(n)) + " Byte"
 	}
@@ -49,7 +49,7 @@ func ByteUnit(n uint64) string {
 		unit = "EiB"
 		div = EiB
 	}
-	// a history of habit
+	// history of habit
 	if runtime.GOOS == "windows" {
 		unit = strings.ReplaceAll(unit, "iB", "B")
 	}
