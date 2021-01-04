@@ -7,15 +7,33 @@ import (
 	"time"
 )
 
-// LevelSetter is used to set logger level.
-type LevelSetter interface {
-	SetLevel(lv Level) error
+// Level is the log level.
+type Level uint8
+
+func (lv Level) String() string {
+	switch lv {
+	case Trace:
+		return "trace"
+	case Debug:
+		return "debug"
+	case Info:
+		return "info"
+	case Critical:
+		return "critical"
+	case Warning:
+		return "warning"
+	case Error:
+		return "error"
+	case Exploit:
+		return "exploit"
+	case Fatal:
+		return "fatal"
+	default:
+		return "unknown"
+	}
 }
 
-// Level is the log level.
-type Level = uint8
-
-// levels about logger.
+// about log levels.
 const (
 	All Level = iota // show all log messages
 
@@ -76,32 +94,11 @@ func Parse(level string) (Level, error) {
 //
 // [2018-11-27 00:00:00 +08:00] [info] <main> controller is running
 func Prefix(time time.Time, level Level, src string) *bytes.Buffer {
-	var lv string
-	switch level {
-	case Trace:
-		lv = "trace"
-	case Debug:
-		lv = "debug"
-	case Info:
-		lv = "info"
-	case Critical:
-		lv = "critical"
-	case Warning:
-		lv = "warning"
-	case Error:
-		lv = "error"
-	case Exploit:
-		lv = "exploit"
-	case Fatal:
-		lv = "fatal"
-	default:
-		lv = "unknown"
-	}
 	buf := bytes.Buffer{}
 	buf.WriteString("[")
 	buf.WriteString(time.Local().Format(TimeLayout))
 	buf.WriteString("] [")
-	buf.WriteString(lv)
+	buf.WriteString(level.String())
 	buf.WriteString("] <")
 	buf.WriteString(src)
 	buf.WriteString("> ")

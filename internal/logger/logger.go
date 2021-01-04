@@ -15,27 +15,49 @@ import (
 
 // Logger is used to print log with level and source.
 type Logger interface {
+	// Printf is used to log with format, reference features about fmt.Printf.
 	Printf(lv Level, src, format string, log ...interface{})
+
+	// Print is used to log with new line, reference features about fmt.Print.
 	Print(lv Level, src string, log ...interface{})
+
+	// Println is used to log with new line, reference features about fmt.Println.
 	Println(lv Level, src string, log ...interface{})
+
+	// SetLevel is used to set logger minimum log level, if log level is lower
+	// than it, this log will be discard.
+	SetLevel(lv Level) error
+
+	// GetLevel is used to get logger current minimum log level.
+	GetLevel() Level
 }
 
 var (
 	// Common is a common logger, some tools need it.
-	Common Logger = new(common)
+	Common = NewCommon(Info)
 
-	// Test is used to go test.
-	Test Logger = new(test)
+	// Test is used for go unit tests.
+	Test Logger = &test{level: Info}
 
-	// Discard is used to discard log in object test.
+	// Discard will discard all log.
 	Discard Logger = new(discard)
 )
 
 // [2020-01-21 12:36:41 +08:00] [info] <test src> test-format test log
-type common struct{}
+type common struct {
+	level Level
+	rwm   sync.RWMutex
+}
 
-func (common) Printf(lv Level, src, format string, log ...interface{}) {
-	if lv < Info {
+// NewCommon is used to create a common logger.
+func NewCommon(lv Level) Logger {
+	return &common{level: lv}
+}
+
+func (c *common) Printf(lv Level, src, format string, log ...interface{}) {
+	c.rwm.RLock()
+	defer c.rwm.RUnlock()
+	if lv < c.level {
 		return
 	}
 	output := Prefix(time.Now(), lv, src)
@@ -43,8 +65,10 @@ func (common) Printf(lv Level, src, format string, log ...interface{}) {
 	fmt.Println(output)
 }
 
-func (common) Print(lv Level, src string, log ...interface{}) {
-	if lv < Info {
+func (c *common) Print(lv Level, src string, log ...interface{}) {
+	c.rwm.RLock()
+	defer c.rwm.RUnlock()
+	if lv < c.level {
 		return
 	}
 	output := Prefix(time.Now(), lv, src)
@@ -52,8 +76,10 @@ func (common) Print(lv Level, src string, log ...interface{}) {
 	fmt.Println(output)
 }
 
-func (common) Println(lv Level, src string, log ...interface{}) {
-	if lv < Info {
+func (c *common) Println(lv Level, src string, log ...interface{}) {
+	c.rwm.RLock()
+	defer c.rwm.RUnlock()
+	if lv < c.level {
 		return
 	}
 	output := Prefix(time.Now(), lv, src)
@@ -61,8 +87,27 @@ func (common) Println(lv Level, src string, log ...interface{}) {
 	fmt.Print(output)
 }
 
+func (c *common) SetLevel(lv Level) error {
+	if lv > Off {
+		return fmt.Errorf("invalid logger level: %d", lv)
+	}
+	c.rwm.Lock()
+	defer c.rwm.Unlock()
+	c.level = lv
+	return nil
+}
+
+func (c *common) GetLevel() Level {
+	c.rwm.RLock()
+	defer c.rwm.RUnlock()
+	return c.level
+}
+
 // [Test] [2020-01-21 12:36:41 +08:00] [debug] <test src> test-format test log
-type test struct{}
+type test struct {
+	level Level
+	rwm   sync.RWMutex
+}
 
 var testLoggerPrefix = []byte("[Test] ")
 
@@ -91,6 +136,22 @@ func (test) Println(lv Level, src string, log ...interface{}) {
 	fmt.Print(output)
 }
 
+func (t *test) SetLevel(lv Level) error {
+	if lv > Off {
+		return fmt.Errorf("invalid logger level: %d", lv)
+	}
+	t.rwm.Lock()
+	defer t.rwm.Unlock()
+	t.level = lv
+	return nil
+}
+
+func (t *test) GetLevel() Level {
+	t.rwm.RLock()
+	defer t.rwm.RUnlock()
+	return t.level
+}
+
 type discard struct{}
 
 func (discard) Printf(Level, string, string, ...interface{}) {}
@@ -98,6 +159,10 @@ func (discard) Printf(Level, string, string, ...interface{}) {}
 func (discard) Print(Level, string, ...interface{}) {}
 
 func (discard) Println(Level, string, ...interface{}) {}
+
+func (discard) SetLevel(Level) error { return nil }
+
+func (discard) GetLevel() Level { return Off }
 
 // MultiLogger is a common logger that can set log level and print log.
 type MultiLogger struct {
@@ -161,6 +226,13 @@ func (lg *MultiLogger) SetLevel(lv Level) error {
 	defer lg.rwm.Unlock()
 	lg.level = lv
 	return nil
+}
+
+// GetLevel is used to get the current log level.
+func (lg *MultiLogger) GetLevel() Level {
+	lg.rwm.RLock()
+	defer lg.rwm.RUnlock()
+	return lg.level
 }
 
 // Close is used to close logger.
