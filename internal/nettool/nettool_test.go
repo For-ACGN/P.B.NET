@@ -16,12 +16,12 @@ import (
 )
 
 func TestCheckPort(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
 		err := CheckPort(123)
 		require.NoError(t, err)
 	})
 
-	t.Run("invalid port", func(t *testing.T) {
+	t.Run("invalid", func(t *testing.T) {
 		err := CheckPort(-1)
 		require.EqualError(t, err, "invalid port: -1")
 		err = CheckPort(65536)
@@ -30,9 +30,16 @@ func TestCheckPort(t *testing.T) {
 }
 
 func TestCheckPortString(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
 		err := CheckPortString("1234")
 		require.NoError(t, err)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := CheckPortString("-1")
+		require.Error(t, err)
+		err = CheckPortString("65536")
+		require.Error(t, err)
 	})
 
 	t.Run("empty port", func(t *testing.T) {
@@ -40,15 +47,8 @@ func TestCheckPortString(t *testing.T) {
 		require.Equal(t, ErrEmptyPort, err)
 	})
 
-	t.Run("NaN", func(t *testing.T) {
+	t.Run("not a number", func(t *testing.T) {
 		err := CheckPortString("s")
-		require.Error(t, err)
-	})
-
-	t.Run("invalid port", func(t *testing.T) {
-		err := CheckPortString("-1")
-		require.Error(t, err)
-		err = CheckPortString("65536")
 		require.Error(t, err)
 	})
 }
@@ -78,7 +78,7 @@ func TestSplitHostPort(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("port is NaN", func(t *testing.T) {
+	t.Run("port is not a number", func(t *testing.T) {
 		_, _, err := SplitHostPort("host:NaN")
 		require.Error(t, err)
 	})
@@ -86,6 +86,57 @@ func TestSplitHostPort(t *testing.T) {
 	t.Run("invalid port", func(t *testing.T) {
 		_, _, err := SplitHostPort("host:99999")
 		require.Error(t, err)
+	})
+}
+
+func TestCheckTCPNetwork(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		err := CheckTCPNetwork("tcp")
+		require.NoError(t, err)
+		err = CheckTCPNetwork("tcp4")
+		require.NoError(t, err)
+		err = CheckTCPNetwork("tcp6")
+		require.NoError(t, err)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := CheckTCPNetwork("foo")
+		require.EqualError(t, err, "invalid tcp network: foo")
+	})
+}
+
+func TestCheckUDPNetwork(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		err := CheckUDPNetwork("udp")
+		require.NoError(t, err)
+		err = CheckUDPNetwork("udp4")
+		require.NoError(t, err)
+		err = CheckUDPNetwork("udp6")
+		require.NoError(t, err)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := CheckUDPNetwork("foo")
+		require.EqualError(t, err, "invalid udp network: foo")
+	})
+}
+
+func TestIsNetClosingError(t *testing.T) {
+	t.Run("is", func(t *testing.T) {
+		err := errors.New("test error: use of closed network connection")
+		r := IsNetClosingError(err)
+		require.True(t, r)
+	})
+
+	t.Run("not", func(t *testing.T) {
+		err := errors.New("test error")
+		r := IsNetClosingError(err)
+		require.False(t, r)
+	})
+
+	t.Run("nil error", func(t *testing.T) {
+		r := IsNetClosingError(nil)
+		require.False(t, r)
 	})
 }
 
@@ -98,57 +149,6 @@ func TestIPToHost(t *testing.T) {
 	t.Run("IPv6", func(t *testing.T) {
 		host := IPToHost("::1")
 		require.Equal(t, "[::1]", host)
-	})
-}
-
-func TestIsTCPNetwork(t *testing.T) {
-	t.Run("is", func(t *testing.T) {
-		err := IsTCPNetwork("tcp")
-		require.NoError(t, err)
-		err = IsTCPNetwork("tcp4")
-		require.NoError(t, err)
-		err = IsTCPNetwork("tcp6")
-		require.NoError(t, err)
-	})
-
-	t.Run("not", func(t *testing.T) {
-		err := IsTCPNetwork("foo")
-		require.EqualError(t, err, "invalid tcp network: foo")
-	})
-}
-
-func TestIsUDPNetwork(t *testing.T) {
-	t.Run("is", func(t *testing.T) {
-		err := IsUDPNetwork("udp")
-		require.NoError(t, err)
-		err = IsUDPNetwork("udp4")
-		require.NoError(t, err)
-		err = IsUDPNetwork("udp6")
-		require.NoError(t, err)
-	})
-
-	t.Run("not", func(t *testing.T) {
-		err := IsUDPNetwork("foo")
-		require.EqualError(t, err, "invalid udp network: foo")
-	})
-}
-
-func TestIsNetClosingError(t *testing.T) {
-	t.Run("is", func(t *testing.T) {
-		err := errors.New("test error: use of closed network connection")
-		r := IsNetClosingError(err)
-		require.True(t, r)
-	})
-
-	t.Run("nil error", func(t *testing.T) {
-		r := IsNetClosingError(nil)
-		require.False(t, r)
-	})
-
-	t.Run("not", func(t *testing.T) {
-		err := errors.New("test error")
-		r := IsNetClosingError(err)
-		require.False(t, r)
 	})
 }
 
@@ -277,14 +277,17 @@ func TestDeadlineConn(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestPrintConn(t *testing.T) {
+func TestFprintConn(t *testing.T) {
 	listener, err := net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 
 	conn, err := net.Dial("tcp", listener.Addr().String())
 	require.NoError(t, err)
 	defer func() { _ = conn.Close() }()
-	fmt.Println(PrintConn(conn))
+
+	fmt.Println(SprintConn(conn))
+	PrintConn(conn)
+	fmt.Println()
 
 	err = listener.Close()
 	require.NoError(t, err)

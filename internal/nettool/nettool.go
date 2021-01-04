@@ -7,16 +7,17 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// DialContext is a type alias about DialContext function.
-type DialContext = func(ctx context.Context, network, address string) (net.Conn, error)
-
 // ErrEmptyPort is an error of CheckPortString.
 var ErrEmptyPort = errors.New("empty port")
+
+// DialContext is a type alias about DialContext function.
+type DialContext = func(ctx context.Context, network, address string) (net.Conn, error)
 
 // CheckPort is used to check port range.
 func CheckPort(port int) error {
@@ -60,17 +61,8 @@ func SplitHostPort(address string) (string, uint16, error) {
 	return host, uint16(portNum), nil
 }
 
-// IPToHost is used to convert IP address to URL.Host.
-// net/http.Client need it(maybe it is a bug to handle IPv6 address when through proxy).
-func IPToHost(address string) string {
-	if !strings.Contains(address, ":") { // IPv4
-		return address
-	}
-	return "[" + address + "]"
-}
-
-// IsTCPNetwork is used to check network is TCP.
-func IsTCPNetwork(network string) error {
+// CheckTCPNetwork is used to check network is TCP.
+func CheckTCPNetwork(network string) error {
 	switch network {
 	case "tcp", "tcp4", "tcp6":
 		return nil
@@ -79,8 +71,8 @@ func IsTCPNetwork(network string) error {
 	}
 }
 
-// IsUDPNetwork is used to check network is UDP.
-func IsUDPNetwork(network string) error {
+// CheckUDPNetwork is used to check network is UDP.
+func CheckUDPNetwork(network string) error {
 	switch network {
 	case "udp", "udp4", "udp6":
 		return nil
@@ -98,12 +90,20 @@ func IsNetClosingError(err error) bool {
 	return strings.Contains(err.Error(), errStr)
 }
 
+// IPToHost is used to convert IP address to URL.Host, net/http.Client need it.
+// maybe it is a bug to handle IPv6 address when through proxy.
+func IPToHost(address string) string {
+	if !strings.Contains(address, ":") { // IPv4
+		return address
+	}
+	return "[" + address + "]"
+}
+
 // EncodeExternalAddress is used to encode connection external address.
 // If address is IP+Port, parse IP and return byte slice, ot return []byte(addr).
 func EncodeExternalAddress(address string) []byte {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
-		// for special remote address
 		return []byte(address)
 	}
 	ip := net.ParseIP(host)
@@ -188,26 +188,32 @@ func DeadlineConn(conn net.Conn, deadline time.Duration) net.Conn {
 //
 // local:  tcp 127.0.0.1:1234
 // remote: tcp 127.0.0.1:1235
-func FprintConn(w io.Writer, c net.Conn) {
-	_, _ = fmt.Fprintf(w, "local:  %s %s\nremote: %s %s",
+func FprintConn(w io.Writer, c net.Conn) (int, error) {
+	return fmt.Fprintf(w, "local:  %s %s\nremote: %s %s",
 		c.LocalAddr().Network(), c.LocalAddr(),
 		c.RemoteAddr().Network(), c.RemoteAddr(),
 	)
 }
 
-// PrintConn is used to print information about net.Conn to a *bytes.Buffer.
-func PrintConn(conn net.Conn) *bytes.Buffer {
+// SprintConn is used to print information about net.Conn to string.
+func SprintConn(conn net.Conn) string {
 	buf := bytes.NewBuffer(make([]byte, 0, 64))
-	FprintConn(buf, conn)
-	return buf
+	_, _ = FprintConn(buf, conn)
+	return buf.String()
+}
+
+// PrintConn is used to print information about net.Conn to os.Stdout.
+func PrintConn(conn net.Conn) {
+	_, _ = FprintConn(os.Stdout, conn)
 }
 
 // Server implemented method Addresses() []net.Addr.
+// It is used to wait server until it running.
 type Server interface {
 	Addresses() []net.Addr
 }
 
-// WaitServerServe is used to wait server serve.
+// WaitServerServe is used to wait server serve, n is the target number of the addresses.
 func WaitServerServe(ctx context.Context, errCh <-chan error, srv Server, n int) ([]net.Addr, error) {
 	if n < 1 {
 		panic("n < 1")
