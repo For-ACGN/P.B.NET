@@ -9,6 +9,7 @@ import (
 const MaxSleepTime = 30 * time.Minute
 
 // Sleeper contain a timer and rand for reuse.
+// It is not multi goroutine safe except Stop.
 // sleep total time = fixed + [0, random)
 type Sleeper struct {
 	timer *time.Timer
@@ -23,6 +24,17 @@ func NewSleeper() *Sleeper {
 	return &Sleeper{timer: timer, rand: NewRand()}
 }
 
+// Sleep is used to sleep random second, it will not longer than 3 minutes.
+func (s *Sleeper) Sleep(fixed, random uint) {
+	done := s.SleepSecond(fixed, random)
+	timer := time.NewTimer(3 * time.Minute)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
+}
+
 // SleepSecond is used to sleep random second.
 func (s *Sleeper) SleepSecond(fixed, random uint) <-chan time.Time {
 	return s.SleepMillisecond(fixed*1000, random*1000)
@@ -30,8 +42,7 @@ func (s *Sleeper) SleepSecond(fixed, random uint) <-chan time.Time {
 
 // SleepMillisecond is used to sleep random millisecond.
 func (s *Sleeper) SleepMillisecond(fixed, random uint) <-chan time.Time {
-	d := s.calculateDuration(fixed, random)
-	s.timer.Reset(d)
+	s.timer.Reset(s.calculateTime(fixed, random))
 	select {
 	case <-s.timer.C:
 	default:
@@ -39,8 +50,8 @@ func (s *Sleeper) SleepMillisecond(fixed, random uint) <-chan time.Time {
 	return s.timer.C
 }
 
-// calculateDuration is used to calculate actual duration.
-func (s *Sleeper) calculateDuration(fixed, random uint) time.Duration {
+// calculateTime is used to calculate actual time duration that need sleep.
+func (s *Sleeper) calculateTime(fixed, random uint) time.Duration {
 	if fixed+random < 1 {
 		fixed = 1000
 	}
@@ -64,7 +75,11 @@ func (s *Sleeper) Stop() {
 // case <-ctx.Done():
 //     return ctx.Err()
 // }
-// ...
+
+// Sleep is used to sleep random second, it will not longer than 3 minutes.
+func Sleep(fixed, random uint) {
+	NewSleeper().Sleep(fixed, random)
+}
 
 // SleepSecond is used to sleep random second.
 func SleepSecond(fixed, random uint) (<-chan time.Time, *Sleeper) {
@@ -76,16 +91,4 @@ func SleepSecond(fixed, random uint) (<-chan time.Time, *Sleeper) {
 func SleepMillisecond(fixed, random uint) (<-chan time.Time, *Sleeper) {
 	sleeper := NewSleeper()
 	return sleeper.SleepMillisecond(fixed, random), sleeper
-}
-
-// Sleep is used to sleep random second, it will not longer than 3 minutes.
-func Sleep(fixed, random uint) {
-	done, sleeper := SleepSecond(fixed, random)
-	defer sleeper.Stop()
-	timer := time.NewTimer(3 * time.Minute)
-	defer timer.Stop()
-	select {
-	case <-done:
-	case <-timer.C:
-	}
 }

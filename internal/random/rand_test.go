@@ -19,15 +19,6 @@ func testDeferForPanic(t testing.TB) {
 }
 
 func TestRand(t *testing.T) {
-	t.Run("String", func(t *testing.T) {
-		str := String(10)
-		require.Len(t, str, 10)
-		t.Log(str)
-
-		str = String(-1)
-		require.Len(t, str, 0)
-	})
-
 	t.Run("Bytes", func(t *testing.T) {
 		bytes := Bytes(10)
 		require.Len(t, bytes, 10)
@@ -35,6 +26,15 @@ func TestRand(t *testing.T) {
 
 		bytes = Bytes(-1)
 		require.Len(t, bytes, 0)
+	})
+
+	t.Run("String", func(t *testing.T) {
+		str := String(10)
+		require.Len(t, str, 10)
+		t.Log(str)
+
+		str = String(-1)
+		require.Len(t, str, 0)
 	})
 
 	t.Run("Int", func(t *testing.T) {
@@ -83,16 +83,18 @@ func TestRandEqual(t *testing.T) {
 			result <- r.Int(1048576)
 		}()
 	}
-	results := make(map[int]*struct{})
+	results := make(map[int]struct{})
 	for i := 0; i < n; i++ {
 		r := <-result
 		_, ok := results[r]
 		require.False(t, ok, "appeared value: %d, i: %d", r, i)
-		results[r] = new(struct{})
+		results[r] = struct{}{}
 	}
 }
 
-func BenchmarkNew(b *testing.B) {
+// performance: BenchmarkNew-6    4148    304633 ns/op    35511 B/op
+
+func BenchmarkNewRand(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {

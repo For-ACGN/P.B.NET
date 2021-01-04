@@ -13,14 +13,13 @@ import (
 	"project/internal/xpanic"
 )
 
-// Rand is used to generate random data.
+// Rand is used to generate random data. It is multi goroutine safe.
 type Rand struct {
 	rand *rand.Rand
 	mu   sync.Mutex
 }
 
 // NewRand is used to create a Rand.
-// performance: BenchmarkNew-6    4148    304633 ns/op    35511 B/op
 func NewRand() *Rand {
 	const (
 		goroutines = 4
@@ -31,6 +30,7 @@ func NewRand() *Rand {
 		go sendData(data, times)
 	}
 	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
 	hash := sha256.New()
 read:
 	for i := 0; i < goroutines*times; i++ {
@@ -62,9 +62,10 @@ func sendData(data chan<- []byte, times int) {
 			xpanic.Log(r, "sendData")
 		}
 	}()
-	count := 0
 	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
 	r := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec
+	count := 0
 	for i := 0; i < times; i++ {
 		timer.Reset(time.Second)
 		select {
@@ -147,14 +148,14 @@ func (r *Rand) Uint64() uint64 {
 
 var gRand = NewRand()
 
-// String returns a string that only include 0-9, A-Z and a-z.
-func String(n int) string {
-	return gRand.String(n)
-}
-
 // Bytes is used to generate random []byte that size = n.
 func Bytes(n int) []byte {
 	return gRand.Bytes(n)
+}
+
+// String returns a string that only include 0-9, A-Z and a-z.
+func String(n int) string {
+	return gRand.String(n)
 }
 
 // Int returns, as an int, a non-negative pseudo-random number in [0,n).

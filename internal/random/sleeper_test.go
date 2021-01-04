@@ -10,6 +10,18 @@ import (
 )
 
 func TestSleeper(t *testing.T) {
+	t.Run("Sleep", func(t *testing.T) {
+		now := time.Now()
+
+		Sleep(2, 2)
+
+		// maybe CPU is full
+		d := time.Since(now)
+
+		require.True(t, d > 2*time.Second)
+		require.True(t, d < 5*time.Second)
+	})
+
 	t.Run("SleepSecond", func(t *testing.T) {
 		now := time.Now()
 
@@ -52,35 +64,6 @@ func TestSleeper(t *testing.T) {
 		require.True(t, d < 2*time.Second)
 	})
 
-	t.Run("not read", func(t *testing.T) {
-		sleeper := NewSleeper()
-
-		sleeper.SleepSecond(0, 0)
-		time.Sleep(time.Second + 100*time.Millisecond)
-		sleeper.SleepSecond(0, 0)
-	})
-
-	t.Run("max duration", func(t *testing.T) {
-		sleeper := NewSleeper()
-
-		d := sleeper.calculateDuration(3600*1000, 3600*1000)
-		require.Equal(t, MaxSleepTime, d)
-	})
-}
-
-func TestSleep(t *testing.T) {
-	t.Run("common", func(t *testing.T) {
-		now := time.Now()
-
-		Sleep(2, 2)
-
-		// maybe CPU is full
-		d := time.Since(now)
-
-		require.True(t, d > 2*time.Second)
-		require.True(t, d < 5*time.Second)
-	})
-
 	t.Run("timeout", func(t *testing.T) {
 		var pg *monkey.PatchGuard
 		patch := func(time.Duration) *time.Timer {
@@ -100,5 +83,20 @@ func TestSleep(t *testing.T) {
 
 		require.True(t, d > 2*time.Second)
 		require.True(t, d < 5*time.Second)
+	})
+
+	t.Run("not read", func(t *testing.T) {
+		sleeper := NewSleeper()
+
+		sleeper.SleepSecond(0, 0)
+		time.Sleep(time.Second + 100*time.Millisecond)
+		sleeper.SleepSecond(0, 0)
+	})
+
+	t.Run("max duration", func(t *testing.T) {
+		sleeper := NewSleeper()
+
+		d := sleeper.calculateTime(3600*1000, 3600*1000)
+		require.Equal(t, MaxSleepTime, d)
 	})
 }
