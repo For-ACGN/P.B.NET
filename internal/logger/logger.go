@@ -4,16 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
-	"os"
 	"sync"
 	"time"
-
-	"project/internal/system"
-	"project/internal/xpanic"
 )
 
-// Logger is used to print log with level and source.
+// Logger is used to print log with level and source. If log
+// level is lower than current level, this log will be discard.
 type Logger interface {
 	// Printf is used to log with format, reference features about fmt.Printf.
 	Printf(lv Level, src, format string, log ...interface{})
@@ -24,8 +20,7 @@ type Logger interface {
 	// Println is used to log with new line, reference features about fmt.Println.
 	Println(lv Level, src string, log ...interface{})
 
-	// SetLevel is used to set logger minimum log level, if log level is lower
-	// than it, this log will be discard.
+	// SetLevel is used to set logger minimum log level.
 	SetLevel(lv Level) error
 
 	// GetLevel is used to get logger current minimum log level.
@@ -33,13 +28,13 @@ type Logger interface {
 }
 
 var (
-	// Common is a common logger, some tools need it.
-	Common = NewCommon(Info)
+	// Common is a common logger, most tools need it.
+	Common, _ = NewCommonLogger(Info)
 
 	// Test is used for go unit tests.
-	Test Logger = &test{level: Info}
+	Test, _ = NewTestLogger(Debug)
 
-	// Discard will discard all log.
+	// Discard is used to discard all log.
 	Discard Logger = new(discard)
 )
 
@@ -49,15 +44,18 @@ type common struct {
 	rwm   sync.RWMutex
 }
 
-// NewCommon is used to create a common logger.
-func NewCommon(lv Level) Logger {
-	return &common{level: lv}
+// NewCommonLogger is used to create a common logger.
+func NewCommonLogger(lv Level) (Logger, error) {
+	lg := common{}
+	err := lg.SetLevel(lv)
+	if err != nil {
+		return nil, err
+	}
+	return &lg, nil
 }
 
 func (c *common) Printf(lv Level, src, format string, log ...interface{}) {
-	c.rwm.RLock()
-	defer c.rwm.RUnlock()
-	if lv < c.level {
+	if c.discard(lv) {
 		return
 	}
 	output := Prefix(time.Now(), lv, src)
@@ -66,9 +64,7 @@ func (c *common) Printf(lv Level, src, format string, log ...interface{}) {
 }
 
 func (c *common) Print(lv Level, src string, log ...interface{}) {
-	c.rwm.RLock()
-	defer c.rwm.RUnlock()
-	if lv < c.level {
+	if c.discard(lv) {
 		return
 	}
 	output := Prefix(time.Now(), lv, src)
@@ -77,14 +73,18 @@ func (c *common) Print(lv Level, src string, log ...interface{}) {
 }
 
 func (c *common) Println(lv Level, src string, log ...interface{}) {
-	c.rwm.RLock()
-	defer c.rwm.RUnlock()
-	if lv < c.level {
+	if c.discard(lv) {
 		return
 	}
 	output := Prefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintln(output, log...)
 	fmt.Print(output)
+}
+
+func (c *common) discard(lv Level) bool {
+	c.rwm.RLock()
+	defer c.rwm.RUnlock()
+	return lv < c.level
 }
 
 func (c *common) SetLevel(lv Level) error {
@@ -109,31 +109,54 @@ type test struct {
 	rwm   sync.RWMutex
 }
 
-var testLoggerPrefix = []byte("[Test] ")
-
-func writePrefix(lv Level, src string) *bytes.Buffer {
-	output := new(bytes.Buffer)
-	output.Write(testLoggerPrefix)
-	_, _ = Prefix(time.Now(), lv, src).WriteTo(output)
-	return output
+// NewTestLogger is used to create a test logger.
+func NewTestLogger(lv Level) (Logger, error) {
+	lg := test{}
+	err := lg.SetLevel(lv)
+	if err != nil {
+		return nil, err
+	}
+	return &lg, nil
 }
 
-func (test) Printf(lv Level, src, format string, log ...interface{}) {
+func (t *test) Printf(lv Level, src, format string, log ...interface{}) {
+	if t.discard(lv) {
+		return
+	}
 	output := writePrefix(lv, src)
 	_, _ = fmt.Fprintf(output, format, log...)
 	fmt.Println(output)
 }
 
-func (test) Print(lv Level, src string, log ...interface{}) {
+func (t *test) Print(lv Level, src string, log ...interface{}) {
+	if t.discard(lv) {
+		return
+	}
 	output := writePrefix(lv, src)
 	_, _ = fmt.Fprint(output, log...)
 	fmt.Println(output)
 }
 
-func (test) Println(lv Level, src string, log ...interface{}) {
+func (t *test) Println(lv Level, src string, log ...interface{}) {
+	if t.discard(lv) {
+		return
+	}
 	output := writePrefix(lv, src)
 	_, _ = fmt.Fprintln(output, log...)
 	fmt.Print(output)
+}
+
+func (t *test) discard(lv Level) bool {
+	t.rwm.RLock()
+	defer t.rwm.RUnlock()
+	return lv < t.level
+}
+
+func writePrefix(lv Level, src string) *bytes.Buffer {
+	output := new(bytes.Buffer)
+	output.WriteString("[Test] ")
+	_, _ = Prefix(time.Now(), lv, src).WriteTo(output)
+	return output
 }
 
 func (t *test) SetLevel(lv Level) error {
@@ -172,165 +195,68 @@ type MultiLogger struct {
 }
 
 // NewMultiLogger is used to create a MultiLogger.
-func NewMultiLogger(lv Level, writers ...io.Writer) *MultiLogger {
-	return &MultiLogger{
-		level:  lv,
-		writer: io.MultiWriter(writers...),
+func NewMultiLogger(lv Level, writers ...io.Writer) (Logger, error) {
+	lg := MultiLogger{}
+	err := lg.SetLevel(lv)
+	if err != nil {
+		return nil, err
 	}
+	lg.writer = io.MultiWriter(writers...)
+	return &lg, nil
 }
 
 // Printf is used to print log with format.
-func (lg *MultiLogger) Printf(lv Level, src, format string, log ...interface{}) {
-	lg.rwm.RLock()
-	defer lg.rwm.RUnlock()
-	if lv < lg.level {
+func (ml *MultiLogger) Printf(lv Level, src, format string, log ...interface{}) {
+	if ml.discard(lv) {
 		return
 	}
 	buf := Prefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintf(buf, format, log...)
 	buf.WriteString("\n")
-	_, _ = buf.WriteTo(lg.writer)
+	_, _ = buf.WriteTo(ml.writer)
 }
 
 // Print is used to print log.
-func (lg *MultiLogger) Print(lv Level, src string, log ...interface{}) {
-	lg.rwm.RLock()
-	defer lg.rwm.RUnlock()
-	if lv < lg.level {
+func (ml *MultiLogger) Print(lv Level, src string, log ...interface{}) {
+	if ml.discard(lv) {
 		return
 	}
 	buf := Prefix(time.Now(), lv, src)
 	_, _ = fmt.Fprint(buf, log...)
 	buf.WriteString("\n")
-	_, _ = buf.WriteTo(lg.writer)
+	_, _ = buf.WriteTo(ml.writer)
 }
 
 // Println is used to print log with new line.
-func (lg *MultiLogger) Println(lv Level, src string, log ...interface{}) {
-	lg.rwm.RLock()
-	defer lg.rwm.RUnlock()
-	if lv < lg.level {
+func (ml *MultiLogger) Println(lv Level, src string, log ...interface{}) {
+	if ml.discard(lv) {
 		return
 	}
 	buf := Prefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintln(buf, log...)
-	_, _ = buf.WriteTo(lg.writer)
+	_, _ = buf.WriteTo(ml.writer)
+}
+
+func (ml *MultiLogger) discard(lv Level) bool {
+	ml.rwm.RLock()
+	defer ml.rwm.RUnlock()
+	return lv < ml.level
 }
 
 // SetLevel is used to set log level that need print.
-func (lg *MultiLogger) SetLevel(lv Level) error {
+func (ml *MultiLogger) SetLevel(lv Level) error {
 	if lv > Off {
 		return fmt.Errorf("invalid logger level: %d", lv)
 	}
-	lg.rwm.Lock()
-	defer lg.rwm.Unlock()
-	lg.level = lv
+	ml.rwm.Lock()
+	defer ml.rwm.Unlock()
+	ml.level = lv
 	return nil
 }
 
 // GetLevel is used to get the current log level.
-func (lg *MultiLogger) GetLevel() Level {
-	lg.rwm.RLock()
-	defer lg.rwm.RUnlock()
-	return lg.level
-}
-
-// Close is used to close logger.
-func (lg *MultiLogger) Close() error {
-	_ = lg.SetLevel(Off)
-	return nil
-}
-
-// prefixWriter is used to print with a prefix.
-type prefixWriter struct {
-	writer io.Writer
-	prefix []byte
-}
-
-func (p *prefixWriter) Write(b []byte) (n int, err error) {
-	n = len(b)
-	_, err = p.writer.Write(append(p.prefix, b...))
-	return
-}
-
-// NewWriterWithPrefix is used to print prefix before each log.
-// It used to test role.
-func NewWriterWithPrefix(w io.Writer, prefix string) io.Writer {
-	return &prefixWriter{
-		writer: w,
-		prefix: []byte(fmt.Sprintf("[%s] ", prefix)),
-	}
-}
-
-// wrapWriter will print stack trace to inner logger.
-type wrapWriter struct {
-	level  Level
-	src    string
-	logger Logger
-	trace  bool // print stack trace
-	skip   int  // about trace
-	last   bool // delete the last "\n"
-}
-
-func (w *wrapWriter) Write(p []byte) (int, error) {
-	l := len(p)
-	buf := bytes.NewBuffer(make([]byte, 0, l+256))
-	buf.Write(p)
-	if w.last && p[len(p)-1] == '\n' {
-		buf.Truncate(buf.Len() - 1)
-	}
-	if w.trace {
-		xpanic.PrintStackTrace(buf, w.skip)
-	}
-	w.logger.Print(w.level, w.src, buf)
-	return l, nil
-}
-
-// WrapLogger is used to wrap a Logger to io.Writer.
-func WrapLogger(lv Level, src string, logger Logger) io.Writer {
-	w := wrapWriter{
-		level:  lv,
-		src:    src,
-		logger: logger,
-		last:   true,
-	}
-	return &w
-}
-
-// Wrap is used to convert Logger to go internal logger.
-// It used to set to http.Server.ErrorLog or other structure.
-func Wrap(lv Level, src string, logger Logger) *log.Logger {
-	w := wrapWriter{
-		level:  lv,
-		src:    src,
-		logger: logger,
-		trace:  true,
-		skip:   3,
-	}
-	return log.New(&w, "", 0)
-}
-
-// HijackLogWriter is used to hijack all packages that call functions like log.Println().
-func HijackLogWriter(lv Level, src string, logger Logger) {
-	w := &wrapWriter{
-		level:  lv,
-		src:    src,
-		logger: logger,
-		trace:  true,
-		skip:   4,
-	}
-	log.SetFlags(0)
-	log.SetOutput(w)
-}
-
-// SetErrorLogger is used to log error before service program start.
-// If occur some error before start, you can get it.
-func SetErrorLogger(name string) (*os.File, error) {
-	file, err := system.OpenFile(name, os.O_CREATE|os.O_APPEND, 0600)
-	if err != nil {
-		return nil, err
-	}
-	mLogger := NewMultiLogger(Warning, os.Stdout, file)
-	HijackLogWriter(Fatal, "init", mLogger)
-	return file, nil
+func (ml *MultiLogger) GetLevel() Level {
+	ml.rwm.RLock()
+	defer ml.rwm.RUnlock()
+	return ml.level
 }
