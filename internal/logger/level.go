@@ -35,30 +35,29 @@ func (lv Level) String() string {
 
 // about log levels.
 const (
-	All Level = iota // show all log messages
+	// log all(with unexpected level)
+	All Level = iota
 
 	// about debug
 	Trace // for trace function (development)
 	Debug // general debug information
 
 	// about information
-	Info     // common running information
-	Critical // important information like attack successfully
+	Info     // general running information
+	Critical // important information like exploit successfully
 
 	// about error
 	Warning // appear error but can continue
 	Error   // appear error that can not continue (returned)
-	Exploit // find attack exploit or security problem(maybe)
-	Fatal   // appear panic in goroutine
+	Exploit // find excepted exploit or security problem(maybe)
+	Fatal   // appear panic in goroutine or error that need return
 
-	Off // stop log message
+	// stop logger
+	Off
 )
 
-// TimeLayout is used to provide a parameter to time.Time.Format().
-const TimeLayout = "2006-01-02 15:04:05 Z07:00"
-
-// Parse is used to parse logger level from string.
-func Parse(level string) (Level, error) {
+// ParseLevel is used to parse log level from string.
+func ParseLevel(level string) (Level, error) {
 	var lv Level
 	switch strings.ToLower(level) {
 	case "all":
@@ -88,17 +87,18 @@ func Parse(level string) (Level, error) {
 }
 
 // Prefix is used to print time, level and source to a buffer.
+// The output is time + level + source + log
+// Log source is: class name + ":" + instance tag like "server:tag1",
+// if log source include more that two words, connect these with "-"
+// like "socks5-server:tag1".
 //
-// time + level + source + log
-// source usually like: class name + "-" + instance tag
-//
-// [2018-11-27 00:00:00 +08:00] [info] <main> controller is running
-func Prefix(time time.Time, level Level, src string) *bytes.Buffer {
+// [2018-11-27 09:16:16 +08:00] [info] <main> controller is running
+func Prefix(t time.Time, lv Level, src string) *bytes.Buffer {
 	buf := bytes.Buffer{}
 	buf.WriteString("[")
-	buf.WriteString(time.Local().Format(TimeLayout))
+	buf.WriteString(t.Format(TimeLayout))
 	buf.WriteString("] [")
-	buf.WriteString(level.String())
+	buf.WriteString(lv.String())
 	buf.WriteString("] <")
 	buf.WriteString(src)
 	buf.WriteString("> ")

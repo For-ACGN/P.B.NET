@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// TimeLayout is the parameter about function time.Time.Format().
+const TimeLayout = "2006-01-02 15:04:05 Z07:00"
+
 // Logger is used to print log with level and source. If log
 // level is lower than current level, this log will be discard.
 type Logger interface {
@@ -40,8 +43,8 @@ var (
 
 // [2020-01-21 12:36:41 +08:00] [info] <test src> test-format test log
 type common struct {
-	level Level
-	rwm   sync.RWMutex
+	lv  Level
+	rwm sync.RWMutex
 }
 
 // NewCommonLogger is used to create a common logger.
@@ -84,7 +87,7 @@ func (c *common) Println(lv Level, src string, log ...interface{}) {
 func (c *common) discard(lv Level) bool {
 	c.rwm.RLock()
 	defer c.rwm.RUnlock()
-	return lv < c.level
+	return lv < c.lv
 }
 
 func (c *common) SetLevel(lv Level) error {
@@ -93,20 +96,20 @@ func (c *common) SetLevel(lv Level) error {
 	}
 	c.rwm.Lock()
 	defer c.rwm.Unlock()
-	c.level = lv
+	c.lv = lv
 	return nil
 }
 
 func (c *common) GetLevel() Level {
 	c.rwm.RLock()
 	defer c.rwm.RUnlock()
-	return c.level
+	return c.lv
 }
 
 // [Test] [2020-01-21 12:36:41 +08:00] [debug] <test src> test-format test log
 type test struct {
-	level Level
-	rwm   sync.RWMutex
+	lv  Level
+	rwm sync.RWMutex
 }
 
 // NewTestLogger is used to create a test logger.
@@ -149,7 +152,7 @@ func (t *test) Println(lv Level, src string, log ...interface{}) {
 func (t *test) discard(lv Level) bool {
 	t.rwm.RLock()
 	defer t.rwm.RUnlock()
-	return lv < t.level
+	return lv < t.lv
 }
 
 func writePrefix(lv Level, src string) *bytes.Buffer {
@@ -165,14 +168,14 @@ func (t *test) SetLevel(lv Level) error {
 	}
 	t.rwm.Lock()
 	defer t.rwm.Unlock()
-	t.level = lv
+	t.lv = lv
 	return nil
 }
 
 func (t *test) GetLevel() Level {
 	t.rwm.RLock()
 	defer t.rwm.RUnlock()
-	return t.level
+	return t.lv
 }
 
 type discard struct{}
@@ -190,7 +193,7 @@ func (discard) GetLevel() Level { return Off }
 // multiLogger is used to print log to multi io.Writer.
 type multiLogger struct {
 	writer io.Writer
-	level  Level
+	lv     Level
 	rwm    sync.RWMutex
 }
 
@@ -237,7 +240,7 @@ func (ml *multiLogger) Println(lv Level, src string, log ...interface{}) {
 func (ml *multiLogger) discard(lv Level) bool {
 	ml.rwm.RLock()
 	defer ml.rwm.RUnlock()
-	return lv < ml.level
+	return lv < ml.lv
 }
 
 func (ml *multiLogger) SetLevel(lv Level) error {
@@ -246,12 +249,12 @@ func (ml *multiLogger) SetLevel(lv Level) error {
 	}
 	ml.rwm.Lock()
 	defer ml.rwm.Unlock()
-	ml.level = lv
+	ml.lv = lv
 	return nil
 }
 
 func (ml *multiLogger) GetLevel() Level {
 	ml.rwm.RLock()
 	defer ml.rwm.RUnlock()
-	return ml.level
+	return ml.lv
 }
