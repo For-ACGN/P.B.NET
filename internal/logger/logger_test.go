@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -10,62 +11,148 @@ import (
 )
 
 const (
-	testPrefixF  = "test format %s %s"
-	testPrefix   = "test print"
-	testPrefixLn = "test println"
-	testSrc      = "test src"
-	testLog1     = "test"
-	testLog2     = "log"
+	testLogPrefixF   = "test format %s %s"
+	testLogPrefix    = "test print"
+	testLogPrefixLn  = "test println"
+	testLogSrc       = "test src"
+	testLogText1     = "test-text"
+	testLogText2     = "test text2"
+	testInvalidLevel = Level(255)
 )
 
-func TestLogger(t *testing.T) {
-	t.Run("common", func(t *testing.T) {
-		Common.Printf(Info, testSrc, testPrefixF, testLog1, testLog2)
-		Common.Print(Info, testSrc, testPrefix, testLog1, testLog2)
-		Common.Println(Info, testSrc, testPrefixLn, testLog1, testLog2)
+var errInvalidLevel = errors.New("invalid logger level: 255")
 
-		// will not display
-		Common.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-		Common.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-		Common.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+func TestCommonLogger(t *testing.T) {
+	t.Run("Print", func(t *testing.T) {
+		Common.Printf(Info, testLogSrc, testLogPrefixF, testLogText1, testLogText2)
+		Common.Print(Info, testLogSrc, testLogPrefix, testLogText1, testLogText2)
+		Common.Println(Info, testLogSrc, testLogPrefixLn, testLogText1, testLogText2)
+
+		// will discard
+		Common.Printf(Debug, testLogSrc, testLogPrefixF, testLogText1, testLogText2)
+		Common.Print(Debug, testLogSrc, testLogPrefix, testLogText1, testLogText2)
+		Common.Println(Debug, testLogSrc, testLogPrefixLn, testLogText1, testLogText2)
 	})
 
-	t.Run("test", func(t *testing.T) {
-		Test.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-		Test.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-		Test.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	t.Run("SetLevel", func(t *testing.T) {
+		err := Common.SetLevel(Error)
+		require.NoError(t, err)
+
+		lv := Common.GetLevel()
+		require.Equal(t, Error, lv)
+
+		err = Common.SetLevel(testInvalidLevel)
+		require.Equal(t, err, errInvalidLevel)
+
+		err = Common.SetLevel(Info)
+		require.NoError(t, err)
 	})
 
-	t.Run("discard", func(t *testing.T) {
-		Discard.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-		Discard.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-		Discard.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+	t.Run("NewCommonLogger", func(t *testing.T) {
+		lg, err := NewCommonLogger(Warning)
+		require.NoError(t, err)
+		require.NotNil(t, lg)
+
+		lg, err = NewCommonLogger(testInvalidLevel)
+		require.Error(t, err)
+		require.Nil(t, lg)
 	})
 }
 
-func TestMultiLogger(t *testing.T) {
-	logger, err := NewMultiLogger(Debug, os.Stdout)
-	require.NoError(t, err)
+func TestTestLogger(t *testing.T) {
+	t.Run("Print", func(t *testing.T) {
+		Test.Printf(Debug, testLogSrc, testLogPrefixF, testLogText1, testLogText2)
+		Test.Print(Debug, testLogSrc, testLogPrefix, testLogText1, testLogText2)
+		Test.Println(Debug, testLogSrc, testLogPrefixLn, testLogText1, testLogText2)
 
-	t.Run("common", func(t *testing.T) {
-		logger.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-		logger.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-		logger.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+		// will discard
+		Test.Printf(Trace, testLogSrc, testLogPrefixF, testLogText1, testLogText2)
+		Test.Print(Trace, testLogSrc, testLogPrefix, testLogText1, testLogText2)
+		Test.Println(Trace, testLogSrc, testLogPrefixLn, testLogText1, testLogText2)
 	})
 
-	t.Run("low level", func(t *testing.T) {
-		err := logger.SetLevel(Info)
+	t.Run("SetLevel", func(t *testing.T) {
+		err := Test.SetLevel(Error)
 		require.NoError(t, err)
 
-		logger.Printf(Debug, testSrc, testPrefixF, testLog1, testLog2)
-		logger.Print(Debug, testSrc, testPrefix, testLog1, testLog2)
-		logger.Println(Debug, testSrc, testPrefixLn, testLog1, testLog2)
+		lv := Test.GetLevel()
+		require.Equal(t, Error, lv)
+
+		err = Test.SetLevel(testInvalidLevel)
+		require.Equal(t, err, errInvalidLevel)
+
+		err = Test.SetLevel(Info)
+		require.NoError(t, err)
 	})
 
-	t.Run("invalid level", func(t *testing.T) {
-		err := logger.SetLevel(Level(123))
-		require.EqualError(t, err, "invalid logger level: 123")
+	t.Run("NewTestLogger", func(t *testing.T) {
+		lg, err := NewTestLogger(Warning)
+		require.NoError(t, err)
+		require.NotNil(t, lg)
+
+		lg, err = NewTestLogger(testInvalidLevel)
+		require.Error(t, err)
+		require.Nil(t, lg)
+	})
+}
+
+func TestDiscardLogger(t *testing.T) {
+	Discard.Printf(Debug, testLogSrc, testLogPrefixF, testLogText1, testLogText2)
+	Discard.Print(Info, testLogSrc, testLogPrefix, testLogText1, testLogText2)
+	Discard.Println(Error, testLogSrc, testLogPrefixLn, testLogText1, testLogText2)
+
+	err := Discard.SetLevel(Info)
+	require.NoError(t, err)
+
+	lv := Discard.GetLevel()
+	require.Equal(t, Off, lv)
+}
+
+func TestMultiLogger(t *testing.T) {
+	t.Run("Print", func(t *testing.T) {
+		lg, err := NewMultiLogger(Debug, os.Stdout)
+		require.NoError(t, err)
+
+		lg.Printf(Debug, testLogSrc, testLogPrefixF, testLogText1, testLogText2)
+		lg.Print(Debug, testLogSrc, testLogPrefix, testLogText1, testLogText2)
+		lg.Println(Debug, testLogSrc, testLogPrefixLn, testLogText1, testLogText2)
+
+		// will discard
+		lg.Printf(Trace, testLogSrc, testLogPrefixF, testLogText1, testLogText2)
+		lg.Print(Trace, testLogSrc, testLogPrefix, testLogText1, testLogText2)
+		lg.Println(Trace, testLogSrc, testLogPrefixLn, testLogText1, testLogText2)
+
+		testsuite.IsDestroyed(t, lg)
 	})
 
-	testsuite.IsDestroyed(t, logger)
+	t.Run("SetLevel", func(t *testing.T) {
+		lg, err := NewMultiLogger(Debug, os.Stdout)
+		require.NoError(t, err)
+
+		err = lg.SetLevel(Error)
+		require.NoError(t, err)
+
+		lv := lg.GetLevel()
+		require.Equal(t, Error, lv)
+
+		err = lg.SetLevel(testInvalidLevel)
+		require.Equal(t, err, errInvalidLevel)
+
+		err = lg.SetLevel(Info)
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, lg)
+	})
+
+	t.Run("NewMultiLogger", func(t *testing.T) {
+		lg, err := NewMultiLogger(Warning)
+		require.NoError(t, err)
+		require.NotNil(t, lg)
+
+		testsuite.IsDestroyed(t, lg)
+
+		lg, err = NewMultiLogger(testInvalidLevel)
+		require.Error(t, err)
+		require.Nil(t, lg)
+	})
 }

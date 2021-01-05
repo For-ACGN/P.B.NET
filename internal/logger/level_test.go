@@ -40,8 +40,8 @@ func TestParse(t *testing.T) {
 
 func TestPrefix(t *testing.T) {
 	for lv := Level(0); lv < Off; lv++ {
-		fmt.Println(Prefix(time.Now(), lv, testSrc).String())
+		fmt.Println(Prefix(time.Now(), lv, testLogSrc).String())
 	}
 	// unknown level
-	fmt.Println(Prefix(time.Now(), Level(153), testSrc).String())
+	fmt.Println(Prefix(time.Now(), Level(153), testLogSrc).String())
 }

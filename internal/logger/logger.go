@@ -187,16 +187,16 @@ func (discard) SetLevel(Level) error { return nil }
 
 func (discard) GetLevel() Level { return Off }
 
-// MultiLogger is a common logger that can set log level and print log.
-type MultiLogger struct {
+// multiLogger is used to print log to multi io.Writer.
+type multiLogger struct {
 	writer io.Writer
 	level  Level
 	rwm    sync.RWMutex
 }
 
-// NewMultiLogger is used to create a MultiLogger.
+// NewMultiLogger is used to create a multi logger.
 func NewMultiLogger(lv Level, writers ...io.Writer) (Logger, error) {
-	lg := MultiLogger{}
+	lg := multiLogger{}
 	err := lg.SetLevel(lv)
 	if err != nil {
 		return nil, err
@@ -205,8 +205,7 @@ func NewMultiLogger(lv Level, writers ...io.Writer) (Logger, error) {
 	return &lg, nil
 }
 
-// Printf is used to print log with format.
-func (ml *MultiLogger) Printf(lv Level, src, format string, log ...interface{}) {
+func (ml *multiLogger) Printf(lv Level, src, format string, log ...interface{}) {
 	if ml.discard(lv) {
 		return
 	}
@@ -216,8 +215,7 @@ func (ml *MultiLogger) Printf(lv Level, src, format string, log ...interface{}) 
 	_, _ = buf.WriteTo(ml.writer)
 }
 
-// Print is used to print log.
-func (ml *MultiLogger) Print(lv Level, src string, log ...interface{}) {
+func (ml *multiLogger) Print(lv Level, src string, log ...interface{}) {
 	if ml.discard(lv) {
 		return
 	}
@@ -227,8 +225,7 @@ func (ml *MultiLogger) Print(lv Level, src string, log ...interface{}) {
 	_, _ = buf.WriteTo(ml.writer)
 }
 
-// Println is used to print log with new line.
-func (ml *MultiLogger) Println(lv Level, src string, log ...interface{}) {
+func (ml *multiLogger) Println(lv Level, src string, log ...interface{}) {
 	if ml.discard(lv) {
 		return
 	}
@@ -237,14 +234,13 @@ func (ml *MultiLogger) Println(lv Level, src string, log ...interface{}) {
 	_, _ = buf.WriteTo(ml.writer)
 }
 
-func (ml *MultiLogger) discard(lv Level) bool {
+func (ml *multiLogger) discard(lv Level) bool {
 	ml.rwm.RLock()
 	defer ml.rwm.RUnlock()
 	return lv < ml.level
 }
 
-// SetLevel is used to set log level that need print.
-func (ml *MultiLogger) SetLevel(lv Level) error {
+func (ml *multiLogger) SetLevel(lv Level) error {
 	if lv > Off {
 		return fmt.Errorf("invalid logger level: %d", lv)
 	}
@@ -254,8 +250,7 @@ func (ml *MultiLogger) SetLevel(lv Level) error {
 	return nil
 }
 
-// GetLevel is used to get the current log level.
-func (ml *MultiLogger) GetLevel() Level {
+func (ml *multiLogger) GetLevel() Level {
 	ml.rwm.RLock()
 	defer ml.rwm.RUnlock()
 	return ml.level
