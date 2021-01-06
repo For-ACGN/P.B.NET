@@ -32,7 +32,7 @@ const (
 	EventCancel   = "cancel"   // task canceled not update progress
 )
 
-// task internal state(different from state in FSM), "p" is private.
+// task internal state(different from state in FSM), "p" means private.
 const (
 	pStateReady int32 = iota
 	pStateProcess
@@ -110,7 +110,7 @@ func (task *Task) Start() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				buf := xpanic.Log(r, "Task.Start")
-				err = fmt.Errorf(buf.String())
+				err = errors.New(buf.String())
 			}
 		}()
 		if !task.checkStart() {
