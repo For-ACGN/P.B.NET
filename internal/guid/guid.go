@@ -21,12 +21,13 @@ import (
 // |  8 bytes   |   4 bytes   |  8 bytes |      8 bytes     |  4 bytes   |
 // +------------+-------------+----------+------------------+------------+
 
-// Size is the generated GUID size, it is not standard.
+// Size is the generated guid size, it is not standard.
 const Size int = 8 + 4 + 8 + 8 + 4
 
+// zeroGUID is the zero guid for improve GUID.IsZero() performance.
 var zeroGUID = GUID{}
 
-// GUID is the generated GUID, it is not standard size.
+// GUID is the generated guid, it is not standard size.
 type GUID [Size]byte
 
 // Write is used to copy []byte to guid.
@@ -38,7 +39,7 @@ func (guid *GUID) Write(b []byte) error {
 	return nil
 }
 
-// Print is used to print GUID with prefix.
+// Print is used to print guid with prefix.
 // Output:
 // GUID: BF0AF7928C30AA6B1027DE8D6789F09202262591000000005E6C65F8002AD680
 func (guid *GUID) Print() string {
@@ -49,7 +50,7 @@ func (guid *GUID) Print() string {
 	return string(bytes.ToUpper(dst))
 }
 
-// Hex is used to encode GUID to a hex string.
+// Hex is used to encode guid to a hex string.
 // Output:
 // BF0AF7928C30AA6B1027DE8D6789F09202262591000000005E6C65F8002AD680
 func (guid *GUID) Hex() string {
@@ -58,7 +59,7 @@ func (guid *GUID) Hex() string {
 	return string(bytes.ToUpper(dst))
 }
 
-// Timestamp is used to get timestamp in the GUID.
+// Timestamp is used to get timestamp in the guid.
 func (guid *GUID) Timestamp() int64 {
 	return int64(binary.BigEndian.Uint64(guid[20:28]))
 }
@@ -87,7 +88,7 @@ func (guid *GUID) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-// Generator is the GUID generator.
+// Generator is the guid generator.
 type Generator struct {
 	now    func() time.Time
 	nowRWM sync.RWMutex
@@ -109,7 +110,7 @@ type Generator struct {
 	wg         sync.WaitGroup
 }
 
-// NewGenerator is used to create a GUID generator.
+// NewGenerator is used to create a guid generator.
 // size is the guid channel buffer size, now is used
 // to get timestamp, if now is nil, use time.Now.
 func NewGenerator(size int, now func() time.Time) *Generator {
@@ -179,7 +180,7 @@ func (g *Generator) generateLoop() {
 	}
 }
 
-// Get is used to get a GUID, if guid generator closed, it will return zero guid.
+// Get is used to get a guid, if guid generator closed, it will return zero guid.
 func (g *Generator) Get() *GUID {
 	guid := <-g.guidCh
 	if guid == nil {
@@ -194,7 +195,7 @@ func (g *Generator) Get() *GUID {
 	return guid
 }
 
-// Put is used to put useless GUID to cache pool.
+// Put is used to put useless guid to cache pool.
 func (g *Generator) Put(guid *GUID) {
 	g.cachePool.Put(guid)
 }

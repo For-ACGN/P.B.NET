@@ -128,10 +128,12 @@ func TestGenerator(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("with no now function", func(t *testing.T) {
-		g := New(16, nil)
+		g := NewGenerator(16, nil)
 
-		for i := 0; i < 4; i++ {
-			testPrintGUID(t, g.Get())
+		for i := 0; i < 3; i++ {
+			guid := g.Get()
+			testPrintGUID(t, guid)
+			g.Put(guid)
 		}
 
 		g.Close()
@@ -140,10 +142,12 @@ func TestGenerator(t *testing.T) {
 	})
 
 	t.Run("with now()", func(t *testing.T) {
-		g := New(16, time.Now)
+		g := NewGenerator(16, time.Now)
 
-		for i := 0; i < 4; i++ {
-			testPrintGUID(t, g.Get())
+		for i := 0; i < 3; i++ {
+			guid := g.Get()
+			testPrintGUID(t, guid)
+			g.Put(guid)
 		}
 
 		g.Close()
@@ -152,10 +156,12 @@ func TestGenerator(t *testing.T) {
 	})
 
 	t.Run("zero size", func(t *testing.T) {
-		g := New(0, time.Now)
+		g := NewGenerator(0, time.Now)
 
-		for i := 0; i < 4; i++ {
-			testPrintGUID(t, g.Get())
+		for i := 0; i < 3; i++ {
+			guid := g.Get()
+			testPrintGUID(t, guid)
+			g.Put(guid)
 		}
 
 		// twice
@@ -166,12 +172,14 @@ func TestGenerator(t *testing.T) {
 	})
 
 	t.Run("Get() after call Close()", func(t *testing.T) {
-		g := New(2, time.Now)
+		g := NewGenerator(2, time.Now)
 		time.Sleep(time.Second)
 		g.Close()
 
 		for i := 0; i < 3; i++ {
-			testPrintGUID(t, g.Get())
+			guid := g.Get()
+			testPrintGUID(t, guid)
+			g.Put(guid)
 		}
 
 		testsuite.IsDestroyed(t, g)
@@ -186,10 +194,12 @@ func TestGenerator(t *testing.T) {
 		pg = monkey.PatchInstanceMethod(binary.BigEndian, "PutUint32", patch)
 		defer pg.Unpatch()
 
-		g := New(0, time.Now)
+		g := NewGenerator(0, time.Now)
 
-		for i := 0; i < 4; i++ {
-			testPrintGUID(t, g.Get())
+		for i := 0; i < 3; i++ {
+			guid := g.Get()
+			testPrintGUID(t, guid)
+			g.Put(guid)
 		}
 
 		g.Close()
@@ -203,11 +213,12 @@ func TestGenerator_Get_Parallel(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("part", func(t *testing.T) {
-		g := New(512, nil)
+		g := NewGenerator(512, nil)
 
 		get := func() {
 			guid := g.Get()
 			require.False(t, guid.IsZero())
+			g.Put(guid)
 		}
 		testsuite.RunParallel(100, nil, nil, get, get)
 
@@ -220,11 +231,12 @@ func TestGenerator_Get_Parallel(t *testing.T) {
 		var g *Generator
 
 		init := func() {
-			g = New(512, nil)
+			g = NewGenerator(512, nil)
 		}
 		get := func() {
 			guid := g.Get()
 			require.False(t, guid.IsZero())
+			g.Put(guid)
 		}
 		cleanup := func() {
 			g.Close()
@@ -240,7 +252,7 @@ func TestGenerator_Close_Parallel(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("part", func(t *testing.T) {
-		g := New(512, nil)
+		g := NewGenerator(512, nil)
 
 		close1 := func() {
 			g.Close()
@@ -254,7 +266,7 @@ func TestGenerator_Close_Parallel(t *testing.T) {
 		var g *Generator
 
 		init := func() {
-			g = New(512, nil)
+			g = NewGenerator(512, nil)
 		}
 		close1 := func() {
 			g.Close()
@@ -270,10 +282,10 @@ func TestGenerator_Parallel(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("part", func(t *testing.T) {
-		g := New(512, nil)
+		g := NewGenerator(512, nil)
 
 		get := func() {
-			g.Get()
+			g.Put(g.Get())
 		}
 		close1 := func() {
 			g.Close()
@@ -290,10 +302,10 @@ func TestGenerator_Parallel(t *testing.T) {
 		var g *Generator
 
 		init := func() {
-			g = New(512, nil)
+			g = NewGenerator(512, nil)
 		}
 		get := func() {
-			g.Get()
+			g.Put(g.Get())
 		}
 		close1 := func() {
 			g.Close()
@@ -305,26 +317,6 @@ func TestGenerator_Parallel(t *testing.T) {
 
 		testsuite.IsDestroyed(t, g)
 	})
-}
-
-func BenchmarkGenerator_Get(b *testing.B) {
-	gm := testsuite.MarkGoroutines(b)
-	defer gm.Compare()
-
-	g := New(512, nil)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		g.Get()
-	}
-
-	b.StopTimer()
-
-	g.Close()
-
-	testsuite.IsDestroyed(b, g)
 }
 
 func BenchmarkGUID_IsZero(b *testing.B) {
@@ -340,7 +332,47 @@ func BenchmarkGUID_IsZero(b *testing.B) {
 	}
 }
 
-func BenchmarkGUIDWithMapKey(b *testing.B) {
+func BenchmarkGenerator_Get_WithoutCache(b *testing.B) {
+	gm := testsuite.MarkGoroutines(b)
+	defer gm.Compare()
+
+	g := NewGenerator(512, nil)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		g.Get()
+	}
+
+	b.StopTimer()
+
+	g.Close()
+
+	testsuite.IsDestroyed(b, g)
+}
+
+func BenchmarkGenerator_Get_WithCache(b *testing.B) {
+	gm := testsuite.MarkGoroutines(b)
+	defer gm.Compare()
+
+	g := NewGenerator(512, nil)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		g.Put(g.Get())
+	}
+
+	b.StopTimer()
+
+	g.Close()
+
+	testsuite.IsDestroyed(b, g)
+}
+
+func BenchmarkGUIDForMapKey(b *testing.B) {
 	gm := testsuite.MarkGoroutines(b)
 	defer gm.Compare()
 
@@ -358,6 +390,4 @@ func BenchmarkGUIDWithMapKey(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		m[key[i]] = i
 	}
-
-	b.StopTimer()
 }
