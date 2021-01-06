@@ -9,31 +9,38 @@ import (
 
 func TestBogo(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
-		bogo := NewBogo(4, time.Minute, nil)
+		bogo := NewBogo(8, time.Minute)
 		bogo.Wait()
 
-		require.True(t, bogo.Compare())
+		result := bogo.Compare()
+		require.True(t, result)
+	})
+
+	t.Run("invalid number and timeout", func(t *testing.T) {
+		bogo := NewBogo(0, time.Hour)
+		bogo.Wait()
+
+		result := bogo.Compare()
+		require.True(t, result)
 	})
 
 	t.Run("timeout", func(t *testing.T) {
-		bogo := NewBogo(1024, time.Second, nil)
+		bogo := NewBogo(1024, time.Second)
 		bogo.Wait()
 
-		require.False(t, bogo.Compare())
-	})
-
-	t.Run("invalid n or timeout", func(t *testing.T) {
-		bogo := NewBogo(0, time.Hour, nil)
-		bogo.Wait()
-
-		require.True(t, bogo.Compare())
+		result := bogo.Compare()
+		require.False(t, result)
 	})
 
 	t.Run("cancel", func(t *testing.T) {
-		bogo := NewBogo(1024, time.Second, nil)
-		bogo.Stop()
+		bogo := NewBogo(1024, time.Minute)
+		go func() {
+			time.Sleep(time.Second)
+			bogo.Stop()
+		}()
 		bogo.Wait()
 
-		require.False(t, bogo.Compare())
+		result := bogo.Compare()
+		require.False(t, result)
 	})
 }
