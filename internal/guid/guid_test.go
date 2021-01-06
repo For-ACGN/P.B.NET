@@ -17,103 +17,101 @@ import (
 	"project/internal/testsuite"
 )
 
-func TestGUID(t *testing.T) {
-	t.Run("Write", func(t *testing.T) {
-		expected := bytes.Repeat([]byte{1}, Size)
-		guid := GUID{}
+func TestGUID_Write(t *testing.T) {
+	expected := bytes.Repeat([]byte{1}, Size)
+	guid := GUID{}
 
-		err := guid.Write(expected)
-		require.NoError(t, err)
-		require.Equal(t, expected, guid[:])
+	err := guid.Write(expected)
+	require.NoError(t, err)
+	require.Equal(t, expected, guid[:])
 
-		// invalid slice size
-		err = guid.Write(bytes.Repeat([]byte{1}, Size-1))
-		require.Error(t, err)
-	})
+	// invalid slice size
+	err = guid.Write(bytes.Repeat([]byte{1}, Size-1))
+	require.Error(t, err)
+}
 
-	t.Run("Print", func(t *testing.T) {
-		guid := GUID{}
-		copy(guid[Size/2:], bytes.Repeat([]byte{10}, Size/2))
+func TestGUID_Print(t *testing.T) {
+	guid := GUID{}
+	copy(guid[Size/2:], bytes.Repeat([]byte{10}, Size/2))
 
-		buf := bytes.Buffer{}
-		buf.WriteString("GUID: ")
-		buf.WriteString(strings.Repeat("00", Size/2))
-		buf.WriteString(strings.Repeat("0A", Size/2))
+	buf := bytes.Buffer{}
+	buf.WriteString("GUID: ")
+	buf.WriteString(strings.Repeat("00", Size/2))
+	buf.WriteString(strings.Repeat("0A", Size/2))
 
-		require.Equal(t, buf.String(), guid.Print())
-	})
+	require.Equal(t, buf.String(), guid.Print())
+}
 
-	t.Run("Hex", func(t *testing.T) {
-		guid := GUID{}
-		copy(guid[Size/2:], bytes.Repeat([]byte{10}, Size/2))
+func TestGUID_Hex(t *testing.T) {
+	guid := GUID{}
+	copy(guid[Size/2:], bytes.Repeat([]byte{10}, Size/2))
 
-		buf := bytes.Buffer{}
-		buf.WriteString(strings.Repeat("00", Size/2))
-		buf.WriteString(strings.Repeat("0A", Size/2))
+	buf := bytes.Buffer{}
+	buf.WriteString(strings.Repeat("00", Size/2))
+	buf.WriteString(strings.Repeat("0A", Size/2))
 
-		require.Equal(t, buf.String(), guid.Hex())
-	})
+	require.Equal(t, buf.String(), guid.Hex())
+}
 
-	t.Run("Timestamp", func(t *testing.T) {
-		now := time.Now().Unix()
-		guid := GUID{}
-		copy(guid[20:28], convert.BEInt64ToBytes(now))
+func TestGUID_Timestamp(t *testing.T) {
+	now := time.Now().Unix()
+	guid := GUID{}
+	copy(guid[20:28], convert.BEInt64ToBytes(now))
 
-		require.Equal(t, now, guid.Timestamp())
-	})
+	require.Equal(t, now, guid.Timestamp())
+}
 
-	t.Run("IsZero", func(t *testing.T) {
-		guid := GUID{}
-		require.True(t, guid.IsZero())
-		guid[0] = 1
-		require.False(t, guid.IsZero())
-	})
+func TestGUID_IsZero(t *testing.T) {
+	guid := GUID{}
+	require.True(t, guid.IsZero())
+	guid[0] = 1
+	require.False(t, guid.IsZero())
+}
 
-	t.Run("MarshalJSON", func(t *testing.T) {
-		guid := GUID{}
-		data := bytes.Repeat([]byte{10}, Size)
-		copy(guid[:], data)
+func TestGUID_MarshalJSON(t *testing.T) {
+	guid := GUID{}
+	data := bytes.Repeat([]byte{10}, Size)
+	copy(guid[:], data)
 
-		data, err := guid.MarshalJSON()
-		require.NoError(t, err)
+	data, err := guid.MarshalJSON()
+	require.NoError(t, err)
 
-		// "0101...0101"
-		expected := fmt.Sprintf("\"%s\"", strings.Repeat("0A", Size))
-		require.Equal(t, expected, string(data))
-	})
+	// "0101...0101"
+	expected := fmt.Sprintf("\"%s\"", strings.Repeat("0A", Size))
+	require.Equal(t, expected, string(data))
+}
 
-	t.Run("UnmarshalJSON", func(t *testing.T) {
-		data := []byte(fmt.Sprintf("\"%s\"", strings.Repeat("0A", Size)))
-		guid := GUID{}
+func TestGUID_UnmarshalJSON(t *testing.T) {
+	data := []byte(fmt.Sprintf("\"%s\"", strings.Repeat("0A", Size)))
+	guid := GUID{}
 
-		err := guid.UnmarshalJSON(data)
-		require.NoError(t, err)
+	err := guid.UnmarshalJSON(data)
+	require.NoError(t, err)
 
-		expected := bytes.Repeat([]byte{10}, Size)
-		require.Equal(t, expected, guid[:])
+	expected := bytes.Repeat([]byte{10}, Size)
+	require.Equal(t, expected, guid[:])
 
-		// invalid size
-		err = guid.UnmarshalJSON(nil)
-		require.Error(t, err)
-	})
+	// invalid size
+	err = guid.UnmarshalJSON(nil)
+	require.Error(t, err)
+}
 
-	t.Run("json.Unmarshal", func(t *testing.T) {
-		const format = `{"data": "%s"}`
-		jsonData := []byte(fmt.Sprintf(format, strings.Repeat("01", Size)))
+func TestGUID_JSONUnmarshal(t *testing.T) {
+	const format = `{"data": "%s"}`
+	jsonData := []byte(fmt.Sprintf(format, strings.Repeat("01", Size)))
 
-		testdata := struct {
-			Data GUID `json:"data"`
-		}{}
-		err := json.Unmarshal(jsonData, &testdata)
-		require.NoError(t, err)
+	testdata := struct {
+		Data GUID `json:"data"`
+	}{}
+	err := json.Unmarshal(jsonData, &testdata)
+	require.NoError(t, err)
 
-		expected := bytes.Repeat([]byte{1}, Size)
-		require.Equal(t, expected, testdata.Data[:])
+	expected := bytes.Repeat([]byte{1}, Size)
+	require.Equal(t, expected, testdata.Data[:])
 
-		jsonData, err = json.Marshal(testdata)
-		require.NoError(t, err)
-		fmt.Println(string(jsonData))
-	})
+	jsonData, err = json.Marshal(testdata)
+	require.NoError(t, err)
+	fmt.Println(string(jsonData))
 }
 
 func testPrintGUID(t testing.TB, guid *GUID) {
@@ -127,7 +125,7 @@ func TestGenerator(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	t.Run("with no now function", func(t *testing.T) {
+	t.Run("with nil now", func(t *testing.T) {
 		g := NewGenerator(16, nil)
 
 		for i := 0; i < 3; i++ {
@@ -141,7 +139,7 @@ func TestGenerator(t *testing.T) {
 		testsuite.IsDestroyed(t, g)
 	})
 
-	t.Run("with now()", func(t *testing.T) {
+	t.Run("with time.Now", func(t *testing.T) {
 		g := NewGenerator(16, time.Now)
 
 		for i := 0; i < 3; i++ {
@@ -171,7 +169,7 @@ func TestGenerator(t *testing.T) {
 		testsuite.IsDestroyed(t, g)
 	})
 
-	t.Run("Get() after call Close()", func(t *testing.T) {
+	t.Run("Get() after Close()", func(t *testing.T) {
 		g := NewGenerator(2, time.Now)
 		time.Sleep(time.Second)
 		g.Close()
@@ -185,7 +183,7 @@ func TestGenerator(t *testing.T) {
 		testsuite.IsDestroyed(t, g)
 	})
 
-	t.Run("panic in generator()", func(t *testing.T) {
+	t.Run("panic in generateLoop()", func(t *testing.T) {
 		var pg *monkey.PatchGuard
 		patch := func(interface{}, []byte, uint32) {
 			pg.Unpatch()
