@@ -1,11 +1,8 @@
 package option
 
 import (
-	"context"
 	"io/ioutil"
-	"net"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
@@ -106,18 +103,9 @@ func TestHTTPTransportDefault(t *testing.T) {
 func TestHTTPTransport(t *testing.T) {
 	data, err := ioutil.ReadFile("testdata/http_transport.toml")
 	require.NoError(t, err)
-	proxy := func(*http.Request) (*url.URL, error) {
-		return nil, nil
-	}
-	dialContext := func(context.Context, string, string) (net.Conn, error) {
-		return nil, nil
-	}
-	tr := HTTPTransport{
-		Proxy:       proxy,
-		DialContext: dialContext,
-	}
 
 	// check unnecessary field
+	tr := HTTPTransport{}
 	err = toml.Unmarshal(data, &tr)
 	require.NoError(t, err)
 
@@ -147,8 +135,6 @@ func TestHTTPTransport(t *testing.T) {
 	} {
 		require.Equal(t, testdata.expected, testdata.actual)
 	}
-	require.NotNil(t, transport.Proxy)
-	require.NotNil(t, transport.DialContext)
 }
 
 var testInvalidTLSConfig = TLSConfig{
