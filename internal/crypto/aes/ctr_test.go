@@ -1,9 +1,13 @@
 package aes
 
 import (
+	"crypto/aes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"project/internal/crypto/rand"
+	"project/internal/patch/monkey"
 )
 
 func TestAESCTR(t *testing.T) {
@@ -15,7 +19,7 @@ func TestAESCTR(t *testing.T) {
 		testAESCTR(t, test192BitKey)
 	})
 
-	t.Run("256 bit key ", func(t *testing.T) {
+	t.Run("256 bit key", func(t *testing.T) {
 		testAESCTR(t, test256BitKey)
 	})
 }
@@ -33,42 +37,82 @@ func testAESCTR(t *testing.T, key []byte) {
 	require.Equal(t, testdata, plainData)
 }
 
-func TestCTR(t *testing.T) {
-	// encrypt & decrypt
-	testFn := func(key []byte) {
-		ctr, err := NewCTR(key)
-		require.NoError(t, err)
+func TestCTREncrypt(t *testing.T) {
+	testdata := make([]byte, 64)
 
-		testdata := generateBytes()
+	t.Run("empty data", func(t *testing.T) {
+		_, err := CTREncrypt(nil, test128BitKey)
+		require.Equal(t, ErrEmptyData, err)
+	})
 
-		for i := 0; i < 10; i++ {
-			cipherData, err := ctr.Encrypt(testdata)
-			require.NoError(t, err)
+	t.Run("invalid key", func(t *testing.T) {
+		_, err := CTREncrypt(testdata, nil)
+		require.Error(t, err)
+		_, ok := err.(aes.KeySizeError)
+		require.True(t, ok)
+	})
 
-			require.Equal(t, generateBytes(), testdata)
-			require.NotEqual(t, testdata, cipherData)
+	t.Run("failed to generate random iv", func(t *testing.T) {
+		patch := func([]byte) (int, error) {
+			return 0, monkey.Error
 		}
+		pg := monkey.Patch(rand.Read, patch)
+		defer pg.Unpatch()
 
+		_, err := CTREncrypt(testdata, test128BitKey)
+		monkey.IsExistMonkeyError(t, err)
+	})
+}
+
+func TestCTRDecrypt(t *testing.T) {
+	t.Run("invalid cipher data", func(t *testing.T) {
+		_, err := CTRDecrypt(nil, test128BitKey)
+		require.Equal(t, ErrInvalidCipherData, err)
+	})
+
+	t.Run("invalid key", func(t *testing.T) {
+		_, err := CTRDecrypt(make([]byte, 64), nil)
+		require.Error(t, err)
+		_, ok := err.(aes.KeySizeError)
+		require.True(t, ok)
+	})
+}
+
+func TestCTR(t *testing.T) {
+	t.Run("128 bit key", func(t *testing.T) {
+		testCTR(t, test128BitKey)
+	})
+
+	t.Run("192 bit key", func(t *testing.T) {
+		testCTR(t, test192BitKey)
+	})
+
+	t.Run("256 bit key", func(t *testing.T) {
+		testCTR(t, test256BitKey)
+	})
+}
+
+func testCTR(t *testing.T, key []byte) {
+	ctr, err := NewCTR(key)
+	require.NoError(t, err)
+
+	testdata := generateBytes()
+
+	for i := 0; i < 10; i++ {
 		cipherData, err := ctr.Encrypt(testdata)
 		require.NoError(t, err)
-		for i := 0; i < 20; i++ {
-			plainData, err := ctr.Decrypt(cipherData)
-			require.NoError(t, err)
-			require.Equal(t, testdata, plainData)
-		}
 
-		require.Equal(t, key, ctr.Key())
+		require.Equal(t, generateBytes(), testdata)
+		require.NotEqual(t, testdata, cipherData)
 	}
 
-	t.Run("key 128bit", func(t *testing.T) {
-		testFn(test128BitKey)
-	})
+	cipherData, err := ctr.Encrypt(testdata)
+	require.NoError(t, err)
+	for i := 0; i < 20; i++ {
+		plainData, err := ctr.Decrypt(cipherData)
+		require.NoError(t, err)
+		require.Equal(t, testdata, plainData)
+	}
 
-	t.Run("key 192bit", func(t *testing.T) {
-		testFn(test192BitKey)
-	})
-
-	t.Run("key 256bit", func(t *testing.T) {
-		testFn(test256BitKey)
-	})
+	require.Equal(t, key, ctr.Key())
 }
