@@ -14,16 +14,19 @@ func TestReader_Read(t *testing.T) {
 		const size = 32
 
 		b1 := make([]byte, size)
-		n, err := Read(b1)
-		require.NoError(t, err)
-		require.Equal(t, size, n)
-
 		b2 := make([]byte, size)
-		n, err = Read(b2)
-		require.NoError(t, err)
-		require.Equal(t, size, n)
 
-		require.NotEqual(t, b1, b2)
+		for i := 0; i < 1024; i++ {
+			n, err := Read(b1)
+			require.NoError(t, err)
+			require.Equal(t, size, n)
+
+			n, err = Read(b2)
+			require.NoError(t, err)
+			require.Equal(t, size, n)
+
+			require.NotEqual(t, b1, b2)
+		}
 	})
 
 	t.Run("failed", func(t *testing.T) {
@@ -36,4 +39,20 @@ func TestReader_Read(t *testing.T) {
 		_, err := Reader.Read(make([]byte, 1024))
 		monkey.IsMonkeyError(t, err)
 	})
+}
+
+func BenchmarkReader_Read(b *testing.B) {
+	buf := make([]byte, 16) // AES IV size
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err := Read(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.StopTimer()
 }
