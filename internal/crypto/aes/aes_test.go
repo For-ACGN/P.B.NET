@@ -10,11 +10,53 @@ import (
 )
 
 func generateBytes() []byte {
-	testdata := make([]byte, 256)
-	for i := 0; i < 256; i++ {
+	testdata := make([]byte, 63)
+	for i := 0; i < 63; i++ {
 		testdata[i] = byte(i)
 	}
 	return testdata
+}
+
+func TestCTR(t *testing.T) {
+	key128 := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 11, 12, 13, 14, 15, 16}
+	key192 := append(key128, []byte{17, 18, 19, 20, 21, 22, 23, 24}...)
+	key256 := bytes.Repeat(key128, 2)
+
+	// encrypt & decrypt
+	testFn := func(key []byte) {
+		ctr, err := NewCTR(key)
+		require.NoError(t, err)
+
+		testdata := generateBytes()
+
+		for i := 0; i < 10; i++ {
+			cipherData, err := ctr.Encrypt(testdata)
+			require.NoError(t, err)
+
+			require.Equal(t, generateBytes(), testdata)
+			require.NotEqual(t, testdata, cipherData)
+		}
+
+		cipherData, err := ctr.Encrypt(testdata)
+		require.NoError(t, err)
+		for i := 0; i < 20; i++ {
+			plainData, err := ctr.Decrypt(cipherData)
+			require.NoError(t, err)
+			require.Equal(t, testdata, plainData)
+		}
+	}
+
+	t.Run("key 128bit", func(t *testing.T) {
+		testFn(key128)
+	})
+
+	t.Run("key 192bit", func(t *testing.T) {
+		testFn(key192)
+	})
+
+	t.Run("key 256bit", func(t *testing.T) {
+		testFn(key256)
+	})
 }
 
 func TestAES(t *testing.T) {
