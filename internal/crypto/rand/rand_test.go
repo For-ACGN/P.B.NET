@@ -11,13 +11,17 @@ import (
 
 func TestReader_Read(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		b1 := make([]byte, 32)
-		_, err := io.ReadFull(Reader, b1)
-		require.NoError(t, err)
+		const size = 32
 
-		b2 := make([]byte, 32)
-		_, err = io.ReadFull(Reader, b2)
+		b1 := make([]byte, size)
+		n, err := Read(b1)
 		require.NoError(t, err)
+		require.Equal(t, size, n)
+
+		b2 := make([]byte, size)
+		n, err = Read(b2)
+		require.NoError(t, err)
+		require.Equal(t, size, n)
 
 		require.NotEqual(t, b1, b2)
 	})
