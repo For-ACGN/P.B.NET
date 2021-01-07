@@ -8,6 +8,7 @@ import (
 
 	"project/internal/crypto/rand"
 	"project/internal/patch/monkey"
+	"project/internal/testsuite"
 )
 
 func TestAESCTR(t *testing.T) {
@@ -115,4 +116,115 @@ func testCTR(t *testing.T, key []byte) {
 	}
 
 	require.Equal(t, key, ctr.Key())
+}
+
+func TestNewCTR(t *testing.T) {
+	ctr, err := NewCTR(nil)
+	require.Error(t, err)
+	require.Nil(t, ctr)
+	_, ok := err.(aes.KeySizeError)
+	require.True(t, ok)
+}
+
+func TestCTR_Encrypt(t *testing.T) {
+	ctr, err := NewCTR(test128BitKey)
+	require.NoError(t, err)
+
+	t.Run("empty data", func(t *testing.T) {
+		_, err := ctr.Encrypt(nil)
+		require.Equal(t, ErrEmptyData, err)
+	})
+
+	t.Run("failed to generate random iv", func(t *testing.T) {
+		patch := func([]byte) (int, error) {
+			return 0, monkey.Error
+		}
+		pg := monkey.Patch(rand.Read, patch)
+		defer pg.Unpatch()
+
+		_, err := ctr.Encrypt(make([]byte, 64))
+		monkey.IsExistMonkeyError(t, err)
+	})
+}
+
+func TestCTR_Decrypt(t *testing.T) {
+	ctr, err := NewCTR(test128BitKey)
+	require.NoError(t, err)
+
+	_, err = ctr.Decrypt(nil)
+	require.Equal(t, ErrInvalidCipherData, err)
+}
+
+func TestCTR_Parallel(t *testing.T) {
+	testdata := generateBytes()
+
+	t.Run("part", func(t *testing.T) {
+		ctr, err := NewCTR(test128BitKey)
+		require.NoError(t, err)
+
+		enc := func() {
+			_, err := ctr.Encrypt(testdata)
+			require.NoError(t, err)
+		}
+		dec := func() {
+			cipherData, err := ctr.Encrypt(testdata)
+			require.NoError(t, err)
+			plainData, err := ctr.Decrypt(cipherData)
+			require.NoError(t, err)
+			require.Equal(t, testdata, plainData)
+		}
+		key := func() {
+			key := ctr.Key()
+			require.Equal(t, test128BitKey, key)
+		}
+		testsuite.RunParallel(100, nil, nil, enc, dec, key)
+
+		testsuite.IsDestroyed(t, ctr)
+	})
+
+	t.Run("whole", func(t *testing.T) {
+		var ctr *CTR
+
+		init := func() {
+			var err error
+			ctr, err = NewCTR(test128BitKey)
+			require.NoError(t, err)
+		}
+		enc := func() {
+			_, err := ctr.Encrypt(testdata)
+			require.NoError(t, err)
+		}
+		dec := func() {
+			cipherData, err := ctr.Encrypt(testdata)
+			require.NoError(t, err)
+			plainData, err := ctr.Decrypt(cipherData)
+			require.NoError(t, err)
+			require.Equal(t, testdata, plainData)
+		}
+		key := func() {
+			key := ctr.Key()
+			require.Equal(t, test128BitKey, key)
+		}
+		testsuite.RunParallel(100, init, nil, enc, dec, key)
+
+		testsuite.IsDestroyed(t, ctr)
+	})
+
+	t.Run("multi", func(t *testing.T) {
+		ctr, err := NewCTR(test128BitKey)
+		require.NoError(t, err)
+
+		testsuite.RunMultiTimes(100, func() {
+			cipherData, err := ctr.Encrypt(testdata)
+			require.NoError(t, err)
+			plainData, err := ctr.Decrypt(cipherData)
+			require.NoError(t, err)
+			require.Equal(t, testdata, plainData)
+
+			key := ctr.Key()
+			require.Equal(t, test128BitKey, key)
+		})
+
+		testsuite.IsDestroyed(t, ctr)
+	})
 }
