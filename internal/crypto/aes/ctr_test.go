@@ -1,6 +1,7 @@
 package aes
 
 import (
+	"bytes"
 	"crypto/aes"
 	"testing"
 
@@ -227,4 +228,115 @@ func TestCTR_Parallel(t *testing.T) {
 
 		testsuite.IsDestroyed(t, ctr)
 	})
+}
+
+func BenchmarkCTR_Encrypt(b *testing.B) {
+	b.Run("64 Bytes", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 64)
+		benchmarkCTREncrypt(b, data)
+	})
+
+	b.Run("256 Bytes", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 256)
+		benchmarkCTREncrypt(b, data)
+	})
+
+	b.Run("1 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 1024)
+		benchmarkCTREncrypt(b, data)
+	})
+
+	b.Run("4 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 4*1024)
+		benchmarkCTREncrypt(b, data)
+	})
+
+	b.Run("16 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 16*1024)
+		benchmarkCTREncrypt(b, data)
+	})
+
+	b.Run("128 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 128*1024)
+		benchmarkCTREncrypt(b, data)
+	})
+
+	b.Run("1 MB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 1024*1024)
+		benchmarkCTREncrypt(b, data)
+	})
+}
+
+func benchmarkCTREncrypt(b *testing.B, data []byte) {
+	ctr, err := NewCTR(test256BitKey)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err := ctr.Encrypt(data)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.StopTimer()
+}
+
+func BenchmarkCTR_Decrypt(b *testing.B) {
+	b.Run("64 Bytes", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 64)
+		benchmarkCTRDecrypt(b, data)
+	})
+
+	b.Run("256 Bytes", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 256)
+		benchmarkCTRDecrypt(b, data)
+	})
+
+	b.Run("1 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 1024)
+		benchmarkCTRDecrypt(b, data)
+	})
+
+	b.Run("4 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 4*1024)
+		benchmarkCTRDecrypt(b, data)
+	})
+
+	b.Run("16 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 16*1024)
+		benchmarkCTRDecrypt(b, data)
+	})
+
+	b.Run("128 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 128*1024)
+		benchmarkCTRDecrypt(b, data)
+	})
+
+	b.Run("1 MB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 1024*1024)
+		benchmarkCTRDecrypt(b, data)
+	})
+}
+
+func benchmarkCTRDecrypt(b *testing.B, data []byte) {
+	ctr, err := NewCTR(test256BitKey)
+	require.NoError(b, err)
+
+	cipherData, err := ctr.Encrypt(data)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err := ctr.Decrypt(cipherData)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.StopTimer()
 }
