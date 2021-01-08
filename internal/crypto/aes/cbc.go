@@ -59,8 +59,9 @@ func CBCDecrypt(data, key []byte) ([]byte, error) {
 		return nil, err
 	}
 	output := make([]byte, l-IVSize)
+	iv := data[:IVSize]
 	// decrypt cipher data
-	decrypter := cipher.NewCBCDecrypter(block, data[:IVSize])
+	decrypter := cipher.NewCBCDecrypter(block, iv)
 	decrypter.CryptBlocks(output, data[IVSize:])
 	// remove padding data
 	outputSize := len(output)
@@ -131,8 +132,9 @@ func (cbc *CBC) Decrypt(data []byte) ([]byte, error) {
 		return nil, ErrInvalidCipherData
 	}
 	output := make([]byte, l-IVSize)
+	iv := data[:IVSize]
 	// decrypt cipher data
-	decrypter := cipher.NewCBCDecrypter(cbc.block, data[:IVSize])
+	decrypter := cipher.NewCBCDecrypter(cbc.block, iv)
 	decrypter.CryptBlocks(output, data[IVSize:])
 	// remove padding data
 	outputSize := len(output)

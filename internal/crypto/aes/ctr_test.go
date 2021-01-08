@@ -40,12 +40,12 @@ func testAESCTR(t *testing.T, key []byte) {
 }
 
 func TestCTREncrypt(t *testing.T) {
-	testdata := make([]byte, 64)
-
 	t.Run("empty data", func(t *testing.T) {
 		_, err := CTREncrypt(nil, test128BitKey)
 		require.Equal(t, ErrEmptyData, err)
 	})
+
+	testdata := make([]byte, 64)
 
 	t.Run("invalid key", func(t *testing.T) {
 		_, err := CTREncrypt(testdata, nil)
@@ -67,8 +67,13 @@ func TestCTREncrypt(t *testing.T) {
 }
 
 func TestCTRDecrypt(t *testing.T) {
-	t.Run("invalid cipher data", func(t *testing.T) {
+	t.Run("empty data", func(t *testing.T) {
 		_, err := CTRDecrypt(nil, test128BitKey)
+		require.Equal(t, ErrEmptyData, err)
+	})
+
+	t.Run("invalid cipher data", func(t *testing.T) {
+		_, err := CTRDecrypt(make([]byte, 7), test128BitKey)
 		require.Equal(t, ErrInvalidCipherData, err)
 	})
 
@@ -152,8 +157,15 @@ func TestCTR_Decrypt(t *testing.T) {
 	ctr, err := NewCTR(test128BitKey)
 	require.NoError(t, err)
 
-	_, err = ctr.Decrypt(nil)
-	require.Equal(t, ErrInvalidCipherData, err)
+	t.Run("empty data", func(t *testing.T) {
+		_, err := ctr.Decrypt(nil)
+		require.Equal(t, ErrEmptyData, err)
+	})
+
+	t.Run("invalid cipher data", func(t *testing.T) {
+		_, err = ctr.Decrypt(make([]byte, 7))
+		require.Equal(t, ErrInvalidCipherData, err)
+	})
 }
 
 func TestCTR_Parallel(t *testing.T) {
