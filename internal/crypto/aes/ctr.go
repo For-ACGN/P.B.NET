@@ -65,14 +65,14 @@ func CTRDecrypt(data, key []byte) ([]byte, error) {
 	return output, nil
 }
 
-// CTR is the AES encryptor with counter mode.
+// CTR is the AES encrypter with counter mode.
 type CTR struct {
 	key    *security.Bytes
 	block  cipher.Block
 	ivPool sync.Pool
 }
 
-// NewCTR is used to create a AES encryptor with counter mode.
+// NewCTR is used to create a AES encrypter with counter mode.
 func NewCTR(key []byte) (*CTR, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
