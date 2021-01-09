@@ -70,7 +70,7 @@ func Sign(privateKey ed25519.PrivateKey, message []byte) []byte {
 }
 
 // Verify reports whether signature is a valid signature of message by
-// publicKey. It will panic if len(publicKey) is not PublicKeySize.
+// public key. It will panic if len(publicKey) is not PublicKeySize.
 func Verify(publicKey ed25519.PublicKey, message, signature []byte) bool {
 	return ed25519.Verify(publicKey, message, signature)
 }

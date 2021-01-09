@@ -13,12 +13,13 @@ import (
 func TestEd25519(t *testing.T) {
 	pri, err := GenerateKey()
 	require.NoError(t, err)
+	pub := GetPublicKey(pri)
 
 	message := []byte("test message")
 	signature := Sign(pri, message)
 	require.Len(t, signature, SignatureSize)
 
-	valid := Verify(GetPublicKey(pri), message, signature)
+	valid := Verify(pub, message, signature)
 	require.True(t, valid)
 }
 
