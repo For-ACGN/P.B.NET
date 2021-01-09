@@ -263,3 +263,114 @@ func TestCBC_Parallel(t *testing.T) {
 		testsuite.IsDestroyed(t, cbc)
 	})
 }
+
+func BenchmarkCBC_Encrypt(b *testing.B) {
+	b.Run("64 Bytes", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 64)
+		benchmarkCBCEncrypt(b, data)
+	})
+
+	b.Run("256 Bytes", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 256)
+		benchmarkCBCEncrypt(b, data)
+	})
+
+	b.Run("1 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 1024)
+		benchmarkCBCEncrypt(b, data)
+	})
+
+	b.Run("4 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 4*1024)
+		benchmarkCBCEncrypt(b, data)
+	})
+
+	b.Run("16 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 16*1024)
+		benchmarkCBCEncrypt(b, data)
+	})
+
+	b.Run("128 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 128*1024)
+		benchmarkCBCEncrypt(b, data)
+	})
+
+	b.Run("1 MB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 1024*1024)
+		benchmarkCBCEncrypt(b, data)
+	})
+}
+
+func benchmarkCBCEncrypt(b *testing.B, data []byte) {
+	cbc, err := NewCBC(test256BitKey)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = cbc.Encrypt(data)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.StopTimer()
+}
+
+func BenchmarkCBC_Decrypt(b *testing.B) {
+	b.Run("64 Bytes", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 64)
+		benchmarkCBCDecrypt(b, data)
+	})
+
+	b.Run("256 Bytes", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 256)
+		benchmarkCBCDecrypt(b, data)
+	})
+
+	b.Run("1 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 1024)
+		benchmarkCBCDecrypt(b, data)
+	})
+
+	b.Run("4 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 4*1024)
+		benchmarkCBCDecrypt(b, data)
+	})
+
+	b.Run("16 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 16*1024)
+		benchmarkCBCDecrypt(b, data)
+	})
+
+	b.Run("128 KB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 128*1024)
+		benchmarkCBCDecrypt(b, data)
+	})
+
+	b.Run("1 MB", func(b *testing.B) {
+		data := bytes.Repeat([]byte{0}, 1024*1024)
+		benchmarkCBCDecrypt(b, data)
+	})
+}
+
+func benchmarkCBCDecrypt(b *testing.B, data []byte) {
+	cbc, err := NewCBC(test256BitKey)
+	require.NoError(b, err)
+
+	cipherData, err := cbc.Encrypt(data)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = cbc.Decrypt(cipherData)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.StopTimer()
+}

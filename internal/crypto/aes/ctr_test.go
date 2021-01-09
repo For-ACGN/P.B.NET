@@ -293,7 +293,7 @@ func benchmarkCTREncrypt(b *testing.B, data []byte) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := ctr.Encrypt(data)
+		_, err = ctr.Encrypt(data)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -350,7 +350,7 @@ func benchmarkCTRDecrypt(b *testing.B, data []byte) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := ctr.Decrypt(cipherData)
+		_, err = ctr.Decrypt(cipherData)
 		if err != nil {
 			b.Fatal(err)
 		}
