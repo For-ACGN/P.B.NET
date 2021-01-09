@@ -1,142 +1,55 @@
 package lsb
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"crypto/subtle"
-	"errors"
-	"fmt"
 	"image"
-	"image/png"
-	"math"
-
-	"project/internal/convert"
-	"project/internal/crypto/aes"
-	"project/internal/security"
+	"io"
 )
 
-// data structure stored in PNG
-// +--------------+----------+-----------+
-// | size(uint32) |  SHA256  | AES(data) |
-// +--------------+----------+-----------+
-// |   4 bytes    | 32 bytes |    var    |
-// +--------------+----------+-----------+
+// Writer is the LSB writer interface.
+type Writer interface {
+	// StorageSize is used to calculate the size that can write to this image.
+	StorageSize() uint64
 
-// size is uint32
-const headerSize = 4
+	// Image is used to get the inner image.
+	Image() image.Image
 
-// CalculateStorageSize is used to calculate the maximum data that can encrypted.
-func CalculateStorageSize(rect image.Rectangle) int {
-	width := rect.Dx()
-	height := rect.Dy()
-	size := width * height
-	// sha256.Size-1,  "1" is reserved pixel, see encodeNRGBA64()
-	block := (size-headerSize-sha256.Size-1)/aes.BlockSize - 1 // "1" is for aes padding
-	// actual data that can store
-	max := block*aes.BlockSize + (aes.BlockSize - 1)
-	if max < 0 {
-		max = 0
-	}
-	return max
+	// Write is used to write data to this image.
+	Write(data []byte) (int, error)
+
+	// Encode is used to encode image to writer.
+	Encode(w io.Writer) error
 }
 
-// EncryptToPNG is used to load PNG image and encrypt data to it.
-func EncryptToPNG(pic, plainData, key, iv []byte) ([]byte, error) {
-	img, err := png.Decode(bytes.NewReader(pic))
-	if err != nil {
-		return nil, err
-	}
-	newImg, err := Encrypt(img, plainData, key, iv)
-	if err != nil {
-		return nil, err
-	}
-	buf := bytes.NewBuffer(make([]byte, 0, len(pic)))
-	encoder := png.Encoder{
-		CompressionLevel: png.BestCompression,
-	}
-	err = encoder.Encode(buf, newImg)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+// Reader is the LSB reader interface.
+type Reader interface {
+	// StorageSize is used to calculate the size that can read from this image.
+	StorageSize() uint64
+
+	// Image is used to get the inner image.
+	Image() image.Image
+
+	// Read is used to read data from this image.
+	Read(data []byte) (int, error)
 }
 
-// Encrypt is used to encrypt data by aes + hash and save it to a PNG image.
-func Encrypt(img image.Image, plainData, key, iv []byte) (*image.NRGBA64, error) {
-	// basic information
-	rect := img.Bounds()
-	storageSize := CalculateStorageSize(rect)
-	size := len(plainData)
-	if size > storageSize {
-		const format = "this image can only store %s data, plain data size is %d"
-		str := convert.StorageUnit(uint64(storageSize))
-		return nil, fmt.Errorf(format, str, size)
-	}
-	if size > math.MaxInt32-1 { // because aes block size
-		return nil, errors.New("plain data size is bigger than 4GB")
-	}
-	// encrypted data
-	cipherData, err := aes.CBCEncrypt(plainData, key)
-	if err != nil {
-		return nil, err
-	}
-	defer security.CoverBytes(cipherData)
-	h := sha256.Sum256(plainData)
-	hash := h[:]
-	defer security.CoverBytes(hash)
-	// set secret
-	secret := make([]byte, 0, headerSize+sha256.Size+len(cipherData))
-	secret = append(secret, convert.BEUint32ToBytes(uint32(len(cipherData)))...)
-	secret = append(secret, hash...)
-	secret = append(secret, cipherData...)
-	return encodeNRGBA64(img, secret), nil
+// Encrypter is the LSB encrypter interface.
+type Encrypter interface {
+	// EncryptTo is used to encrypt data with AES-CTR and write to io.Writer.
+	EncryptTo(w io.Writer, data, key []byte) error
+
+	// EncryptFrom is used to read data from io.Reader then encrypt data
+	// with AES-CTR and write to io.Writer.
+	EncryptFrom(w io.Writer, r io.Reader, key []byte) error
+
+	// Encrypt is used to encrypt data with AES-CTR and write to byte slice.
+	Encrypt(data, key []byte) ([]byte, error)
 }
 
-// DecryptFromPNG is used to load a PNG image and  decrypt data from it.
-func DecryptFromPNG(pic, key, iv []byte) ([]byte, error) {
-	p, err := png.Decode(bytes.NewReader(pic))
-	if err != nil {
-		return nil, err
-	}
-	img, ok := p.(*image.NRGBA64)
-	if !ok {
-		return nil, errors.New("png is not NRGBA64")
-	}
-	return Decrypt(img, key, iv)
-}
+// Decrypter is the LSB decrypter interface.
+type Decrypter interface {
+	// DecryptTo is used to decrypt data with AES-CTR and write to io.Writer.
+	DecryptTo(w io.Writer, key []byte) error
 
-// Decrypt is used to decrypt cipher data from a PNG image.
-func Decrypt(img *image.NRGBA64, key, iv []byte) ([]byte, error) {
-	// basic information
-	rect := img.Bounds()
-	width, height := rect.Dx(), rect.Dy()
-	maxSize := width * height // one pixel one byte
-	if maxSize < headerSize+sha256.Size+aes.BlockSize {
-		return nil, errors.New("invalid image size")
-	}
-	min := rect.Min
-	// store global position
-	x := &min.X
-	y := &min.Y
-	// read header
-	header := decodeNRGBA64(img, headerSize, x, y)
-	cipherDataSize := int(convert.BEBytesToUint32(header))
-	if headerSize+sha256.Size+cipherDataSize > maxSize {
-		return nil, errors.New("invalid size in header")
-	}
-	// read hash
-	rawHash := decodeNRGBA64(img, sha256.Size, x, y)
-	// read cipher data
-	cipherData := decodeNRGBA64(img, cipherDataSize, x, y)
-	// decrypt
-	plainData, err := aes.CBCDecrypt(cipherData, key)
-	if err != nil {
-		return nil, err
-	}
-	// check hash
-	hash := sha256.Sum256(plainData)
-	if subtle.ConstantTimeCompare(hash[:], rawHash) != 1 {
-		return nil, errors.New("invalid hash about the plain data")
-	}
-	return plainData, nil
+	// Decrypt is used to decrypt data with AES-CTR and write to byte slice.
+	Decrypt(key []byte) ([]byte, error)
 }
