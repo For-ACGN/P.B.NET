@@ -1,18 +1,19 @@
 package curve25519
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestScalarBaseMult(t *testing.T) {
+func TestX25519Base(t *testing.T) {
 	x := make([]byte, ScalarSize)
 	x[0] = 1
 	for i := 0; i < 200; i++ {
 		var err error
-		x, err = ScalarBaseMult(x)
+		x, err = X25519Base(x)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -24,28 +25,30 @@ func TestScalarBaseMult(t *testing.T) {
 
 func TestKeyExchange(t *testing.T) {
 	// client side
-	cPri := make([]byte, ScalarSize)
-	cPri[0] = 199
-	cPub, err := ScalarBaseMult(cPri)
+	clientPri := make([]byte, ScalarSize)
+	clientPri[0] = 199
+	clientPub, err := X25519Base(clientPri)
 	require.NoError(t, err)
 
 	// server side
-	sPri := make([]byte, ScalarSize)
-	sPri[0] = 2
-	sPub, err := ScalarBaseMult(sPri)
+	serverPri := make([]byte, ScalarSize)
+	serverPri[0] = 2
+	serverPub, err := X25519Base(serverPri)
 	require.NoError(t, err)
 
 	// start exchange
-	cKey, err := ScalarMult(cPri, sPub)
+	clientKey, err := X25519(clientPri, serverPub)
 	require.NoError(t, err)
-	sKey, err := ScalarMult(sPri, cPub)
+	serverKey, err := X25519(serverPri, clientPub)
 	require.NoError(t, err)
 
-	require.Equal(t, cKey, sKey)
-	t.Log(cKey)
+	// check result key
+	require.NotEqual(t, bytes.Repeat([]byte{0}, 32), clientKey)
+	require.Equal(t, clientKey, serverKey)
+	t.Log(clientKey)
 
 	// invalid in data size
-	cPub, err = ScalarBaseMult(nil)
+	clientPub, err = X25519Base(nil)
 	require.Error(t, err)
-	require.Nil(t, cPub)
+	require.Nil(t, clientPub)
 }
