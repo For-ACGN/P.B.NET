@@ -1,6 +1,7 @@
 package aes
 
 import (
+	"bytes"
 	"crypto/aes"
 	"testing"
 
@@ -65,8 +66,16 @@ func TestCBCEncrypt(t *testing.T) {
 }
 
 func TestCBCDecrypt(t *testing.T) {
-	t.Run("invalid cipher data", func(t *testing.T) {
+	t.Run("empty data", func(t *testing.T) {
 		_, err := CBCDecrypt(nil, test128BitKey)
+		require.Equal(t, ErrEmptyData, err)
+	})
+
+	t.Run("invalid cipher data", func(t *testing.T) {
+		_, err := CBCDecrypt(make([]byte, 7), test128BitKey)
+		require.Equal(t, ErrInvalidCipherData, err)
+
+		_, err = CBCDecrypt(make([]byte, 63), test128BitKey)
 		require.Equal(t, ErrInvalidCipherData, err)
 	})
 
@@ -75,6 +84,11 @@ func TestCBCDecrypt(t *testing.T) {
 		require.Error(t, err)
 		_, ok := err.(aes.KeySizeError)
 		require.True(t, ok)
+	})
+
+	t.Run("invalid padding size", func(t *testing.T) {
+		_, err := CBCDecrypt(bytes.Repeat([]byte{0}, 64), test128BitKey)
+		require.Equal(t, ErrInvalidPaddingSize, err)
 	})
 }
 
@@ -115,4 +129,56 @@ func testCBC(t *testing.T, key []byte) {
 	}
 
 	require.Equal(t, key, cbc.Key())
+}
+
+func TestNewCBC(t *testing.T) {
+	cbc, err := NewCBC(nil)
+	require.Error(t, err)
+	require.Nil(t, cbc)
+	_, ok := err.(aes.KeySizeError)
+	require.True(t, ok)
+}
+
+func TestCBC_Encrypt(t *testing.T) {
+	cbc, err := NewCBC(test128BitKey)
+	require.NoError(t, err)
+
+	t.Run("empty data", func(t *testing.T) {
+		_, err = cbc.Encrypt(nil)
+		require.Equal(t, ErrEmptyData, err)
+	})
+
+	t.Run("failed to generate random iv", func(t *testing.T) {
+		patch := func([]byte) (int, error) {
+			return 0, monkey.Error
+		}
+		pg := monkey.Patch(rand.Read, patch)
+		defer pg.Unpatch()
+
+		_, err = cbc.Encrypt(make([]byte, 64))
+		monkey.IsExistMonkeyError(t, err)
+	})
+}
+
+func TestCBC_Decrypt(t *testing.T) {
+	cbc, err := NewCBC(test128BitKey)
+	require.NoError(t, err)
+
+	t.Run("empty data", func(t *testing.T) {
+		_, err = cbc.Decrypt(nil)
+		require.Equal(t, ErrEmptyData, err)
+	})
+
+	t.Run("invalid cipher data", func(t *testing.T) {
+		_, err = cbc.Decrypt(make([]byte, 7))
+		require.Equal(t, ErrInvalidCipherData, err)
+
+		_, err = cbc.Decrypt(make([]byte, 63))
+		require.Equal(t, ErrInvalidCipherData, err)
+	})
+
+	t.Run("invalid padding size", func(t *testing.T) {
+		_, err = cbc.Decrypt(bytes.Repeat([]byte{0}, 64))
+		require.Equal(t, ErrInvalidPaddingSize, err)
+	})
 }

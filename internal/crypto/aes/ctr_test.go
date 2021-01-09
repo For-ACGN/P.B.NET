@@ -137,7 +137,7 @@ func TestCTR_Encrypt(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("empty data", func(t *testing.T) {
-		_, err := ctr.Encrypt(nil)
+		_, err = ctr.Encrypt(nil)
 		require.Equal(t, ErrEmptyData, err)
 	})
 
@@ -148,7 +148,7 @@ func TestCTR_Encrypt(t *testing.T) {
 		pg := monkey.Patch(rand.Read, patch)
 		defer pg.Unpatch()
 
-		_, err := ctr.Encrypt(make([]byte, 64))
+		_, err = ctr.Encrypt(make([]byte, 64))
 		monkey.IsExistMonkeyError(t, err)
 	})
 }
@@ -158,7 +158,7 @@ func TestCTR_Decrypt(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("empty data", func(t *testing.T) {
-		_, err := ctr.Decrypt(nil)
+		_, err = ctr.Decrypt(nil)
 		require.Equal(t, ErrEmptyData, err)
 	})
 
