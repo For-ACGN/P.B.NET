@@ -2,53 +2,55 @@ package ed25519
 
 import (
 	"bytes"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"project/internal/crypto/rand"
 	"project/internal/patch/monkey"
 )
 
-func TestED25519(t *testing.T) {
+func TestEd25519(t *testing.T) {
 	pri, err := GenerateKey()
 	require.NoError(t, err)
 
-	t.Run("sign and verify", func(t *testing.T) {
-		message := []byte("test message")
-		signature := Sign(pri, message)
-		require.Len(t, signature, SignatureSize)
-		require.True(t, Verify(pri.PublicKey(), message, signature))
-	})
+	message := []byte("test message")
+	signature := Sign(pri, message)
+	require.Len(t, signature, SignatureSize)
 
-	t.Run("import private and public key", func(t *testing.T) {
-		pri, err = ImportPrivateKey(bytes.Repeat([]byte{0, 1}, 32))
-		require.NoError(t, err)
-		require.NotNil(t, pri)
+	valid := Verify(GetPublicKey(pri), message, signature)
+	require.True(t, valid)
+}
 
-		pub, err := ImportPublicKey(bytes.Repeat([]byte{0, 1}, 16))
-		require.NoError(t, err)
-		require.NotNil(t, pub)
+func TestGenerateKey(t *testing.T) {
+	patch := func([]byte) (int, error) {
+		return 0, monkey.Error
+	}
+	pg := monkey.Patch(rand.Read, patch)
+	defer pg.Unpatch()
 
-		pri, err = ImportPrivateKey(bytes.Repeat([]byte{0, 1}, 161))
-		require.Equal(t, ErrInvalidPrivateKey, err)
-		require.Nil(t, pri)
+	_, err := GenerateKey()
+	monkey.IsExistMonkeyError(t, err)
+}
 
-		pub, err = ImportPublicKey(bytes.Repeat([]byte{0, 1}, 161))
-		require.Equal(t, ErrInvalidPublicKey, err)
-		require.Nil(t, pub)
-	})
+func TestImportPrivateKey(t *testing.T) {
+	pri, err := ImportPrivateKey(bytes.Repeat([]byte{0, 1}, 32))
+	require.NoError(t, err)
+	require.NotNil(t, pri)
 
-	t.Run("failed to generate key", func(t *testing.T) {
-		patch := func(io.Reader, []byte) (int, error) {
-			return 0, monkey.Error
-		}
-		pg := monkey.Patch(io.ReadFull, patch)
-		defer pg.Unpatch()
+	pri, err = ImportPrivateKey(bytes.Repeat([]byte{0, 1}, 161))
+	require.Equal(t, ErrInvalidPrivateKeySize, err)
+	require.Nil(t, pri)
+}
 
-		_, err := GenerateKey()
-		monkey.IsExistMonkeyError(t, err)
-	})
+func TestImportPublicKey(t *testing.T) {
+	pub, err := ImportPublicKey(bytes.Repeat([]byte{0, 1}, 16))
+	require.NoError(t, err)
+	require.NotNil(t, pub)
+
+	pub, err = ImportPublicKey(bytes.Repeat([]byte{0, 1}, 161))
+	require.Equal(t, ErrInvalidPublicKeySize, err)
+	require.Nil(t, pub)
 }
 
 func BenchmarkSign(b *testing.B) {
@@ -71,7 +73,7 @@ func BenchmarkVerify(b *testing.B) {
 	require.NoError(b, err)
 	msg := bytes.Repeat([]byte{0}, 256)
 	signature := Sign(pri, msg)
-	pub := pri.PublicKey()
+	pub := GetPublicKey(pri)
 
 	b.ReportAllocs()
 	b.ResetTimer()
