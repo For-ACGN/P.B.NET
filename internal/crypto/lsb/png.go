@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"io"
 	"math"
 
 	"github.com/pkg/errors"
@@ -16,39 +17,111 @@ import (
 	"project/internal/security"
 )
 
-// PNG implemented lsb interface.
-type PNG struct {
-	// original png image
+// PNGWriter implemented lsb Writer interface.
+type PNGWriter struct {
 	origin image.Image
+	mode   Mode
 
-	// record read or write pointer
+	// output png image
+	nrgba32 *image.NRGBA
+	nrgba64 *image.NRGBA64
+
+	// record write pointer
 	x *int
 	y *int
 }
 
-// NewPNG is used to create a png lsb encrypter.
-func NewPNG(pic []byte) (*PNG, error) {
-	img, err := png.Decode(bytes.NewReader(pic))
-	if err != nil {
-		return nil, err
+// NewPNGWriter is used to create a png lsb writer.
+func NewPNGWriter(img image.Image, mode Mode) (*PNGWriter, error) {
+	switch mode {
+	case PNGWithNRGBA32, PNGWithNRGBA64:
+	default:
+		return nil, errors.New(mode.String())
 	}
-	return &PNG{origin: img}, err
+	p := PNGWriter{
+		origin: img,
+		mode:   mode,
+		x:      new(int),
+		y:      new(int),
+	}
+	switch mode {
+	case PNGWithNRGBA32:
+		p.nrgba32 = image.NewNRGBA(img.Bounds())
+	case PNGWithNRGBA64:
+		p.nrgba64 = image.NewNRGBA64(img.Bounds())
+	}
+	return &p, nil
 }
 
 // StorageSize is used to calculate the size that can write.
-func (p *PNG) StorageSize() uint64 {
-	return 0
+func (p *PNGWriter) StorageSize() uint64 {
+	rect := p.origin.Bounds()
+	width := rect.Dx()
+	height := rect.Dy()
+	return uint64(width * height)
 }
 
-// Image is used to get the inner image.
-func (p *PNG) Image() image.Image {
-	return p.origin
+// Image is used to get the inner image that will be encoded.
+func (p *PNGWriter) Image() image.Image {
+	switch p.mode {
+	case PNGWithNRGBA32:
+		return &image.NRGBA{
+			Pix:    append([]byte{}, p.nrgba32.Pix...),
+			Stride: p.nrgba32.Stride,
+			Rect:   p.nrgba32.Rect,
+		}
+	case PNGWithNRGBA64:
+		return &image.NRGBA64{
+			Pix:    append([]byte{}, p.nrgba64.Pix...),
+			Stride: p.nrgba64.Stride,
+			Rect:   p.nrgba64.Rect,
+		}
+	default:
+		panic("lsb: internal error")
+	}
 }
 
 // Write is used to write data to this image, it will change the under image.
-func (p *PNG) Write(data []byte) (int, error) {
+func (p *PNGWriter) Write(data []byte) (int, error) {
+	switch p.mode {
+	case PNGWithNRGBA32:
+		writeNRGBA32(p.origin, p.nrgba32, data, p.x, p.y)
+		return len(data), nil
+	case PNGWithNRGBA64:
+		writeNRGBA64(p.origin, p.nrgba64, data, p.x, p.y)
+		return len(data), nil
+	default:
+		panic("lsb: internal error")
+	}
+}
 
-	return len(data), nil
+// Encode is used to encode png to writer.
+func (p *PNGWriter) Encode(w io.Writer) error {
+	switch p.mode {
+	case PNGWithNRGBA32:
+		return png.Encode(w, p.nrgba32)
+	case PNGWithNRGBA64:
+		return png.Encode(w, p.nrgba64)
+	default:
+		panic("lsb: internal error")
+	}
+}
+
+// Reset is used to reset writer.
+func (p *PNGWriter) Reset() {
+	switch p.mode {
+	case PNGWithNRGBA32:
+		p.nrgba32 = image.NewNRGBA(p.origin.Bounds())
+	case PNGWithNRGBA64:
+		p.nrgba64 = image.NewNRGBA64(p.origin.Bounds())
+	}
+	*p.x = 0
+	*p.y = 0
+}
+
+// Mode is used to get the png writer mode.
+func (p *PNGWriter) Mode() Mode {
+	return p.mode
 }
 
 // data structure stored in PNG
