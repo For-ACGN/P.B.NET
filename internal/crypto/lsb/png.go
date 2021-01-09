@@ -16,6 +16,41 @@ import (
 	"project/internal/security"
 )
 
+// PNG implemented lsb interface.
+type PNG struct {
+	// original png image
+	origin image.Image
+
+	// record read or write pointer
+	x *int
+	y *int
+}
+
+// NewPNG is used to create a png lsb encrypter.
+func NewPNG(pic []byte) (*PNG, error) {
+	img, err := png.Decode(bytes.NewReader(pic))
+	if err != nil {
+		return nil, err
+	}
+	return &PNG{origin: img}, err
+}
+
+// StorageSize is used to calculate the size that can write.
+func (p *PNG) StorageSize() uint64 {
+	return 0
+}
+
+// Image is used to get the inner image.
+func (p *PNG) Image() image.Image {
+	return p.origin
+}
+
+// Write is used to write data to this image, it will change the under image.
+func (p *PNG) Write(data []byte) (int, error) {
+
+	return len(data), nil
+}
+
 // data structure stored in PNG
 // +--------------+----------+-----------+
 // | size(uint32) |  SHA256  | AES(data) |
@@ -90,7 +125,7 @@ func Encrypt(img image.Image, plainData, key, iv []byte) (*image.NRGBA64, error)
 	secret = append(secret, convert.BEUint32ToBytes(uint32(len(cipherData)))...)
 	secret = append(secret, hash...)
 	secret = append(secret, cipherData...)
-	return encodeNRGBA64(img, secret), nil
+	return encodeNRGBA64_old(img, secret), nil
 }
 
 // DecryptFromPNG is used to load a PNG image and  decrypt data from it.
@@ -120,15 +155,15 @@ func Decrypt(img *image.NRGBA64, key, iv []byte) ([]byte, error) {
 	x := &min.X
 	y := &min.Y
 	// read header
-	header := decodeNRGBA64(img, headerSize, x, y)
+	header := readNRGBA64(img, headerSize, x, y)
 	cipherDataSize := int(convert.BEBytesToUint32(header))
 	if headerSize+sha256.Size+cipherDataSize > maxSize {
 		return nil, errors.New("invalid size in header")
 	}
 	// read hash
-	rawHash := decodeNRGBA64(img, sha256.Size, x, y)
+	rawHash := readNRGBA64(img, sha256.Size, x, y)
 	// read cipher data
-	cipherData := decodeNRGBA64(img, cipherDataSize, x, y)
+	cipherData := readNRGBA64(img, cipherDataSize, x, y)
 	// decrypt
 	plainData, err := aes.CBCDecrypt(cipherData, key)
 	if err != nil {
