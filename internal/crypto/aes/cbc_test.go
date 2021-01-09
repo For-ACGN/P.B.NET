@@ -9,6 +9,7 @@ import (
 
 	"project/internal/crypto/rand"
 	"project/internal/patch/monkey"
+	"project/internal/testsuite"
 )
 
 func TestAESCBC(t *testing.T) {
@@ -129,6 +130,8 @@ func testCBC(t *testing.T, key []byte) {
 	}
 
 	require.Equal(t, key, cbc.Key())
+
+	testsuite.IsDestroyed(t, cbc)
 }
 
 func TestNewCBC(t *testing.T) {
@@ -158,6 +161,8 @@ func TestCBC_Encrypt(t *testing.T) {
 		_, err = cbc.Encrypt(make([]byte, 64))
 		monkey.IsExistMonkeyError(t, err)
 	})
+
+	testsuite.IsDestroyed(t, cbc)
 }
 
 func TestCBC_Decrypt(t *testing.T) {
@@ -180,5 +185,81 @@ func TestCBC_Decrypt(t *testing.T) {
 	t.Run("invalid padding size", func(t *testing.T) {
 		_, err = cbc.Decrypt(bytes.Repeat([]byte{0}, 64))
 		require.Equal(t, ErrInvalidPaddingSize, err)
+	})
+
+	testsuite.IsDestroyed(t, cbc)
+}
+
+func TestCBC_Parallel(t *testing.T) {
+	testdata := generateBytes()
+
+	t.Run("part", func(t *testing.T) {
+		cbc, err := NewCBC(test128BitKey)
+		require.NoError(t, err)
+
+		enc := func() {
+			_, err := cbc.Encrypt(testdata)
+			require.NoError(t, err)
+		}
+		dec := func() {
+			cipherData, err := cbc.Encrypt(testdata)
+			require.NoError(t, err)
+			plainData, err := cbc.Decrypt(cipherData)
+			require.NoError(t, err)
+			require.Equal(t, testdata, plainData)
+		}
+		key := func() {
+			key := cbc.Key()
+			require.Equal(t, test128BitKey, key)
+		}
+		testsuite.RunParallel(100, nil, nil, enc, dec, key)
+
+		testsuite.IsDestroyed(t, cbc)
+	})
+
+	t.Run("whole", func(t *testing.T) {
+		var cbc *CBC
+
+		init := func() {
+			var err error
+			cbc, err = NewCBC(test128BitKey)
+			require.NoError(t, err)
+		}
+		enc := func() {
+			_, err := cbc.Encrypt(testdata)
+			require.NoError(t, err)
+		}
+		dec := func() {
+			cipherData, err := cbc.Encrypt(testdata)
+			require.NoError(t, err)
+			plainData, err := cbc.Decrypt(cipherData)
+			require.NoError(t, err)
+			require.Equal(t, testdata, plainData)
+		}
+		key := func() {
+			key := cbc.Key()
+			require.Equal(t, test128BitKey, key)
+		}
+		testsuite.RunParallel(100, init, nil, enc, dec, key)
+
+		testsuite.IsDestroyed(t, cbc)
+	})
+
+	t.Run("multi", func(t *testing.T) {
+		cbc, err := NewCBC(test128BitKey)
+		require.NoError(t, err)
+
+		testsuite.RunMultiTimes(100, func() {
+			cipherData, err := cbc.Encrypt(testdata)
+			require.NoError(t, err)
+			plainData, err := cbc.Decrypt(cipherData)
+			require.NoError(t, err)
+			require.Equal(t, testdata, plainData)
+
+			key := cbc.Key()
+			require.Equal(t, test128BitKey, key)
+		})
+
+		testsuite.IsDestroyed(t, cbc)
 	})
 }

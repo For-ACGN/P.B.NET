@@ -122,6 +122,8 @@ func testCTR(t *testing.T, key []byte) {
 	}
 
 	require.Equal(t, key, ctr.Key())
+
+	testsuite.IsDestroyed(t, ctr)
 }
 
 func TestNewCTR(t *testing.T) {
@@ -151,6 +153,8 @@ func TestCTR_Encrypt(t *testing.T) {
 		_, err = ctr.Encrypt(make([]byte, 64))
 		monkey.IsExistMonkeyError(t, err)
 	})
+
+	testsuite.IsDestroyed(t, ctr)
 }
 
 func TestCTR_Decrypt(t *testing.T) {
@@ -166,6 +170,8 @@ func TestCTR_Decrypt(t *testing.T) {
 		_, err = ctr.Decrypt(make([]byte, 7))
 		require.Equal(t, ErrInvalidCipherData, err)
 	})
+
+	testsuite.IsDestroyed(t, ctr)
 }
 
 func TestCTR_Parallel(t *testing.T) {
