@@ -28,14 +28,8 @@ func (m Mode) String() string {
 
 // Writer is the LSB writer interface.
 type Writer interface {
-	// StorageSize is used to calculate the size that can write to this image.
-	StorageSize() uint64
-
-	// Image is used to get the inner image that will be encoded.
-	Image() image.Image
-
 	// Write is used to write data to this image.
-	Write(data []byte) (int, error)
+	Write(b []byte) (int, error)
 
 	// Encode is used to encode image to writer.
 	Encode(w io.Writer) error
@@ -43,20 +37,29 @@ type Writer interface {
 	// Reset is used to reset writer.
 	Reset()
 
+	// Image is used to get the inner image that will be encoded.
+	Image() image.Image
+
+	// Size is used to calculate the size that can write to this image.
+	Size() uint64
+
 	// Mode is used to get the writer mode.
 	Mode() Mode
 }
 
 // Reader is the LSB reader interface.
 type Reader interface {
-	// StorageSize is used to calculate the size that can read from this image.
-	StorageSize() uint64
+	// Read is used to read data from this image.
+	Read(b []byte) (int, error)
 
-	// Image is used to get the inner image.
+	// Reset is used to reset reader.
+	Reset()
+
+	// Image is used to get the original image.
 	Image() image.Image
 
-	// Read is used to read data from this image.
-	Read(data []byte) (int, error)
+	// Size is used to calculate the size that can read from this image.
+	Size() uint64
 
 	// Mode is used to get the reader mode.
 	Mode() Mode
@@ -64,8 +67,8 @@ type Reader interface {
 
 // Encrypter is the LSB encrypter interface.
 type Encrypter interface {
-	// StorageSize is used to calculate the size that can write to this image.
-	StorageSize() uint64
+	// Size is used to calculate the size that can encrypt to this image.
+	Size() uint64
 
 	// EncryptTo is used to encrypt data with AES-CTR and write to io.Writer.
 	EncryptTo(w io.Writer, data, key []byte) error

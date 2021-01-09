@@ -16,6 +16,6 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, data []byte, x, y *int) 
 
 }
 
-func readNRGBA32(img *image.NRGBA, size int, x, y *int) []byte {
+func readNRGBA32(img *image.NRGBA, b []byte, x, y *int) []byte {
 	return nil
 }
