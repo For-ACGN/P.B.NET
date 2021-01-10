@@ -6,17 +6,17 @@ import (
 
 // about AES valid key size.
 const (
-	Key128Bit int = 16
-	Key192Bit int = 24
-	Key256Bit int = 32
+	Key128Bit = 16
+	Key192Bit = 24
+	Key256Bit = 32
 )
 
 const (
 	// IVSize is the AES IV size.
-	IVSize int = 16
+	IVSize = 16
 
 	// BlockSize is the AES block size in bytes.
-	BlockSize int = 16
+	BlockSize = 16
 )
 
 // errors about encrypt and decrypt.

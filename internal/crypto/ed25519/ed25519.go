@@ -10,16 +10,16 @@ import (
 
 const (
 	// PublicKeySize is the size, in bytes, of public keys as used in this package.
-	PublicKeySize int = 32
+	PublicKeySize = 32
 
 	// PrivateKeySize is the size, in bytes, of private keys as used in this package.
-	PrivateKeySize int = 64
+	PrivateKeySize = 64
 
 	// SignatureSize is the size, in bytes, of signatures generated and verified by this package.
-	SignatureSize int = 64
+	SignatureSize = 64
 
 	// SeedSize is the size, in bytes, of private key seeds. used by RFC 8032.
-	SeedSize int = 32
+	SeedSize = 32
 )
 
 // Errors about ImportPrivateKey and ImportPublicKey.

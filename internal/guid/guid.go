@@ -22,7 +22,7 @@ import (
 // +------------+-------------+----------+------------------+------------+
 
 // Size is the generated guid size, it is not standard.
-const Size int = 8 + 4 + 8 + 8 + 4
+const Size = 8 + 4 + 8 + 8 + 4
 
 // zeroGUID is the zero guid for improve GUID.IsZero() performance.
 var zeroGUID = GUID{}

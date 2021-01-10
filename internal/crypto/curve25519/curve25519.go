@@ -5,7 +5,7 @@ import (
 )
 
 // ScalarSize is the size of the scalar input to X25519.
-const ScalarSize int = 32
+const ScalarSize = 32
 
 // Basepoint is the canonical Curve25519 generator.
 var Basepoint []byte
