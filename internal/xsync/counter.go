@@ -9,12 +9,12 @@ import (
 // Counter is used to wait all resource closed like connection and goroutine
 // in Server program. It also can use like sync.WaitGroup.
 type Counter struct {
-	count int64
+	count int32
 }
 
 // Add is used to add delta, it will panic if count is negative.
 func (c *Counter) Add(delta int) {
-	count := atomic.AddInt64(&c.count, int64(delta))
+	count := atomic.AddInt32(&c.count, int32(delta))
 	if count < 0 {
 		const format = "xsync: negative counter %d in Add()"
 		panic(fmt.Sprintf(format, count))
@@ -30,12 +30,12 @@ func (c *Counter) Done() {
 func (c *Counter) Wait() {
 	const maxDelay = time.Second
 	var (
-		count int64
+		count int32
 		delay time.Duration
 	)
 	addr := &c.count
 	for {
-		count = atomic.LoadInt64(addr)
+		count = atomic.LoadInt32(addr)
 		switch {
 		case count == 0:
 			return
