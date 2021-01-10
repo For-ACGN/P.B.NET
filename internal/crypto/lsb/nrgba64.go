@@ -13,6 +13,29 @@ import (
 // B: 1111 000[bit5] 1111 000[bit6]
 // A: 1111 000[bit6] 1111 000[bit7]
 
+func copyNRGBA64(img image.Image) *image.NRGBA64 {
+	rect := img.Bounds()
+	min := rect.Min
+	width := rect.Dx()
+	height := rect.Dy()
+	newImg := image.NewNRGBA64(rect)
+	var (
+		r, g, b, a uint32
+		rgba       color.NRGBA64
+	)
+	for x := min.X; x < width; x++ {
+		for y := min.Y; y < height; y++ {
+			r, g, b, a = img.At(x, y).RGBA()
+			rgba.R = uint16(r)
+			rgba.G = uint16(g)
+			rgba.B = uint16(b)
+			rgba.A = uint16(a)
+			newImg.SetNRGBA64(x, y, rgba)
+		}
+	}
+	return newImg
+}
+
 func writeNRGBA64(origin image.Image, img *image.NRGBA64, data []byte, x, y *int) {
 	rect := origin.Bounds()
 	width := rect.Dx()

@@ -32,7 +32,7 @@ type PNGWriter struct {
 }
 
 // NewPNGWriter is used to create a png lsb writer.
-func NewPNGWriter(img image.Image, mode Mode) (*PNGWriter, error) {
+func NewPNGWriter(img image.Image, mode Mode) (Writer, error) {
 	pw := PNGWriter{
 		origin: img,
 		mode:   mode,
@@ -41,9 +41,9 @@ func NewPNGWriter(img image.Image, mode Mode) (*PNGWriter, error) {
 	}
 	switch mode {
 	case PNGWithNRGBA32:
-		pw.nrgba32 = image.NewNRGBA(img.Bounds())
+		pw.nrgba32 = copyNRGBA32(img)
 	case PNGWithNRGBA64:
-		pw.nrgba64 = image.NewNRGBA64(img.Bounds())
+		pw.nrgba64 = copyNRGBA64(img)
 	default:
 		return nil, errors.New(mode.String())
 	}
@@ -74,6 +74,18 @@ func (pw *PNGWriter) Encode(w io.Writer) error {
 	default:
 		panic("lsb: internal error")
 	}
+}
+
+// SetOffset is used to set pointer about position.
+func (pw *PNGWriter) SetOffset(v uint64) error {
+	if v > pw.Size() {
+		return ErrInvalidOffset
+	}
+	vv := int(v)
+	width := pw.origin.Bounds().Dx()
+	*pw.x = vv % width
+	*pw.y = vv / width
+	return nil
 }
 
 // Reset is used to reset write pointer.
@@ -130,7 +142,7 @@ type PNGReader struct {
 }
 
 // NewPNGReader is used to create a png lsb reader.
-func NewPNGReader(img []byte) (*PNGReader, error) {
+func NewPNGReader(img []byte) (Reader, error) {
 	p, err := png.Decode(bytes.NewReader(img))
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -168,6 +180,18 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 	}
 }
 
+// SetOffset is used to set pointer about position.
+func (pr *PNGReader) SetOffset(v uint64) error {
+	if v > pr.Size() {
+		return ErrInvalidOffset
+	}
+	vv := int(v)
+	width := pr.origin.Bounds().Dx()
+	*pr.x = vv % width
+	*pr.y = vv / width
+	return nil
+}
+
 // Reset is used to reset reader pointer.
 func (pr *PNGReader) Reset() {
 	*pr.x = 0
@@ -193,11 +217,43 @@ func (pr *PNGReader) Mode() Mode {
 }
 
 // data structure stored in PNG
-// +--------------+----------+-----------+
-// | size(uint32) |  SHA256  | AES(data) |
-// +--------------+----------+-----------+
-// |   4 bytes    | 32 bytes |    var    |
-// +--------------+----------+-----------+
+// +--------------+-------------+--------------+
+// | size(uint64) | HMAC-SHA256 | AES(IV+data) |
+// +--------------+-------------+--------------+
+// |   8 bytes    |  32 bytes   |     var      |
+// +--------------+-------------+--------------+
+
+const (
+	// dataLenSize is used store data length.
+	pngDataLenSize uint64 = 8
+	pngReverseSize        = pngDataLenSize + sha256.Size + aes.IVSize
+	pngMinPicSize         = pngReverseSize - 1
+)
+
+// PNGEncrypter is used to encrypt data and write it to a png image.
+type PNGEncrypter struct {
+	w Writer
+
+	// n record written bytes
+	n uint64
+}
+
+// NewPNGEncrypter is used to create a new png encrypter.
+func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) {
+	rect := img.Bounds()
+	width := rect.Dx()
+	height := rect.Dy()
+	size := width * height
+	if uint64(size) < pngMinPicSize {
+		return nil, ErrImgTooSmall
+	}
+	return nil, nil
+}
+
+// Size is used to calculate the size that can encrypt to this png image.
+func (pe *PNGEncrypter) Size() uint64 {
+	return pe.w.Size() - pngDataLenSize - sha256.Size - aes.IVSize
+}
 
 // size is uint32
 const headerSize = 4

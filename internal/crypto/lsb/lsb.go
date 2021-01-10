@@ -1,9 +1,18 @@
 package lsb
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"io"
+)
+
+var (
+	// ErrInvalidOffset is a error about invalid offset.
+	ErrInvalidOffset = errors.New("offset is larger than size that can read/write")
+
+	// ErrImgTooSmall is a error that means this image can't encrypt data.
+	ErrImgTooSmall = errors.New("image rectangle is too small")
 )
 
 // supported lsb modes.
@@ -34,6 +43,9 @@ type Writer interface {
 	// Encode is used to encode image to writer.
 	Encode(w io.Writer) error
 
+	// SetOffset is used to set pointer about position.
+	SetOffset(v uint64) error
+
 	// Reset is used to reset writer.
 	Reset()
 
@@ -52,6 +64,9 @@ type Reader interface {
 	// Read is used to read data from this image.
 	Read(b []byte) (int, error)
 
+	// SetOffset is used to set pointer about position.
+	SetOffset(v uint64) error
+
 	// Reset is used to reset reader.
 	Reset()
 
@@ -67,18 +82,23 @@ type Reader interface {
 
 // Encrypter is the LSB encrypter interface.
 type Encrypter interface {
+	// Write is used to encrypt data and write it to under image.
+	Write(b []byte) (int, error)
+
+	// Encode is used to encode image to writer.
+	Encode(w io.Writer) error
+
+	// Reset is used to reset under writer and key.
+	Reset(key []byte) error
+
+	// Key is used to get the aes key.
+	Key() []byte
+
+	// Image is used to get the original image.
+	Image() image.Image
+
 	// Size is used to calculate the size that can encrypt to this image.
 	Size() uint64
-
-	// EncryptTo is used to encrypt data with AES-CTR and write to io.Writer.
-	EncryptTo(w io.Writer, data, key []byte) error
-
-	// EncryptFrom is used to read data from io.Reader then encrypt data
-	// with AES-CTR and write to io.Writer.
-	EncryptFrom(w io.Writer, r io.Reader, key []byte) error
-
-	// Encrypt is used to encrypt data with AES-CTR and write to byte slice.
-	Encrypt(data, key []byte) ([]byte, error)
 
 	// Mode is used to get the encrypter mode.
 	Mode() Mode
