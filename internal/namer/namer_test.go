@@ -16,9 +16,9 @@ import (
 	"project/internal/testsuite"
 )
 
-var testdata = [...]*struct {
-	typ string
-	res func(*testing.T) []byte
+var tests = [...]*struct {
+	typ   string
+	resFn func(*testing.T) []byte
 }{
 	{"english", testGenerateEnglishResource},
 }
@@ -27,9 +27,9 @@ func TestNamers(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	for _, item := range testdata {
-		t.Run(item.typ, func(t *testing.T) {
-			namer, err := Load(item.typ, item.res(t))
+	for _, test := range tests {
+		t.Run(test.typ, func(t *testing.T) {
+			namer, err := Load(test.typ, test.resFn(t))
 			require.NoError(t, err)
 
 			for i := 0; i < 10; i++ {
@@ -150,12 +150,12 @@ func TestNamers_Parallel(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	for _, item := range testdata {
-		t.Run(item.typ, func(t *testing.T) {
-			res := item.res(t)
+	for _, test := range tests {
+		t.Run(test.typ, func(t *testing.T) {
+			res := test.resFn(t)
 
 			t.Run("part", func(t *testing.T) {
-				namer, err := Load(item.typ, item.res(t))
+				namer, err := Load(test.typ, test.resFn(t))
 				require.NoError(t, err)
 
 				load := func() {
@@ -179,7 +179,7 @@ func TestNamers_Parallel(t *testing.T) {
 
 				init := func() {
 					var err error
-					namer, err = Load(item.typ, item.res(t))
+					namer, err = Load(test.typ, test.resFn(t))
 					require.NoError(t, err)
 				}
 				load := func() {
