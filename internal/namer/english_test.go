@@ -3,7 +3,6 @@ package namer
 import (
 	"archive/zip"
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -39,26 +38,6 @@ func testGenerateEnglishResource(t *testing.T) []byte {
 	err := writer.Close()
 	require.NoError(t, err)
 	return buf.Bytes()
-}
-
-func TestEnglish(t *testing.T) {
-	gm := testsuite.MarkGoroutines(t)
-	defer gm.Compare()
-
-	res := testGenerateEnglishResource(t)
-	english := NewEnglish()
-	err := english.Load(res)
-	require.NoError(t, err)
-
-	for i := 0; i < 10; i++ {
-		word, err := english.Generate(nil)
-		require.NoError(t, err)
-		t.Log(word)
-	}
-
-	fmt.Println(english.Type())
-
-	testsuite.IsDestroyed(t, english)
 }
 
 func TestEnglish_Load(t *testing.T) {

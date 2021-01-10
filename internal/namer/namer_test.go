@@ -3,6 +3,7 @@ package namer
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"testing"
@@ -15,19 +16,36 @@ import (
 	"project/internal/testsuite"
 )
 
+var testdata = [...]*struct {
+	typ string
+	res func(*testing.T) []byte
+}{
+	{"english", testGenerateEnglishResource},
+}
+
+func TestNamers(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	for _, item := range testdata {
+		t.Run(item.typ, func(t *testing.T) {
+			namer, err := Load(item.typ, item.res(t))
+			require.NoError(t, err)
+
+			for i := 0; i < 10; i++ {
+				word, err := namer.Generate(nil)
+				require.NoError(t, err)
+				t.Log(word)
+			}
+
+			fmt.Println(namer.Type())
+
+			testsuite.IsDestroyed(t, namer)
+		})
+	}
+}
+
 func TestLoad(t *testing.T) {
-	t.Run("common", func(t *testing.T) {
-		res := testGenerateEnglishResource(t)
-		namer, err := Load("english", res)
-		require.NoError(t, err)
-
-		word, err := namer.Generate(nil)
-		require.NoError(t, err)
-		t.Log(word)
-
-		testsuite.IsDestroyed(t, namer)
-	})
-
 	t.Run("unregistered namer type", func(t *testing.T) {
 		namer, err := Load("foo", nil)
 		require.EqualError(t, err, "namer \"foo\" is not registered")
@@ -81,6 +99,106 @@ func TestUnregister(t *testing.T) {
 	namer, err = Load("namer", res)
 	require.Error(t, err)
 	require.Nil(t, namer)
+}
+
+func TestLoadWordsFromZipFile(t *testing.T) {
+	// create test zip file
+	buf := bytes.NewBuffer(make([]byte, 0, 64))
+	writer := zip.NewWriter(buf)
+	file, err := writer.Create("test.dat")
+	require.NoError(t, err)
+	_, err = file.Write([]byte("test data"))
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	reader := bytes.NewReader(buf.Bytes())
+	size := int64(buf.Len())
+
+	t.Run("failed to open file", func(t *testing.T) {
+		file := new(zip.File)
+		patch := func(*zip.File) (io.ReadCloser, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.PatchInstanceMethod(file, "Open", patch)
+		defer pg.Unpatch()
+
+		zipFile, err := zip.NewReader(reader, size)
+		require.NoError(t, err)
+
+		sb, err := loadWordsFromZipFile(zipFile.File[0])
+		monkey.IsMonkeyError(t, err)
+		require.Nil(t, sb)
+	})
+
+	t.Run("failed to read file data", func(t *testing.T) {
+		patch := func(io.Reader, int64) ([]byte, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.Patch(security.ReadAll, patch)
+		defer pg.Unpatch()
+
+		zipFile, err := zip.NewReader(reader, size)
+		require.NoError(t, err)
+
+		sb, err := loadWordsFromZipFile(zipFile.File[0])
+		monkey.IsExistMonkeyError(t, err)
+		require.Nil(t, sb)
+	})
+}
+
+func TestNamers_Parallel(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	for _, item := range testdata {
+		t.Run(item.typ, func(t *testing.T) {
+			res := item.res(t)
+
+			t.Run("part", func(t *testing.T) {
+				namer, err := Load(item.typ, item.res(t))
+				require.NoError(t, err)
+
+				load := func() {
+					err := namer.Load(res)
+					require.NoError(t, err)
+				}
+				gen := func() {
+					word, err := namer.Generate(nil)
+					require.NoError(t, err)
+					require.NotZero(t, word)
+
+					t.Log(word)
+				}
+				testsuite.RunParallel(100, nil, nil, load, gen, load, gen)
+
+				testsuite.IsDestroyed(t, namer)
+			})
+
+			t.Run("whole", func(t *testing.T) {
+				var namer Namer
+
+				init := func() {
+					var err error
+					namer, err = Load(item.typ, item.res(t))
+					require.NoError(t, err)
+				}
+				load := func() {
+					err := namer.Load(res)
+					require.NoError(t, err)
+				}
+				gen := func() {
+					word, err := namer.Generate(nil)
+					require.NoError(t, err)
+					require.NotZero(t, word)
+
+					t.Log(word)
+				}
+				testsuite.RunParallel(100, init, nil, load, gen, load, gen)
+
+				testsuite.IsDestroyed(t, namer)
+			})
+		})
+	}
 }
 
 func TestLoad_Parallel(t *testing.T) {
@@ -138,51 +256,6 @@ func TestLoad_Parallel(t *testing.T) {
 		load1, load2, load3,
 	}
 	testsuite.RunParallel(100, init, cleanup, fns...)
-}
-
-func TestLoadWordsFromZipFile(t *testing.T) {
-	// create test zip file
-	buf := bytes.NewBuffer(make([]byte, 0, 64))
-	writer := zip.NewWriter(buf)
-	file, err := writer.Create("test.dat")
-	require.NoError(t, err)
-	_, err = file.Write([]byte("test data"))
-	require.NoError(t, err)
-	err = writer.Close()
-	require.NoError(t, err)
-	reader := bytes.NewReader(buf.Bytes())
-	size := int64(buf.Len())
-
-	t.Run("failed to open file", func(t *testing.T) {
-		file := new(zip.File)
-		patch := func(*zip.File) (io.ReadCloser, error) {
-			return nil, monkey.Error
-		}
-		pg := monkey.PatchInstanceMethod(file, "Open", patch)
-		defer pg.Unpatch()
-
-		zipFile, err := zip.NewReader(reader, size)
-		require.NoError(t, err)
-
-		sb, err := loadWordsFromZipFile(zipFile.File[0])
-		monkey.IsMonkeyError(t, err)
-		require.Nil(t, sb)
-	})
-
-	t.Run("failed to read file data", func(t *testing.T) {
-		patch := func(io.Reader, int64) ([]byte, error) {
-			return nil, monkey.Error
-		}
-		pg := monkey.Patch(security.ReadAll, patch)
-		defer pg.Unpatch()
-
-		zipFile, err := zip.NewReader(reader, size)
-		require.NoError(t, err)
-
-		sb, err := loadWordsFromZipFile(zipFile.File[0])
-		monkey.IsExistMonkeyError(t, err)
-		require.Nil(t, sb)
-	})
 }
 
 func TestOptions(t *testing.T) {
