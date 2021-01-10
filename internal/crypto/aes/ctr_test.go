@@ -202,7 +202,7 @@ func TestCTR_Parallel(t *testing.T) {
 	})
 
 	t.Run("whole", func(t *testing.T) {
-		var ctr *CTR
+		var ctr AES
 
 		init := func() {
 			var err error

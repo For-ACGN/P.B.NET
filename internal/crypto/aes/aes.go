@@ -2,6 +2,9 @@ package aes
 
 import (
 	"errors"
+	"fmt"
+
+	"project/internal/crypto/rand"
 )
 
 // about AES valid key size.
@@ -26,14 +29,34 @@ var (
 	ErrInvalidPaddingSize = errors.New("invalid aes padding size")
 )
 
-// Encrypter is a aes encrypter, it can encrypt and decrypt data.
-type Encrypter interface {
-	// Encrypt is used to encrypt data.
+// AES is a aes encrypter, it can encrypt and decrypt data.
+type AES interface {
+	// Encrypt is used to encrypt data, it will generate iv
+	// and append it in the front of output byte slice.
 	Encrypt(data []byte) ([]byte, error)
 
-	// Decrypt is used to decrypt data.
+	// EncryptWithIV is used to encrypt data with given iv, it
+	// will not append it in the front of output byte slice.
+	EncryptWithIV(data, iv []byte) ([]byte, error)
+
+	// Decrypt is used to decrypt data, it will use iv in
+	// the front of input byte slice.
 	Decrypt(data []byte) ([]byte, error)
+
+	// DecryptWithIV is used to decrypt data with given iv, it
+	// will not use iv it in the front of input byte slice.
+	DecryptWithIV(data, iv []byte) ([]byte, error)
 
 	// Key is used to get aes key.
 	Key() []byte
+}
+
+// GenerateIV is used to generate iv.
+func GenerateIV() ([]byte, error) {
+	iv := make([]byte, IVSize)
+	_, err := rand.Read(iv)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate iv: %s", err)
+	}
+	return iv, nil
 }

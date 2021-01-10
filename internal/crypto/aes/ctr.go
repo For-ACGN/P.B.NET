@@ -25,7 +25,7 @@ func CTREncrypt(data, key []byte) ([]byte, error) {
 	iv := output[:IVSize]
 	_, err = rand.Read(iv)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate random iv: %s", err)
+		return nil, fmt.Errorf("failed to generate iv: %s", err)
 	}
 	// encrypt plain data
 	stream := cipher.NewCTR(block, iv)
@@ -61,7 +61,7 @@ type CTR struct {
 }
 
 // NewCTR is used to create a AES encrypter with counter mode.
-func NewCTR(key []byte) (*CTR, error) {
+func NewCTR(key []byte) (AES, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -85,12 +85,17 @@ func (ctr *CTR) Encrypt(data []byte) ([]byte, error) {
 	iv := output[:IVSize]
 	_, err := rand.Read(iv)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate random iv: %s", err)
+		return nil, fmt.Errorf("failed to generate iv: %s", err)
 	}
 	// encrypt plain data
 	stream := cipher.NewCTR(ctr.block, iv)
 	stream.XORKeyStream(output[IVSize:], data)
 	return output, nil
+}
+
+// EncryptWithIV used to encrypt data with given iv. Output is cipher data.
+func (ctr *CTR) EncryptWithIV(data, iv []byte) ([]byte, error) {
+	return cbcEncryptWithIV(ctr.block, data, iv)
 }
 
 // Decrypt is used to decrypt cipher data. Input data is [IV + cipher data].
@@ -108,6 +113,11 @@ func (ctr *CTR) Decrypt(data []byte) ([]byte, error) {
 	stream := cipher.NewCTR(ctr.block, iv)
 	stream.XORKeyStream(output, data[IVSize:])
 	return output, nil
+}
+
+// DecryptWithIV is used to decrypt cipher data with given iv. Input data is cipher data.
+func (ctr *CTR) DecryptWithIV(data, iv []byte) ([]byte, error) {
+	return cbcDecryptWithIV(ctr.block, data, iv)
 }
 
 // Key is used to get AES Key.

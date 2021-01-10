@@ -218,7 +218,7 @@ func TestCBC_Parallel(t *testing.T) {
 	})
 
 	t.Run("whole", func(t *testing.T) {
-		var cbc *CBC
+		var cbc AES
 
 		init := func() {
 			var err error
