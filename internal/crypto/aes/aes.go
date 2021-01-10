@@ -18,7 +18,7 @@ const (
 	// IVSize is the AES IV size.
 	IVSize = 16
 
-	// BlockSize is the AES block size in bytes.
+	// BlockSize is the AES block size.
 	BlockSize = 16
 )
 
