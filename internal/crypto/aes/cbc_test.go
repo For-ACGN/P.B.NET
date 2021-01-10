@@ -9,24 +9,15 @@ import (
 
 	"project/internal/crypto/rand"
 	"project/internal/patch/monkey"
-	"project/internal/testsuite"
 )
 
-func TestAESCBC(t *testing.T) {
-	t.Run("128 bit key", func(t *testing.T) {
-		testAESCBC(t, test128BitKey)
-	})
-
-	t.Run("192 bit key", func(t *testing.T) {
-		testAESCBC(t, test192BitKey)
-	})
-
-	t.Run("256 bit key", func(t *testing.T) {
-		testAESCBC(t, test256BitKey)
-	})
+func TestCBC(t *testing.T) {
+	t.Run("128 bit key", func(t *testing.T) { testCBC(t, test128BitKey) })
+	t.Run("192 bit key", func(t *testing.T) { testCBC(t, test192BitKey) })
+	t.Run("256 bit key", func(t *testing.T) { testCBC(t, test256BitKey) })
 }
 
-func testAESCBC(t *testing.T, key []byte) {
+func testCBC(t *testing.T, key []byte) {
 	testdata := generateBytes()
 
 	t.Run("without iv", func(t *testing.T) {
@@ -166,70 +157,6 @@ func TestCBCDecryptWithIV(t *testing.T) {
 	})
 }
 
-func TestCBC(t *testing.T) {
-	t.Run("128 bit key", func(t *testing.T) {
-		testCBC(t, test128BitKey)
-	})
-
-	t.Run("192 bit key", func(t *testing.T) {
-		testCBC(t, test192BitKey)
-	})
-
-	t.Run("256 bit key", func(t *testing.T) {
-		testCBC(t, test256BitKey)
-	})
-}
-
-func testCBC(t *testing.T, key []byte) {
-	cbc, err := NewCBC(key)
-	require.NoError(t, err)
-
-	testdata := generateBytes()
-
-	t.Run("without iv", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
-			cipherData, err := cbc.Encrypt(testdata)
-			require.NoError(t, err)
-
-			require.Equal(t, generateBytes(), testdata)
-			require.NotEqual(t, testdata, cipherData)
-		}
-
-		cipherData, err := cbc.Encrypt(testdata)
-		require.NoError(t, err)
-		for i := 0; i < 20; i++ {
-			plainData, err := cbc.Decrypt(cipherData)
-			require.NoError(t, err)
-			require.Equal(t, testdata, plainData)
-		}
-	})
-
-	t.Run("with iv", func(t *testing.T) {
-		iv, err := GenerateIV()
-		require.NoError(t, err)
-
-		for i := 0; i < 10; i++ {
-			cipherData, err := cbc.EncryptWithIV(testdata, iv)
-			require.NoError(t, err)
-
-			require.Equal(t, generateBytes(), testdata)
-			require.NotEqual(t, testdata, cipherData)
-		}
-
-		cipherData, err := cbc.EncryptWithIV(testdata, iv)
-		require.NoError(t, err)
-		for i := 0; i < 20; i++ {
-			plainData, err := cbc.DecryptWithIV(cipherData, iv)
-			require.NoError(t, err)
-			require.Equal(t, testdata, plainData)
-		}
-	})
-
-	require.Equal(t, key, cbc.Key())
-
-	testsuite.IsDestroyed(t, cbc)
-}
-
 func TestNewCBC(t *testing.T) {
 	cbc, err := NewCBC(nil)
 	require.Error(t, err)
@@ -238,112 +165,14 @@ func TestNewCBC(t *testing.T) {
 	require.True(t, ok)
 }
 
-func TestCBC_Parallel(t *testing.T) {
-	testdata := generateBytes()
-	iv, err := GenerateIV()
-	require.NoError(t, err)
-
-	t.Run("part", func(t *testing.T) {
-		cbc, err := NewCBC(test128BitKey)
-		require.NoError(t, err)
-
-		enc := func() {
-			_, err := cbc.Encrypt(testdata)
-			require.NoError(t, err)
-		}
-		dec := func() {
-			cipherData, err := cbc.Encrypt(testdata)
-			require.NoError(t, err)
-			plainData, err := cbc.Decrypt(cipherData)
-			require.NoError(t, err)
-			require.Equal(t, testdata, plainData)
-		}
-		encWithIV := func() {
-			_, err := cbc.EncryptWithIV(testdata, iv)
-			require.NoError(t, err)
-		}
-		decWithIV := func() {
-			cipherData, err := cbc.EncryptWithIV(testdata, iv)
-			require.NoError(t, err)
-			plainData, err := cbc.DecryptWithIV(cipherData, iv)
-			require.NoError(t, err)
-			require.Equal(t, testdata, plainData)
-		}
-		key := func() {
-			key := cbc.Key()
-			require.Equal(t, test128BitKey, key)
-		}
-		testsuite.RunParallel(100, nil, nil, enc, dec, encWithIV, decWithIV, key)
-
-		testsuite.IsDestroyed(t, cbc)
-	})
-
-	t.Run("whole", func(t *testing.T) {
-		var cbc AES
-
-		init := func() {
-			var err error
-			cbc, err = NewCBC(test128BitKey)
-			require.NoError(t, err)
-		}
-		enc := func() {
-			_, err := cbc.Encrypt(testdata)
-			require.NoError(t, err)
-		}
-		dec := func() {
-			cipherData, err := cbc.Encrypt(testdata)
-			require.NoError(t, err)
-			plainData, err := cbc.Decrypt(cipherData)
-			require.NoError(t, err)
-			require.Equal(t, testdata, plainData)
-		}
-		encWithIV := func() {
-			_, err := cbc.EncryptWithIV(testdata, iv)
-			require.NoError(t, err)
-		}
-		decWithIV := func() {
-			cipherData, err := cbc.EncryptWithIV(testdata, iv)
-			require.NoError(t, err)
-			plainData, err := cbc.DecryptWithIV(cipherData, iv)
-			require.NoError(t, err)
-			require.Equal(t, testdata, plainData)
-		}
-		key := func() {
-			key := cbc.Key()
-			require.Equal(t, test128BitKey, key)
-		}
-		testsuite.RunParallel(100, init, nil, enc, dec, encWithIV, decWithIV, key)
-
-		testsuite.IsDestroyed(t, cbc)
-	})
-
-	t.Run("multi", func(t *testing.T) {
-		cbc, err := NewCBC(test128BitKey)
-		require.NoError(t, err)
-
-		testsuite.RunMultiTimes(100, func() {
-			cipherData, err := cbc.Encrypt(testdata)
-			require.NoError(t, err)
-			plainData, err := cbc.Decrypt(cipherData)
-			require.NoError(t, err)
-			require.Equal(t, testdata, plainData)
-
-			key := cbc.Key()
-			require.Equal(t, test128BitKey, key)
-		})
-
-		testsuite.IsDestroyed(t, cbc)
-	})
-}
-
 func BenchmarkCBC_Encrypt(b *testing.B) {
-	b.Run("64 Bytes", func(b *testing.B) { benchmarkCBCEncrypt(b, 64) })
+	b.Run("64 Bytes ", func(b *testing.B) { benchmarkCBCEncrypt(b, 64) })
 	b.Run("256 Bytes", func(b *testing.B) { benchmarkCBCEncrypt(b, 256) })
-	b.Run("1 KB", func(b *testing.B) { benchmarkCBCEncrypt(b, 1024) })
-	b.Run("4 KB", func(b *testing.B) { benchmarkCBCEncrypt(b, 4*1024) })
-	b.Run("16 KB", func(b *testing.B) { benchmarkCBCEncrypt(b, 16*1024) })
-	b.Run("128 KB", func(b *testing.B) { benchmarkCBCEncrypt(b, 128*1024) })
-	b.Run("1 MB", func(b *testing.B) { benchmarkCBCEncrypt(b, 1024*1024) })
+	b.Run("1 KB     ", func(b *testing.B) { benchmarkCBCEncrypt(b, 1024) })
+	b.Run("4 KB     ", func(b *testing.B) { benchmarkCBCEncrypt(b, 4*1024) })
+	b.Run("16 KB    ", func(b *testing.B) { benchmarkCBCEncrypt(b, 16*1024) })
+	b.Run("128 KB   ", func(b *testing.B) { benchmarkCBCEncrypt(b, 128*1024) })
+	b.Run("1 MB     ", func(b *testing.B) { benchmarkCBCEncrypt(b, 1024*1024) })
 }
 
 func benchmarkCBCEncrypt(b *testing.B, size int) {
@@ -366,13 +195,13 @@ func benchmarkCBCEncrypt(b *testing.B, size int) {
 }
 
 func BenchmarkCBC_Decrypt(b *testing.B) {
-	b.Run("64 Bytes", func(b *testing.B) { benchmarkCBCDecrypt(b, 64) })
+	b.Run("64 Bytes ", func(b *testing.B) { benchmarkCBCDecrypt(b, 64) })
 	b.Run("256 Bytes", func(b *testing.B) { benchmarkCBCDecrypt(b, 256) })
-	b.Run("1 KB", func(b *testing.B) { benchmarkCBCDecrypt(b, 1024) })
-	b.Run("4 KB", func(b *testing.B) { benchmarkCBCDecrypt(b, 4*1024) })
-	b.Run("16 KB", func(b *testing.B) { benchmarkCBCDecrypt(b, 16*1024) })
-	b.Run("128 KB", func(b *testing.B) { benchmarkCBCDecrypt(b, 128*1024) })
-	b.Run("1 MB", func(b *testing.B) { benchmarkCBCDecrypt(b, 1024*1024) })
+	b.Run("1 KB     ", func(b *testing.B) { benchmarkCBCDecrypt(b, 1024) })
+	b.Run("4 KB     ", func(b *testing.B) { benchmarkCBCDecrypt(b, 4*1024) })
+	b.Run("16 KB    ", func(b *testing.B) { benchmarkCBCDecrypt(b, 16*1024) })
+	b.Run("128 KB   ", func(b *testing.B) { benchmarkCBCDecrypt(b, 128*1024) })
+	b.Run("1 MB     ", func(b *testing.B) { benchmarkCBCDecrypt(b, 1024*1024) })
 }
 
 func benchmarkCBCDecrypt(b *testing.B, size int) {
