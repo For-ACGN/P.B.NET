@@ -95,7 +95,7 @@ func writeNRGBA64(origin image.Image, img *image.NRGBA64, data []byte, x, y *int
 			*x++
 		}
 		if *x >= width {
-			panic("lsb: internal error")
+			panic("lsb: out of bounds")
 		}
 	}
 }
@@ -140,7 +140,7 @@ func readNRGBA64(img *image.NRGBA64, b []byte, x, y *int) {
 			*x++
 		}
 		if *x >= width {
-			panic("lsb: internal error")
+			panic("lsb: out of bounds")
 		}
 	}
 }

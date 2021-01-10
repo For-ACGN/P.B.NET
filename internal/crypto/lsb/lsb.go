@@ -13,6 +13,9 @@ var (
 
 	// ErrImgTooSmall is a error that means this image can't encrypt data.
 	ErrImgTooSmall = errors.New("image rectangle is too small")
+
+	// ErrNotEnough is a error that image can not write data.
+	ErrNotEnough = errors.New("image has no enough space")
 )
 
 // supported lsb modes.
@@ -49,7 +52,7 @@ type Writer interface {
 	// Reset is used to reset writer.
 	Reset()
 
-	// Image is used to get the inner image that will be encoded.
+	// Image is used to get the original image.
 	Image() image.Image
 
 	// Size is used to calculate the size that can write to this image.
@@ -98,7 +101,7 @@ type Encrypter interface {
 	Image() image.Image
 
 	// Size is used to calculate the size that can encrypt to this image.
-	Size() uint64
+	Size() int64
 
 	// Mode is used to get the encrypter mode.
 	Mode() Mode

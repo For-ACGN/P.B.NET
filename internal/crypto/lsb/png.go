@@ -94,24 +94,9 @@ func (pw *PNGWriter) Reset() {
 	*pw.y = 0
 }
 
-// Image is used to get the inner image that will be encoded.
+// Image is used to get the original image.
 func (pw *PNGWriter) Image() image.Image {
-	switch pw.mode {
-	case PNGWithNRGBA32:
-		return &image.NRGBA{
-			Pix:    append([]byte{}, pw.nrgba32.Pix...),
-			Stride: pw.nrgba32.Stride,
-			Rect:   pw.nrgba32.Rect,
-		}
-	case PNGWithNRGBA64:
-		return &image.NRGBA64{
-			Pix:    append([]byte{}, pw.nrgba64.Pix...),
-			Stride: pw.nrgba64.Stride,
-			Rect:   pw.nrgba64.Rect,
-		}
-	default:
-		panic("lsb: internal error")
-	}
+	return pw.origin
 }
 
 // Size is used to calculate the size that can write.
@@ -216,43 +201,120 @@ func (pr *PNGReader) Mode() Mode {
 	return pr.mode
 }
 
-// data structure stored in PNG
+// data structure stored in png image
 // +--------------+-------------+--------------+
-// | size(uint64) | HMAC-SHA256 | AES(IV+data) |
+// | size(uint32) | HMAC-SHA256 | AES(IV+data) |
 // +--------------+-------------+--------------+
-// |   8 bytes    |  32 bytes   |     var      |
+// |   4 bytes    |  32 bytes   |     var      |
 // +--------------+-------------+--------------+
 
 const (
 	// dataLenSize is used store data length.
-	pngDataLenSize uint64 = 8
-	pngReverseSize        = pngDataLenSize + sha256.Size + aes.IVSize
-	pngMinPicSize         = pngReverseSize - 1
+	pngDataLenSize = 4
+	pngReverseSize = pngDataLenSize + sha256.Size + aes.IVSize
 )
 
 // PNGEncrypter is used to encrypt data and write it to a png image.
 type PNGEncrypter struct {
-	w Writer
-
-	// n record written bytes
-	n uint64
+	w       Writer
+	size    int64
+	ctr     aes.AES
+	iv      []byte
+	written int64
 }
 
 // NewPNGEncrypter is used to create a new png encrypter.
 func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) {
-	rect := img.Bounds()
-	width := rect.Dx()
-	height := rect.Dy()
-	size := width * height
-	if uint64(size) < pngMinPicSize {
+	w, err := NewPNGWriter(img, mode)
+	if err != nil {
+		return nil, err
+	}
+	// set offset and check image size
+	err = w.SetOffset(pngReverseSize)
+	if err != nil {
 		return nil, ErrImgTooSmall
 	}
-	return nil, nil
+	ctr, err := aes.NewCTR(key)
+	if err != nil {
+		return nil, err
+	}
+	iv, err := aes.GenerateIV()
+	if err != nil {
+		return nil, err
+	}
+	// calculate data size that can encrypt
+	size := w.Size()
+	if size > math.MaxUint32+pngReverseSize {
+		size = math.MaxUint32
+	} else {
+		size -= pngReverseSize
+	}
+	pe := PNGEncrypter{
+		w:    w,
+		size: int64(size),
+		ctr:  ctr,
+		iv:   iv,
+	}
+	return &pe, nil
+}
+
+// Write is used to encrypt data and save it to the under image.
+func (pe *PNGEncrypter) Write(b []byte) (int, error) {
+	l := int64(len(b))
+	if l > pe.size-pe.written {
+		return 0, ErrNotEnough
+	}
+	cipherData, err := pe.ctr.EncryptWithIV(b, pe.iv)
+	if err != nil {
+		return 0, err
+	}
+	n, err := pe.w.Write(cipherData)
+	if err != nil {
+		return 0, err
+	}
+	pe.written += l
+	return n, nil
+}
+
+// Encode is used to encode under image to writer.
+func (pe *PNGEncrypter) Encode(w io.Writer) error {
+
+	return pe.w.Encode(w)
+}
+
+// Reset is used to reset png encrypter.
+func (pe *PNGEncrypter) Reset(key []byte) error {
+	ctr, err := aes.NewCTR(key)
+	if err != nil {
+		return err
+	}
+	err = pe.w.SetOffset(pngReverseSize)
+	if err != nil {
+		return err
+	}
+	pe.ctr = ctr
+	pe.written = 0
+	return nil
+}
+
+// Key is used to get the aes key.
+func (pe *PNGEncrypter) Key() []byte {
+	return pe.ctr.Key()
+}
+
+// Image is used to get the original png image.
+func (pe *PNGEncrypter) Image() image.Image {
+	return pe.w.Image()
 }
 
 // Size is used to calculate the size that can encrypt to this png image.
-func (pe *PNGEncrypter) Size() uint64 {
-	return pe.w.Size() - pngDataLenSize - sha256.Size - aes.IVSize
+func (pe *PNGEncrypter) Size() int64 {
+	return pe.size
+}
+
+// Mode is used to get the encrypter mode.
+func (pe *PNGEncrypter) Mode() Mode {
+	return pe.w.Mode()
 }
 
 // size is uint32
