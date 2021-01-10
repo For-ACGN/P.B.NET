@@ -2,6 +2,12 @@ package aes
 
 import (
 	"bytes"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"project/internal/crypto/rand"
+	"project/internal/patch/monkey"
 )
 
 var (
@@ -16,4 +22,16 @@ func generateBytes() []byte {
 		testdata[i] = byte(i)
 	}
 	return testdata
+}
+
+func TestGenerateIV(t *testing.T) {
+	patch := func([]byte) (int, error) {
+		return 0, monkey.Error
+	}
+	pg := monkey.Patch(rand.Read, patch)
+	defer pg.Unpatch()
+
+	iv, err := GenerateIV()
+	monkey.IsExistMonkeyError(t, err)
+	require.Nil(t, iv)
 }

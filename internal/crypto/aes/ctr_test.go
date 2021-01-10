@@ -54,7 +54,7 @@ func TestCTREncrypt(t *testing.T) {
 		require.True(t, ok)
 	})
 
-	t.Run("failed to generate random iv", func(t *testing.T) {
+	t.Run("failed to generate iv", func(t *testing.T) {
 		patch := func([]byte) (int, error) {
 			return 0, monkey.Error
 		}
@@ -143,7 +143,7 @@ func TestCTR_Encrypt(t *testing.T) {
 		require.Equal(t, ErrEmptyData, err)
 	})
 
-	t.Run("failed to generate random iv", func(t *testing.T) {
+	t.Run("failed to generate iv", func(t *testing.T) {
 		patch := func([]byte) (int, error) {
 			return 0, monkey.Error
 		}

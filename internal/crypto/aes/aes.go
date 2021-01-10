@@ -27,6 +27,7 @@ var (
 	ErrEmptyData          = errors.New("empty data")
 	ErrInvalidCipherData  = errors.New("invalid aes cipher data")
 	ErrInvalidPaddingSize = errors.New("invalid aes padding size")
+	ErrInvalidIVSize      = errors.New("invalid iv size")
 )
 
 // AES is a aes encrypter, it can encrypt and decrypt data.

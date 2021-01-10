@@ -60,6 +60,9 @@ func cbcEncryptWithIV(block cipher.Block, data, iv []byte) ([]byte, error) {
 	if l == 0 {
 		return nil, ErrEmptyData
 	}
+	if len(iv) != IVSize {
+		return nil, ErrInvalidIVSize
+	}
 	// make buffer
 	paddingSize := BlockSize - l%BlockSize
 	output := make([]byte, l+paddingSize)
@@ -131,6 +134,9 @@ func cbcDecryptWithIV(block cipher.Block, data, iv []byte) ([]byte, error) {
 	}
 	if l%BlockSize != 0 {
 		return nil, ErrInvalidCipherData
+	}
+	if len(iv) != IVSize {
+		return nil, ErrInvalidIVSize
 	}
 	output := make([]byte, l)
 	// decrypt cipher data
