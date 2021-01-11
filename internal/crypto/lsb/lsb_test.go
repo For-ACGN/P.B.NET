@@ -89,8 +89,6 @@ func testWriterAndReader(t *testing.T, name string) {
 				err = writer.Encode(output)
 				require.NoError(t, err)
 
-				require.Equal(t, img, writer.Image())
-
 				// read data
 				reader, err := test.newReader(output.Bytes())
 				require.NoError(t, err)
@@ -107,22 +105,130 @@ func testWriterAndReader(t *testing.T, name string) {
 				expected := append(testdata1, testdata2...)
 				require.Equal(t, expected, result)
 
-				// compare image with output
+				// compare image
+				require.Equal(t, img, writer.Image())
+
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, reader.Image())
 
+				// compare mode
 				require.Equal(t, writer.Mode(), reader.Mode())
 
 				testsuite.IsDestroyed(t, writer)
+				testsuite.IsDestroyed(t, reader)
 			})
 
 			t.Run("reset", func(t *testing.T) {
+				testdata1 := random.Bytes(256 + random.Int(256))
+				testdata2 := random.Bytes(512 + random.Int(512))
+				testdata1Len := len(testdata1)
+				testdata2Len := len(testdata2)
 
+				// write data
+				writer, err := test.newWriter(img)
+				require.NoError(t, err)
+
+				// reset writer
+				n, err := writer.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+				writer.Reset()
+
+				n, err = writer.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = writer.Encode(output)
+				require.NoError(t, err)
+
+				// read data
+				reader, err := test.newReader(output.Bytes())
+				require.NoError(t, err)
+
+				rv := 64 + random.Int(64)
+				buf1 := make([]byte, testdata2Len-rv)
+				buf2 := make([]byte, rv)
+
+				// reset reader
+				_, err = io.ReadFull(reader, buf1)
+				require.NoError(t, err)
+				reader.Reset()
+
+				_, err = io.ReadFull(reader, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(reader, buf2)
+				require.NoError(t, err)
+				result := append(buf1, buf2...)
+
+				require.Equal(t, testdata2, result)
+
+				// compare image
+				require.Equal(t, img, writer.Image())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, reader.Image())
+
+				// compare mode
+				require.Equal(t, writer.Mode(), reader.Mode())
+
+				testsuite.IsDestroyed(t, writer)
+				testsuite.IsDestroyed(t, reader)
 			})
 
 			t.Run("offset", func(t *testing.T) {
+				offset := uint64(256 + random.Int(128))
 
+				testdata := random.Bytes(512 + random.Int(512))
+				testdataLen := len(testdata)
+
+				// write data
+				writer, err := test.newWriter(img)
+				require.NoError(t, err)
+
+				err = writer.SetOffset(offset)
+				require.NoError(t, err)
+
+				n, err := writer.Write(testdata)
+				require.NoError(t, err)
+				require.Equal(t, testdataLen, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = writer.Encode(output)
+				require.NoError(t, err)
+
+				// read data
+				reader, err := test.newReader(output.Bytes())
+				require.NoError(t, err)
+
+				err = reader.SetOffset(offset)
+				require.NoError(t, err)
+
+				rv := 64 + random.Int(64)
+				buf1 := make([]byte, testdataLen-rv)
+				buf2 := make([]byte, rv)
+				_, err = io.ReadFull(reader, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(reader, buf2)
+				require.NoError(t, err)
+				result := append(buf1, buf2...)
+
+				require.Equal(t, testdata, result)
+
+				// compare image
+				require.Equal(t, img, writer.Image())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, reader.Image())
+
+				// compare mode
+				require.Equal(t, writer.Mode(), reader.Mode())
+
+				testsuite.IsDestroyed(t, writer)
+				testsuite.IsDestroyed(t, reader)
 			})
 		})
 	}
