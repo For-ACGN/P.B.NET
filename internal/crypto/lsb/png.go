@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"fmt"
+	"hash"
 	"image"
 	"image/png"
 	"io"
@@ -14,6 +15,7 @@ import (
 
 	"project/internal/convert"
 	"project/internal/crypto/aes"
+	"project/internal/crypto/hmac"
 	"project/internal/security"
 )
 
@@ -219,7 +221,8 @@ type PNGEncrypter struct {
 	w       Writer
 	size    int64
 	ctr     aes.AES
-	iv      []byte
+	iv      *security.Bytes
+	hmac    hash.Hash
 	written int64
 }
 
@@ -229,31 +232,24 @@ func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) 
 	if err != nil {
 		return nil, err
 	}
-	// set offset and check image size
-	err = w.SetOffset(pngReverseSize)
-	if err != nil {
-		return nil, ErrImgTooSmall
-	}
-	ctr, err := aes.NewCTR(key)
-	if err != nil {
-		return nil, err
-	}
-	iv, err := aes.GenerateIV()
-	if err != nil {
-		return nil, err
-	}
-	// calculate data size that can encrypt
-	size := w.Size()
-	if size > math.MaxUint32+pngReverseSize {
+	// calculate size that can encrypt data
+	var size int64
+	if w.Size() > math.MaxUint32+pngReverseSize {
 		size = math.MaxUint32
 	} else {
-		size -= pngReverseSize
+		size = int64(w.Size()) - pngReverseSize
+	}
+	if size < 1 {
+		return nil, ErrImgTooSmall
 	}
 	pe := PNGEncrypter{
 		w:    w,
-		size: int64(size),
-		ctr:  ctr,
-		iv:   iv,
+		size: size,
+		hmac: hmac.New(sha256.New, key),
+	}
+	err = pe.Reset(key)
+	if err != nil {
+		return nil, err
 	}
 	return &pe, nil
 }
@@ -264,7 +260,9 @@ func (pe *PNGEncrypter) Write(b []byte) (int, error) {
 	if l > pe.size-pe.written {
 		return 0, ErrNotEnough
 	}
-	cipherData, err := pe.ctr.EncryptWithIV(b, pe.iv)
+	iv := pe.iv.Get()
+	defer pe.iv.Put(iv)
+	cipherData, err := pe.ctr.EncryptWithIV(b, iv)
 	if err != nil {
 		return 0, err
 	}
@@ -272,27 +270,60 @@ func (pe *PNGEncrypter) Write(b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	pe.hmac.Write(cipherData)
 	pe.written += l
 	return n, nil
 }
 
 // Encode is used to encode under image to writer.
 func (pe *PNGEncrypter) Encode(w io.Writer) error {
-
-	return pe.w.Encode(w)
+	size := convert.BEUint32ToBytes(uint32(pe.written))
+	// calculate signature
+	iv := pe.iv.Get()
+	defer pe.iv.Put(iv)
+	pe.hmac.Write(iv)
+	pe.hmac.Write(size)
+	signature := pe.hmac.Sum(nil)
+	// write
+	pe.w.Reset()
+	for _, b := range [][]byte{
+		size, signature, iv,
+	} {
+		_, err := pe.w.Write(b)
+		if err != nil {
+			return err
+		}
+	}
+	err := pe.w.Encode(w)
+	if err != nil {
+		return err
+	}
+	return pe.reset()
 }
 
 // Reset is used to reset png encrypter.
 func (pe *PNGEncrypter) Reset(key []byte) error {
-	ctr, err := aes.NewCTR(key)
+	if key != nil {
+		ctr, err := aes.NewCTR(key)
+		if err != nil {
+			return err
+		}
+		pe.ctr = ctr
+	}
+	return pe.reset()
+}
+
+func (pe *PNGEncrypter) reset() error {
+	err := pe.w.SetOffset(pngReverseSize)
 	if err != nil {
 		return err
 	}
-	err = pe.w.SetOffset(pngReverseSize)
+	iv, err := aes.GenerateIV()
 	if err != nil {
 		return err
 	}
-	pe.ctr = ctr
+	pe.iv = security.NewBytes(iv)
+	pe.hmac.Reset()
 	pe.written = 0
 	return nil
 }

@@ -88,10 +88,10 @@ type Encrypter interface {
 	// Write is used to encrypt data and write it to under image.
 	Write(b []byte) (int, error)
 
-	// Encode is used to encode image to writer.
+	// Encode is used to encode image to writer, if success, it will reset writer.
 	Encode(w io.Writer) error
 
-	// Reset is used to reset under writer and key.
+	// Reset is used to reset under writer and key, if key is nil, only reset writer.
 	Reset(key []byte) error
 
 	// Key is used to get the aes key.
