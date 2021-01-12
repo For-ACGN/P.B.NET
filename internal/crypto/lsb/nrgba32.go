@@ -53,6 +53,7 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, data []byte, x, y *int) 
 		if *x >= width {
 			panic("lsb: out of bounds")
 		}
+
 		r, g, b, a = origin.At(*x, *y).RGBA()
 		rgba.R = uint8(r)
 		rgba.G = uint8(g)
@@ -60,14 +61,14 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, data []byte, x, y *int) 
 		rgba.A = uint8(a)
 
 		// write 8 bit to the last two and last one bit in each color channel
-		block[0] = rgba.R >> 1 // red last two bit
-		block[1] = rgba.R      // red last one bit
-		block[2] = rgba.G >> 1 // green last two bit
-		block[3] = rgba.G      // green last one bit
-		block[4] = rgba.B >> 1 // blue last two bit
-		block[5] = rgba.B      // blue last one bit
-		block[6] = rgba.A >> 1 // alpha last two bit
-		block[7] = rgba.A      // alpha last one bit
+		block[0] = rgba.R >> 1 // the second to last bit
+		block[1] = rgba.R      // the last one bit
+		block[2] = rgba.G >> 1 // the second to last bit
+		block[3] = rgba.G      // the last one bit
+		block[4] = rgba.B >> 1 // the second to last bit
+		block[5] = rgba.B      // the last one bit
+		block[6] = rgba.A >> 1 // the second to last bit
+		block[7] = rgba.A      // the last one bit
 
 		// update original pixel
 		byt = data[i]
@@ -117,19 +118,18 @@ func readNRGBA32(img *image.NRGBA, b []byte, x, y *int) {
 			panic("lsb: out of bounds")
 		}
 
-		rgba = img.NRGBAAt(*x, *y)
-
 		// read 8 bit from the last two and last one bit in each color channel
-		block[0] = rgba.R >> 1 // red last two bit
-		block[1] = rgba.R      // red last one bit
-		block[2] = rgba.G >> 1 // green last two bit
-		block[3] = rgba.G      // green last one bit
-		block[4] = rgba.B >> 1 // blue last two bit
-		block[5] = rgba.B      // blue last one bit
-		block[6] = rgba.A >> 1 // alpha last two bit
-		block[7] = rgba.A      // alpha last one bit
+		rgba = img.NRGBAAt(*x, *y)
+		block[0] = rgba.R >> 1 // the second to last bit
+		block[1] = rgba.R      // the last one bit
+		block[2] = rgba.G >> 1 // the second to last bit
+		block[3] = rgba.G      // the last one bit
+		block[4] = rgba.B >> 1 // the second to last bit
+		block[5] = rgba.B      // the last one bit
+		block[6] = rgba.A >> 1 // the second to last bit
+		block[7] = rgba.A      // the last one bit
 
-		// set bytes
+		// set byte
 		for j := 0; j < 8; j++ {
 			// get the last bit of this byte
 			byt += block[j] & 1 << (7 - j)

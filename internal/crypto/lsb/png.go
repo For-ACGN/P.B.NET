@@ -71,41 +71,49 @@ func (pc *pngCommon) Mode() Mode {
 // PNGWriter implemented lsb Writer interface.
 type PNGWriter struct {
 	pngCommon
+
+	size    int64
+	written int64
 }
 
 // NewPNGWriter is used to create a png lsb writer.
 func NewPNGWriter(img image.Image, mode Mode) (Writer, error) {
 	pw := PNGWriter{
-		pngCommon{
+		pngCommon: pngCommon{
 			origin: img,
 			mode:   mode,
 			x:      new(int),
 			y:      new(int),
 		},
 	}
+	pw.size = int64(pw.Size())
 	switch mode {
 	case PNGWithNRGBA32:
 		pw.nrgba32 = copyNRGBA32(img)
 	case PNGWithNRGBA64:
 		pw.nrgba64 = copyNRGBA64(img)
 	default:
-		return nil, errors.New(mode.String())
+		return nil, errors.New(mode.String() + " for png")
 	}
 	return &pw, nil
 }
 
 // Write is used to write data to this image, it will change the under image.
 func (pw *PNGWriter) Write(b []byte) (int, error) {
+	l := int64(len(b))
+	if l > pw.size-pw.written {
+		return 0, ErrNotEnough
+	}
 	switch pw.mode {
 	case PNGWithNRGBA32:
 		writeNRGBA32(pw.origin, pw.nrgba32, b, pw.x, pw.y)
-		return len(b), nil
 	case PNGWithNRGBA64:
 		writeNRGBA64(pw.origin, pw.nrgba64, b, pw.x, pw.y)
-		return len(b), nil
 	default:
 		panic("lsb: internal error")
 	}
+	pw.written += l
+	return len(b), nil
 }
 
 // Encode is used to encode png to writer.
@@ -123,6 +131,9 @@ func (pw *PNGWriter) Encode(w io.Writer) error {
 // PNGReader implemented lsb Reader interface.
 type PNGReader struct {
 	pngCommon
+
+	size int64
+	read int64
 }
 
 // NewPNGReader is used to create a png lsb reader.
@@ -132,12 +143,13 @@ func NewPNGReader(img []byte) (Reader, error) {
 		return nil, errors.WithStack(err)
 	}
 	pr := PNGReader{
-		pngCommon{
+		pngCommon: pngCommon{
 			origin: p,
 			x:      new(int),
 			y:      new(int),
 		},
 	}
+	pr.size = int64(pr.Size())
 	switch pic := p.(type) {
 	case *image.NRGBA:
 		pr.mode = PNGWithNRGBA32
@@ -153,17 +165,20 @@ func NewPNGReader(img []byte) (Reader, error) {
 
 // Read is used to read data from png.
 func (pr *PNGReader) Read(b []byte) (int, error) {
-	size := len(b)
+	l := int64(len(b))
+	if l > pr.size-pr.read {
+		return 0, ErrOutOfRange
+	}
 	switch pr.mode {
 	case PNGWithNRGBA32:
 		readNRGBA32(pr.nrgba32, b, pr.x, pr.y)
-		return size, nil
 	case PNGWithNRGBA64:
 		readNRGBA64(pr.nrgba64, b, pr.x, pr.y)
-		return size, nil
 	default:
 		panic("lsb: internal error")
 	}
+	pr.read += l
+	return len(b), nil
 }
 
 // data structure stored in png image

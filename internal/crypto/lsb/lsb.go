@@ -7,15 +7,19 @@ import (
 	"io"
 )
 
+// errors about Reader, Writer, Encrypter and Decrypter.
 var (
 	// ErrInvalidOffset is a error about invalid offset.
 	ErrInvalidOffset = errors.New("offset is larger than size that can read/write")
 
+	// ErrNotEnough is a error that image can not write data.
+	ErrNotEnough = errors.New("image has no enough space for write")
+
+	// ErrOutOfRange is a error that image can not read data.
+	ErrOutOfRange = errors.New("read out of range")
+
 	// ErrImgTooSmall is a error that means this image can't encrypt data.
 	ErrImgTooSmall = errors.New("image rectangle is too small")
-
-	// ErrNotEnough is a error that image can not write data.
-	ErrNotEnough = errors.New("image has no enough space")
 )
 
 // supported lsb modes.

@@ -61,14 +61,14 @@ func writeNRGBA64(origin image.Image, img *image.NRGBA64, data []byte, x, y *int
 		rgba.A = uint16(a)
 
 		// write 8 bit to the last bit about 4(RGBA) * 2(front and end) byte
-		block[0] = uint8(rgba.R >> 8) // red front 8 bit
-		block[1] = uint8(rgba.R)      // red end 8 bit
-		block[2] = uint8(rgba.G >> 8) // green front 8 bit
-		block[3] = uint8(rgba.G)      // green end 8 bit
-		block[4] = uint8(rgba.B >> 8) // blue front 8 bit
-		block[5] = uint8(rgba.B)      // blue end 8 bit
-		block[6] = uint8(rgba.A >> 8) // alpha front 8 bit
-		block[7] = uint8(rgba.A)      // alpha end 8 bit
+		block[0] = uint8(rgba.R >> 8) // front 8 bit
+		block[1] = uint8(rgba.R)      // end 8 bit
+		block[2] = uint8(rgba.G >> 8) // front 8 bit
+		block[3] = uint8(rgba.G)      // end 8 bit
+		block[4] = uint8(rgba.B >> 8) // front 8 bit
+		block[5] = uint8(rgba.B)      // end 8 bit
+		block[6] = uint8(rgba.A >> 8) // front 8 bit
+		block[7] = uint8(rgba.A)      // end 8 bit
 
 		// update original pixel
 		byt = data[i]
@@ -118,19 +118,18 @@ func readNRGBA64(img *image.NRGBA64, b []byte, x, y *int) {
 			panic("lsb: out of bounds")
 		}
 
-		rgba = img.NRGBA64At(*x, *y)
-
 		// read 8 bit to from last bit about 4(RGBA) * 2(front and end) byte
-		block[0] = uint8(rgba.R >> 8) // red front 8 bit
-		block[1] = uint8(rgba.R)      // red end 8 bit
-		block[2] = uint8(rgba.G >> 8) // green front 8 bit
-		block[3] = uint8(rgba.G)      // green end 8 bit
-		block[4] = uint8(rgba.B >> 8) // blue front 8 bit
-		block[5] = uint8(rgba.B)      // blue end 8 bit
-		block[6] = uint8(rgba.A >> 8) // alpha front 8 bit
-		block[7] = uint8(rgba.A)      // alpha end 8 bit
+		rgba = img.NRGBA64At(*x, *y)
+		block[0] = uint8(rgba.R >> 8) // front 8 bit
+		block[1] = uint8(rgba.R)      // end 8 bit
+		block[2] = uint8(rgba.G >> 8) // front 8 bit
+		block[3] = uint8(rgba.G)      // end 8 bit
+		block[4] = uint8(rgba.B >> 8) // front 8 bit
+		block[5] = uint8(rgba.B)      // end 8 bit
+		block[6] = uint8(rgba.A >> 8) // front 8 bit
+		block[7] = uint8(rgba.A)      // end 8 bit
 
-		// set bytes
+		// set byte
 		for j := 0; j < 8; j++ {
 			// get the last bit of this byte
 			byt += block[j] & 1 << (7 - j)
