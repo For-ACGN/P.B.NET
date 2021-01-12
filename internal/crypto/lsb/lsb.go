@@ -10,10 +10,10 @@ import (
 // errors about Reader, Writer, Encrypter and Decrypter.
 var (
 	// ErrInvalidOffset is a error about invalid offset.
-	ErrInvalidOffset = errors.New("offset is larger than size that can read/write")
+	ErrInvalidOffset = errors.New("offset is larger than capacity that can read/write")
 
-	// ErrNotEnough is a error that image can not write data.
-	ErrNotEnough = errors.New("image has no enough space for write")
+	// ErrNoCapacity is a error that image can not write data.
+	ErrNoCapacity = errors.New("image has no enough capacity for write")
 
 	// ErrOutOfRange is a error that image can not read data.
 	ErrOutOfRange = errors.New("read out of range")
@@ -24,7 +24,8 @@ var (
 
 // supported lsb modes.
 const (
-	PNGWithNRGBA32 Mode = iota
+	_ Mode = iota
+	PNGWithNRGBA32
 	PNGWithNRGBA64
 )
 
@@ -59,8 +60,8 @@ type Writer interface {
 	// Image is used to get the original image.
 	Image() image.Image
 
-	// Size is used to calculate the size that can write to this image.
-	Size() uint64
+	// Cap is used to calculate the capacity that can write to this image.
+	Cap() uint64
 
 	// Mode is used to get the writer mode.
 	Mode() Mode
@@ -80,8 +81,8 @@ type Reader interface {
 	// Image is used to get the original image.
 	Image() image.Image
 
-	// Size is used to calculate the size that can read from this image.
-	Size() uint64
+	// Cap is used to calculate the capacity that can read from this image.
+	Cap() uint64
 
 	// Mode is used to get the reader mode.
 	Mode() Mode
@@ -95,6 +96,9 @@ type Encrypter interface {
 	// Encode is used to encode image to writer, if success, it will reset writer.
 	Encode(w io.Writer) error
 
+	// SetOffset is used to set pointer about data start area.
+	SetOffset(v int64) error
+
 	// Reset is used to reset under writer and key, if key is nil, only reset writer.
 	Reset(key []byte) error
 
@@ -104,8 +108,8 @@ type Encrypter interface {
 	// Image is used to get the original image.
 	Image() image.Image
 
-	// Size is used to calculate the size that can encrypt to this image.
-	Size() int64
+	// Cap is used to calculate the capacity that can encrypt to this image.
+	Cap() int64
 
 	// Mode is used to get the encrypter mode.
 	Mode() Mode
@@ -113,11 +117,23 @@ type Encrypter interface {
 
 // Decrypter is the LSB decrypter interface.
 type Decrypter interface {
-	// DecryptTo is used to decrypt data with AES-CTR and write to io.Writer.
-	DecryptTo(w io.Writer, key []byte) error
+	// Read is used to read data from under image and decrypt it.
+	Read(key []byte) ([]byte, error)
 
-	// Decrypt is used to decrypt data with AES-CTR and write to byte slice.
-	Decrypt(key []byte) ([]byte, error)
+	// SetOffset is used to set pointer about data start area.
+	SetOffset(v int64) error
+
+	// Reset is used to reset under writer and key, if key is nil, only reset reader.
+	Reset(key []byte) error
+
+	// Key is used to get the aes key.
+	Key() []byte
+
+	// Image is used to get the original image.
+	Image() image.Image
+
+	// Cap is used to calculate the capacity that can decrypt from this image.
+	Cap() int64
 
 	// Mode is used to get the decrypter mode.
 	Mode() Mode
