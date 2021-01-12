@@ -101,8 +101,11 @@ func NewPNGWriter(img image.Image, mode Mode) (Writer, error) {
 // Write is used to write data to this image, it will change the under image.
 func (pw *PNGWriter) Write(b []byte) (int, error) {
 	l := int64(len(b))
+	if l == 0 {
+		return 0, nil
+	}
 	if l > pw.capacity-pw.written {
-		return 0, ErrNoCapacity
+		return 0, ErrNoEnoughCapacity
 	}
 	switch pw.mode {
 	case PNGWithNRGBA32:
@@ -126,6 +129,12 @@ func (pw *PNGWriter) Encode(w io.Writer) error {
 	default:
 		panic("lsb: internal error")
 	}
+}
+
+// Reset is used to reset writer.
+func (pw *PNGWriter) Reset() {
+	pw.pngCommon.Reset()
+	pw.written = 0
 }
 
 // PNGReader implemented lsb Reader interface.
@@ -166,6 +175,9 @@ func NewPNGReader(img []byte) (Reader, error) {
 // Read is used to read data from png.
 func (pr *PNGReader) Read(b []byte) (int, error) {
 	l := int64(len(b))
+	if l == 0 {
+		return 0, nil
+	}
 	if l > pr.capacity-pr.read {
 		return 0, ErrOutOfRange
 	}
@@ -181,47 +193,56 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 	return len(b), nil
 }
 
+// Reset is used to reset reader.
+func (pr *PNGReader) Reset() {
+	pr.pngCommon.Reset()
+	pr.read = 0
+}
+
 // data structure in png image
-// +--------------+-------------+--------------+
-// | size(uint32) | HMAC-SHA256 | AES(IV+data) |
-// +--------------+-------------+--------------+
-// |   4 bytes    |  32 bytes   |     var      |
-// +--------------+-------------+--------------+
+//
+// +-------------+-------------+----------+-------------+
+// | size(int64) | HMAC-SHA256 |    IV    | cipher data |
+// +-------------+-------------+----------+-------------+
+// |   8 bytes   |  32 bytes   | 16 bytes |     var     |
+// +-------------+-------------+----------+-------------+
 
 const (
-	// dataLenSize is used store data length.
-	pngDataLenSize = 4
+	pngDataLenSize = 8
 	pngReverseSize = pngDataLenSize + sha256.Size + aes.IVSize
 )
 
 // PNGEncrypter is used to encrypt data and write it to a png image.
 type PNGEncrypter struct {
-	w        Writer
-	ctr      aes.AES
-	iv       *security.Bytes
+	writer   Writer
 	hmac     hash.Hash
 	capacity int64
-	written  int64
+
+	ctr aes.AES
+	iv  *security.Bytes
+
+	offset  int64
+	written int64
 }
 
 // NewPNGEncrypter is used to create a new png encrypter.
 func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) {
-	w, err := NewPNGWriter(img, mode)
+	writer, err := NewPNGWriter(img, mode)
 	if err != nil {
 		return nil, err
 	}
 	// calculate capacity that can encrypt data
 	var capacity int64
-	if w.Cap() > math.MaxUint32+pngReverseSize {
-		capacity = math.MaxUint32
+	if writer.Cap() > math.MaxInt64+pngReverseSize {
+		capacity = math.MaxInt64
 	} else {
-		capacity = int64(w.Cap()) - pngReverseSize
+		capacity = int64(writer.Cap()) - pngReverseSize
 	}
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
 	}
 	pe := PNGEncrypter{
-		w:        w,
+		writer:   writer,
 		hmac:     hmac.New(sha256.New, key),
 		capacity: capacity,
 	}
@@ -235,8 +256,11 @@ func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) 
 // Write is used to encrypt data and save it to the under image.
 func (pe *PNGEncrypter) Write(b []byte) (int, error) {
 	l := int64(len(b))
-	if l > pe.capacity-pe.written {
-		return 0, ErrNoCapacity
+	if l == 0 {
+		return 0, nil
+	}
+	if l > pe.capacity-pe.offset-pe.written {
+		return 0, ErrNoEnoughCapacity
 	}
 	iv := pe.iv.Get()
 	defer pe.iv.Put(iv)
@@ -244,7 +268,7 @@ func (pe *PNGEncrypter) Write(b []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	n, err := pe.w.Write(cipherData)
+	n, err := pe.writer.Write(cipherData)
 	if err != nil {
 		return 0, err
 	}
@@ -255,24 +279,28 @@ func (pe *PNGEncrypter) Write(b []byte) (int, error) {
 
 // Encode is used to encode under image to writer.
 func (pe *PNGEncrypter) Encode(w io.Writer) error {
-	size := convert.BEUint32ToBytes(uint32(pe.written))
+	size := convert.BEInt64ToBytes(pe.written)
 	// calculate signature
 	iv := pe.iv.Get()
 	defer pe.iv.Put(iv)
 	pe.hmac.Write(iv)
 	pe.hmac.Write(size)
 	signature := pe.hmac.Sum(nil)
-	// write
-	pe.w.Reset()
+	// set offset for write header
+	err := pe.writer.SetOffset(uint64(pe.offset))
+	if err != nil {
+		panic("lsb: internal error")
+	}
+	// write header data
 	for _, b := range [][]byte{
 		size, signature, iv,
 	} {
-		_, err := pe.w.Write(b)
+		_, err = pe.writer.Write(b)
 		if err != nil {
 			return err
 		}
 	}
-	err := pe.w.Encode(w)
+	err = pe.writer.Encode(w)
 	if err != nil {
 		return err
 	}
@@ -281,6 +309,14 @@ func (pe *PNGEncrypter) Encode(w io.Writer) error {
 
 // SetOffset is used to set data start area.
 func (pe *PNGEncrypter) SetOffset(v int64) error {
+	if v < 0 {
+		panic("negative offset")
+	}
+	err := pe.writer.SetOffset(uint64(v) + pngReverseSize)
+	if err != nil {
+		return err
+	}
+	pe.offset = v
 	return nil
 }
 
@@ -297,7 +333,7 @@ func (pe *PNGEncrypter) Reset(key []byte) error {
 }
 
 func (pe *PNGEncrypter) reset() error {
-	err := pe.w.SetOffset(pngReverseSize)
+	err := pe.writer.SetOffset(0)
 	if err != nil {
 		return err
 	}
@@ -318,7 +354,7 @@ func (pe *PNGEncrypter) Key() []byte {
 
 // Image is used to get the original png image.
 func (pe *PNGEncrypter) Image() image.Image {
-	return pe.w.Image()
+	return pe.writer.Image()
 }
 
 // Cap is used to calculate the capacity that can encrypt to this png image.
@@ -328,7 +364,7 @@ func (pe *PNGEncrypter) Cap() int64 {
 
 // Mode is used to get the encrypter mode.
 func (pe *PNGEncrypter) Mode() Mode {
-	return pe.w.Mode()
+	return pe.writer.Mode()
 }
 
 // NewPNGDecrypter is used to create a new png decrypter.

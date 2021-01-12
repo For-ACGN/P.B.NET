@@ -12,8 +12,8 @@ var (
 	// ErrInvalidOffset is a error about invalid offset.
 	ErrInvalidOffset = errors.New("offset is larger than capacity that can read/write")
 
-	// ErrNoCapacity is a error that image can not write data.
-	ErrNoCapacity = errors.New("image has no enough capacity for write")
+	// ErrNoEnoughCapacity is a error that image can not write data.
+	ErrNoEnoughCapacity = errors.New("image has no enough capacity for write")
 
 	// ErrOutOfRange is a error that image can not read data.
 	ErrOutOfRange = errors.New("read out of range")
