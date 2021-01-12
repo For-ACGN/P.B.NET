@@ -50,6 +50,9 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, data []byte, x, y *int) 
 	)
 
 	for i := 0; i < len(data); i++ {
+		if *x >= width {
+			panic("lsb: out of bounds")
+		}
 		r, g, b, a = origin.At(*x, *y).RGBA()
 		rgba.R = uint8(r)
 		rgba.G = uint8(g)
@@ -95,9 +98,6 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, data []byte, x, y *int) 
 			*y = 0
 			*x++
 		}
-		if *x >= width {
-			panic("lsb: out of bounds")
-		}
 	}
 }
 
@@ -113,6 +113,10 @@ func readNRGBA32(img *image.NRGBA, b []byte, x, y *int) {
 	)
 
 	for i := 0; i < len(b); i++ {
+		if *x >= width {
+			panic("lsb: out of bounds")
+		}
+
 		rgba = img.NRGBAAt(*x, *y)
 
 		// read 8 bit from the last two and last one bit in each color channel
@@ -140,9 +144,6 @@ func readNRGBA32(img *image.NRGBA, b []byte, x, y *int) {
 		if *y >= height {
 			*y = 0
 			*x++
-		}
-		if *x >= width {
-			panic("lsb: out of bounds")
 		}
 	}
 }

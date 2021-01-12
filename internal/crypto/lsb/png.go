@@ -44,7 +44,7 @@ func (pc *pngCommon) SetOffset(v uint64) error {
 	return nil
 }
 
-// Reset is used to reset write pointer.
+// Reset is used to reset write or read pointer.
 func (pc *pngCommon) Reset() {
 	*pc.x = 0
 	*pc.y = 0
@@ -55,7 +55,7 @@ func (pc *pngCommon) Image() image.Image {
 	return pc.origin
 }
 
-// Size is used to calculate the size that can write.
+// Size is used to calculate the size that can write or read.
 func (pc *pngCommon) Size() uint64 {
 	rect := pc.origin.Bounds()
 	width := rect.Dx()
@@ -63,7 +63,7 @@ func (pc *pngCommon) Size() uint64 {
 	return uint64(width * height)
 }
 
-// Mode is used to get the png writer mode.
+// Mode is used to get the png writer or reader mode.
 func (pc *pngCommon) Mode() Mode {
 	return pc.mode
 }
