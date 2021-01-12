@@ -19,27 +19,69 @@ import (
 	"project/internal/security"
 )
 
-// PNGWriter implemented lsb Writer interface.
-type PNGWriter struct {
+type pngCommon struct {
 	origin image.Image
 	mode   Mode
 
-	// output png image
+	// output/input png image
 	nrgba32 *image.NRGBA
 	nrgba64 *image.NRGBA64
 
-	// record write pointer
+	// record writer/reader pointer
 	x *int
 	y *int
+}
+
+// SetOffset is used to set pointer about position.
+func (pc *pngCommon) SetOffset(v uint64) error {
+	if v > pc.Size() {
+		return ErrInvalidOffset
+	}
+	vv := int(v)
+	height := pc.origin.Bounds().Dy()
+	*pc.x = vv / height
+	*pc.y = vv % height
+	return nil
+}
+
+// Reset is used to reset write pointer.
+func (pc *pngCommon) Reset() {
+	*pc.x = 0
+	*pc.y = 0
+}
+
+// Image is used to get the original image.
+func (pc *pngCommon) Image() image.Image {
+	return pc.origin
+}
+
+// Size is used to calculate the size that can write.
+func (pc *pngCommon) Size() uint64 {
+	rect := pc.origin.Bounds()
+	width := rect.Dx()
+	height := rect.Dy()
+	return uint64(width * height)
+}
+
+// Mode is used to get the png writer mode.
+func (pc *pngCommon) Mode() Mode {
+	return pc.mode
+}
+
+// PNGWriter implemented lsb Writer interface.
+type PNGWriter struct {
+	pngCommon
 }
 
 // NewPNGWriter is used to create a png lsb writer.
 func NewPNGWriter(img image.Image, mode Mode) (Writer, error) {
 	pw := PNGWriter{
-		origin: img,
-		mode:   mode,
-		x:      new(int),
-		y:      new(int),
+		pngCommon{
+			origin: img,
+			mode:   mode,
+			x:      new(int),
+			y:      new(int),
+		},
 	}
 	switch mode {
 	case PNGWithNRGBA32:
@@ -78,54 +120,9 @@ func (pw *PNGWriter) Encode(w io.Writer) error {
 	}
 }
 
-// SetOffset is used to set pointer about position.
-func (pw *PNGWriter) SetOffset(v uint64) error {
-	if v > pw.Size() {
-		return ErrInvalidOffset
-	}
-	vv := int(v)
-	width := pw.origin.Bounds().Dx()
-	*pw.x = vv % width
-	*pw.y = vv / width
-	return nil
-}
-
-// Reset is used to reset write pointer.
-func (pw *PNGWriter) Reset() {
-	*pw.x = 0
-	*pw.y = 0
-}
-
-// Image is used to get the original image.
-func (pw *PNGWriter) Image() image.Image {
-	return pw.origin
-}
-
-// Size is used to calculate the size that can write.
-func (pw *PNGWriter) Size() uint64 {
-	rect := pw.origin.Bounds()
-	width := rect.Dx()
-	height := rect.Dy()
-	return uint64(width * height)
-}
-
-// Mode is used to get the png writer mode.
-func (pw *PNGWriter) Mode() Mode {
-	return pw.mode
-}
-
 // PNGReader implemented lsb Reader interface.
 type PNGReader struct {
-	origin image.Image
-	mode   Mode
-
-	// png image
-	nrgba32 *image.NRGBA
-	nrgba64 *image.NRGBA64
-
-	// record reader pointer
-	x *int
-	y *int
+	pngCommon
 }
 
 // NewPNGReader is used to create a png lsb reader.
@@ -135,9 +132,11 @@ func NewPNGReader(img []byte) (Reader, error) {
 		return nil, errors.WithStack(err)
 	}
 	pr := PNGReader{
-		origin: p,
-		x:      new(int),
-		y:      new(int),
+		pngCommon{
+			origin: p,
+			x:      new(int),
+			y:      new(int),
+		},
 	}
 	switch pic := p.(type) {
 	case *image.NRGBA:
@@ -165,42 +164,6 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 	default:
 		panic("lsb: internal error")
 	}
-}
-
-// SetOffset is used to set pointer about position.
-func (pr *PNGReader) SetOffset(v uint64) error {
-	if v > pr.Size() {
-		return ErrInvalidOffset
-	}
-	vv := int(v)
-	width := pr.origin.Bounds().Dx()
-	*pr.x = vv % width
-	*pr.y = vv / width
-	return nil
-}
-
-// Reset is used to reset reader pointer.
-func (pr *PNGReader) Reset() {
-	*pr.x = 0
-	*pr.y = 0
-}
-
-// Image is used to get the original png image.
-func (pr *PNGReader) Image() image.Image {
-	return pr.origin
-}
-
-// Size is used to calculate the size that can write.
-func (pr *PNGReader) Size() uint64 {
-	rect := pr.origin.Bounds()
-	width := rect.Dx()
-	height := rect.Dy()
-	return uint64(width * height)
-}
-
-// Mode is used to get the png writer mode.
-func (pr *PNGReader) Mode() Mode {
-	return pr.mode
 }
 
 // data structure stored in png image
@@ -346,6 +309,11 @@ func (pe *PNGEncrypter) Size() int64 {
 // Mode is used to get the encrypter mode.
 func (pe *PNGEncrypter) Mode() Mode {
 	return pe.w.Mode()
+}
+
+// NewPNGDecrypter is used to create a new png decrypter.
+func NewPNGDecrypter() {
+
 }
 
 // size is uint32

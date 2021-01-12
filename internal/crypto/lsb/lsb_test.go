@@ -68,7 +68,7 @@ func testWriterAndReader(t *testing.T, name string) {
 
 	for _, test := range tests {
 		t.Run(test.mode.String(), func(t *testing.T) {
-			t.Run("common", func(t *testing.T) {
+			t.Run("Common", func(t *testing.T) {
 				testdata1 := random.Bytes(256 + random.Int(256))
 				testdata2 := random.Bytes(512 + random.Int(512))
 				testdata1Len := len(testdata1)
@@ -119,7 +119,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, reader)
 			})
 
-			t.Run("reset", func(t *testing.T) {
+			t.Run("Reset", func(t *testing.T) {
 				testdata1 := random.Bytes(256 + random.Int(256))
 				testdata2 := random.Bytes(512 + random.Int(512))
 				testdata1Len := len(testdata1)
@@ -178,7 +178,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, reader)
 			})
 
-			t.Run("offset", func(t *testing.T) {
+			t.Run("SetOffset", func(t *testing.T) {
 				offset := uint64(256 + random.Int(128))
 
 				testdata := random.Bytes(512 + random.Int(512))
