@@ -225,7 +225,7 @@ func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) 
 		return nil, err
 	}
 	// calculate capacity that can encrypt
-	capacity := int64(writer.Cap()) - pngReverseSize
+	capacity := writer.Cap() - pngReverseSize
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
 	}
@@ -300,9 +300,6 @@ func (pe *PNGEncrypter) Encode(w io.Writer) error {
 
 // SetOffset is used to set data start area.
 func (pe *PNGEncrypter) SetOffset(v int64) error {
-	if v < 0 {
-		panic("negative offset")
-	}
 	err := pe.writer.SetOffset(v + pngReverseSize)
 	if err != nil {
 		return err
@@ -378,7 +375,7 @@ func NewPNGDecrypter(img, key []byte) (Decrypter, error) {
 		return nil, err
 	}
 	// calculate capacity that can decrypt
-	capacity := int64(reader.Cap()) - pngReverseSize
+	capacity := reader.Cap() - pngReverseSize
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
 	}
@@ -417,9 +414,6 @@ func (pd *PNGDecrypter) validate() error {
 
 // SetOffset is used to set data start area.
 func (pd *PNGDecrypter) SetOffset(v int64) error {
-	if v < 0 {
-		panic("negative offset")
-	}
 	err := pd.reader.SetOffset(v)
 	if err != nil {
 		return err

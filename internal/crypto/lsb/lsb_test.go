@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/png"
 	"io"
+	"math"
 	"os"
 	"testing"
 
@@ -40,6 +41,9 @@ var tests = [...]*struct {
 	},
 }
 
+// test png image is 160*90
+const testImageFullSize = 160 * 90
+
 func TestMode_String(t *testing.T) {
 	for _, test := range tests {
 		fmt.Println(test.mode)
@@ -56,6 +60,7 @@ func testWriterAndReader(t *testing.T, name string) {
 	file, err := os.Open(fmt.Sprintf("testdata/%s.png", name))
 	require.NoError(t, err)
 	defer func() { _ = file.Close() }()
+
 	img, err := png.Decode(file)
 	require.NoError(t, err)
 
@@ -131,6 +136,16 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, testdata2Len, n)
 
+				// write zero
+				n, err = writer.Write(nil)
+				require.NoError(t, err)
+				require.Equal(t, 0, n)
+
+				// already full
+				n, err = writer.Write(testdata1)
+				require.Equal(t, ErrNoEnoughCapacity, err)
+				require.Equal(t, 0, n)
+
 				output := bytes.NewBuffer(make([]byte, 0, 8192))
 				err = writer.Encode(output)
 				require.NoError(t, err)
@@ -149,6 +164,25 @@ func testWriterAndReader(t *testing.T, name string) {
 				result := append(buf1, buf2...)
 
 				require.Equal(t, testdata, result)
+
+				// read zero
+				n, err = reader.Read(nil)
+				require.NoError(t, err)
+				require.Equal(t, 0, n)
+
+				// read EOF
+				buf := make([]byte, testImageFullSize+1)
+				n, err = reader.Read(buf)
+				require.Equal(t, io.EOF, err)
+				require.Equal(t, 0, n)
+
+				// read remaining
+				reader.Reset()
+
+				n, err = reader.Read(buf)
+				require.NoError(t, err)
+				require.Equal(t, testImageFullSize, n)
+				require.Equal(t, testdata, buf[:n])
 
 				// compare image
 				require.Equal(t, img, writer.Image())
@@ -178,6 +212,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				n, err := writer.Write(testdata1)
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
+
 				writer.Reset()
 
 				n, err = writer.Write(testdata2)
@@ -198,6 +233,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				buf2 := make([]byte, rv)
 				_, err = io.ReadFull(reader, buf1)
 				require.NoError(t, err)
+
 				reader.Reset()
 
 				_, err = io.ReadFull(reader, buf1)
@@ -316,6 +352,16 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, testdata2Len, n)
 
+				// write zero
+				n, err = writer.Write(nil)
+				require.NoError(t, err)
+				require.Equal(t, 0, n)
+
+				// already full
+				n, err = writer.Write(testdata1)
+				require.Equal(t, ErrNoEnoughCapacity, err)
+				require.Equal(t, 0, n)
+
 				output := bytes.NewBuffer(make([]byte, 0, 8192))
 				err = writer.Encode(output)
 				require.NoError(t, err)
@@ -345,10 +391,32 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				result2 := append(buf1, buf2...)
 
-				expected := append(testdata1, testdata2...)
+				// can't use append(testdata1, testdata2...), otherwise it
+				// will change testdata2 and influence "read remaining" sub test
+				expected := append([]byte{}, testdata1...)
+				expected = append(expected, testdata2...)
 				result := append(result1, result2...)
-
 				require.Equal(t, expected, result)
+
+				// read zero
+				n, err = reader.Read(nil)
+				require.NoError(t, err)
+				require.Equal(t, 0, n)
+
+				// read EOF
+				buf := make([]byte, testImageFullSize+1)
+				n, err = reader.Read(buf)
+				require.Equal(t, io.EOF, err)
+				require.Equal(t, 0, n)
+
+				// read remaining
+				err = reader.SetOffset(offset)
+				require.NoError(t, err)
+
+				n, err = reader.Read(buf)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+				require.Equal(t, testdata2, buf[:n])
 
 				// compare image
 				require.Equal(t, img, writer.Image())
@@ -359,6 +427,45 @@ func testWriterAndReader(t *testing.T, name string) {
 
 				// compare mode
 				require.Equal(t, writer.Mode(), reader.Mode())
+
+				testsuite.IsDestroyed(t, writer)
+				testsuite.IsDestroyed(t, reader)
+			})
+
+			t.Run("SetOffset Invalid", func(t *testing.T) {
+				testdata := random.Bytes(128)
+
+				writer, err := test.newWriter(img)
+				require.NoError(t, err)
+
+				err = writer.SetOffset(-1)
+				require.Equal(t, ErrInvalidOffset, err)
+
+				err = writer.SetOffset(math.MaxInt64)
+				require.Equal(t, ErrInvalidOffset, err)
+
+				n, err := writer.Write(testdata)
+				require.NoError(t, err)
+				require.Equal(t, 128, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = writer.Encode(output)
+				require.NoError(t, err)
+
+				reader, err := test.newReader(output.Bytes())
+				require.NoError(t, err)
+
+				err = reader.SetOffset(-1)
+				require.Equal(t, ErrInvalidOffset, err)
+
+				err = reader.SetOffset(math.MaxInt64)
+				require.Equal(t, ErrInvalidOffset, err)
+
+				buf := make([]byte, 128)
+				_, err = io.ReadFull(reader, buf)
+				require.NoError(t, err)
+
+				require.Equal(t, testdata, buf)
 
 				testsuite.IsDestroyed(t, writer)
 				testsuite.IsDestroyed(t, reader)
