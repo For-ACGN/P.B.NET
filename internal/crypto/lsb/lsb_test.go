@@ -227,7 +227,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testdata2 := random.Bytes(512 + random.Int(512))
 				testdata1Len := len(testdata1)
 				testdata2Len := len(testdata2)
-				offset := uint64(512 + random.Int(128))
+				offset := int64(512 + random.Int(128))
 
 				// write data
 				writer, err := test.newWriter(img)
@@ -299,7 +299,7 @@ func testWriterAndReader(t *testing.T, name string) {
 
 				testdata := random.Bytes(int(writer.Cap()))
 				rv := 128 + random.Int(128)
-				offset := uint64(256 + random.Int(128))
+				offset := int64(256 + random.Int(128))
 				testdata1 := testdata[:rv]
 				testdata2 := testdata[offset:]
 				testdata1Len := len(testdata1)

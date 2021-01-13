@@ -52,7 +52,7 @@ type Writer interface {
 	Encode(w io.Writer) error
 
 	// SetOffset is used to set pointer about position.
-	SetOffset(v uint64) error
+	SetOffset(v int64) error
 
 	// Reset is used to reset writer.
 	Reset()
@@ -61,7 +61,7 @@ type Writer interface {
 	Image() image.Image
 
 	// Cap is used to calculate the capacity that can write to this image.
-	Cap() uint64
+	Cap() int64
 
 	// Mode is used to get the writer mode.
 	Mode() Mode
@@ -73,7 +73,7 @@ type Reader interface {
 	Read(b []byte) (int, error)
 
 	// SetOffset is used to set pointer about position.
-	SetOffset(v uint64) error
+	SetOffset(v int64) error
 
 	// Reset is used to reset reader.
 	Reset()
@@ -82,7 +82,7 @@ type Reader interface {
 	Image() image.Image
 
 	// Cap is used to calculate the capacity that can read from this image.
-	Cap() uint64
+	Cap() int64
 
 	// Mode is used to get the reader mode.
 	Mode() Mode
@@ -118,7 +118,7 @@ type Encrypter interface {
 // Decrypter is the LSB decrypter interface.
 type Decrypter interface {
 	// Read is used to read data from under image and decrypt it.
-	Read(key []byte) ([]byte, error)
+	Read(b []byte) (int, error)
 
 	// SetOffset is used to set pointer about data start area.
 	SetOffset(v int64) error

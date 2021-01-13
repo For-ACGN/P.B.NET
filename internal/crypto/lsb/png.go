@@ -20,25 +20,40 @@ import (
 )
 
 type pngCommon struct {
-	origin image.Image
-	mode   Mode
+	origin   image.Image
+	capacity int64
+	mode     Mode
 
 	// output/input png image
 	nrgba32 *image.NRGBA
 	nrgba64 *image.NRGBA64
 
 	// record writer/reader pointer
-	x *int
-	y *int
+	current int64
+	x       *int
+	y       *int
+}
+
+func newPNGCommon(img image.Image) *pngCommon {
+	rect := img.Bounds()
+	width := rect.Dx()
+	height := rect.Dy()
+	return &pngCommon{
+		origin:   img,
+		capacity: int64(width * height),
+		x:        new(int),
+		y:        new(int),
+	}
 }
 
 // SetOffset is used to set pointer about position.
-func (pc *pngCommon) SetOffset(v uint64) error {
-	if v > pc.Cap() {
+func (pc *pngCommon) SetOffset(v int64) error {
+	if v > pc.Cap() || v < 0 {
 		return ErrInvalidOffset
 	}
-	vv := int(v)
+	pc.current = v
 	height := pc.origin.Bounds().Dy()
+	vv := int(v)
 	*pc.x = vv / height
 	*pc.y = vv % height
 	return nil
@@ -46,6 +61,7 @@ func (pc *pngCommon) SetOffset(v uint64) error {
 
 // Reset is used to reset write or read pointer.
 func (pc *pngCommon) Reset() {
+	pc.current = 0
 	*pc.x = 0
 	*pc.y = 0
 }
@@ -56,11 +72,8 @@ func (pc *pngCommon) Image() image.Image {
 }
 
 // Cap is used to calculate the capacity that can write or read.
-func (pc *pngCommon) Cap() uint64 {
-	rect := pc.origin.Bounds()
-	width := rect.Dx()
-	height := rect.Dy()
-	return uint64(width * height)
+func (pc *pngCommon) Cap() int64 {
+	return pc.capacity
 }
 
 // Mode is used to get the png writer or reader mode.
@@ -70,41 +83,34 @@ func (pc *pngCommon) Mode() Mode {
 
 // PNGWriter implemented lsb Writer interface.
 type PNGWriter struct {
-	pngCommon
-
-	capacity int64
-	written  int64
+	*pngCommon
 }
 
 // NewPNGWriter is used to create a png lsb writer.
 func NewPNGWriter(img image.Image, mode Mode) (Writer, error) {
 	pw := PNGWriter{
-		pngCommon: pngCommon{
-			origin: img,
-			mode:   mode,
-			x:      new(int),
-			y:      new(int),
-		},
+		newPNGCommon(img),
 	}
-	pw.capacity = int64(pw.Cap())
 	switch mode {
 	case PNGWithNRGBA32:
 		pw.nrgba32 = copyNRGBA32(img)
 	case PNGWithNRGBA64:
 		pw.nrgba64 = copyNRGBA64(img)
 	default:
-		return nil, errors.New(mode.String() + " for png")
+		return nil, errors.New("png writer with " + mode.String())
 	}
+	pw.mode = mode
 	return &pw, nil
 }
 
 // Write is used to write data to this image, it will change the under image.
 func (pw *PNGWriter) Write(b []byte) (int, error) {
-	l := int64(len(b))
+	l := len(b)
 	if l == 0 {
 		return 0, nil
 	}
-	if l > pw.capacity-pw.written {
+	ll := int64(l)
+	if ll > pw.capacity-pw.current {
 		return 0, ErrNoEnoughCapacity
 	}
 	switch pw.mode {
@@ -115,8 +121,8 @@ func (pw *PNGWriter) Write(b []byte) (int, error) {
 	default:
 		panic("lsb: internal error")
 	}
-	pw.written += l
-	return len(b), nil
+	pw.current += ll
+	return l, nil
 }
 
 // Encode is used to encode png to writer.
@@ -131,18 +137,9 @@ func (pw *PNGWriter) Encode(w io.Writer) error {
 	}
 }
 
-// Reset is used to reset writer.
-func (pw *PNGWriter) Reset() {
-	pw.pngCommon.Reset()
-	pw.written = 0
-}
-
 // PNGReader implemented lsb Reader interface.
 type PNGReader struct {
-	pngCommon
-
-	capacity int64
-	read     int64
+	*pngCommon
 }
 
 // NewPNGReader is used to create a png lsb reader.
@@ -152,13 +149,8 @@ func NewPNGReader(img []byte) (Reader, error) {
 		return nil, errors.WithStack(err)
 	}
 	pr := PNGReader{
-		pngCommon: pngCommon{
-			origin: p,
-			x:      new(int),
-			y:      new(int),
-		},
+		newPNGCommon(p),
 	}
-	pr.capacity = int64(pr.Cap())
 	switch pic := p.(type) {
 	case *image.NRGBA:
 		pr.mode = PNGWithNRGBA32
@@ -174,12 +166,19 @@ func NewPNGReader(img []byte) (Reader, error) {
 
 // Read is used to read data from png.
 func (pr *PNGReader) Read(b []byte) (int, error) {
-	l := int64(len(b))
+	l := len(b)
 	if l == 0 {
 		return 0, nil
 	}
-	if l > pr.capacity-pr.read {
-		return 0, ErrOutOfRange
+	r := pr.capacity - pr.current
+	if r <= 0 {
+		return 0, io.EOF
+	}
+	ll := int64(l)
+	if r < ll {
+		b = b[:r]
+		l = int(r)
+		ll = r
 	}
 	switch pr.mode {
 	case PNGWithNRGBA32:
@@ -189,14 +188,8 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 	default:
 		panic("lsb: internal error")
 	}
-	pr.read += l
-	return len(b), nil
-}
-
-// Reset is used to reset reader.
-func (pr *PNGReader) Reset() {
-	pr.pngCommon.Reset()
-	pr.read = 0
+	pr.current += ll
+	return l, nil
 }
 
 // data structure in png image
@@ -231,15 +224,13 @@ func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) 
 	if err != nil {
 		return nil, err
 	}
-	// calculate capacity that can encrypt data
-	var capacity int64
-	if writer.Cap() > math.MaxInt64+pngReverseSize {
-		capacity = math.MaxInt64
-	} else {
-		capacity = int64(writer.Cap()) - pngReverseSize
-	}
+	// calculate capacity that can encrypt
+	capacity := int64(writer.Cap()) - pngReverseSize
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
+	}
+	if capacity > math.MaxInt64 {
+		capacity = math.MaxInt64
 	}
 	pe := PNGEncrypter{
 		writer:   writer,
@@ -287,7 +278,7 @@ func (pe *PNGEncrypter) Encode(w io.Writer) error {
 	pe.hmac.Write(size)
 	signature := pe.hmac.Sum(nil)
 	// set offset for write header
-	err := pe.writer.SetOffset(uint64(pe.offset))
+	err := pe.writer.SetOffset(pe.offset)
 	if err != nil {
 		panic("lsb: internal error")
 	}
@@ -312,7 +303,7 @@ func (pe *PNGEncrypter) SetOffset(v int64) error {
 	if v < 0 {
 		panic("negative offset")
 	}
-	err := pe.writer.SetOffset(uint64(v) + pngReverseSize)
+	err := pe.writer.SetOffset(v + pngReverseSize)
 	if err != nil {
 		return err
 	}
@@ -343,6 +334,7 @@ func (pe *PNGEncrypter) reset() error {
 	}
 	pe.iv = security.NewBytes(iv)
 	pe.hmac.Reset()
+	pe.offset = 0
 	pe.written = 0
 	return nil
 }
@@ -372,9 +364,8 @@ type PNGDecrypter struct {
 	reader   Reader
 	capacity int64
 
-	hmac hash.Hash
-	ctr  aes.AES
-	iv   *security.Bytes
+	ctr aes.AES
+	iv  *security.Bytes
 
 	offset int64
 	read   int64
@@ -386,15 +377,13 @@ func NewPNGDecrypter(img, key []byte) (Decrypter, error) {
 	if err != nil {
 		return nil, err
 	}
-	// calculate capacity that can encrypt data
-	var capacity int64
-	if reader.Cap() > math.MaxInt64+pngReverseSize {
-		capacity = math.MaxInt64
-	} else {
-		capacity = int64(reader.Cap()) - pngReverseSize
-	}
+	// calculate capacity that can decrypt
+	capacity := int64(reader.Cap()) - pngReverseSize
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
+	}
+	if capacity > math.MaxInt64 {
+		capacity = math.MaxInt64
 	}
 	pd := PNGDecrypter{
 		reader:   reader,
@@ -407,16 +396,31 @@ func NewPNGDecrypter(img, key []byte) (Decrypter, error) {
 	return &pd, nil
 }
 
-func (pd PNGDecrypter) Read(key []byte) ([]byte, error) {
-	panic("implement me")
+// Read is used to read data and decrypt it.
+func (pd *PNGDecrypter) Read(b []byte) (int, error) {
+	l := int64(len(b))
+	if l == 0 {
+		return 0, nil
+	}
+	if pd.iv == nil {
+		err := pd.validate()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return 0, nil
+}
+
+func (pd *PNGDecrypter) validate() error {
+	return nil
 }
 
 // SetOffset is used to set data start area.
-func (pd PNGDecrypter) SetOffset(v int64) error {
+func (pd *PNGDecrypter) SetOffset(v int64) error {
 	if v < 0 {
 		panic("negative offset")
 	}
-	err := pd.reader.SetOffset(uint64(v) + pngReverseSize)
+	err := pd.reader.SetOffset(v)
 	if err != nil {
 		return err
 	}
@@ -425,7 +429,7 @@ func (pd PNGDecrypter) SetOffset(v int64) error {
 }
 
 // Reset is used to reset png decrypter.
-func (pd PNGDecrypter) Reset(key []byte) error {
+func (pd *PNGDecrypter) Reset(key []byte) error {
 	if key != nil {
 		ctr, err := aes.NewCTR(key)
 		if err != nil {
@@ -433,27 +437,29 @@ func (pd PNGDecrypter) Reset(key []byte) error {
 		}
 		pd.ctr = ctr
 	}
-	return pd.reset()
-}
-
-func (pd PNGDecrypter) reset() error {
+	pd.offset = 0
+	pd.read = 0
 	return nil
 }
 
-func (pd PNGDecrypter) Key() []byte {
-	panic("implement me")
+// Key is used to get the aes key.
+func (pd *PNGDecrypter) Key() []byte {
+	return pd.ctr.Key()
 }
 
-func (pd PNGDecrypter) Image() image.Image {
-	panic("implement me")
+// Image is used to get the original png image.
+func (pd *PNGDecrypter) Image() image.Image {
+	return pd.reader.Image()
 }
 
-func (pd PNGDecrypter) Cap() int64 {
-	panic("implement me")
+// Cap is used to calculate the capacity that can decrypt from this png image.
+func (pd *PNGDecrypter) Cap() int64 {
+	return pd.capacity
 }
 
-func (pd PNGDecrypter) Mode() Mode {
-	panic("implement me")
+// Mode is used to get the decrypter mode.
+func (pd *PNGDecrypter) Mode() Mode {
+	return pd.reader.Mode()
 }
 
 // size is uint32
