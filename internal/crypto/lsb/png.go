@@ -215,11 +215,11 @@ const (
 // PNGEncrypter is used to encrypt data and write it to a png image.
 type PNGEncrypter struct {
 	writer   Writer
-	hmac     hash.Hash
 	capacity int64
 
-	ctr aes.AES
-	iv  *security.Bytes
+	hmac hash.Hash
+	ctr  aes.AES
+	iv   *security.Bytes
 
 	offset  int64
 	written int64
@@ -243,8 +243,8 @@ func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) 
 	}
 	pe := PNGEncrypter{
 		writer:   writer,
-		hmac:     hmac.New(sha256.New, key),
 		capacity: capacity,
+		hmac:     hmac.New(sha256.New, key),
 	}
 	err = pe.Reset(key)
 	if err != nil {
@@ -367,9 +367,93 @@ func (pe *PNGEncrypter) Mode() Mode {
 	return pe.writer.Mode()
 }
 
-// NewPNGDecrypter is used to create a new png decrypter.
-func NewPNGDecrypter() {
+// PNGDecrypter is used to read data from a png image and decrypt it.
+type PNGDecrypter struct {
+	reader   Reader
+	capacity int64
 
+	hmac hash.Hash
+	ctr  aes.AES
+	iv   *security.Bytes
+
+	offset int64
+	read   int64
+}
+
+// NewPNGDecrypter is used to create a new png decrypter.
+func NewPNGDecrypter(img, key []byte) (Decrypter, error) {
+	reader, err := NewPNGReader(img)
+	if err != nil {
+		return nil, err
+	}
+	// calculate capacity that can encrypt data
+	var capacity int64
+	if reader.Cap() > math.MaxInt64+pngReverseSize {
+		capacity = math.MaxInt64
+	} else {
+		capacity = int64(reader.Cap()) - pngReverseSize
+	}
+	if capacity < 1 {
+		return nil, ErrImgTooSmall
+	}
+	pd := PNGDecrypter{
+		reader:   reader,
+		capacity: capacity,
+	}
+	err = pd.Reset(key)
+	if err != nil {
+		return nil, err
+	}
+	return &pd, nil
+}
+
+func (pd PNGDecrypter) Read(key []byte) ([]byte, error) {
+	panic("implement me")
+}
+
+// SetOffset is used to set data start area.
+func (pd PNGDecrypter) SetOffset(v int64) error {
+	if v < 0 {
+		panic("negative offset")
+	}
+	err := pd.reader.SetOffset(uint64(v) + pngReverseSize)
+	if err != nil {
+		return err
+	}
+	pd.offset = v
+	return nil
+}
+
+// Reset is used to reset png decrypter.
+func (pd PNGDecrypter) Reset(key []byte) error {
+	if key != nil {
+		ctr, err := aes.NewCTR(key)
+		if err != nil {
+			return err
+		}
+		pd.ctr = ctr
+	}
+	return pd.reset()
+}
+
+func (pd PNGDecrypter) reset() error {
+	return nil
+}
+
+func (pd PNGDecrypter) Key() []byte {
+	panic("implement me")
+}
+
+func (pd PNGDecrypter) Image() image.Image {
+	panic("implement me")
+}
+
+func (pd PNGDecrypter) Cap() int64 {
+	panic("implement me")
+}
+
+func (pd PNGDecrypter) Mode() Mode {
+	panic("implement me")
 }
 
 // size is uint32
