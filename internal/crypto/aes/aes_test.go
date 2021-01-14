@@ -8,6 +8,7 @@ import (
 
 	"project/internal/crypto/rand"
 	"project/internal/patch/monkey"
+	"project/internal/random"
 	"project/internal/testsuite"
 )
 
@@ -18,19 +19,15 @@ var (
 )
 
 var tests = [...]*struct {
-	name string
-	fn   func(key []byte) (AES, error)
+	name   string
+	newAES func(key []byte) (AES, error)
 }{
 	{"CBC", NewCBC},
 	{"CTR", NewCTR},
 }
 
 func generateBytes() []byte {
-	testdata := make([]byte, 63)
-	for i := 0; i < 63; i++ {
-		testdata[i] = byte(i)
-	}
-	return testdata
+	return random.Bytes(512 + random.Int(1024))
 }
 
 func TestGenerateIV(t *testing.T) {
@@ -52,50 +49,121 @@ func TestAES(t *testing.T) {
 }
 
 func testAES(t *testing.T, key []byte) {
-	testdata := generateBytes()
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			aes, err := test.fn(key)
+			aes, err := test.newAES(key)
 			require.NoError(t, err)
 
 			t.Run("without iv", func(t *testing.T) {
 				for i := 0; i < 10; i++ {
+					testdata := generateBytes()
+					testdataCp := append([]byte{}, testdata...)
+
 					cipherData, err := aes.Encrypt(testdata)
 					require.NoError(t, err)
 
-					require.Equal(t, generateBytes(), testdata)
+					require.Equal(t, testdataCp, testdata)
 					require.NotEqual(t, testdata, cipherData)
 				}
 
-				cipherData, err := aes.Encrypt(testdata)
-				require.NoError(t, err)
 				for i := 0; i < 20; i++ {
+					testdata := generateBytes()
+
+					cipherData, err := aes.Encrypt(testdata)
+					require.NoError(t, err)
+
 					plainData, err := aes.Decrypt(cipherData)
+					require.NoError(t, err)
+					require.Equal(t, testdata, plainData)
+
+					plainData, err = aes.Decrypt(cipherData)
 					require.NoError(t, err)
 					require.Equal(t, testdata, plainData)
 				}
 			})
 
 			t.Run("with iv", func(t *testing.T) {
-				iv, err := GenerateIV()
-				require.NoError(t, err)
-
 				for i := 0; i < 10; i++ {
+					iv, err := GenerateIV()
+					require.NoError(t, err)
+
+					testdata := generateBytes()
+					testdataCp := append([]byte{}, testdata...)
+
 					cipherData, err := aes.EncryptWithIV(testdata, iv)
 					require.NoError(t, err)
 
-					require.Equal(t, generateBytes(), testdata)
+					require.Equal(t, testdataCp, testdata)
 					require.NotEqual(t, testdata, cipherData)
 				}
 
-				cipherData, err := aes.EncryptWithIV(testdata, iv)
-				require.NoError(t, err)
 				for i := 0; i < 20; i++ {
+					iv, err := GenerateIV()
+					require.NoError(t, err)
+
+					testdata := generateBytes()
+
+					cipherData, err := aes.EncryptWithIV(testdata, iv)
+					require.NoError(t, err)
+
 					plainData, err := aes.DecryptWithIV(cipherData, iv)
 					require.NoError(t, err)
 					require.Equal(t, testdata, plainData)
+
+					plainData, err = aes.DecryptWithIV(cipherData, iv)
+					require.NoError(t, err)
+					require.Equal(t, testdata, plainData)
 				}
+			})
+
+			t.Run("one way", func(t *testing.T) {
+				testdata1 := generateBytes()
+				testdata2 := generateBytes()
+				iv, err := GenerateIV()
+				require.NoError(t, err)
+
+				aes1, err := test.newAES(key)
+				require.NoError(t, err)
+				aes2, err := test.newAES(key)
+				require.NoError(t, err)
+
+				cipherData1, err := aes1.Encrypt(testdata1)
+				require.NoError(t, err)
+				cipherData2, err := aes1.Encrypt(testdata2)
+				require.NoError(t, err)
+
+				plainData1, err := aes2.Decrypt(cipherData1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1, plainData1)
+				plainData2, err := aes2.Decrypt(cipherData2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2, plainData2)
+
+				plainData2, err = aes2.Decrypt(cipherData2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2, plainData2)
+				plainData1, err = aes2.Decrypt(cipherData1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1, plainData1)
+
+				cipherData1, err = aes1.EncryptWithIV(testdata1, iv)
+				require.NoError(t, err)
+				cipherData2, err = aes1.EncryptWithIV(testdata2, iv)
+				require.NoError(t, err)
+
+				plainData1, err = aes2.DecryptWithIV(cipherData1, iv)
+				require.NoError(t, err)
+				require.Equal(t, testdata1, plainData1)
+				plainData2, err = aes2.DecryptWithIV(cipherData2, iv)
+				require.NoError(t, err)
+				require.Equal(t, testdata2, plainData2)
+
+				plainData2, err = aes2.DecryptWithIV(cipherData2, iv)
+				require.NoError(t, err)
+				require.Equal(t, testdata2, plainData2)
+				plainData1, err = aes2.DecryptWithIV(cipherData1, iv)
+				require.NoError(t, err)
+				require.Equal(t, testdata1, plainData1)
 			})
 
 			require.Equal(t, key, aes.Key())
@@ -113,7 +181,7 @@ func TestAES_Parallel(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("part", func(t *testing.T) {
-				aes, err := test.fn(test128BitKey)
+				aes, err := test.newAES(test128BitKey)
 				require.NoError(t, err)
 
 				enc := func() {
@@ -123,7 +191,12 @@ func TestAES_Parallel(t *testing.T) {
 				dec := func() {
 					cipherData, err := aes.Encrypt(testdata)
 					require.NoError(t, err)
+
 					plainData, err := aes.Decrypt(cipherData)
+					require.NoError(t, err)
+					require.Equal(t, testdata, plainData)
+
+					plainData, err = aes.Decrypt(cipherData)
 					require.NoError(t, err)
 					require.Equal(t, testdata, plainData)
 				}
@@ -134,7 +207,12 @@ func TestAES_Parallel(t *testing.T) {
 				decWithIV := func() {
 					cipherData, err := aes.EncryptWithIV(testdata, iv)
 					require.NoError(t, err)
+
 					plainData, err := aes.DecryptWithIV(cipherData, iv)
+					require.NoError(t, err)
+					require.Equal(t, testdata, plainData)
+
+					plainData, err = aes.DecryptWithIV(cipherData, iv)
 					require.NoError(t, err)
 					require.Equal(t, testdata, plainData)
 				}
@@ -152,7 +230,7 @@ func TestAES_Parallel(t *testing.T) {
 
 				init := func() {
 					var err error
-					aes, err = test.fn(test128BitKey)
+					aes, err = test.newAES(test128BitKey)
 					require.NoError(t, err)
 				}
 				enc := func() {
@@ -162,7 +240,12 @@ func TestAES_Parallel(t *testing.T) {
 				dec := func() {
 					cipherData, err := aes.Encrypt(testdata)
 					require.NoError(t, err)
+
 					plainData, err := aes.Decrypt(cipherData)
+					require.NoError(t, err)
+					require.Equal(t, testdata, plainData)
+
+					plainData, err = aes.Decrypt(cipherData)
 					require.NoError(t, err)
 					require.Equal(t, testdata, plainData)
 				}
@@ -173,7 +256,12 @@ func TestAES_Parallel(t *testing.T) {
 				decWithIV := func() {
 					cipherData, err := aes.EncryptWithIV(testdata, iv)
 					require.NoError(t, err)
+
 					plainData, err := aes.DecryptWithIV(cipherData, iv)
+					require.NoError(t, err)
+					require.Equal(t, testdata, plainData)
+
+					plainData, err = aes.DecryptWithIV(cipherData, iv)
 					require.NoError(t, err)
 					require.Equal(t, testdata, plainData)
 				}
@@ -187,18 +275,28 @@ func TestAES_Parallel(t *testing.T) {
 			})
 
 			t.Run("multi", func(t *testing.T) {
-				aes, err := test.fn(test128BitKey)
+				aes, err := test.newAES(test128BitKey)
 				require.NoError(t, err)
 
 				testsuite.RunMultiTimes(100, func() {
 					cipherData, err := aes.Encrypt(testdata)
 					require.NoError(t, err)
+
 					plainData, err := aes.Decrypt(cipherData)
+					require.NoError(t, err)
+					require.Equal(t, testdata, plainData)
+
+					plainData, err = aes.Decrypt(cipherData)
 					require.NoError(t, err)
 					require.Equal(t, testdata, plainData)
 
 					cipherData, err = aes.EncryptWithIV(testdata, iv)
 					require.NoError(t, err)
+
+					plainData, err = aes.DecryptWithIV(cipherData, iv)
+					require.NoError(t, err)
+					require.Equal(t, testdata, plainData)
+
 					plainData, err = aes.DecryptWithIV(cipherData, iv)
 					require.NoError(t, err)
 					require.Equal(t, testdata, plainData)
