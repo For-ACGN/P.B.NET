@@ -137,6 +137,19 @@ func (pw *PNGWriter) Encode(w io.Writer) error {
 	}
 }
 
+// Reset is used to reset writer and under image.
+func (pw *PNGWriter) Reset() {
+	pw.pngCommon.Reset()
+	switch pw.mode {
+	case PNGWithNRGBA32:
+		pw.nrgba32 = copyNRGBA32(pw.origin)
+	case PNGWithNRGBA64:
+		pw.nrgba64 = copyNRGBA64(pw.origin)
+	default:
+		panic("lsb: internal error")
+	}
+}
+
 // PNGReader implemented lsb Reader interface.
 type PNGReader struct {
 	*pngCommon
@@ -170,6 +183,7 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 	if l == 0 {
 		return 0, nil
 	}
+	// calculate remaining
 	r := pr.capacity - pr.current
 	if r <= 0 {
 		return 0, io.EOF
@@ -201,7 +215,7 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 // +-------------+-------------+----------+-------------+
 
 const (
-	pngDataLenSize = 8
+	pngDataLenSize = convert.Int64Size
 	pngReverseSize = pngDataLenSize + sha256.Size + aes.IVSize
 )
 
@@ -228,9 +242,6 @@ func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) 
 	capacity := writer.Cap() - pngReverseSize
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
-	}
-	if capacity > math.MaxInt64 {
-		capacity = math.MaxInt64
 	}
 	pe := PNGEncrypter{
 		writer:   writer,
@@ -295,17 +306,12 @@ func (pe *PNGEncrypter) Encode(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return pe.reset()
+	return pe.reset(0)
 }
 
 // SetOffset is used to set data start area.
 func (pe *PNGEncrypter) SetOffset(v int64) error {
-	err := pe.writer.SetOffset(v + pngReverseSize)
-	if err != nil {
-		return err
-	}
-	pe.offset = v
-	return nil
+	return pe.reset(v)
 }
 
 // Reset is used to reset png encrypter.
@@ -317,11 +323,11 @@ func (pe *PNGEncrypter) Reset(key []byte) error {
 		}
 		pe.ctr = ctr
 	}
-	return pe.reset()
+	return pe.reset(0)
 }
 
-func (pe *PNGEncrypter) reset() error {
-	err := pe.writer.SetOffset(0)
+func (pe *PNGEncrypter) reset(offset int64) error {
+	err := pe.writer.SetOffset(offset + pngReverseSize)
 	if err != nil {
 		return err
 	}
@@ -331,7 +337,7 @@ func (pe *PNGEncrypter) reset() error {
 	}
 	pe.iv = security.NewBytes(iv)
 	pe.hmac.Reset()
-	pe.offset = 0
+	pe.offset = offset
 	pe.written = 0
 	return nil
 }
@@ -361,10 +367,12 @@ type PNGDecrypter struct {
 	reader   Reader
 	capacity int64
 
-	ctr aes.AES
-	iv  *security.Bytes
+	hmac hash.Hash
+	ctr  aes.AES
+	iv   *security.Bytes
 
 	offset int64
+	size   int64
 	read   int64
 }
 
@@ -379,12 +387,10 @@ func NewPNGDecrypter(img, key []byte) (Decrypter, error) {
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
 	}
-	if capacity > math.MaxInt64 {
-		capacity = math.MaxInt64
-	}
 	pd := PNGDecrypter{
 		reader:   reader,
 		capacity: capacity,
+		hmac:     hmac.New(sha256.New, key),
 	}
 	err = pd.Reset(key)
 	if err != nil {
@@ -395,31 +401,87 @@ func NewPNGDecrypter(img, key []byte) (Decrypter, error) {
 
 // Read is used to read data and decrypt it.
 func (pd *PNGDecrypter) Read(b []byte) (int, error) {
-	l := int64(len(b))
-	if l == 0 {
-		return 0, nil
-	}
+	// if b is nil, can validate only
 	if pd.iv == nil {
 		err := pd.validate()
 		if err != nil {
 			return 0, err
 		}
 	}
-	return 0, nil
+	l := int64(len(b))
+	if l == 0 {
+		return 0, nil
+	}
+	// calculate remaining
+	r := pd.size - pd.read
+	if r <= 0 {
+		return 0, io.EOF
+	}
+	if r < l {
+		b = b[:r]
+		l = r
+	}
+	// read cipher data
+	n, err := pd.reader.Read(b)
+	if err != nil {
+		return 0, err
+	}
+	// decrypt
+	iv := pd.iv.Get()
+	defer pd.iv.Put(iv)
+	plainData, err := pd.ctr.DecryptWithIV(b[:n], iv)
+	if err != nil {
+		return 0, err
+	}
+	defer security.CoverBytes(plainData)
+	copy(b, plainData)
+	pd.read += l
+	return n, nil
 }
 
 func (pd *PNGDecrypter) validate() error {
+	// read cipher data size
+	sizeBuf := make([]byte, pngDataLenSize)
+	_, err := io.ReadFull(pd.reader, sizeBuf)
+	if err != nil {
+		return errors.WithMessage(err, "failed to read cipher data size")
+	}
+	size := convert.BEBytesToInt64(sizeBuf)
+	// read HMAC signature
+	signature := make([]byte, sha256.Size)
+	_, err = io.ReadFull(pd.reader, signature)
+	if err != nil {
+		return errors.WithMessage(err, "failed to read hmac signature")
+	}
+	// read iv
+	iv := make([]byte, aes.IVSize)
+	_, err = io.ReadFull(pd.reader, iv)
+	if err != nil {
+		return errors.WithMessage(err, "failed to read hmac signature")
+	}
+	defer security.CoverBytes(iv)
+	// compare signature
+	defer pd.hmac.Reset()
+	_, err = io.CopyN(pd.hmac, pd.reader, size)
+	if err != nil {
+		return errors.WithMessage(err, "failed to read cipher data")
+	}
+	if !hmac.Equal(signature, pd.hmac.Sum(nil)) {
+		return errors.New("invalid hmac signature")
+	}
+	// recover offset
+	err = pd.reader.SetOffset(pd.offset + pngReverseSize)
+	if err != nil {
+		return errors.WithMessage(err, "failed to reset offset")
+	}
+	pd.iv = security.NewBytes(iv)
+	pd.size = size
 	return nil
 }
 
 // SetOffset is used to set data start area.
 func (pd *PNGDecrypter) SetOffset(v int64) error {
-	err := pd.reader.SetOffset(v)
-	if err != nil {
-		return err
-	}
-	pd.offset = v
-	return nil
+	return pd.reset(v)
 }
 
 // Reset is used to reset png decrypter.
@@ -431,7 +493,18 @@ func (pd *PNGDecrypter) Reset(key []byte) error {
 		}
 		pd.ctr = ctr
 	}
-	pd.offset = 0
+	return pd.reset(0)
+}
+
+func (pd *PNGDecrypter) reset(offset int64) error {
+	err := pd.reader.SetOffset(offset)
+	if err != nil {
+		return err
+	}
+	pd.hmac.Reset()
+	pd.iv = nil
+	pd.offset = offset
+	pd.size = 0
 	pd.read = 0
 	return nil
 }

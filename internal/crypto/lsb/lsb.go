@@ -15,9 +15,6 @@ var (
 	// ErrNoEnoughCapacity is a error that image can not write data.
 	ErrNoEnoughCapacity = errors.New("image has no enough capacity for write")
 
-	// ErrOutOfRange is a error that image can not read data.
-	ErrOutOfRange = errors.New("read out of range")
-
 	// ErrImgTooSmall is a error that means this image can't encrypt data.
 	ErrImgTooSmall = errors.New("image rectangle is too small")
 )
