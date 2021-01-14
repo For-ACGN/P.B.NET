@@ -117,3 +117,20 @@ func fdumpBytes(b []byte, lineLength int) *bytes.Buffer {
 	buf.WriteString("}")
 	return buf
 }
+
+// MergeBytes is used to merge multi bytes slice to one, it will deep copy each slice.
+func MergeBytes(bs ...[]byte) []byte {
+	n := len(bs)
+	if n == 0 {
+		return nil
+	}
+	var l int
+	for i := 0; i < n; i++ {
+		l += len(bs[i])
+	}
+	b := make([]byte, 0, l)
+	for i := 0; i < n; i++ {
+		b = append(b, bs[i]...)
+	}
+	return b
+}

@@ -59,3 +59,18 @@ func TestDumpBytes(t *testing.T) {
 		DumpBytes(b)
 	})
 }
+
+func TestMergeBytes(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
+		a := []byte{1, 2}
+		b := []byte{3, 4, 5}
+
+		c := MergeBytes(a, b)
+		require.Equal(t, []byte{1, 2, 3, 4, 5}, c)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		b := MergeBytes()
+		require.Zero(t, b)
+	})
+}
