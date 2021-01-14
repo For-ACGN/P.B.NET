@@ -48,8 +48,8 @@ read:
 	hash.Write([]byte{byte(n)})
 	hashData := hash.Sum(nil)
 	r := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec
-	selected := make([]byte, 8)
-	for i := 0; i < 8; i++ {
+	selected := make([]byte, convert.Int64Size)
+	for i := 0; i < convert.Int64Size; i++ {
 		selected[i] = hashData[r.Intn(sha256.Size)]
 	}
 	seed := convert.BEBytesToInt64(selected)

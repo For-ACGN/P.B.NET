@@ -143,7 +143,8 @@ func NewGenerator(size int, now func() time.Time) *Generator {
 	for i := 0; i < 16; i++ {
 		hash.Write(g.rand.Bytes(16))
 	}
-	g.id = convert.BEBytesToUint32(hash.Sum(nil)[:4])
+	id := hash.Sum(nil)[:convert.Uint32Size]
+	g.id = convert.BEBytesToUint32(id)
 	// initialize guid cache pool
 	g.cachePool.New = func() interface{} {
 		return new(GUID)
