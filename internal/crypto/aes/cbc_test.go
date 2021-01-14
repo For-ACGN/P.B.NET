@@ -18,12 +18,14 @@ func TestCBC(t *testing.T) {
 }
 
 func testCBC(t *testing.T, key []byte) {
-	testdata := generateBytes()
-
 	t.Run("without iv", func(t *testing.T) {
+		testdata := testGenerateBytes()
+		testdataCp := append([]byte{}, testdata...)
+
 		cipherData, err := CBCEncrypt(testdata, key)
 		require.NoError(t, err)
-		require.Equal(t, generateBytes(), testdata)
+
+		require.Equal(t, testdataCp, testdata)
 		require.NotEqual(t, testdata, cipherData)
 
 		plainData, err := CBCDecrypt(cipherData, key)
@@ -32,12 +34,15 @@ func testCBC(t *testing.T, key []byte) {
 	})
 
 	t.Run("with iv", func(t *testing.T) {
+		testdata := testGenerateBytes()
+		testdataCp := append([]byte{}, testdata...)
 		iv, err := GenerateIV()
 		require.NoError(t, err)
 
 		cipherData, err := CBCEncryptWithIV(testdata, key, iv)
 		require.NoError(t, err)
-		require.Equal(t, generateBytes(), testdata)
+
+		require.Equal(t, testdataCp, testdata)
 		require.NotEqual(t, testdata, cipherData)
 
 		plainData, err := CBCDecryptWithIV(cipherData, key, iv)

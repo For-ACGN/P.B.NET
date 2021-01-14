@@ -26,7 +26,7 @@ var tests = [...]*struct {
 	{"CTR", NewCTR},
 }
 
-func generateBytes() []byte {
+func testGenerateBytes() []byte {
 	return random.Bytes(512 + random.Int(1024))
 }
 
@@ -56,7 +56,7 @@ func testAES(t *testing.T, key []byte) {
 
 			t.Run("without iv", func(t *testing.T) {
 				for i := 0; i < 10; i++ {
-					testdata := generateBytes()
+					testdata := testGenerateBytes()
 					testdataCp := append([]byte{}, testdata...)
 
 					cipherData, err := aes.Encrypt(testdata)
@@ -67,7 +67,7 @@ func testAES(t *testing.T, key []byte) {
 				}
 
 				for i := 0; i < 20; i++ {
-					testdata := generateBytes()
+					testdata := testGenerateBytes()
 
 					cipherData, err := aes.Encrypt(testdata)
 					require.NoError(t, err)
@@ -84,11 +84,10 @@ func testAES(t *testing.T, key []byte) {
 
 			t.Run("with iv", func(t *testing.T) {
 				for i := 0; i < 10; i++ {
+					testdata := testGenerateBytes()
+					testdataCp := append([]byte{}, testdata...)
 					iv, err := GenerateIV()
 					require.NoError(t, err)
-
-					testdata := generateBytes()
-					testdataCp := append([]byte{}, testdata...)
 
 					cipherData, err := aes.EncryptWithIV(testdata, iv)
 					require.NoError(t, err)
@@ -98,10 +97,9 @@ func testAES(t *testing.T, key []byte) {
 				}
 
 				for i := 0; i < 20; i++ {
+					testdata := testGenerateBytes()
 					iv, err := GenerateIV()
 					require.NoError(t, err)
-
-					testdata := generateBytes()
 
 					cipherData, err := aes.EncryptWithIV(testdata, iv)
 					require.NoError(t, err)
@@ -117,8 +115,8 @@ func testAES(t *testing.T, key []byte) {
 			})
 
 			t.Run("one way", func(t *testing.T) {
-				testdata1 := generateBytes()
-				testdata2 := generateBytes()
+				testdata1 := testGenerateBytes()
+				testdata2 := testGenerateBytes()
 				iv, err := GenerateIV()
 				require.NoError(t, err)
 
@@ -174,7 +172,7 @@ func testAES(t *testing.T, key []byte) {
 }
 
 func TestAES_Parallel(t *testing.T) {
-	testdata := generateBytes()
+	testdata := testGenerateBytes()
 	iv, err := GenerateIV()
 	require.NoError(t, err)
 

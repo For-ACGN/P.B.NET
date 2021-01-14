@@ -7,8 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"project/internal/convert"
 	"project/internal/crypto/rand"
 	"project/internal/patch/monkey"
+	"project/internal/random"
 )
 
 func TestCTR(t *testing.T) {
@@ -18,12 +20,14 @@ func TestCTR(t *testing.T) {
 }
 
 func testCTR(t *testing.T, key []byte) {
-	testdata := generateBytes()
-
 	t.Run("without iv", func(t *testing.T) {
+		testdata := testGenerateBytes()
+		testdataCp := append([]byte{}, testdata...)
+
 		cipherData, err := CTREncrypt(testdata, key)
 		require.NoError(t, err)
-		require.Equal(t, generateBytes(), testdata)
+
+		require.Equal(t, testdataCp, testdata)
 		require.NotEqual(t, testdata, cipherData)
 
 		plainData, err := CTRDecrypt(cipherData, key)
@@ -32,12 +36,15 @@ func testCTR(t *testing.T, key []byte) {
 	})
 
 	t.Run("with iv", func(t *testing.T) {
+		testdata := testGenerateBytes()
+		testdataCp := append([]byte{}, testdata...)
 		iv, err := GenerateIV()
 		require.NoError(t, err)
 
 		cipherData, err := CTREncryptWithIV(testdata, key, iv)
 		require.NoError(t, err)
-		require.Equal(t, generateBytes(), testdata)
+
+		require.Equal(t, testdataCp, testdata)
 		require.NotEqual(t, testdata, cipherData)
 
 		plainData, err := CTRDecryptWithIV(cipherData, key, iv)
@@ -142,6 +149,35 @@ func TestNewCTR(t *testing.T) {
 	require.Nil(t, ctr)
 	_, ok := err.(aes.KeySizeError)
 	require.True(t, ok)
+}
+
+func TestCTRWithSplitData(t *testing.T) {
+	testdata1 := testGenerateBytes()
+	testdata2 := testGenerateBytes()
+	testdata := convert.MergeBytes(testdata1, testdata2)
+	iv, err := GenerateIV()
+	require.NoError(t, err)
+
+	ctr1, err := NewCTR(test256BitKey)
+	require.NoError(t, err)
+	ctr2, err := NewCTR(test256BitKey)
+	require.NoError(t, err)
+
+	cipherData1, err := ctr1.EncryptWithIV(testdata1, iv)
+	require.NoError(t, err)
+	cipherData2, err := ctr1.EncryptWithIV(testdata2, iv)
+	require.NoError(t, err)
+	cipherData := convert.MergeBytes(cipherData1, cipherData2)
+
+	testdata1Len := len(testdata1)
+	rv := 64 + random.Int(64)
+	plainData1, err := ctr2.DecryptWithIV(cipherData[:testdata1Len-rv], iv)
+	require.NoError(t, err)
+	plainData2, err := ctr2.DecryptWithIV(cipherData[testdata1Len-rv:], iv)
+	require.NoError(t, err)
+	result := convert.MergeBytes(plainData1, plainData2)
+
+	require.Equal(t, testdata, result)
 }
 
 func BenchmarkCTR_Encrypt(b *testing.B) {
