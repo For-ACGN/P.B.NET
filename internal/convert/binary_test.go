@@ -2,6 +2,7 @@ package convert
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,23 @@ func testDeferForPanic(t testing.TB) {
 	r := recover()
 	require.NotNil(t, r)
 	t.Logf("\npanic in %s:\n%s\n", t.Name(), r)
+}
+
+func TestInt8AndUint8(t *testing.T) {
+	if !bytes.Equal(Int8ToBytes(int8(123)), []byte{123}) {
+		t.Fatal("Int8ToBytes() with invalid number")
+	}
+	if !bytes.Equal(Uint8ToBytes(uint8(255)), []byte{255}) {
+		t.Fatal("Uint8ToBytes() with invalid number")
+	}
+	if BytesToInt8([]byte{1, 2}) != 1 {
+		t.Fatal("BytesToInt8() with invalid bytes")
+	}
+	if BytesToUint8([]byte{255, 2, 3, 4}) != 255 {
+		t.Fatal("BytesToUint8() with invalid bytes")
+	}
+	fmt.Println(Int8Size)
+	fmt.Println(Uint8Size)
 }
 
 func TestBENumberToBytes(t *testing.T) {
