@@ -12,14 +12,18 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"project/internal/convert"
+	"project/internal/crypto/aes"
 	"project/internal/random"
 	"project/internal/testsuite"
 )
 
 var tests = [...]*struct {
-	mode      Mode
-	newWriter func(img image.Image) (Writer, error)
-	newReader func(img []byte) (Reader, error)
+	mode         Mode
+	newWriter    func(img image.Image) (Writer, error)
+	newReader    func(img []byte) (Reader, error)
+	newEncrypter func(img image.Image, key []byte) (Encrypter, error)
+	newDecrypter func(img, key []byte) (Decrypter, error)
 }{
 	{
 		PNGWithNRGBA32,
@@ -29,6 +33,12 @@ var tests = [...]*struct {
 		func(img []byte) (Reader, error) {
 			return NewPNGReader(img)
 		},
+		func(img image.Image, key []byte) (Encrypter, error) {
+			return NewPNGEncrypter(img, PNGWithNRGBA32, key)
+		},
+		func(img, key []byte) (Decrypter, error) {
+			return NewPNGDecrypter(img, key)
+		},
 	},
 	{
 		PNGWithNRGBA64,
@@ -37,6 +47,12 @@ var tests = [...]*struct {
 		},
 		func(img []byte) (Reader, error) {
 			return NewPNGReader(img)
+		},
+		func(img image.Image, key []byte) (Encrypter, error) {
+			return NewPNGEncrypter(img, PNGWithNRGBA64, key)
+		},
+		func(img, key []byte) (Decrypter, error) {
+			return NewPNGDecrypter(img, key)
 		},
 	},
 }
@@ -475,5 +491,103 @@ func testWriterAndReader(t *testing.T, name string) {
 }
 
 func TestEncrypterAndDecrypter(t *testing.T) {
+	t.Run("black", func(t *testing.T) { testEncrypterAndDecrypter(t, "black") })
+	t.Run("white", func(t *testing.T) { testEncrypterAndDecrypter(t, "white") })
+}
 
+func testEncrypterAndDecrypter(t *testing.T, name string) {
+	file, err := os.Open(fmt.Sprintf("testdata/%s.png", name))
+	require.NoError(t, err)
+	defer func() { _ = file.Close() }()
+
+	img, err := png.Decode(file)
+	require.NoError(t, err)
+
+	for _, test := range tests {
+		t.Run(test.mode.String(), func(t *testing.T) {
+			t.Run("Common", func(t *testing.T) {
+				key := random.Bytes(aes.Key256Bit)
+				testdata1 := random.Bytes(256 + random.Int(256))
+				testdata2 := random.Bytes(512 + random.Int(512))
+				testdata1Len := len(testdata1)
+				testdata2Len := len(testdata2)
+
+				// write data
+				encrypter, err := test.newEncrypter(img, key)
+				require.NoError(t, err)
+
+				n, err := encrypter.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				// read data
+				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				require.NoError(t, err)
+
+				rv := 64 + random.Int(64)
+				buf1 := make([]byte, testdata1Len-rv)
+				buf2 := make([]byte, testdata2Len+rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+				result := append(buf1, buf2...)
+
+				expected := append(testdata1, testdata2...)
+
+				fmt.Println(testdata1Len)
+				fmt.Println(testdata2Len)
+
+				fmt.Println(len(buf1))
+				fmt.Println(len(buf2))
+
+				convert.DumpBytes(expected)
+				convert.DumpBytes(result)
+
+				return
+
+				require.Equal(t, expected, result)
+
+				// compare image
+				require.Equal(t, img, encrypter.Image())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, decrypter.Image())
+
+				// compare mode
+				require.Equal(t, encrypter.Mode(), decrypter.Mode())
+
+				testsuite.IsDestroyed(t, encrypter)
+				testsuite.IsDestroyed(t, decrypter)
+			})
+
+			t.Run("Common Full", func(t *testing.T) {
+
+			})
+
+			t.Run("Reset", func(t *testing.T) {
+
+			})
+
+			t.Run("SetOffset", func(t *testing.T) {
+
+			})
+
+			t.Run("SetOffset Full", func(t *testing.T) {
+
+			})
+
+			t.Run("SetOffset Invalid", func(t *testing.T) {
+
+			})
+		})
+	}
 }

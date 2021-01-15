@@ -335,8 +335,8 @@ func (pe *PNGEncrypter) reset(offset int64) error {
 	if err != nil {
 		return err
 	}
-	pe.iv = security.NewBytes(iv)
 	pe.hmac.Reset()
+	pe.iv = security.NewBytes(iv)
 	pe.offset = offset
 	pe.written = 0
 	return nil
@@ -466,6 +466,8 @@ func (pd *PNGDecrypter) validate() error {
 	if err != nil {
 		return errors.WithMessage(err, "failed to read cipher data")
 	}
+	pd.hmac.Write(iv)
+	pd.hmac.Write(sizeBuf)
 	if !hmac.Equal(signature, pd.hmac.Sum(nil)) {
 		return errors.New("invalid hmac signature")
 	}
