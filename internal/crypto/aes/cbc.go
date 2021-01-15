@@ -45,39 +45,6 @@ func cbcEncrypt(block cipher.Block, data []byte) ([]byte, error) {
 	return output, nil
 }
 
-// CBCEncryptWithIV is used to encrypt plain data with cipher block chaining
-// mode with PKCS#7. Output is cipher data, not include iv.
-func CBCEncryptWithIV(data, key, iv []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	return cbcEncryptWithIV(block, data, iv)
-}
-
-func cbcEncryptWithIV(block cipher.Block, data, iv []byte) ([]byte, error) {
-	l := len(data)
-	if l == 0 {
-		return nil, ErrEmptyData
-	}
-	if len(iv) != IVSize {
-		return nil, ErrInvalidIVSize
-	}
-	// make buffer
-	paddingSize := BlockSize - l%BlockSize
-	output := make([]byte, l+paddingSize)
-	// copy plain data and padding data
-	copy(output, data)
-	padding := byte(paddingSize)
-	for i := 0; i < paddingSize; i++ {
-		output[l+i] = padding
-	}
-	// encrypt plain data
-	encrypter := cipher.NewCBCEncrypter(block, iv)
-	encrypter.CryptBlocks(output, output)
-	return output, nil
-}
-
 // CBCDecrypt is used to decrypt cipher data with cipher block chaining
 // mode with PKCS#7. Input data is [IV + cipher data].
 func CBCDecrypt(data, key []byte) ([]byte, error) {
@@ -112,6 +79,39 @@ func cbcDecrypt(block cipher.Block, data []byte) ([]byte, error) {
 		return nil, ErrInvalidPaddingSize
 	}
 	return output[:offset], nil
+}
+
+// CBCEncryptWithIV is used to encrypt plain data with cipher block chaining
+// mode with PKCS#7. Output is cipher data, not include iv.
+func CBCEncryptWithIV(data, key, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	return cbcEncryptWithIV(block, data, iv)
+}
+
+func cbcEncryptWithIV(block cipher.Block, data, iv []byte) ([]byte, error) {
+	l := len(data)
+	if l == 0 {
+		return nil, ErrEmptyData
+	}
+	if len(iv) != IVSize {
+		return nil, ErrInvalidIVSize
+	}
+	// make buffer
+	paddingSize := BlockSize - l%BlockSize
+	output := make([]byte, l+paddingSize)
+	// copy plain data and padding data
+	copy(output, data)
+	padding := byte(paddingSize)
+	for i := 0; i < paddingSize; i++ {
+		output[l+i] = padding
+	}
+	// encrypt plain data
+	encrypter := cipher.NewCBCEncrypter(block, iv)
+	encrypter.CryptBlocks(output, output)
+	return output, nil
 }
 
 // CBCDecryptWithIV is used to decrypt cipher data with cipher block chaining
@@ -159,7 +159,7 @@ type CBC struct {
 }
 
 // NewCBC is used create a AES CBC PKCS#5 encrypter.
-func NewCBC(key []byte) (AES, error) {
+func NewCBC(key []byte) (*CBC, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -176,14 +176,14 @@ func (cbc *CBC) Encrypt(data []byte) ([]byte, error) {
 	return cbcEncrypt(cbc.block, data)
 }
 
-// EncryptWithIV used to encrypt data with given iv. Output is cipher data.
-func (cbc *CBC) EncryptWithIV(data, iv []byte) ([]byte, error) {
-	return cbcEncryptWithIV(cbc.block, data, iv)
-}
-
 // Decrypt is used to decrypt cipher data. Input data is [IV + cipher data].
 func (cbc *CBC) Decrypt(data []byte) ([]byte, error) {
 	return cbcDecrypt(cbc.block, data)
+}
+
+// EncryptWithIV used to encrypt data with given iv. Output is cipher data.
+func (cbc *CBC) EncryptWithIV(data, iv []byte) ([]byte, error) {
+	return cbcEncryptWithIV(cbc.block, data, iv)
 }
 
 // DecryptWithIV is used to decrypt cipher data with given iv. Input data is cipher data.

@@ -36,13 +36,13 @@ type AES interface {
 	// and append it in the front of output byte slice.
 	Encrypt(data []byte) ([]byte, error)
 
-	// EncryptWithIV is used to encrypt data with given iv, it
-	// will not append it in the front of output byte slice.
-	EncryptWithIV(data, iv []byte) ([]byte, error)
-
 	// Decrypt is used to decrypt data, it will use iv in
 	// the front of input byte slice.
 	Decrypt(data []byte) ([]byte, error)
+
+	// EncryptWithIV is used to encrypt data with given iv, it
+	// will not append it in the front of output byte slice.
+	EncryptWithIV(data, iv []byte) ([]byte, error)
 
 	// DecryptWithIV is used to decrypt data with given iv, it
 	// will not use iv it in the front of input byte slice.

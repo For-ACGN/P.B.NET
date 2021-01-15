@@ -22,8 +22,8 @@ var tests = [...]*struct {
 	name   string
 	newAES func(key []byte) (AES, error)
 }{
-	{"CBC", NewCBC},
-	{"CTR", NewCTR},
+	{"CBC", func(key []byte) (AES, error) { return NewCBC(key) }},
+	{"CTR", func(key []byte) (AES, error) { return NewCTR(key) }},
 }
 
 func testGenerateBytes() []byte {

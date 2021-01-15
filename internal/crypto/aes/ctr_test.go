@@ -151,33 +151,46 @@ func TestNewCTR(t *testing.T) {
 	require.True(t, ok)
 }
 
-func TestCTRWithSplitData(t *testing.T) {
+func TestCTR_SetStream(t *testing.T) {
+	ctr, err := NewCTR(test256BitKey)
+	require.NoError(t, err)
+	err = ctr.SetStream(nil)
+	require.Equal(t, ErrInvalidIVSize, err)
+}
+
+func TestCTR_XORKeyStream(t *testing.T) {
 	testdata1 := testGenerateBytes()
 	testdata2 := testGenerateBytes()
+	testdata1Len := len(testdata1)
+	testdata2Len := len(testdata2)
 	testdata := convert.MergeBytes(testdata1, testdata2)
 	iv, err := GenerateIV()
 	require.NoError(t, err)
 
 	ctr1, err := NewCTR(test256BitKey)
 	require.NoError(t, err)
+	err = ctr1.SetStream(iv)
+	require.NoError(t, err)
+
 	ctr2, err := NewCTR(test256BitKey)
 	require.NoError(t, err)
+	err = ctr2.SetStream(iv)
+	require.NoError(t, err)
 
-	cipherData1, err := ctr1.EncryptWithIV(testdata1, iv)
-	require.NoError(t, err)
-	cipherData2, err := ctr1.EncryptWithIV(testdata2, iv)
-	require.NoError(t, err)
+	cipherData1 := make([]byte, testdata1Len)
+	ctr1.XORKeyStream(cipherData1, testdata1)
+	cipherData2 := make([]byte, testdata2Len)
+	ctr1.XORKeyStream(cipherData2, testdata2)
 	cipherData := convert.MergeBytes(cipherData1, cipherData2)
 
-	testdata1Len := len(testdata1)
 	rv := 64 + random.Int(64)
-	plainData1, err := ctr2.DecryptWithIV(cipherData[:testdata1Len-rv], iv)
-	require.NoError(t, err)
-	plainData2, err := ctr2.DecryptWithIV(cipherData[testdata1Len-rv:], iv)
-	require.NoError(t, err)
-	result := convert.MergeBytes(plainData1, plainData2)
+	plainData1 := make([]byte, testdata1Len-rv)
+	ctr2.XORKeyStream(plainData1, cipherData[:testdata1Len-rv])
+	plainData2 := make([]byte, testdata2Len+rv)
+	ctr2.XORKeyStream(plainData2, cipherData[testdata1Len-rv:])
+	plainData := convert.MergeBytes(plainData1, plainData2)
 
-	require.Equal(t, testdata, result)
+	require.Equal(t, testdata, plainData)
 }
 
 func BenchmarkCTR_Encrypt(b *testing.B) {
