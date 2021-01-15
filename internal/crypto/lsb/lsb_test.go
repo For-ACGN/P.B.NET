@@ -114,10 +114,10 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				result := append(buf1, buf2...)
 
-				expected := append(testdata1, testdata2...)
-				require.Equal(t, expected, result)
+				expected := convert.MergeBytes(testdata1, testdata2)
+				actual := convert.MergeBytes(buf1, buf2)
+				require.Equal(t, expected, actual)
 
 				// compare image
 				require.Equal(t, img, writer.Image())
@@ -177,9 +177,9 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				result := append(buf1, buf2...)
 
-				require.Equal(t, testdata, result)
+				actual := convert.MergeBytes(buf1, buf2)
+				require.Equal(t, testdata, actual)
 
 				// read zero
 				n, err = reader.Read(nil)
@@ -256,9 +256,9 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				result := append(buf1, buf2...)
 
-				require.Equal(t, testdata2, result)
+				actual := convert.MergeBytes(buf1, buf2)
+				require.Equal(t, testdata2, actual)
 
 				// compare image
 				require.Equal(t, img, writer.Image())
@@ -311,7 +311,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				result1 := append(buf1, buf2...)
+				data1 := convert.MergeBytes(buf1, buf2)
 
 				err = reader.SetOffset(offset)
 				require.NoError(t, err)
@@ -323,12 +323,11 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				result2 := append(buf1, buf2...)
+				data2 := convert.MergeBytes(buf1, buf2)
 
-				expected := append(testdata1, testdata2...)
-				result := append(result1, result2...)
-
-				require.Equal(t, expected, result)
+				expected := convert.MergeBytes(testdata1, testdata2)
+				actual := convert.MergeBytes(data1, data2)
+				require.Equal(t, expected, actual)
 
 				// compare image
 				require.Equal(t, img, writer.Image())
@@ -393,7 +392,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				result1 := append(buf1, buf2...)
+				data1 := convert.MergeBytes(buf1, buf2)
 
 				err = reader.SetOffset(offset)
 				require.NoError(t, err)
@@ -405,14 +404,11 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				result2 := append(buf1, buf2...)
+				data2 := convert.MergeBytes(buf1, buf2)
 
-				// can't use append(testdata1, testdata2...), otherwise it
-				// will change testdata2 and influence "read remaining" sub test
-				expected := append([]byte{}, testdata1...)
-				expected = append(expected, testdata2...)
-				result := append(result1, result2...)
-				require.Equal(t, expected, result)
+				expected := convert.MergeBytes(testdata1, testdata2)
+				actual := convert.MergeBytes(data1, data2)
+				require.Equal(t, expected, actual)
 
 				// read zero
 				n, err = reader.Read(nil)
@@ -538,22 +534,14 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(decrypter, buf2)
 				require.NoError(t, err)
-				result := append(buf1, buf2...)
+				actual := convert.MergeBytes(buf1, buf2)
 
-				expected := append(testdata1, testdata2...)
+				expected := convert.MergeBytes(testdata1, testdata2)
+				require.Equal(t, expected, actual)
 
-				fmt.Println(testdata1Len)
-				fmt.Println(testdata2Len)
-
-				fmt.Println(len(buf1))
-				fmt.Println(len(buf2))
-
-				convert.DumpBytes(expected)
-				convert.DumpBytes(result)
-
-				return
-
-				require.Equal(t, expected, result)
+				// compare key
+				require.Equal(t, key, encrypter.Key())
+				require.Equal(t, key, decrypter.Key())
 
 				// compare image
 				require.Equal(t, img, encrypter.Image())
@@ -561,6 +549,9 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, decrypter.Image())
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
 
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
