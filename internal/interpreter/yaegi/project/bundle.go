@@ -130,54 +130,54 @@ func (W _project_internal_compare_SliceI) Len() int        { return W.WLen() }
 func init_project_internal_convert() {
 	Symbols["project/internal/convert"] = map[string]reflect.Value{
 		// function, constant and variable definitions
-		"AbsInt64":               reflect.ValueOf(convert.AbsInt64),
-		"BEBytesToFloat32":       reflect.ValueOf(convert.BEBytesToFloat32),
-		"BEBytesToFloat64":       reflect.ValueOf(convert.BEBytesToFloat64),
-		"BEBytesToInt16":         reflect.ValueOf(convert.BEBytesToInt16),
-		"BEBytesToInt32":         reflect.ValueOf(convert.BEBytesToInt32),
-		"BEBytesToInt64":         reflect.ValueOf(convert.BEBytesToInt64),
-		"BEBytesToUint16":        reflect.ValueOf(convert.BEBytesToUint16),
-		"BEBytesToUint32":        reflect.ValueOf(convert.BEBytesToUint32),
-		"BEBytesToUint64":        reflect.ValueOf(convert.BEBytesToUint64),
-		"BEFloat32ToBytes":       reflect.ValueOf(convert.BEFloat32ToBytes),
-		"BEFloat64ToBytes":       reflect.ValueOf(convert.BEFloat64ToBytes),
-		"BEInt16ToBytes":         reflect.ValueOf(convert.BEInt16ToBytes),
-		"BEInt32ToBytes":         reflect.ValueOf(convert.BEInt32ToBytes),
-		"BEInt64ToBytes":         reflect.ValueOf(convert.BEInt64ToBytes),
-		"BEUint16ToBytes":        reflect.ValueOf(convert.BEUint16ToBytes),
-		"BEUint32ToBytes":        reflect.ValueOf(convert.BEUint32ToBytes),
-		"BEUint64ToBytes":        reflect.ValueOf(convert.BEUint64ToBytes),
-		"Byte":                   reflect.ValueOf(convert.Byte),
-		"StorageUnit":            reflect.ValueOf(convert.StorageUnit),
-		"DumpBytes":              reflect.ValueOf(convert.DumpBytes),
-		"DumpBytesWithLineSize":  reflect.ValueOf(convert.DumpBytesWithLineSize),
-		"EiB":                    reflect.ValueOf(convert.EiB),
-		"FdumpBytes":             reflect.ValueOf(convert.FdumpBytes),
-		"FdumpBytesWithLineSize": reflect.ValueOf(convert.FdumpBytesWithLineSize),
-		"GiB":                    reflect.ValueOf(convert.GiB),
-		"KiB":                    reflect.ValueOf(convert.KiB),
-		"LEBytesToFloat32":       reflect.ValueOf(convert.LEBytesToFloat32),
-		"LEBytesToFloat64":       reflect.ValueOf(convert.LEBytesToFloat64),
-		"LEBytesToInt16":         reflect.ValueOf(convert.LEBytesToInt16),
-		"LEBytesToInt32":         reflect.ValueOf(convert.LEBytesToInt32),
-		"LEBytesToInt64":         reflect.ValueOf(convert.LEBytesToInt64),
-		"LEBytesToUint16":        reflect.ValueOf(convert.LEBytesToUint16),
-		"LEBytesToUint32":        reflect.ValueOf(convert.LEBytesToUint32),
-		"LEBytesToUint64":        reflect.ValueOf(convert.LEBytesToUint64),
-		"LEFloat32ToBytes":       reflect.ValueOf(convert.LEFloat32ToBytes),
-		"LEFloat64ToBytes":       reflect.ValueOf(convert.LEFloat64ToBytes),
-		"LEInt16ToBytes":         reflect.ValueOf(convert.LEInt16ToBytes),
-		"LEInt32ToBytes":         reflect.ValueOf(convert.LEInt32ToBytes),
-		"LEInt64ToBytes":         reflect.ValueOf(convert.LEInt64ToBytes),
-		"LEUint16ToBytes":        reflect.ValueOf(convert.LEUint16ToBytes),
-		"LEUint32ToBytes":        reflect.ValueOf(convert.LEUint32ToBytes),
-		"LEUint64ToBytes":        reflect.ValueOf(convert.LEUint64ToBytes),
-		"MiB":                    reflect.ValueOf(convert.MiB),
-		"PiB":                    reflect.ValueOf(convert.PiB),
-		"SdumpBytes":             reflect.ValueOf(convert.SdumpBytes),
-		"SdumpBytesWithLineSize": reflect.ValueOf(convert.SdumpBytesWithLineSize),
-		"SplitNumber":            reflect.ValueOf(convert.SplitNumber),
-		"TiB":                    reflect.ValueOf(convert.TiB),
+		"AbsInt64":                 reflect.ValueOf(convert.AbsInt64),
+		"BEBytesToFloat32":         reflect.ValueOf(convert.BEBytesToFloat32),
+		"BEBytesToFloat64":         reflect.ValueOf(convert.BEBytesToFloat64),
+		"BEBytesToInt16":           reflect.ValueOf(convert.BEBytesToInt16),
+		"BEBytesToInt32":           reflect.ValueOf(convert.BEBytesToInt32),
+		"BEBytesToInt64":           reflect.ValueOf(convert.BEBytesToInt64),
+		"BEBytesToUint16":          reflect.ValueOf(convert.BEBytesToUint16),
+		"BEBytesToUint32":          reflect.ValueOf(convert.BEBytesToUint32),
+		"BEBytesToUint64":          reflect.ValueOf(convert.BEBytesToUint64),
+		"BEFloat32ToBytes":         reflect.ValueOf(convert.BEFloat32ToBytes),
+		"BEFloat64ToBytes":         reflect.ValueOf(convert.BEFloat64ToBytes),
+		"BEInt16ToBytes":           reflect.ValueOf(convert.BEInt16ToBytes),
+		"BEInt32ToBytes":           reflect.ValueOf(convert.BEInt32ToBytes),
+		"BEInt64ToBytes":           reflect.ValueOf(convert.BEInt64ToBytes),
+		"BEUint16ToBytes":          reflect.ValueOf(convert.BEUint16ToBytes),
+		"BEUint32ToBytes":          reflect.ValueOf(convert.BEUint32ToBytes),
+		"BEUint64ToBytes":          reflect.ValueOf(convert.BEUint64ToBytes),
+		"Byte":                     reflect.ValueOf(convert.Byte),
+		"StorageUnit":              reflect.ValueOf(convert.StorageUnit),
+		"DumpBytes":                reflect.ValueOf(convert.DumpBytes),
+		"DumpBytesWithLineLength":  reflect.ValueOf(convert.DumpBytesWithLineLength),
+		"EiB":                      reflect.ValueOf(convert.EiB),
+		"FdumpBytes":               reflect.ValueOf(convert.FdumpBytes),
+		"FdumpBytesWithLineLength": reflect.ValueOf(convert.FdumpBytesWithLineLength),
+		"GiB":                      reflect.ValueOf(convert.GiB),
+		"KiB":                      reflect.ValueOf(convert.KiB),
+		"LEBytesToFloat32":         reflect.ValueOf(convert.LEBytesToFloat32),
+		"LEBytesToFloat64":         reflect.ValueOf(convert.LEBytesToFloat64),
+		"LEBytesToInt16":           reflect.ValueOf(convert.LEBytesToInt16),
+		"LEBytesToInt32":           reflect.ValueOf(convert.LEBytesToInt32),
+		"LEBytesToInt64":           reflect.ValueOf(convert.LEBytesToInt64),
+		"LEBytesToUint16":          reflect.ValueOf(convert.LEBytesToUint16),
+		"LEBytesToUint32":          reflect.ValueOf(convert.LEBytesToUint32),
+		"LEBytesToUint64":          reflect.ValueOf(convert.LEBytesToUint64),
+		"LEFloat32ToBytes":         reflect.ValueOf(convert.LEFloat32ToBytes),
+		"LEFloat64ToBytes":         reflect.ValueOf(convert.LEFloat64ToBytes),
+		"LEInt16ToBytes":           reflect.ValueOf(convert.LEInt16ToBytes),
+		"LEInt32ToBytes":           reflect.ValueOf(convert.LEInt32ToBytes),
+		"LEInt64ToBytes":           reflect.ValueOf(convert.LEInt64ToBytes),
+		"LEUint16ToBytes":          reflect.ValueOf(convert.LEUint16ToBytes),
+		"LEUint32ToBytes":          reflect.ValueOf(convert.LEUint32ToBytes),
+		"LEUint64ToBytes":          reflect.ValueOf(convert.LEUint64ToBytes),
+		"MiB":                      reflect.ValueOf(convert.MiB),
+		"PiB":                      reflect.ValueOf(convert.PiB),
+		"SdumpBytes":               reflect.ValueOf(convert.SdumpBytes),
+		"SdumpBytesWithLineLength": reflect.ValueOf(convert.SdumpBytesWithLineLength),
+		"SplitNumber":              reflect.ValueOf(convert.SplitNumber),
+		"TiB":                      reflect.ValueOf(convert.TiB),
 	}
 }
 
@@ -205,9 +205,9 @@ func init_project_internal_crypto_aes() {
 func init_project_internal_crypto_curve25519() {
 	Symbols["project/internal/crypto/curve25519"] = map[string]reflect.Value{
 		// function, constant and variable definitions
-		"ScalarBaseMult": reflect.ValueOf(curve25519.ScalarBaseMult),
-		"ScalarMult":     reflect.ValueOf(curve25519.ScalarMult),
-		"ScalarSize":     reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+		"X25519Base": reflect.ValueOf(curve25519.X25519Base),
+		"X25519":     reflect.ValueOf(curve25519.X25519),
+		"ScalarSize": reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
 	}
 }
 
@@ -236,8 +236,8 @@ func init_project_internal_crypto_ed25519() {
 func init_project_internal_crypto_hmac() {
 	Symbols["project/internal/crypto/hmac"] = map[string]reflect.Value{
 		// function, constant and variable definitions
-		"Equal": reflect.ValueOf(hmac.Equal),
-		"New":   reflect.ValueOf(hmac.New),
+		"Equal":        reflect.ValueOf(hmac.Equal),
+		"NewGenerator": reflect.ValueOf(hmac.New),
 	}
 }
 
@@ -262,8 +262,8 @@ func init_project_internal_crypto_rand() {
 func init_project_internal_guid() {
 	Symbols["project/internal/guid"] = map[string]reflect.Value{
 		// function, constant and variable definitions
-		"New":  reflect.ValueOf(guid.New),
-		"Size": reflect.ValueOf(guid.Size),
+		"NewGenerator": reflect.ValueOf(guid.NewGenerator),
+		"Size":         reflect.ValueOf(guid.Size),
 
 		// type definitions
 		"GUID":      reflect.ValueOf((*guid.GUID)(nil)),
@@ -275,10 +275,10 @@ func init_project_internal_httptool() {
 	Symbols["project/internal/httptool"] = map[string]reflect.Value{
 		// function, constant and variable definitions
 		"BodyLineLength":       reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
-		"FprintRequest":        reflect.ValueOf(httptool.FprintRequest),
+		"FdumpRequest":         reflect.ValueOf(httptool.FdumpRequest),
 		"MaxBodyLength":        reflect.ValueOf(constant.MakeFromLiteral("1024", token.INT, 0)),
 		"NewSubHTTPFileSystem": reflect.ValueOf(httptool.NewSubHTTPFileSystem),
-		"PrintRequest":         reflect.ValueOf(httptool.PrintRequest),
+		"SdumpRequest":         reflect.ValueOf(httptool.SdumpRequest),
 	}
 }
 
@@ -298,7 +298,7 @@ func init_project_internal_logger() {
 		"NewMultiLogger":      reflect.ValueOf(logger.NewMultiLogger),
 		"NewWriterWithPrefix": reflect.ValueOf(logger.NewWriterWithPrefix),
 		"Off":                 reflect.ValueOf(logger.Off),
-		"Parse":               reflect.ValueOf(logger.Parse),
+		"ParseLevel":          reflect.ValueOf(logger.ParseLevel),
 		"Prefix":              reflect.ValueOf(logger.Prefix),
 		"SetErrorLogger":      reflect.ValueOf(logger.SetErrorLogger),
 		"Test":                reflect.ValueOf(&logger.Test).Elem(),
@@ -312,7 +312,7 @@ func init_project_internal_logger() {
 		"Level":       reflect.ValueOf((*logger.Level)(nil)),
 		"LevelSetter": reflect.ValueOf((*logger.LevelSetter)(nil)),
 		"Logger":      reflect.ValueOf((*logger.Logger)(nil)),
-		"MultiLogger": reflect.ValueOf((*logger.MultiLogger)(nil)),
+		"multiLogger": reflect.ValueOf((*logger.multiLogger)(nil)),
 
 		// interface wrapper definitions
 		"_LevelSetter": reflect.ValueOf((*_project_internal_logger_LevelSetter)(nil)),
@@ -431,10 +431,10 @@ func init_project_internal_nettool() {
 		"IPEnabled":             reflect.ValueOf(nettool.IPEnabled),
 		"IPToHost":              reflect.ValueOf(nettool.IPToHost),
 		"IsNetClosingError":     reflect.ValueOf(nettool.IsNetClosingError),
-		"IsTCPNetwork":          reflect.ValueOf(nettool.IsTCPNetwork),
-		"IsUDPNetwork":          reflect.ValueOf(nettool.IsUDPNetwork),
+		"CheckTCPNetwork":       reflect.ValueOf(nettool.CheckTCPNetwork),
+		"CheckUDPNetwork":       reflect.ValueOf(nettool.CheckUDPNetwork),
 		"JoinHostPort":          reflect.ValueOf(nettool.JoinHostPort),
-		"PrintConn":             reflect.ValueOf(nettool.PrintConn),
+		"SprintConn":            reflect.ValueOf(nettool.SprintConn),
 		"SplitHostPort":         reflect.ValueOf(nettool.SplitHostPort),
 		"WaitServerServe":       reflect.ValueOf(nettool.WaitServerServe),
 
@@ -575,7 +575,7 @@ func init_project_internal_task() {
 		"EventPause":    reflect.ValueOf(constant.MakeFromLiteral("\"pause\"", token.STRING, 0)),
 		"EventProcess":  reflect.ValueOf(constant.MakeFromLiteral("\"process\"", token.STRING, 0)),
 		"EventStart":    reflect.ValueOf(constant.MakeFromLiteral("\"start\"", token.STRING, 0)),
-		"New":           reflect.ValueOf(task.New),
+		"NewGenerator":  reflect.ValueOf(task.New),
 		"StateCancel":   reflect.ValueOf(constant.MakeFromLiteral("\"cancel\"", token.STRING, 0)),
 		"StateComplete": reflect.ValueOf(constant.MakeFromLiteral("\"complete\"", token.STRING, 0)),
 		"StatePause":    reflect.ValueOf(constant.MakeFromLiteral("\"pause\"", token.STRING, 0)),
