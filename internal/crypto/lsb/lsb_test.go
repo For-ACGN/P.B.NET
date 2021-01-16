@@ -214,66 +214,6 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, reader)
 			})
 
-			t.Run("Reset", func(t *testing.T) {
-				testdata1 := random.Bytes(256 + random.Int(256))
-				testdata2 := random.Bytes(512 + random.Int(512))
-				testdata1Len := len(testdata1)
-				testdata2Len := len(testdata2)
-
-				// write data
-				writer, err := test.newWriter(img)
-				require.NoError(t, err)
-
-				// reset writer
-				n, err := writer.Write(testdata1)
-				require.NoError(t, err)
-				require.Equal(t, testdata1Len, n)
-
-				writer.Reset()
-
-				n, err = writer.Write(testdata2)
-				require.NoError(t, err)
-				require.Equal(t, testdata2Len, n)
-
-				output := bytes.NewBuffer(make([]byte, 0, 8192))
-				err = writer.Encode(output)
-				require.NoError(t, err)
-
-				// read data
-				reader, err := test.newReader(output.Bytes())
-				require.NoError(t, err)
-
-				// reset reader
-				rv := 64 + random.Int(64)
-				buf1 := make([]byte, testdata2Len-rv)
-				buf2 := make([]byte, rv)
-				_, err = io.ReadFull(reader, buf1)
-				require.NoError(t, err)
-
-				reader.Reset()
-
-				_, err = io.ReadFull(reader, buf1)
-				require.NoError(t, err)
-				_, err = io.ReadFull(reader, buf2)
-				require.NoError(t, err)
-
-				actual := convert.MergeBytes(buf1, buf2)
-				require.Equal(t, testdata2, actual)
-
-				// compare image
-				require.Equal(t, img, writer.Image())
-
-				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
-				require.NoError(t, err)
-				require.Equal(t, outputPNG, reader.Image())
-
-				// compare mode
-				require.Equal(t, writer.Mode(), reader.Mode())
-
-				testsuite.IsDestroyed(t, writer)
-				testsuite.IsDestroyed(t, reader)
-			})
-
 			t.Run("SetOffset", func(t *testing.T) {
 				testdata1 := random.Bytes(256 + random.Int(256))
 				testdata2 := random.Bytes(512 + random.Int(512))
@@ -482,6 +422,66 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, writer)
 				testsuite.IsDestroyed(t, reader)
 			})
+
+			t.Run("Reset", func(t *testing.T) {
+				testdata1 := random.Bytes(256 + random.Int(256))
+				testdata2 := random.Bytes(512 + random.Int(512))
+				testdata1Len := len(testdata1)
+				testdata2Len := len(testdata2)
+
+				// write data
+				writer, err := test.newWriter(img)
+				require.NoError(t, err)
+
+				// reset writer
+				n, err := writer.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+
+				writer.Reset()
+
+				n, err = writer.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = writer.Encode(output)
+				require.NoError(t, err)
+
+				// read data
+				reader, err := test.newReader(output.Bytes())
+				require.NoError(t, err)
+
+				// reset reader
+				rv := 64 + random.Int(64)
+				buf1 := make([]byte, testdata2Len-rv)
+				buf2 := make([]byte, rv)
+				_, err = io.ReadFull(reader, buf1)
+				require.NoError(t, err)
+
+				reader.Reset()
+
+				_, err = io.ReadFull(reader, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(reader, buf2)
+				require.NoError(t, err)
+
+				actual := convert.MergeBytes(buf1, buf2)
+				require.Equal(t, testdata2, actual)
+
+				// compare image
+				require.Equal(t, img, writer.Image())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, reader.Image())
+
+				// compare mode
+				require.Equal(t, writer.Mode(), reader.Mode())
+
+				testsuite.IsDestroyed(t, writer)
+				testsuite.IsDestroyed(t, reader)
+			})
 		})
 	}
 }
@@ -627,7 +627,6 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 
 				n, err = decrypter.Read(buf)
 				require.NoError(t, err)
-				require.Equal(t, testImageFullSize, n)
 				require.Equal(t, testdata, buf[:n])
 
 				// compare key
@@ -651,10 +650,6 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, decrypter)
 			})
 
-			t.Run("Reset", func(t *testing.T) {
-
-			})
-
 			t.Run("SetOffset", func(t *testing.T) {
 
 			})
@@ -664,6 +659,74 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 			})
 
 			t.Run("SetOffset Invalid", func(t *testing.T) {
+
+			})
+
+			t.Run("Reset without key", func(t *testing.T) {
+				key := random.Bytes(aes.Key256Bit)
+
+				testdata1 := random.Bytes(256 + random.Int(256))
+				testdata2 := random.Bytes(512 + random.Int(512))
+				testdata1Len := len(testdata1)
+				testdata2Len := len(testdata2)
+
+				// encrypt data
+				encrypter, err := test.newEncrypter(img, key)
+				require.NoError(t, err)
+
+				// reset encrypter
+				n, err := encrypter.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+
+				err = encrypter.Reset(nil)
+				require.NoError(t, err)
+
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				// decrypt data
+				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				require.NoError(t, err)
+
+				// reset decrypter
+				rv := 64 + random.Int(64)
+				buf1 := make([]byte, testdata2Len-rv)
+				buf2 := make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+
+				err = decrypter.Reset(nil)
+				require.NoError(t, err)
+
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+
+				actual := convert.MergeBytes(buf1, buf2)
+				require.Equal(t, testdata2, actual)
+
+				// compare image
+				require.Equal(t, img, encrypter.Image())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, decrypter.Image())
+
+				// compare mode
+				require.Equal(t, encrypter.Mode(), decrypter.Mode())
+
+				testsuite.IsDestroyed(t, encrypter)
+				testsuite.IsDestroyed(t, decrypter)
+			})
+
+			t.Run("Reset with key", func(t *testing.T) {
 
 			})
 		})
