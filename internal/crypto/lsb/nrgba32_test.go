@@ -12,12 +12,12 @@ import (
 
 func TestWriteNRGBA32(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
+		testdata := random.Bytes(188)
+
 		origin := image.NewNRGBA(image.Rect(0, 0, 160, 90))
 		img := image.NewNRGBA(image.Rect(0, 0, 160, 90))
 		x := 0
 		y := 0
-
-		testdata := random.Bytes(188)
 
 		writeNRGBA32(origin, img, &x, &y, testdata)
 
