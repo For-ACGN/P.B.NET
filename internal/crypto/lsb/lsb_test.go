@@ -712,7 +712,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, testdata2Len, n)
 
-				output = bytes.NewBuffer(make([]byte, 0, 8192))
+				output.Reset()
 				err = encrypter.Encode(output)
 				require.NoError(t, err)
 
@@ -769,7 +769,8 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 			})
 
 			t.Run("Reset with key", func(t *testing.T) {
-				key := random.Bytes(aes.Key256Bit)
+				key1 := random.Bytes(aes.Key256Bit)
+				key2 := random.Bytes(aes.Key256Bit)
 
 				testdata1 := random.Bytes(256 + random.Int(256))
 				testdata2 := random.Bytes(512 + random.Int(512))
@@ -777,49 +778,94 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testdata2Len := len(testdata2)
 
 				// encrypt data
-				encrypter, err := test.newEncrypter(img, random.Bytes(aes.Key256Bit))
+				encrypter, err := test.newEncrypter(img, key1)
 				require.NoError(t, err)
 
-				// reset encrypter
 				n, err := encrypter.Write(testdata1)
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
-
-				err = encrypter.Reset(key)
+				n, err = encrypter.Write(testdata1)
 				require.NoError(t, err)
-
-				n, err = encrypter.Write(testdata2)
-				require.NoError(t, err)
-				require.Equal(t, testdata2Len, n)
+				require.Equal(t, testdata1Len, n)
 
 				output := bytes.NewBuffer(make([]byte, 0, 8192))
 				err = encrypter.Encode(output)
 				require.NoError(t, err)
 
 				// decrypt data
-				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				decrypter, err := test.newDecrypter(output.Bytes(), key1)
 				require.NoError(t, err)
 
-				// reset decrypter
 				rv := 64 + random.Int(64)
-				buf1 := make([]byte, testdata2Len-rv)
+				buf1 := make([]byte, testdata1Len*2-rv)
 				buf2 := make([]byte, rv)
-				_, err = io.ReadFull(decrypter, buf1)
-				require.NoError(t, err)
-
-				err = decrypter.Reset(key)
-				require.NoError(t, err)
-
 				_, err = io.ReadFull(decrypter, buf1)
 				require.NoError(t, err)
 				_, err = io.ReadFull(decrypter, buf2)
 				require.NoError(t, err)
 
+				expected := convert.MergeBytes(testdata1, testdata1)
 				actual := convert.MergeBytes(buf1, buf2)
-				require.Equal(t, testdata2, actual)
+				require.Equal(t, expected, actual)
+
+				require.Equal(t, key1, encrypter.Key())
+				require.Equal(t, key1, decrypter.Key())
+
+				// reset encrypter
+				err = encrypter.Reset(key2)
+				require.NoError(t, err)
+
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				output.Reset()
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				decrypter, err = test.newDecrypter(output.Bytes(), key2)
+				require.NoError(t, err)
+
+				rv = 64 + random.Int(64)
+				buf1 = make([]byte, testdata2Len*2-rv)
+				buf2 = make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+
+				expected = convert.MergeBytes(testdata2, testdata2)
+				actual = convert.MergeBytes(buf1, buf2)
+				require.Equal(t, expected, actual)
+
+				// reset decrypter
+				err = decrypter.Reset(key2)
+				require.NoError(t, err)
+
+				rv = 64 + random.Int(64)
+				buf1 = make([]byte, testdata2Len*2-rv)
+				buf2 = make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+
+				expected = convert.MergeBytes(testdata2, testdata2)
+				actual = convert.MergeBytes(buf1, buf2)
+				require.Equal(t, expected, actual)
+
+				// compare key
+				require.Equal(t, key2, encrypter.Key())
+				require.Equal(t, key2, decrypter.Key())
 
 				// compare image
 				require.Equal(t, img, encrypter.Image())
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
 
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)

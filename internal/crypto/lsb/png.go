@@ -52,8 +52,8 @@ func (pc *pngCommon) SetOffset(v int64) error {
 		return ErrInvalidOffset
 	}
 	pc.current = v
-	height := pc.origin.Bounds().Dy()
 	vv := int(v)
+	height := pc.origin.Bounds().Dy()
 	*pc.x = vv / height
 	*pc.y = vv % height
 	return nil
