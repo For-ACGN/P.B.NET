@@ -248,7 +248,7 @@ func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) 
 		capacity: capacity,
 		hmac:     hmac.New(sha256.New, key),
 	}
-	err = pe.Reset(key)
+	err = pe.reset(key, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -281,9 +281,9 @@ func (pe *PNGEncrypter) Write(b []byte) (int, error) {
 // Encode is used to encode under image to writer.
 func (pe *PNGEncrypter) Encode(w io.Writer) error {
 	size := convert.BEInt64ToBytes(pe.written)
-	// calculate signature
 	iv := pe.iv.Get()
 	defer pe.iv.Put(iv)
+	// calculate signature
 	pe.hmac.Write(iv)
 	pe.hmac.Write(size)
 	signature := pe.hmac.Sum(nil)
@@ -301,32 +301,33 @@ func (pe *PNGEncrypter) Encode(w io.Writer) error {
 			return err
 		}
 	}
-	err = pe.writer.Encode(w)
-	if err != nil {
-		return err
-	}
-	return pe.reset(0)
+	return pe.writer.Encode(w)
 }
 
 // SetOffset is used to set data start area.
 func (pe *PNGEncrypter) SetOffset(v int64) error {
-	return pe.reset(v)
+	return pe.setOffset(v)
 }
 
 // Reset is used to reset png encrypter.
 func (pe *PNGEncrypter) Reset(key []byte) error {
+	pe.writer.Reset()
+	return pe.reset(key, 0)
+}
+
+func (pe *PNGEncrypter) reset(key []byte, offset int64) error {
 	if key != nil {
 		ctr, err := aes.NewCTR(key)
 		if err != nil {
 			return err
 		}
 		pe.ctr = ctr
+		pe.hmac = hmac.New(sha256.New, key)
 	}
-	pe.writer.Reset()
-	return pe.reset(0)
+	return pe.setOffset(offset)
 }
 
-func (pe *PNGEncrypter) reset(offset int64) error {
+func (pe *PNGEncrypter) setOffset(offset int64) error {
 	err := pe.writer.SetOffset(offset + pngReverseSize)
 	if err != nil {
 		return err
@@ -495,6 +496,7 @@ func (pd *PNGDecrypter) Reset(key []byte) error {
 			return err
 		}
 		pd.ctr = ctr
+		pd.hmac = hmac.New(sha256.New, key)
 	}
 	return pd.reset(0)
 }
