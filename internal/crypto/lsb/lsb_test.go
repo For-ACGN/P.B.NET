@@ -508,7 +508,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testdata1Len := len(testdata1)
 				testdata2Len := len(testdata2)
 
-				// write data
+				// encrypt data
 				encrypter, err := test.newEncrypter(img, key)
 				require.NoError(t, err)
 
@@ -523,7 +523,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				err = encrypter.Encode(output)
 				require.NoError(t, err)
 
-				// read data
+				// decrypt data
 				decrypter, err := test.newDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
@@ -534,10 +534,10 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(decrypter, buf2)
 				require.NoError(t, err)
-				actual := convert.MergeBytes(buf1, buf2)
+				plainData := convert.MergeBytes(buf1, buf2)
 
 				expected := convert.MergeBytes(testdata1, testdata2)
-				require.Equal(t, expected, actual)
+				require.Equal(t, expected, plainData)
 
 				// compare key
 				require.Equal(t, key, encrypter.Key())
@@ -561,7 +561,94 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 			})
 
 			t.Run("Common Full", func(t *testing.T) {
+				key := random.Bytes(aes.Key256Bit)
 
+				// encrypt data
+				encrypter, err := test.newEncrypter(img, key)
+				require.NoError(t, err)
+
+				testdata := random.Bytes(int(encrypter.Cap()))
+				rv := 128 + random.Int(128)
+				testdata1 := testdata[:rv]
+				testdata2 := testdata[rv:]
+				testdata1Len := len(testdata1)
+				testdata2Len := len(testdata2)
+
+				n, err := encrypter.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				// write zero
+				n, err = encrypter.Write(nil)
+				require.NoError(t, err)
+				require.Equal(t, 0, n)
+
+				// already full
+				n, err = encrypter.Write(testdata1)
+				require.Equal(t, ErrNoEnoughCapacity, err)
+				require.Equal(t, 0, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				// decrypt data
+				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				require.NoError(t, err)
+
+				rv = 32 + random.Int(32)
+				buf1 := make([]byte, testdata1Len-rv)
+				buf2 := make([]byte, testdata2Len+rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+				plainData := convert.MergeBytes(buf1, buf2)
+
+				require.Equal(t, testdata, plainData)
+
+				// read zero
+				n, err = decrypter.Read(nil)
+				require.NoError(t, err)
+				require.Equal(t, 0, n)
+
+				// read EOF
+				buf := make([]byte, testImageFullSize+1)
+				n, err = decrypter.Read(buf)
+				require.Equal(t, io.EOF, err)
+				require.Equal(t, 0, n)
+
+				// read remaining
+				err = decrypter.Reset(nil)
+				require.NoError(t, err)
+
+				n, err = decrypter.Read(buf)
+				require.NoError(t, err)
+				require.Equal(t, testImageFullSize, n)
+				require.Equal(t, testdata, buf[:n])
+
+				// compare key
+				require.Equal(t, key, encrypter.Key())
+				require.Equal(t, key, decrypter.Key())
+
+				// compare image
+				require.Equal(t, img, encrypter.Image())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, decrypter.Image())
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
+
+				// compare mode
+				require.Equal(t, encrypter.Mode(), decrypter.Mode())
+
+				testsuite.IsDestroyed(t, encrypter)
+				testsuite.IsDestroyed(t, decrypter)
 			})
 
 			t.Run("Reset", func(t *testing.T) {
