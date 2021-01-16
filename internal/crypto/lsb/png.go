@@ -322,6 +322,7 @@ func (pe *PNGEncrypter) Reset(key []byte) error {
 		}
 		pe.ctr = ctr
 	}
+	pe.writer.Reset()
 	return pe.reset(0)
 }
 

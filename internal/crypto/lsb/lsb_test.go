@@ -674,12 +674,118 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				encrypter, err := test.newEncrypter(img, key)
 				require.NoError(t, err)
 
+				n, err := encrypter.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+				n, err = encrypter.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				// decrypt data
+				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				require.NoError(t, err)
+
+				rv := 64 + random.Int(64)
+				buf1 := make([]byte, testdata1Len*2-rv)
+				buf2 := make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+
+				expected := convert.MergeBytes(testdata1, testdata1)
+				actual := convert.MergeBytes(buf1, buf2)
+				require.Equal(t, expected, actual)
+
+				// reset encrypter
+				err = encrypter.Reset(nil)
+				require.NoError(t, err)
+
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				output = bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				decrypter, err = test.newDecrypter(output.Bytes(), key)
+				require.NoError(t, err)
+
+				rv = 64 + random.Int(64)
+				buf1 = make([]byte, testdata2Len*2-rv)
+				buf2 = make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+
+				expected = convert.MergeBytes(testdata2, testdata2)
+				actual = convert.MergeBytes(buf1, buf2)
+				require.Equal(t, expected, actual)
+
+				// reset decrypter
+				err = decrypter.Reset(nil)
+				require.NoError(t, err)
+
+				rv = 64 + random.Int(64)
+				buf1 = make([]byte, testdata2Len*2-rv)
+				buf2 = make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+
+				expected = convert.MergeBytes(testdata2, testdata2)
+				actual = convert.MergeBytes(buf1, buf2)
+				require.Equal(t, expected, actual)
+
+				// compare key
+				require.Equal(t, key, encrypter.Key())
+				require.Equal(t, key, decrypter.Key())
+
+				// compare image
+				require.Equal(t, img, encrypter.Image())
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, decrypter.Image())
+
+				// compare mode
+				require.Equal(t, encrypter.Mode(), decrypter.Mode())
+
+				testsuite.IsDestroyed(t, encrypter)
+				testsuite.IsDestroyed(t, decrypter)
+			})
+
+			t.Run("Reset with key", func(t *testing.T) {
+				key := random.Bytes(aes.Key256Bit)
+
+				testdata1 := random.Bytes(256 + random.Int(256))
+				testdata2 := random.Bytes(512 + random.Int(512))
+				testdata1Len := len(testdata1)
+				testdata2Len := len(testdata2)
+
+				// encrypt data
+				encrypter, err := test.newEncrypter(img, random.Bytes(aes.Key256Bit))
+				require.NoError(t, err)
+
 				// reset encrypter
 				n, err := encrypter.Write(testdata1)
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
 
-				err = encrypter.Reset(nil)
+				err = encrypter.Reset(key)
 				require.NoError(t, err)
 
 				n, err = encrypter.Write(testdata2)
@@ -701,7 +807,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				_, err = io.ReadFull(decrypter, buf1)
 				require.NoError(t, err)
 
-				err = decrypter.Reset(nil)
+				err = decrypter.Reset(key)
 				require.NoError(t, err)
 
 				_, err = io.ReadFull(decrypter, buf1)
@@ -724,10 +830,6 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)
-			})
-
-			t.Run("Reset with key", func(t *testing.T) {
-
 			})
 		})
 	}
