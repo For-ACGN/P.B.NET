@@ -36,7 +36,7 @@ func copyNRGBA64(src image.Image) *image.NRGBA64 {
 	return dst
 }
 
-func writeNRGBA64(origin image.Image, img *image.NRGBA64, data []byte, x, y *int) {
+func writeNRGBA64(origin image.Image, img *image.NRGBA64, x, y *int, data []byte) {
 	rect := origin.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()
@@ -102,7 +102,7 @@ func writeNRGBA64(origin image.Image, img *image.NRGBA64, data []byte, x, y *int
 	}
 }
 
-func readNRGBA64(img *image.NRGBA64, b []byte, x, y *int) {
+func readNRGBA64(img *image.NRGBA64, x, y *int, b []byte) {
 	rect := img.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()

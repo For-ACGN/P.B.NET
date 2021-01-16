@@ -279,7 +279,7 @@ func TestDecrypt(t *testing.T) {
 		img := testGeneratePNG(1, 1)
 
 		defer testsuite.DeferForPanic(t)
-		readNRGBA64(img, make([]byte, 1024), &x, &y)
+		readNRGBA64(img, &x, &y, make([]byte, 1024))
 	})
 }
 

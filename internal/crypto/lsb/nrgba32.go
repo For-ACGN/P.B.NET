@@ -36,7 +36,7 @@ func copyNRGBA32(src image.Image) *image.NRGBA {
 	return dst
 }
 
-func writeNRGBA32(origin image.Image, img *image.NRGBA, data []byte, x, y *int) {
+func writeNRGBA32(origin image.Image, img *image.NRGBA, x, y *int, data []byte) {
 	rect := origin.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()
@@ -102,7 +102,7 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, data []byte, x, y *int) 
 	}
 }
 
-func readNRGBA32(img *image.NRGBA, b []byte, x, y *int) {
+func readNRGBA32(img *image.NRGBA, x, y *int, b []byte) {
 	rect := img.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()

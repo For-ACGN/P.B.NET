@@ -115,9 +115,9 @@ func (pw *PNGWriter) Write(b []byte) (int, error) {
 	}
 	switch pw.mode {
 	case PNGWithNRGBA32:
-		writeNRGBA32(pw.origin, pw.nrgba32, b, pw.x, pw.y)
+		writeNRGBA32(pw.origin, pw.nrgba32, pw.x, pw.y, b)
 	case PNGWithNRGBA64:
-		writeNRGBA64(pw.origin, pw.nrgba64, b, pw.x, pw.y)
+		writeNRGBA64(pw.origin, pw.nrgba64, pw.x, pw.y, b)
 	default:
 		panic("lsb: internal error")
 	}
@@ -196,9 +196,9 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 	}
 	switch pr.mode {
 	case PNGWithNRGBA32:
-		readNRGBA32(pr.nrgba32, b, pr.x, pr.y)
+		readNRGBA32(pr.nrgba32, pr.x, pr.y, b)
 	case PNGWithNRGBA64:
-		readNRGBA64(pr.nrgba64, b, pr.x, pr.y)
+		readNRGBA64(pr.nrgba64, pr.x, pr.y, b)
 	default:
 		panic("lsb: internal error")
 	}
@@ -602,7 +602,7 @@ func Encrypt(img image.Image, plainData, key, iv []byte) (*image.NRGBA64, error)
 	x := 0
 	y := 0
 
-	writeNRGBA64(img, newImg, secret, &x, &y)
+	writeNRGBA64(img, newImg, &x, &y, secret)
 
 	return newImg, nil
 }
@@ -635,18 +635,18 @@ func Decrypt(img *image.NRGBA64, key, iv []byte) ([]byte, error) {
 	y := &min.Y
 	// read header
 	header := make([]byte, headerSize)
-	readNRGBA64(img, header, x, y)
+	readNRGBA64(img, x, y, header)
 	cipherDataSize := int(convert.BEBytesToUint32(header))
 	if headerSize+sha256.Size+cipherDataSize > maxSize {
 		return nil, errors.New("invalid size in header")
 	}
 	// read hash
 	rawHash := make([]byte, sha256.Size)
-	readNRGBA64(img, rawHash, x, y)
+	readNRGBA64(img, x, y, rawHash)
 	// read cipher data
 
 	cipherData := make([]byte, cipherDataSize)
-	readNRGBA64(img, cipherData, x, y)
+	readNRGBA64(img, x, y, cipherData)
 	// decrypt
 	plainData, err := aes.CBCDecrypt(cipherData, key)
 	if err != nil {
