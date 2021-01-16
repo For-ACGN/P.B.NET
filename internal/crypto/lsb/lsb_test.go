@@ -251,7 +251,8 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				data1 := convert.MergeBytes(buf1, buf2)
+				data := convert.MergeBytes(buf1, buf2)
+				require.Equal(t, testdata1, data)
 
 				err = reader.SetOffset(offset)
 				require.NoError(t, err)
@@ -263,11 +264,8 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				_, err = io.ReadFull(reader, buf2)
 				require.NoError(t, err)
-				data2 := convert.MergeBytes(buf1, buf2)
-
-				expected := convert.MergeBytes(testdata1, testdata2)
-				actual := convert.MergeBytes(data1, data2)
-				require.Equal(t, expected, actual)
+				data = convert.MergeBytes(buf1, buf2)
+				require.Equal(t, testdata2, data)
 
 				// compare image
 				require.Equal(t, img, writer.Image())
@@ -651,7 +649,84 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 			})
 
 			t.Run("SetOffset", func(t *testing.T) {
+				key := random.Bytes(aes.Key256Bit)
+				testdata1 := random.Bytes(256 + random.Int(256))
+				testdata2 := random.Bytes(512 + random.Int(512))
+				testdata1Len := len(testdata1)
+				testdata2Len := len(testdata2)
+				offset := int64(512 + random.Int(128))
 
+				// encrypt data
+				encrypter, err := test.newEncrypter(img, key)
+				require.NoError(t, err)
+
+				err = encrypter.SetOffset(0)
+				require.NoError(t, err)
+
+				n, err := encrypter.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+
+				err = encrypter.SetOffset(offset)
+				require.NoError(t, err)
+
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				// decrypt data
+				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				require.NoError(t, err)
+
+				err = decrypter.SetOffset(0)
+				require.NoError(t, err)
+
+				rv := 64 + random.Int(64)
+				buf1 := make([]byte, testdata1Len-rv)
+				buf2 := make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+				plainData := convert.MergeBytes(buf1, buf2)
+				require.Equal(t, testdata1, plainData)
+
+				err = decrypter.SetOffset(offset)
+				require.NoError(t, err)
+
+				rv = 64 + random.Int(64)
+				buf1 = make([]byte, testdata2Len-rv)
+				buf2 = make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+				plainData = convert.MergeBytes(buf1, buf2)
+				require.Equal(t, testdata2, plainData)
+
+				// compare key
+				require.Equal(t, key, encrypter.Key())
+				require.Equal(t, key, decrypter.Key())
+
+				// compare image
+				require.Equal(t, img, encrypter.Image())
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, decrypter.Image())
+
+				// compare mode
+				require.Equal(t, encrypter.Mode(), decrypter.Mode())
+
+				testsuite.IsDestroyed(t, encrypter)
+				testsuite.IsDestroyed(t, decrypter)
 			})
 
 			t.Run("SetOffset Full", func(t *testing.T) {
@@ -664,7 +739,6 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 
 			t.Run("Reset without key", func(t *testing.T) {
 				key := random.Bytes(aes.Key256Bit)
-
 				testdata1 := random.Bytes(256 + random.Int(256))
 				testdata2 := random.Bytes(512 + random.Int(512))
 				testdata1Len := len(testdata1)
@@ -771,7 +845,6 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 			t.Run("Reset with key", func(t *testing.T) {
 				key1 := random.Bytes(aes.Key256Bit)
 				key2 := random.Bytes(aes.Key256Bit)
-
 				testdata1 := random.Bytes(256 + random.Int(256))
 				testdata2 := random.Bytes(512 + random.Int(512))
 				testdata1Len := len(testdata1)
