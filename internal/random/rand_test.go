@@ -38,14 +38,14 @@ func TestRand(t *testing.T) {
 	})
 
 	t.Run("Int", func(t *testing.T) {
-		i := Int(10)
+		i := Intn(10)
 		require.True(t, i >= 0 && i < 10)
 		t.Log(i)
 
-		t.Log(Int64())
+		t.Log(Int63())
 		t.Log(Uint64())
 
-		require.True(t, Int(-1) == 0)
+		require.True(t, Intn(-1) == 0)
 	})
 
 	t.Run("panic about rand.New 1", func(t *testing.T) {
@@ -80,7 +80,7 @@ func TestRandEqual(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			r := NewRand()
-			result <- r.Int(1048576)
+			result <- r.Intn(1048576)
 		}()
 	}
 	results := make(map[int]struct{})

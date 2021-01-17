@@ -55,7 +55,7 @@ func (s *Sleeper) calculateTime(fixed, random uint) time.Duration {
 	if fixed+random < 1 {
 		fixed = 1000
 	}
-	random = uint(s.rand.Int(int(random)))
+	random = uint(s.rand.Intn(int(random)))
 	total := time.Duration(fixed+random) * time.Millisecond
 	if total > MaxSleepTime {
 		total = MaxSleepTime
