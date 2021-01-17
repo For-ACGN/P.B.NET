@@ -380,7 +380,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, reader)
 			})
 
-			t.Run("SetOffset Invalid", func(t *testing.T) {
+			t.Run("SetOffset with invalid value", func(t *testing.T) {
 				testdata := random.Bytes(128)
 
 				writer, err := test.newWriter(img)
@@ -835,8 +835,43 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, decrypter)
 			})
 
-			t.Run("SetOffset Invalid", func(t *testing.T) {
+			t.Run("SetOffset with invalid value", func(t *testing.T) {
+				key := random.Bytes(aes.Key256Bit)
+				testdata := random.Bytes(128)
 
+				encrypter, err := test.newEncrypter(img, key)
+				require.NoError(t, err)
+
+				err = encrypter.SetOffset(-1)
+				require.Equal(t, ErrInvalidOffset, err)
+
+				err = encrypter.SetOffset(math.MaxInt64)
+				require.Equal(t, ErrInvalidOffset, err)
+
+				n, err := encrypter.Write(testdata)
+				require.NoError(t, err)
+				require.Equal(t, 128, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				require.NoError(t, err)
+
+				err = decrypter.SetOffset(-1)
+				require.Equal(t, ErrInvalidOffset, err)
+
+				err = decrypter.SetOffset(math.MaxInt64)
+				require.Equal(t, ErrInvalidOffset, err)
+
+				plainData, err := io.ReadAll(decrypter)
+				require.NoError(t, err)
+
+				require.Equal(t, testdata, plainData)
+
+				testsuite.IsDestroyed(t, encrypter)
+				testsuite.IsDestroyed(t, decrypter)
 			})
 
 			t.Run("Reset without key", func(t *testing.T) {
@@ -1048,6 +1083,47 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
+
+				testsuite.IsDestroyed(t, encrypter)
+				testsuite.IsDestroyed(t, decrypter)
+			})
+
+			t.Run("Reset with invalid key", func(t *testing.T) {
+				key1 := random.Bytes(aes.Key256Bit)
+				key2 := random.Bytes(aes.Key256Bit)
+				invalidKey := random.Bytes(4)
+				testdata := random.Bytes(128)
+
+				encrypter, err := test.newEncrypter(img, key1)
+				require.NoError(t, err)
+
+				err = encrypter.Reset(invalidKey)
+				require.Error(t, err)
+
+				err = encrypter.Reset(key2)
+				require.NoError(t, err)
+
+				n, err := encrypter.Write(testdata)
+				require.NoError(t, err)
+				require.Equal(t, 128, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				decrypter, err := test.newDecrypter(output.Bytes(), key1)
+				require.NoError(t, err)
+
+				err = decrypter.Reset(invalidKey)
+				require.Error(t, err)
+
+				err = decrypter.Reset(key2)
+				require.NoError(t, err)
+
+				plainData, err := io.ReadAll(decrypter)
+				require.NoError(t, err)
+
+				require.Equal(t, testdata, plainData)
 
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)

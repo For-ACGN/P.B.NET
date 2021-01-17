@@ -316,6 +316,9 @@ func (pe *PNGEncrypter) writeHeader() error {
 
 // SetOffset is used to set data start area.
 func (pe *PNGEncrypter) SetOffset(v int64) error {
+	if v < 0 {
+		return ErrInvalidOffset
+	}
 	if pe.written > 0 {
 		err := pe.writeHeader()
 		if err != nil {
