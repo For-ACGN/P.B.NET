@@ -19,16 +19,18 @@ type Rand struct {
 	mu   sync.Mutex
 }
 
-// NewRand is used to create a Rand.
+// NewRand is used to create a new Rand.
 func NewRand() *Rand {
 	const (
 		goroutines = 4
 		times      = 128
 	)
+	// start random data sender
 	data := make(chan []byte, 16)
 	for i := 0; i < goroutines; i++ {
 		go sendData(data, times)
 	}
+	// receive random data and calculate hash
 	timer := time.NewTimer(time.Second)
 	defer timer.Stop()
 	hash := sha256.New()
@@ -44,14 +46,17 @@ read:
 			break read
 		}
 	}
+	// write random data from system random reader
 	n, _ := io.CopyN(hash, cr.Reader, 512)
 	hash.Write([]byte{byte(n)})
-	hashData := hash.Sum(nil)
+	digest := hash.Sum(nil)
+	// select 8 bytes from digest
 	r := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec
 	selected := make([]byte, convert.Int64Size)
 	for i := 0; i < convert.Int64Size; i++ {
-		selected[i] = hashData[r.Intn(sha256.Size)]
+		selected[i] = digest[r.Intn(sha256.Size)]
 	}
+	// make seed
 	seed := convert.BEBytesToInt64(selected)
 	return &Rand{rand: rand.New(rand.NewSource(seed))} // #nosec
 }
@@ -203,7 +208,7 @@ func (r *Rand) Float64() float64 {
 
 // NormFloat64 returns a normally distributed float64 in
 // the range -math.MaxFloat64 through +math.MaxFloat64 inclusive,
-// with standard normal distribution (mean = 0, stddev = 1).
+// with standard normal distribution (mean = 0, std dev = 1).
 // To produce a different normal distribution, callers can
 // adjust the output using:
 //
@@ -279,8 +284,14 @@ func Int63n(n int64) int64 {
 }
 
 // Int returns a non-negative pseudo-random int.
+func Int() int {
+	return gRand.Int()
+}
 
 // Int31 returns a non-negative pseudo-random 31-bit integer as an int32.
+func Int31() int32 {
+	return gRand.Int31()
+}
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
 func Int63() int64 {
@@ -288,8 +299,57 @@ func Int63() int64 {
 }
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32.
+func Uint32() uint32 {
+	return gRand.Uint32()
+}
 
 // Uint64 returns a pseudo-random 64-bit value as a uint64.
 func Uint64() uint64 {
 	return gRand.Uint64()
+}
+
+// Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
+func Float32() float32 {
+	return gRand.Float32()
+}
+
+// Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
+func Float64() float64 {
+	return gRand.Float64()
+}
+
+// NormFloat64 returns a normally distributed float64 in
+// the range -math.MaxFloat64 through +math.MaxFloat64 inclusive,
+// with standard normal distribution (mean = 0, std dev = 1).
+// To produce a different normal distribution, callers can
+// adjust the output using:
+//
+//  sample = NormFloat64() * desiredStdDev + desiredMean
+//
+func NormFloat64() float64 {
+	return gRand.NormFloat64()
+}
+
+// ExpFloat64 returns an exponentially distributed float64 in the range
+// (0, +math.MaxFloat64] with an exponential distribution whose rate parameter
+// (lambda) is 1 and whose mean is 1/lambda (1).
+// To produce a distribution with a different rate parameter,
+// callers can adjust the output using:
+//
+//  sample = ExpFloat64() / desiredRateParameter
+//
+func ExpFloat64() float64 {
+	return gRand.ExpFloat64()
+}
+
+// Perm returns, as a slice of n int, a pseudo-random permutation of the integers [0,n).
+func Perm(n int) []int {
+	return gRand.Perm(n)
+}
+
+// Shuffle pseudo-randomizes the order of elements.
+// n is the number of elements. Shuffle panics if n < 0.
+// swap swaps the elements with indexes i and j.
+func Shuffle(n int, swap func(i, j int)) {
+	gRand.Shuffle(n, swap)
 }
