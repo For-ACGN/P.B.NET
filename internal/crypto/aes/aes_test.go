@@ -27,7 +27,7 @@ var tests = [...]*struct {
 }
 
 func testGenerateBytes() []byte {
-	return random.Bytes(512 + random.Int(1024))
+	return random.Bytes(512 + random.Intn(1024))
 }
 
 func TestGenerateIV(t *testing.T) {

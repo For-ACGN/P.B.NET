@@ -167,7 +167,7 @@ func (g *Generator) generateLoop() {
 		}
 	}()
 	for {
-		g.id += uint32(g.rand.Int(1024))
+		g.id += g.rand.Uint32()
 		guid := g.cachePool.Get().(*GUID)
 		copy(guid[:], g.head)
 		copy(guid[12:20], g.rand.Bytes(8))

@@ -183,7 +183,7 @@ func TestCTR_XORKeyStream(t *testing.T) {
 	ctr1.XORKeyStream(cipherData2, testdata2)
 	cipherData := convert.MergeBytes(cipherData1, cipherData2)
 
-	rv := 64 + random.Int(64)
+	rv := 64 + random.Intn(64)
 	plainData1 := make([]byte, testdata1Len-rv)
 	ctr2.XORKeyStream(plainData1, cipherData[:testdata1Len-rv])
 	plainData2 := make([]byte, testdata2Len+rv)

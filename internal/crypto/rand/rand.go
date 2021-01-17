@@ -26,7 +26,7 @@ var (
 func init() {
 	iRand = random.NewRand()
 	cachePool.New = func() interface{} {
-		seed := iRand.Int64() + time.Now().Unix() + time.Now().UnixNano()
+		seed := iRand.Int63() + time.Now().Unix() + time.Now().UnixNano()
 		return rand.New(rand.NewSource(seed)) // #nosec
 	}
 }

@@ -74,7 +74,7 @@ func (eng *English) Generate(opts *Options) (string, error) {
 	// select prefix
 	if !opts.DisablePrefix {
 		// map is include random, but we use random.Rand.
-		times := 10 + eng.rand.Int(10)
+		times := 10 + eng.rand.Intn(10)
 		counter := 0
 		prefixes := loadWordsFromSecurityBytes(eng.prefix)
 
@@ -88,7 +88,7 @@ func (eng *English) Generate(opts *Options) (string, error) {
 	// select stem
 	if !opts.DisableStem {
 		// map is include random, but we use random.Rand.
-		times := 10 + eng.rand.Int(10)
+		times := 10 + eng.rand.Intn(10)
 		counter := 0
 		stems := loadWordsFromSecurityBytes(eng.stem)
 
@@ -102,7 +102,7 @@ func (eng *English) Generate(opts *Options) (string, error) {
 	// select suffix
 	if !opts.DisableSuffix {
 		// map is include random, but we use random.Rand.
-		times := 10 + eng.rand.Int(10)
+		times := 10 + eng.rand.Intn(10)
 		counter := 0
 		suffixes := loadWordsFromSecurityBytes(eng.suffix)
 
