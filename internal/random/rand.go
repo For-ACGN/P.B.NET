@@ -28,7 +28,7 @@ func NewRand() *Rand {
 	// start random data sender
 	data := make(chan []byte, 16)
 	for i := 0; i < goroutines; i++ {
-		go sendData(data, times)
+		go sendData(data, i, times)
 	}
 	// receive random data and calculate hash
 	timer := time.NewTimer(time.Second)
@@ -61,7 +61,7 @@ read:
 	return &Rand{rand: rand.New(rand.NewSource(seed))} // #nosec
 }
 
-func sendData(data chan<- []byte, times int) {
+func sendData(data chan<- []byte, id, times int) {
 	defer func() {
 		if r := recover(); r != nil {
 			xpanic.Log(r, "sendData")
@@ -69,12 +69,15 @@ func sendData(data chan<- []byte, times int) {
 	}()
 	timer := time.NewTimer(time.Second)
 	defer timer.Stop()
-	r := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec
+	seed := int64(id*2048) + time.Now().UnixNano()
+	r := rand.New(rand.NewSource(seed)) // #nosec
 	count := 0
 	for i := 0; i < times; i++ {
 		timer.Reset(time.Second)
 		select {
-		case data <- []byte{byte(r.Intn(256) + i)}:
+		case data <- []byte{byte(r.Intn(256) + i*16)}:
+		case data <- []byte{byte(r.Intn(256) + i*32)}:
+		case data <- []byte{byte(r.Intn(256) + i*64)}:
 		case <-timer.C:
 			return
 		}

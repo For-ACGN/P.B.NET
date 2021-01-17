@@ -18,36 +18,7 @@ func testDeferForPanic(t testing.TB) {
 	t.Logf("\npanic in %s:\n%s\n", t.Name(), r)
 }
 
-func TestRand(t *testing.T) {
-	t.Run("Bytes", func(t *testing.T) {
-		bytes := Bytes(10)
-		require.Len(t, bytes, 10)
-		t.Log(bytes)
-
-		bytes = Bytes(-1)
-		require.Len(t, bytes, 0)
-	})
-
-	t.Run("String", func(t *testing.T) {
-		str := String(10)
-		require.Len(t, str, 10)
-		t.Log(str)
-
-		str = String(-1)
-		require.Len(t, str, 0)
-	})
-
-	t.Run("Int", func(t *testing.T) {
-		i := Intn(10)
-		require.True(t, i >= 0 && i < 10)
-		t.Log(i)
-
-		t.Log(Int63())
-		t.Log(Uint64())
-
-		require.True(t, Intn(-1) == 0)
-	})
-
+func TestNewRand(t *testing.T) {
 	t.Run("panic about rand.New 1", func(t *testing.T) {
 		patch := func(rand.Source) *rand.Rand {
 			panic(monkey.Panic)
@@ -74,7 +45,82 @@ func TestRand(t *testing.T) {
 	})
 }
 
-func TestRandEqual(t *testing.T) {
+func TestRand_Bytes(t *testing.T) {
+	bytes := Bytes(10)
+	t.Log(bytes)
+	require.Len(t, bytes, 10)
+
+	bytes = Bytes(-1)
+	require.Len(t, bytes, 0)
+}
+
+func TestRand_String(t *testing.T) {
+	str := String(4096)
+	require.Len(t, str, 4096)
+
+	str = String(-1)
+	require.Len(t, str, 0)
+}
+
+func TestRand_Intn(t *testing.T) {
+	i := Intn(10)
+	t.Log(i)
+	require.True(t, i >= 0 && i < 10)
+
+	require.True(t, Intn(-1) == 0)
+}
+
+func TestRand_Int31n(t *testing.T) {
+	i := Int31n(10)
+	t.Log(i)
+	require.True(t, i >= 0 && i < 10)
+
+	require.True(t, Int31n(-1) == 0)
+}
+
+func TestRand_Int63n(t *testing.T) {
+	i := Int63n(10)
+	t.Log(i)
+	require.True(t, i >= 0 && i < 10)
+
+	require.True(t, Int63n(-1) == 0)
+}
+
+func TestRand_Number(t *testing.T) {
+	t.Log(Int())
+	t.Log(Int31())
+	t.Log(Int63())
+
+	t.Log(Uint32())
+	t.Log(Uint64())
+
+	t.Log(Float32())
+	t.Log(Float64())
+
+	t.Log(NormFloat64())
+	t.Log(ExpFloat64())
+}
+
+func TestRand_Perm(t *testing.T) {
+	n := Perm(16)
+	for i := 0; i < len(n); i++ {
+		require.Less(t, n[i], 16)
+	}
+
+	require.Zero(t, Perm(0))
+}
+
+func TestRand_Shuffle(t *testing.T) {
+	Shuffle(16, func(i, j int) {
+		t.Log(i, j)
+		require.Less(t, i, 16)
+		require.Less(t, j, 16)
+	})
+
+	Shuffle(0, nil)
+}
+
+func TestRand_Equal(t *testing.T) {
 	const n = 64
 	result := make(chan int, n)
 	for i := 0; i < n; i++ {
@@ -96,6 +142,7 @@ func TestRandEqual(t *testing.T) {
 
 func BenchmarkNewRand(b *testing.B) {
 	b.ReportAllocs()
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		NewRand()
