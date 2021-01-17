@@ -32,7 +32,7 @@ func NewBogo(number int, timeout time.Duration) *Bogo {
 		number:  number,
 		timeout: timeout,
 		results: make(map[string]bool),
-		key:     rand.String(32 + rand.Int(32)),
+		key:     rand.String(32 + rand.Intn(32)),
 	}
 	b.ctx, b.cancel = context.WithTimeout(context.Background(), b.timeout)
 	return &b
@@ -45,13 +45,13 @@ func (bogo *Bogo) Wait() {
 	// generate random number
 	num := make([]int, bogo.number)
 	for i := 0; i < bogo.number; i++ {
-		num[i] = rand.Int(100000)
+		num[i] = rand.Intn(100000)
 	}
 	// confuse result map
 	// max = 256 * 64 = 16 KB
-	c := 128 + rand.Int(128)
+	c := 128 + rand.Intn(128)
 	for i := 0; i < c; i++ {
-		result := rand.String(32 + rand.Int(32))
+		result := rand.String(32 + rand.Intn(32))
 		bogo.results[result] = true
 	}
 swap:
@@ -64,7 +64,7 @@ swap:
 		}
 		// swap
 		for i := 0; i < bogo.number; i++ {
-			j := rand.Int(bogo.number)
+			j := rand.Intn(bogo.number)
 			num[i], num[j] = num[j], num[i]
 		}
 		// check is sorted

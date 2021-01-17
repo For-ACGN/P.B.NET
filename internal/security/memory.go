@@ -39,7 +39,7 @@ func (m *Memory) Padding() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := 0; i < 16; i++ {
-		data := m.rand.Bytes(8 + m.rand.Int(256))
+		data := m.rand.Bytes(8 + m.rand.Intn(256))
 		m.padding[m.rand.String(8)] = data
 	}
 }

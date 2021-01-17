@@ -18,10 +18,10 @@ func schedule(ctx context.Context, ch chan []byte) {
 		}
 	}()
 	rand := random.NewRand()
-	n := 100 + rand.Int(100)
+	n := 100 + rand.Intn(100)
 	for i := 0; i < n; i++ {
 		buf := bytes.Buffer{}
-		buf.Write(random.Bytes(16 + rand.Int(1024)))
+		buf.Write(random.Bytes(16 + rand.Intn(1024)))
 		select {
 		case ch <- buf.Bytes():
 		case <-ctx.Done():
@@ -39,23 +39,23 @@ func SwitchThread() {
 	rand := random.NewRand()
 	// must > n * (n in schedule)
 	bc := make(chan []byte, 5120)
-	n := 8 + rand.Int(8)
+	n := 8 + rand.Intn(8)
 	for i := 0; i < n; i++ {
 		go schedule(ctx, bc)
 	}
-	timer := time.NewTimer(25 * time.Millisecond)
+	timer := time.NewTimer(250 * time.Millisecond)
 	defer timer.Stop()
 read:
 	for {
-		timer.Reset(25 * time.Millisecond)
+		timer.Reset(250 * time.Millisecond)
 		select {
 		case b := <-bc:
-			b[0] = byte(rand.Int64())
+			b[0] = byte(rand.Int63())
 		case <-timer.C:
 			break read
 		}
 	}
-	time.Sleep(time.Millisecond * time.Duration(5+rand.Int(50)))
+	random.SleepMillisecond(5, 50)
 }
 
 // SwitchThreadAsync like SwitchThread, but will not wait goroutine run finish.
@@ -63,7 +63,7 @@ func SwitchThreadAsync() <-chan struct{} {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	// must > n * (n in schedule)
 	bc := make(chan []byte, 5120)
-	n := 8 + random.NewRand().Int(8)
+	n := 8 + random.NewRand().Intn(8)
 	wg := sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
