@@ -3,6 +3,7 @@ package random
 import (
 	"crypto/sha256"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -138,7 +139,46 @@ func TestRand_Equal(t *testing.T) {
 	}
 }
 
-// performance: BenchmarkNew-6    4148    304633 ns/op    35511 B/op
+func TestRand_Parallel(t *testing.T) {
+	r := NewRand()
+	wg := sync.WaitGroup{}
+	for _, fn := range []func(){
+		func() { t.Log(r.Bytes(16)) },
+		func() { t.Log(r.String(16)) },
+		func() { t.Log(r.Intn(16)) },
+		func() { t.Log(r.Int31n(16)) },
+		func() { t.Log(r.Int63n(16)) },
+		func() { t.Log(r.Int()) },
+		func() { t.Log(r.Int31()) },
+		func() { t.Log(r.Int63()) },
+		func() { t.Log(r.Uint32()) },
+		func() { t.Log(r.Uint64()) },
+		func() { t.Log(r.Float32()) },
+		func() { t.Log(r.Float64()) },
+		func() { t.Log(r.NormFloat64()) },
+		func() { t.Log(r.ExpFloat64()) },
+		func() {
+			n := r.Perm(16)
+			for i := 0; i < len(n); i++ {
+				require.Less(t, n[i], 16)
+			}
+		},
+		func() {
+			r.Shuffle(16, func(i, j int) {
+				t.Log(i, j)
+				require.Less(t, i, 16)
+				require.Less(t, j, 16)
+			})
+		},
+	} {
+		wg.Add(1)
+		go func(fn func()) {
+			defer wg.Done()
+			fn()
+		}(fn)
+	}
+	wg.Wait()
+}
 
 func BenchmarkNewRand(b *testing.B) {
 	b.ReportAllocs()

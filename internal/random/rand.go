@@ -19,29 +19,27 @@ type Rand struct {
 	mu   sync.Mutex
 }
 
-// NewRand is used to create a new Rand.
+// NewRand is used to create a new Rand, this function is slow(7000/s).
 func NewRand() *Rand {
 	const (
 		goroutines = 4
-		times      = 128
+		times      = 64
 	)
 	// start random data sender
-	data := make(chan []byte, 16)
+	data := make(chan []byte, 256)
 	for i := 0; i < goroutines; i++ {
 		go sendData(data, i, times)
 	}
 	// receive random data and calculate hash
+	hash := sha256.New()
 	timer := time.NewTimer(time.Second)
 	defer timer.Stop()
-	hash := sha256.New()
 read:
 	for i := 0; i < goroutines*times; i++ {
 		timer.Reset(time.Second)
 		select {
 		case d := <-data:
-			if d != nil {
-				hash.Write(d)
-			}
+			hash.Write(d)
 		case <-timer.C:
 			break read
 		}
@@ -74,10 +72,9 @@ func sendData(data chan<- []byte, id, times int) {
 	count := 0
 	for i := 0; i < times; i++ {
 		timer.Reset(time.Second)
+		d := []byte{byte(r.Intn(256) + i*16)}
 		select {
-		case data <- []byte{byte(r.Intn(256) + i*16)}:
-		case data <- []byte{byte(r.Intn(256) + i*32)}:
-		case data <- []byte{byte(r.Intn(256) + i*64)}:
+		case data <- d:
 		case <-timer.C:
 			return
 		}
