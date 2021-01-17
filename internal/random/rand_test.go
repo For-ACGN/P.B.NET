@@ -20,7 +20,7 @@ func testDeferForPanic(t testing.TB) {
 }
 
 func TestNewRand(t *testing.T) {
-	t.Run("panic about rand.New 1", func(t *testing.T) {
+	t.Run("read timer.C timeout", func(t *testing.T) {
 		patch := func(rand.Source) *rand.Rand {
 			panic(monkey.Panic)
 		}
@@ -31,9 +31,7 @@ func TestNewRand(t *testing.T) {
 		NewRand()
 	})
 
-	t.Run("panic about rand.New 2", func(t *testing.T) {
-		defer time.Sleep(2 * time.Second)
-
+	t.Run("send data timeout", func(t *testing.T) {
 		hash := sha256.New()
 		patch := func(interface{}, []byte) (int, error) {
 			panic(monkey.Panic)
@@ -41,6 +39,7 @@ func TestNewRand(t *testing.T) {
 		pg := monkey.PatchInstanceMethod(hash, "Write", patch)
 		defer pg.Unpatch()
 
+		defer time.Sleep(3 * time.Second)
 		defer testDeferForPanic(t)
 		NewRand()
 	})

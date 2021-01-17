@@ -26,7 +26,7 @@ func NewRand() *Rand {
 		times      = 64
 	)
 	// start random data sender
-	data := make(chan []byte, 256)
+	data := make(chan []byte, 128)
 	for i := 0; i < goroutines; i++ {
 		go sendData(data, i, times)
 	}
