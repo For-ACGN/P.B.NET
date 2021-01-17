@@ -285,8 +285,8 @@ func TestDecrypt(t *testing.T) {
 
 func TestFuzz(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		width := 30 + random.Int(300)
-		height := 10 + random.Int(100)
+		width := 30 + random.Intn(300)
+		height := 10 + random.Intn(100)
 		size := CalculateStorageSize(image.Rect(0, 0, width, height))
 
 		pic := testGeneratePNGBytes(t, width, height)
@@ -297,7 +297,7 @@ func TestFuzz(t *testing.T) {
 		for _, size := range [...]int{
 			size,
 			size - 1,
-			size - random.Int(100),
+			size - random.Intn(100),
 		} {
 			plainData := random.Bytes(size)
 
