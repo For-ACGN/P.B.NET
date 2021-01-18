@@ -21,7 +21,8 @@ var (
 
 // supported lsb modes.
 const (
-	InvalidMode Mode = iota
+	Invalid Mode = iota
+	Mock
 	PNGWithNRGBA32
 	PNGWithNRGBA64
 )
@@ -31,6 +32,8 @@ type Mode uint32
 
 func (m Mode) String() string {
 	switch m {
+	case Mock:
+		return "mock"
 	case PNGWithNRGBA32:
 		return "PNG-NRGBA32"
 	case PNGWithNRGBA64:

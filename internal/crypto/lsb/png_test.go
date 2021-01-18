@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"project/internal/crypto/aes"
 	"project/internal/testsuite"
 )
 
@@ -37,7 +38,7 @@ func TestPNGWriterWithInvalidMode(t *testing.T) {
 	img := testGeneratePNG(160, 90)
 	writer, err := NewPNGWriter(img, PNGWithNRGBA32)
 	require.NoError(t, err)
-	writer.mode = InvalidMode
+	writer.mode = Invalid
 
 	t.Run("Write", func(t *testing.T) {
 		defer testsuite.DeferForPanic(t)
@@ -83,7 +84,7 @@ func TestPNGReaderWithInvalidMode(t *testing.T) {
 	img := testGeneratePNGBytes(t, 160, 90)
 	reader, err := NewPNGReader(img)
 	require.NoError(t, err)
-	reader.mode = InvalidMode
+	reader.mode = Invalid
 
 	t.Run("Read", func(t *testing.T) {
 		defer testsuite.DeferForPanic(t)
@@ -123,13 +124,37 @@ func TestNewPNGEncrypter(t *testing.T) {
 }
 
 func TestPNGEncrypter_Write(t *testing.T) {
+	img := testGeneratePNG(160, 90)
+	Key := make([]byte, aes.Key256Bit)
 
+	encrypter, err := NewPNGEncrypter(img, PNGWithNRGBA32, Key)
+	require.NoError(t, err)
+	encrypter.writer = new(mockWriter)
+
+	_, err = encrypter.Write([]byte{0})
+	require.Equal(t, mockError, err)
 }
 
 func TestPNGEncrypter_Encode(t *testing.T) {
+	img := testGeneratePNG(160, 90)
+	Key := make([]byte, aes.Key256Bit)
 
+	encrypter, err := NewPNGEncrypter(img, PNGWithNRGBA32, Key)
+	require.NoError(t, err)
+
+	_, err = encrypter.Write([]byte{0})
+	require.NoError(t, err)
+
+	encrypter.writer = new(mockWriter)
+
+	err = encrypter.Encode(nil)
+	require.Equal(t, mockError, err)
 }
 
 func TestPNGEncrypter_SetOffset(t *testing.T) {
+
+}
+
+func TestPNGEncrypter_writeHeader(t *testing.T) {
 
 }

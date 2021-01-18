@@ -2,6 +2,7 @@ package lsb
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -58,15 +59,16 @@ var tests = [...]*struct {
 	},
 }
 
-// test png image is 160*90
-const testImageFullSize = 160 * 90
-
 func TestMode_String(t *testing.T) {
 	for _, test := range tests {
 		fmt.Println(test.mode)
 	}
+	fmt.Println(Mock)
 	fmt.Println(Mode(1234578))
 }
+
+// test png image is 160*90
+const testImageFullSize = 160 * 90
 
 func TestWriterAndReader(t *testing.T) {
 	t.Run("black", func(t *testing.T) { testWriterAndReader(t, "black") })
@@ -1310,4 +1312,63 @@ func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 			}
 		})
 	}
+}
+
+var mockError = errors.New("mock error")
+
+type mockWriter struct {
+	setOffsetError bool
+}
+
+func (mockWriter) Write([]byte) (int, error) {
+	return 0, mockError
+}
+
+func (mockWriter) Encode(io.Writer) error {
+	return mockError
+}
+
+func (mw *mockWriter) SetOffset(int64) error {
+	if mw.setOffsetError {
+		return mockError
+	}
+	return nil
+}
+
+func (mockWriter) Reset() {}
+
+func (mockWriter) Image() image.Image {
+	return nil
+}
+
+func (mockWriter) Cap() int64 {
+	return 0
+}
+
+func (mockWriter) Mode() Mode {
+	return Mock
+}
+
+type mockReader struct{}
+
+func (mockReader) Read([]byte) (int, error) {
+	return 0, mockError
+}
+
+func (mockReader) SetOffset(int64) error {
+	return mockError
+}
+
+func (mockReader) Reset() {}
+
+func (mockReader) Image() image.Image {
+	return nil
+}
+
+func (mockReader) Cap() int64 {
+	return 0
+}
+
+func (mockReader) Mode() Mode {
+	return Mock
 }
