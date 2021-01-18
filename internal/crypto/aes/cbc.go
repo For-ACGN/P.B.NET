@@ -152,6 +152,8 @@ func cbcDecryptWithIV(block cipher.Block, data, iv []byte) ([]byte, error) {
 	return output[:offset], nil
 }
 
+var _ AES = new(CBC)
+
 // CBC is the AES encrypter with cipher block chaining mode.
 type CBC struct {
 	key   *security.Bytes

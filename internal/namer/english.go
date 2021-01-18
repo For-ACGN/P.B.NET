@@ -11,6 +11,8 @@ import (
 	"project/internal/security"
 )
 
+var _ Namer = new(English)
+
 // English is a english word generator, it implement Namer interface.
 type English struct {
 	rand *random.Rand

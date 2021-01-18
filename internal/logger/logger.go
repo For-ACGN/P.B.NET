@@ -190,6 +190,8 @@ func (discard) SetLevel(Level) error { return nil }
 
 func (discard) GetLevel() Level { return Off }
 
+var _ Logger = new(multiLogger)
+
 // multiLogger is used to print log to multi io.Writer.
 type multiLogger struct {
 	writer io.Writer

@@ -96,6 +96,8 @@ func ctrXORKeyWithIV(block cipher.Block, data, iv []byte) ([]byte, error) {
 	return output, nil
 }
 
+var _ AES = new(CTR)
+
 // CTR is the AES encrypter with counter mode.
 type CTR struct {
 	key    *security.Bytes
