@@ -3,13 +3,10 @@ package lsb
 import (
 	"bytes"
 	"crypto/sha256"
-	"crypto/subtle"
-	"fmt"
 	"hash"
 	"image"
 	"image/png"
 	"io"
-	"math"
 
 	"github.com/pkg/errors"
 
@@ -81,13 +78,15 @@ func (pc *pngCommon) Mode() Mode {
 	return pc.mode
 }
 
+var _ Writer = new(PNGWriter)
+
 // PNGWriter implemented lsb Writer interface.
 type PNGWriter struct {
 	*pngCommon
 }
 
 // NewPNGWriter is used to create a png lsb writer.
-func NewPNGWriter(img image.Image, mode Mode) (Writer, error) {
+func NewPNGWriter(img image.Image, mode Mode) (*PNGWriter, error) {
 	pw := PNGWriter{
 		newPNGCommon(img),
 	}
@@ -150,13 +149,15 @@ func (pw *PNGWriter) Reset() {
 	}
 }
 
+var _ Reader = new(PNGReader)
+
 // PNGReader implemented lsb Reader interface.
 type PNGReader struct {
 	*pngCommon
 }
 
 // NewPNGReader is used to create a png lsb reader.
-func NewPNGReader(img []byte) (Reader, error) {
+func NewPNGReader(img []byte) (*PNGReader, error) {
 	p, err := png.Decode(bytes.NewReader(img))
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -219,6 +220,8 @@ const (
 	pngReverseSize = pngDataLenSize + sha256.Size + aes.IVSize
 )
 
+var _ Encrypter = new(PNGEncrypter)
+
 // PNGEncrypter is used to encrypt data and write it to a png image.
 type PNGEncrypter struct {
 	writer   Writer
@@ -233,7 +236,7 @@ type PNGEncrypter struct {
 }
 
 // NewPNGEncrypter is used to create a new png encrypter.
-func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (Encrypter, error) {
+func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (*PNGEncrypter, error) {
 	writer, err := NewPNGWriter(img, mode)
 	if err != nil {
 		return nil, err
@@ -386,6 +389,8 @@ func (pe *PNGEncrypter) Mode() Mode {
 	return pe.writer.Mode()
 }
 
+var _ Decrypter = new(PNGDecrypter)
+
 // PNGDecrypter is used to read data from a png image and decrypt it.
 type PNGDecrypter struct {
 	reader   Reader
@@ -400,7 +405,7 @@ type PNGDecrypter struct {
 }
 
 // NewPNGDecrypter is used to create a new png decrypter.
-func NewPNGDecrypter(img, key []byte) (Decrypter, error) {
+func NewPNGDecrypter(img, key []byte) (*PNGDecrypter, error) {
 	reader, err := NewPNGReader(img)
 	if err != nil {
 		return nil, err
@@ -550,134 +555,4 @@ func (pd *PNGDecrypter) Cap() int64 {
 // Mode is used to get the decrypter mode.
 func (pd *PNGDecrypter) Mode() Mode {
 	return pd.reader.Mode()
-}
-
-// size is uint32
-const headerSize = 4
-
-// CalculateStorageSize is used to calculate the maximum data that can encrypted.
-func CalculateStorageSize(rect image.Rectangle) int {
-	width := rect.Dx()
-	height := rect.Dy()
-	size := width * height
-	// sha256.Size-1,  "1" is reserved pixel, see encodeNRGBA64()
-	block := (size-headerSize-sha256.Size-1)/aes.BlockSize - 1 // "1" is for aes padding
-	// actual data that can store
-	max := block*aes.BlockSize + (aes.BlockSize - 1)
-	if max < 0 {
-		max = 0
-	}
-	return max
-}
-
-// EncryptToPNG is used to load PNG image and encrypt data to it.
-func EncryptToPNG(pic, plainData, key, iv []byte) ([]byte, error) {
-	img, err := png.Decode(bytes.NewReader(pic))
-	if err != nil {
-		return nil, err
-	}
-	newImg, err := Encrypt(img, plainData, key, iv)
-	if err != nil {
-		return nil, err
-	}
-	buf := bytes.NewBuffer(make([]byte, 0, len(pic)))
-	encoder := png.Encoder{
-		CompressionLevel: png.BestCompression,
-	}
-	err = encoder.Encode(buf, newImg)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// Encrypt is used to encrypt data by aes + hash and save it to a PNG image.
-func Encrypt(img image.Image, plainData, key, iv []byte) (*image.NRGBA64, error) {
-	// basic information
-	rect := img.Bounds()
-	storageSize := CalculateStorageSize(rect)
-	size := len(plainData)
-	if size > storageSize {
-		const format = "this image can only store %s data, plain data size is %d"
-		str := convert.StorageUnit(uint64(storageSize))
-		return nil, fmt.Errorf(format, str, size)
-	}
-	if size > math.MaxInt32-1 { // because aes block size
-		return nil, errors.New("plain data size is bigger than 4GB")
-	}
-	// encrypt data
-	cipherData, err := aes.CBCEncrypt(plainData, key)
-	if err != nil {
-		return nil, err
-	}
-	defer security.CoverBytes(cipherData)
-	h := sha256.Sum256(plainData)
-	hash := h[:]
-	defer security.CoverBytes(hash)
-	// set secret
-	secret := make([]byte, 0, headerSize+sha256.Size+len(cipherData))
-	secret = append(secret, convert.BEUint32ToBytes(uint32(len(cipherData)))...)
-	secret = append(secret, hash...)
-	secret = append(secret, cipherData...)
-
-	newImg := image.NewNRGBA64(rect)
-	x := 0
-	y := 0
-
-	writeNRGBA64(img, newImg, &x, &y, secret)
-
-	return newImg, nil
-}
-
-// DecryptFromPNG is used to load a PNG image and  decrypt data from it.
-func DecryptFromPNG(pic, key, iv []byte) ([]byte, error) {
-	p, err := png.Decode(bytes.NewReader(pic))
-	if err != nil {
-		return nil, err
-	}
-	img, ok := p.(*image.NRGBA64)
-	if !ok {
-		return nil, errors.New("png is not NRGBA64")
-	}
-	return Decrypt(img, key, iv)
-}
-
-// Decrypt is used to decrypt cipher data from a PNG image.
-func Decrypt(img *image.NRGBA64, key, iv []byte) ([]byte, error) {
-	// basic information
-	rect := img.Bounds()
-	width, height := rect.Dx(), rect.Dy()
-	maxSize := width * height // one pixel one byte
-	if maxSize < headerSize+sha256.Size+aes.BlockSize {
-		return nil, errors.New("invalid image size")
-	}
-	min := rect.Min
-	// store global position
-	x := &min.X
-	y := &min.Y
-	// read header
-	header := make([]byte, headerSize)
-	readNRGBA64(img, x, y, header)
-	cipherDataSize := int(convert.BEBytesToUint32(header))
-	if headerSize+sha256.Size+cipherDataSize > maxSize {
-		return nil, errors.New("invalid size in header")
-	}
-	// read hash
-	rawHash := make([]byte, sha256.Size)
-	readNRGBA64(img, x, y, rawHash)
-	// read cipher data
-
-	cipherData := make([]byte, cipherDataSize)
-	readNRGBA64(img, x, y, cipherData)
-	// decrypt
-	plainData, err := aes.CBCDecrypt(cipherData, key)
-	if err != nil {
-		return nil, err
-	}
-	// check hash
-	hash := sha256.Sum256(plainData)
-	if subtle.ConstantTimeCompare(hash[:], rawHash) != 1 {
-		return nil, errors.New("invalid hash about the plain data")
-	}
-	return plainData, nil
 }

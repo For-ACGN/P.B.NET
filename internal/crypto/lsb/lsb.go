@@ -21,7 +21,7 @@ var (
 
 // supported lsb modes.
 const (
-	_ Mode = iota
+	InvalidMode Mode = iota
 	PNGWithNRGBA32
 	PNGWithNRGBA64
 )
