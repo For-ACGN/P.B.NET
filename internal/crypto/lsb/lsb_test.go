@@ -1227,3 +1227,87 @@ func TestWriterAndReader_Fuzz(t *testing.T) {
 		})
 	}
 }
+
+func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.mode.String(), func(t *testing.T) {
+			for i := 0; i < 10; i++ {
+				img := testGenerateImage()
+				key := random.Bytes(aes.Key256Bit)
+				testdata1 := random.Bytes(256 + random.Intn(256))
+				testdata2 := random.Bytes(512 + random.Intn(512))
+				testdata1Len := len(testdata1)
+				testdata2Len := len(testdata2)
+				offset := 1024 + random.Int63n(512)
+
+				// encrypt data
+				encrypter, err := test.newEncrypter(img, key)
+				require.NoError(t, err)
+
+				n, err := encrypter.Write(testdata1)
+				require.NoError(t, err)
+				require.Equal(t, testdata1Len, n)
+
+				err = encrypter.SetOffset(offset)
+				require.NoError(t, err)
+
+				n, err = encrypter.Write(testdata2)
+				require.NoError(t, err)
+				require.Equal(t, testdata2Len, n)
+
+				output := bytes.NewBuffer(make([]byte, 0, 8192))
+				err = encrypter.Encode(output)
+				require.NoError(t, err)
+
+				// decrypt data
+				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				require.NoError(t, err)
+
+				rv := 64 + random.Intn(64)
+				buf1 := make([]byte, testdata1Len-rv)
+				buf2 := make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+				data := convert.MergeBytes(buf1, buf2)
+
+				require.Equal(t, testdata1, data)
+
+				err = decrypter.SetOffset(offset)
+				require.NoError(t, err)
+
+				rv = 64 + random.Intn(64)
+				buf1 = make([]byte, testdata2Len-rv)
+				buf2 = make([]byte, rv)
+				_, err = io.ReadFull(decrypter, buf1)
+				require.NoError(t, err)
+				_, err = io.ReadFull(decrypter, buf2)
+				require.NoError(t, err)
+				data = convert.MergeBytes(buf1, buf2)
+
+				require.Equal(t, testdata2, data)
+
+				// compare key
+				require.Equal(t, key, encrypter.Key())
+				require.Equal(t, key, decrypter.Key())
+
+				// compare image
+				require.Equal(t, img, encrypter.Image())
+
+				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
+				require.NoError(t, err)
+				require.Equal(t, outputPNG, decrypter.Image())
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
+
+				// compare mode
+				require.Equal(t, encrypter.Mode(), decrypter.Mode())
+
+				testsuite.IsDestroyed(t, encrypter)
+				testsuite.IsDestroyed(t, decrypter)
+			}
+		})
+	}
+}
