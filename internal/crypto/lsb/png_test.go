@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"project/internal/crypto/aes"
+	"project/internal/patch/monkey"
 	"project/internal/testsuite"
 )
 
@@ -152,7 +153,47 @@ func TestPNGEncrypter_Encode(t *testing.T) {
 }
 
 func TestPNGEncrypter_SetOffset(t *testing.T) {
+	img := testGeneratePNG(160, 90)
+	Key := make([]byte, aes.Key256Bit)
+	encrypter, err := NewPNGEncrypter(img, PNGWithNRGBA32, Key)
+	require.NoError(t, err)
 
+	t.Run("failed to write header", func(t *testing.T) {
+		writer := encrypter.writer
+		defer func() { encrypter.writer = writer }()
+
+		_, err = encrypter.Write([]byte{0})
+		require.NoError(t, err)
+
+		encrypter.writer = new(mockWriter)
+
+		err = encrypter.SetOffset(12)
+		require.Equal(t, mockError, err)
+	})
+
+	t.Run("failed to generate IV", func(t *testing.T) {
+		patch := func() ([]byte, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.Patch(aes.GenerateIV, patch)
+		defer pg.Unpatch()
+
+		err = encrypter.SetOffset(12)
+		monkey.IsMonkeyError(t, err)
+	})
+
+	t.Run("failed to set stream", func(t *testing.T) {
+		patch := func() ([]byte, error) {
+			return make([]byte, 8), nil
+		}
+		pg := monkey.Patch(aes.GenerateIV, patch)
+		defer pg.Unpatch()
+
+		err = encrypter.SetOffset(12)
+		require.Equal(t, aes.ErrInvalidIVSize, err)
+	})
+
+	testsuite.IsDestroyed(t, encrypter)
 }
 
 func TestPNGEncrypter_writeHeader(t *testing.T) {

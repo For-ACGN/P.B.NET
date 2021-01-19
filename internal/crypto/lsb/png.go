@@ -85,6 +85,8 @@ type PNGWriter struct {
 	*pngCommon
 }
 
+// TODO confuse alpha channel
+
 // NewPNGWriter is used to create a png lsb writer.
 func NewPNGWriter(img image.Image, mode Mode) (*PNGWriter, error) {
 	pw := PNGWriter{
@@ -294,14 +296,20 @@ func (pe *PNGEncrypter) Encode(w io.Writer) error {
 
 func (pe *PNGEncrypter) writeHeader() error {
 	size := convert.BEInt64ToBytes(pe.written)
+	// get iv
 	iv := pe.iv.Get()
 	defer pe.iv.Put(iv)
+	// encrypt size buffer
+	size, err := pe.ctr.EncryptWithIV(size, iv)
+	if err != nil {
+		panic("lsb: internal error")
+	}
 	// calculate signature
 	pe.hmac.Write(iv)
 	pe.hmac.Write(size)
 	signature := pe.hmac.Sum(nil)
 	// set offset for write header
-	err := pe.writer.SetOffset(pe.offset)
+	err = pe.writer.SetOffset(pe.offset)
 	if err != nil {
 		panic("lsb: internal error")
 	}
@@ -467,10 +475,6 @@ func (pd *PNGDecrypter) validate() error {
 	if err != nil {
 		return errors.WithMessage(err, "failed to read cipher data size")
 	}
-	size := convert.BEBytesToInt64(sizeBuf)
-	if size < 1 {
-		return errors.New("invalid cipher data size")
-	}
 	// read HMAC signature
 	signature := make([]byte, sha256.Size)
 	_, err = io.ReadFull(pd.reader, signature)
@@ -482,6 +486,15 @@ func (pd *PNGDecrypter) validate() error {
 	_, err = io.ReadFull(pd.reader, iv)
 	if err != nil {
 		return errors.WithMessage(err, "failed to read hmac signature")
+	}
+	// decrypt size
+	sizeBufDec, err := pd.ctr.DecryptWithIV(sizeBuf, iv)
+	if err != nil {
+		return errors.WithMessage(err, "failed to decrypt buffer about size")
+	}
+	size := convert.BEBytesToInt64(sizeBufDec)
+	if size < 1 {
+		return errors.New("invalid cipher data size")
 	}
 	// compare signature
 	_, err = io.CopyN(pd.hmac, pd.reader, size)
