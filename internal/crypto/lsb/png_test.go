@@ -131,7 +131,7 @@ func TestPNGEncrypter_Write(t *testing.T) {
 	encrypter.writer = new(mockWriter)
 
 	_, err = encrypter.Write([]byte{0})
-	require.Equal(t, mockError, err)
+	require.Equal(t, errMockError, err)
 }
 
 func TestPNGEncrypter_Encode(t *testing.T) {
@@ -147,7 +147,7 @@ func TestPNGEncrypter_Encode(t *testing.T) {
 	encrypter.writer = new(mockWriter)
 
 	err = encrypter.Encode(nil)
-	require.Equal(t, mockError, err)
+	require.Equal(t, errMockError, err)
 }
 
 func TestPNGEncrypter_SetOffset(t *testing.T) {
@@ -166,7 +166,7 @@ func TestPNGEncrypter_SetOffset(t *testing.T) {
 		encrypter.writer = new(mockWriter)
 
 		err = encrypter.SetOffset(1)
-		require.Equal(t, mockError, err)
+		require.Equal(t, errMockError, err)
 	})
 
 	t.Run("failed to generate IV", func(t *testing.T) {

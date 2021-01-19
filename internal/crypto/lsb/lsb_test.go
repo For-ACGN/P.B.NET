@@ -1314,23 +1314,23 @@ func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 	}
 }
 
-var mockError = errors.New("mock error")
+var errMockError = errors.New("mock error")
 
 type mockWriter struct {
 	setOffsetError bool
 }
 
 func (mockWriter) Write([]byte) (int, error) {
-	return 0, mockError
+	return 0, errMockError
 }
 
 func (mockWriter) Encode(io.Writer) error {
-	return mockError
+	return errMockError
 }
 
 func (mw *mockWriter) SetOffset(int64) error {
 	if mw.setOffsetError {
-		return mockError
+		return errMockError
 	}
 	return nil
 }
@@ -1352,11 +1352,11 @@ func (mockWriter) Mode() Mode {
 type mockReader struct{}
 
 func (mockReader) Read([]byte) (int, error) {
-	return 0, mockError
+	return 0, errMockError
 }
 
 func (mockReader) SetOffset(int64) error {
-	return mockError
+	return errMockError
 }
 
 func (mockReader) Reset() {}
