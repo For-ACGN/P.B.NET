@@ -2,14 +2,18 @@ package lsb
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"image"
 	"image/png"
+	"io"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"project/internal/convert"
 	"project/internal/crypto/aes"
+	"project/internal/crypto/hmac"
 	"project/internal/patch/monkey"
 	"project/internal/security"
 	"project/internal/testsuite"
@@ -264,6 +268,144 @@ func TestPNGDecrypter_Read(t *testing.T) {
 
 		_, err = decrypter.Read(make([]byte, 16))
 		require.Error(t, err)
+	})
+
+	testsuite.IsDestroyed(t, decrypter)
+}
+
+func TestPNGDecrypter_validate(t *testing.T) {
+	img := testGeneratePNGBytes(t, 160, 90)
+	key := make([]byte, aes.Key256Bit)
+	decrypter, err := NewPNGDecrypter(img, key)
+	require.NoError(t, err)
+
+	t.Run("failed to read hmac signature", func(t *testing.T) {
+		var pg *monkey.PatchGuard
+		patch := func(r io.Reader, b []byte) (int, error) {
+			if len(b) == sha256.Size {
+				return 0, monkey.Error
+			}
+			pg.Unpatch()
+			defer pg.Restore()
+			return io.ReadFull(r, b)
+		}
+		pg = monkey.Patch(io.ReadFull, patch)
+		defer pg.Unpatch()
+
+		_, err = decrypter.Read(make([]byte, 16))
+		monkey.IsExistMonkeyError(t, err)
+	})
+
+	t.Run("failed to read iv", func(t *testing.T) {
+		var pg *monkey.PatchGuard
+		patch := func(r io.Reader, b []byte) (int, error) {
+			if len(b) == aes.IVSize {
+				return 0, monkey.Error
+			}
+			pg.Unpatch()
+			defer pg.Restore()
+			return io.ReadFull(r, b)
+		}
+		pg = monkey.Patch(io.ReadFull, patch)
+		defer pg.Unpatch()
+
+		_, err = decrypter.Read(make([]byte, 16))
+		monkey.IsExistMonkeyError(t, err)
+	})
+
+	t.Run("failed to decrypt size", func(t *testing.T) {
+		var ctr *aes.CTR
+		patch := func(interface{}, []byte, []byte) ([]byte, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.PatchInstanceMethod(ctr, "DecryptWithIV", patch)
+		defer pg.Unpatch()
+
+		_, err = decrypter.Read(make([]byte, 16))
+		monkey.IsExistMonkeyError(t, err)
+	})
+
+	t.Run("invalid cipher data size", func(t *testing.T) {
+		patch := func([]byte) int64 {
+			return 0
+		}
+		pg := monkey.Patch(convert.BEBytesToInt64, patch)
+		defer pg.Unpatch()
+
+		_, err = decrypter.Read(make([]byte, 16))
+		require.Error(t, err)
+	})
+
+	t.Run("failed to compare signature", func(t *testing.T) {
+		patch1 := func([]byte) int64 {
+			return 128
+		}
+		pg1 := monkey.Patch(convert.BEBytesToInt64, patch1)
+		defer pg1.Unpatch()
+
+		patch2 := func(io.Writer, io.Reader, int64) (int64, error) {
+			return 0, monkey.Error
+		}
+		pg2 := monkey.Patch(io.CopyN, patch2)
+		defer pg2.Unpatch()
+
+		_, err = decrypter.Read(make([]byte, 16))
+		monkey.IsExistMonkeyError(t, err)
+	})
+
+	t.Run("invalid hmac signature", func(t *testing.T) {
+		patch := func([]byte) int64 {
+			return 128
+		}
+		pg := monkey.Patch(convert.BEBytesToInt64, patch)
+		defer pg.Unpatch()
+
+		_, err = decrypter.Read(make([]byte, 16))
+		require.Error(t, err)
+	})
+
+	t.Run("failed to reset offset", func(t *testing.T) {
+		patch1 := func([]byte) int64 {
+			return 128
+		}
+		pg1 := monkey.Patch(convert.BEBytesToInt64, patch1)
+		defer pg1.Unpatch()
+
+		patch2 := func([]byte, []byte) bool {
+			return true
+		}
+		pg2 := monkey.Patch(hmac.Equal, patch2)
+		defer pg2.Unpatch()
+
+		decrypter.offset = -1024
+		defer func() { decrypter.offset = 0 }()
+
+		_, err = decrypter.Read(make([]byte, 16))
+		require.Error(t, err)
+	})
+
+	t.Run("failed to set stream", func(t *testing.T) {
+		patch1 := func([]byte) int64 {
+			return 128
+		}
+		pg1 := monkey.Patch(convert.BEBytesToInt64, patch1)
+		defer pg1.Unpatch()
+
+		patch2 := func([]byte, []byte) bool {
+			return true
+		}
+		pg2 := monkey.Patch(hmac.Equal, patch2)
+		defer pg2.Unpatch()
+
+		var ctr *aes.CTR
+		patch3 := func(interface{}, []byte) error {
+			return monkey.Error
+		}
+		pg3 := monkey.PatchInstanceMethod(ctr, "SetStream", patch3)
+		defer pg3.Unpatch()
+
+		_, err = decrypter.Read(make([]byte, 16))
+		monkey.IsMonkeyError(t, err)
 	})
 
 	testsuite.IsDestroyed(t, decrypter)

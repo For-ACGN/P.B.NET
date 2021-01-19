@@ -485,7 +485,7 @@ func (pd *PNGDecrypter) validate() error {
 	iv := make([]byte, aes.IVSize)
 	_, err = io.ReadFull(pd.reader, iv)
 	if err != nil {
-		return errors.WithMessage(err, "failed to read hmac signature")
+		return errors.WithMessage(err, "failed to read iv")
 	}
 	// decrypt size
 	sizeBufDec, err := pd.ctr.DecryptWithIV(sizeBuf, iv)
@@ -506,7 +506,7 @@ func (pd *PNGDecrypter) validate() error {
 	if !hmac.Equal(signature, pd.hmac.Sum(nil)) {
 		return errors.New("invalid hmac signature")
 	}
-	// recover offset
+	// reset offset
 	err = pd.reader.SetOffset(pd.offset + pngReverseSize)
 	if err != nil {
 		return errors.WithMessage(err, "failed to reset offset")
