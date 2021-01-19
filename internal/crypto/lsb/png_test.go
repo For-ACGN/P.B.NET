@@ -11,6 +11,7 @@ import (
 
 	"project/internal/crypto/aes"
 	"project/internal/patch/monkey"
+	"project/internal/security"
 	"project/internal/testsuite"
 )
 
@@ -43,21 +44,16 @@ func TestPNGWriterWithInvalidMode(t *testing.T) {
 
 	t.Run("Write", func(t *testing.T) {
 		defer testsuite.DeferForPanic(t)
-
-		_, err = writer.Write([]byte{0})
-		require.Error(t, err)
+		_, _ = writer.Write([]byte{0})
 	})
 
 	t.Run("Encode", func(t *testing.T) {
 		defer testsuite.DeferForPanic(t)
-
-		err = writer.Encode(nil)
-		require.Error(t, err)
+		_ = writer.Encode(nil)
 	})
 
 	t.Run("Reset", func(t *testing.T) {
 		defer testsuite.DeferForPanic(t)
-
 		writer.Reset()
 	})
 
@@ -89,9 +85,7 @@ func TestPNGReaderWithInvalidMode(t *testing.T) {
 
 	t.Run("Read", func(t *testing.T) {
 		defer testsuite.DeferForPanic(t)
-
-		_, err = reader.Read(make([]byte, 1024))
-		require.Error(t, err)
+		_, _ = reader.Read(make([]byte, 1024))
 	})
 
 	testsuite.IsDestroyed(t, reader)
@@ -167,7 +161,7 @@ func TestPNGEncrypter_SetOffset(t *testing.T) {
 
 		encrypter.writer = new(mockWriter)
 
-		err = encrypter.SetOffset(12)
+		err = encrypter.SetOffset(1)
 		require.Equal(t, mockError, err)
 	})
 
@@ -178,7 +172,7 @@ func TestPNGEncrypter_SetOffset(t *testing.T) {
 		pg := monkey.Patch(aes.GenerateIV, patch)
 		defer pg.Unpatch()
 
-		err = encrypter.SetOffset(12)
+		err = encrypter.SetOffset(1)
 		monkey.IsMonkeyError(t, err)
 	})
 
@@ -189,7 +183,7 @@ func TestPNGEncrypter_SetOffset(t *testing.T) {
 		pg := monkey.Patch(aes.GenerateIV, patch)
 		defer pg.Unpatch()
 
-		err = encrypter.SetOffset(12)
+		err = encrypter.SetOffset(1)
 		require.Equal(t, aes.ErrInvalidIVSize, err)
 	})
 
@@ -197,5 +191,80 @@ func TestPNGEncrypter_SetOffset(t *testing.T) {
 }
 
 func TestPNGEncrypter_writeHeader(t *testing.T) {
+	img := testGeneratePNG(160, 90)
+	Key := make([]byte, aes.Key256Bit)
+	encrypter, err := NewPNGEncrypter(img, PNGWithNRGBA32, Key)
+	require.NoError(t, err)
 
+	t.Run("failed to encrypt size buffer", func(t *testing.T) {
+		iv := encrypter.iv
+		defer func() { encrypter.iv = iv }()
+
+		encrypter.iv = security.NewBytes(make([]byte, 4))
+
+		_, err = encrypter.Write([]byte{0})
+		require.NoError(t, err)
+
+		defer testsuite.DeferForPanic(t)
+		_ = encrypter.SetOffset(1)
+	})
+
+	t.Run("failed to set offset", func(t *testing.T) {
+		offset := encrypter.offset
+		defer func() { encrypter.offset = offset }()
+
+		encrypter.offset = -1024
+
+		_, err = encrypter.Write([]byte{0})
+		require.NoError(t, err)
+
+		defer testsuite.DeferForPanic(t)
+		_ = encrypter.SetOffset(1)
+	})
+
+	testsuite.IsDestroyed(t, encrypter)
+}
+
+func TestNewPNGDecrypter(t *testing.T) {
+	t.Run("invalid image", func(t *testing.T) {
+		_, err := NewPNGDecrypter(nil, nil)
+		require.Error(t, err)
+	})
+
+	t.Run("too small image", func(t *testing.T) {
+		img := testGeneratePNGBytes(t, 1, 2)
+
+		_, err := NewPNGDecrypter(img, nil)
+		require.Equal(t, ErrImgTooSmall, err)
+	})
+
+	t.Run("failed to reset", func(t *testing.T) {
+		img := testGeneratePNGBytes(t, 160, 90)
+		invalidKey := make([]byte, 8)
+
+		_, err := NewPNGDecrypter(img, invalidKey)
+		require.Error(t, err)
+	})
+}
+
+func TestPNGDecrypter_Read(t *testing.T) {
+	img := testGeneratePNGBytes(t, 160, 90)
+	key := make([]byte, aes.Key256Bit)
+	decrypter, err := NewPNGDecrypter(img, key)
+	require.NoError(t, err)
+	decrypter.reader = new(mockReader)
+
+	t.Run("failed to validate", func(t *testing.T) {
+		_, err = decrypter.Read(nil)
+		require.Error(t, err)
+	})
+
+	t.Run("failed to read cipher data", func(t *testing.T) {
+		decrypter.size = 128
+
+		_, err = decrypter.Read(make([]byte, 16))
+		require.Error(t, err)
+	})
+
+	testsuite.IsDestroyed(t, decrypter)
 }

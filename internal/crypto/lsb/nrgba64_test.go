@@ -26,13 +26,12 @@ func TestWriteNRGBA64(t *testing.T) {
 	})
 
 	t.Run("panic", func(t *testing.T) {
-		defer testsuite.DeferForPanic(t)
-
 		origin := image.NewNRGBA64(image.Rect(0, 0, 160, 90))
 		img := image.NewNRGBA64(image.Rect(0, 0, 160, 90))
 		x := 161
 		y := 0
 
+		defer testsuite.DeferForPanic(t)
 		writeNRGBA64(origin, img, &x, &y, make([]byte, 4))
 	})
 }
@@ -58,12 +57,11 @@ func TestReadNRGBA64(t *testing.T) {
 	})
 
 	t.Run("panic", func(t *testing.T) {
-		defer testsuite.DeferForPanic(t)
-
 		img := image.NewNRGBA64(image.Rect(0, 0, 160, 90))
 		x := 161
 		y := 0
 
+		defer testsuite.DeferForPanic(t)
 		readNRGBA64(img, &x, &y, make([]byte, 4))
 	})
 }
