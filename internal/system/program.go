@@ -35,8 +35,8 @@ func CheckError(err error) {
 }
 
 // PrintError is used to print error and exit program with code 1.
-func PrintError(err string) {
-	fmt.Println(err)
+func PrintError(err ...interface{}) {
+	fmt.Println(err...)
 	os.Exit(1)
 }
 
