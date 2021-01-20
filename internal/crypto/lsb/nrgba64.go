@@ -3,6 +3,8 @@ package lsb
 import (
 	"image"
 	"image/color"
+
+	"project/internal/random"
 )
 
 // NRGBA64 is uint16 for each pixel, split one byte to 8 bits
@@ -18,18 +20,29 @@ func copyNRGBA64(src image.Image) *image.NRGBA64 {
 	min := rect.Min
 	width := rect.Dx()
 	height := rect.Dy()
+	rand := random.NewRand()
 	dst := image.NewNRGBA64(rect)
-	var (
-		r, g, b, a uint32
-		rgba       color.NRGBA64
-	)
+	var rgba color.NRGBA64
 	for x := min.X; x < width; x++ {
 		for y := min.Y; y < height; y++ {
-			r, g, b, a = src.At(x, y).RGBA()
-			rgba.R = uint16(r)
-			rgba.G = uint16(g)
-			rgba.B = uint16(b)
-			rgba.A = uint16(a)
+			rgba = color.NRGBA64Model.Convert(src.At(x, y)).(color.NRGBA64)
+			// confuse alpha channel
+			switch {
+			case rgba.A <= 256:
+				if rand.Intn(100) > 49 {
+					rgba.A += uint16(rand.Intn(256))
+				}
+			case rgba.A >= 65535-256:
+				if rand.Intn(100) > 49 {
+					rgba.A -= uint16(rand.Intn(256))
+				}
+			default:
+				if rand.Intn(100) > 49 {
+					rgba.A += uint16(rand.Intn(256))
+				} else {
+					rgba.A -= uint16(rand.Intn(256))
+				}
+			}
 			dst.SetNRGBA64(x, y, rgba)
 		}
 	}
@@ -42,11 +55,10 @@ func writeNRGBA64(origin image.Image, img *image.NRGBA64, x, y *int, data []byte
 	height := rect.Dy()
 
 	var (
-		r, g, b, a uint32
-		rgba       color.NRGBA64
-		block      [8]uint8
-		byt        byte
-		bit        byte
+		rgba  color.NRGBA64
+		block [8]uint8
+		byt   byte
+		bit   byte
 	)
 
 	for i := 0; i < len(data); i++ {
@@ -54,13 +66,8 @@ func writeNRGBA64(origin image.Image, img *image.NRGBA64, x, y *int, data []byte
 			panic("lsb: out of bounds")
 		}
 
-		r, g, b, a = origin.At(*x, *y).RGBA()
-		rgba.R = uint16(r)
-		rgba.G = uint16(g)
-		rgba.B = uint16(b)
-		rgba.A = uint16(a)
-
 		// write 8 bit to the last bit about 4(RGBA) * 2(front and end) byte
+		rgba = color.NRGBA64Model.Convert(origin.At(*x, *y)).(color.NRGBA64)
 		block[0] = uint8(rgba.R >> 8) // front 8 bit
 		block[1] = uint8(rgba.R)      // end 8 bit
 		block[2] = uint8(rgba.G >> 8) // front 8 bit

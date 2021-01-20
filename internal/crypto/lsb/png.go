@@ -85,8 +85,6 @@ type PNGWriter struct {
 	*pngCommon
 }
 
-// TODO confuse alpha channel
-
 // NewPNGWriter is used to create a png lsb writer.
 func NewPNGWriter(img image.Image, mode Mode) (*PNGWriter, error) {
 	pw := PNGWriter{

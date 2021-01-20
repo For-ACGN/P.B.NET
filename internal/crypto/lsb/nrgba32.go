@@ -3,6 +3,8 @@ package lsb
 import (
 	"image"
 	"image/color"
+
+	"project/internal/random"
 )
 
 // NRGBA32 is uint8 for each pixel, split one byte to 8 bits
@@ -18,18 +20,29 @@ func copyNRGBA32(src image.Image) *image.NRGBA {
 	min := rect.Min
 	width := rect.Dx()
 	height := rect.Dy()
+	rand := random.NewRand()
 	dst := image.NewNRGBA(rect)
-	var (
-		r, g, b, a uint32
-		rgba       color.NRGBA
-	)
+	var rgba color.NRGBA
 	for x := min.X; x < width; x++ {
 		for y := min.Y; y < height; y++ {
-			r, g, b, a = src.At(x, y).RGBA()
-			rgba.R = uint8(r)
-			rgba.G = uint8(g)
-			rgba.B = uint8(b)
-			rgba.A = uint8(a)
+			rgba = color.NRGBAModel.Convert(src.At(x, y)).(color.NRGBA)
+			// confuse alpha channel
+			switch {
+			case rgba.A <= 1:
+				if rand.Intn(100) > 49 {
+					rgba.A += uint8(rand.Intn(2))
+				}
+			case rgba.A >= 254:
+				if rand.Intn(100) > 49 {
+					rgba.A -= uint8(rand.Intn(2))
+				}
+			default:
+				if rand.Intn(100) > 49 {
+					rgba.A += uint8(rand.Intn(2))
+				} else {
+					rgba.A -= uint8(rand.Intn(2))
+				}
+			}
 			dst.SetNRGBA(x, y, rgba)
 		}
 	}
@@ -42,11 +55,10 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, x, y *int, data []byte) 
 	height := rect.Dy()
 
 	var (
-		r, g, b, a uint32
-		rgba       color.NRGBA
-		block      [8]uint8
-		byt        byte
-		bit        byte
+		rgba  color.NRGBA
+		block [8]uint8
+		byt   byte
+		bit   byte
 	)
 
 	for i := 0; i < len(data); i++ {
@@ -54,13 +66,8 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, x, y *int, data []byte) 
 			panic("lsb: out of bounds")
 		}
 
-		r, g, b, a = origin.At(*x, *y).RGBA()
-		rgba.R = uint8(r)
-		rgba.G = uint8(g)
-		rgba.B = uint8(b)
-		rgba.A = uint8(a)
-
 		// write 8 bit to the last two and last one bit in each color channel
+		rgba = color.NRGBAModel.Convert(origin.At(*x, *y)).(color.NRGBA)
 		block[0] = rgba.R >> 1 // the second to last bit
 		block[1] = rgba.R      // the last one bit
 		block[2] = rgba.G >> 1 // the second to last bit
