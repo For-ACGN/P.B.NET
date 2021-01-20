@@ -63,12 +63,17 @@ func TestMode_String(t *testing.T) {
 	for _, test := range tests {
 		fmt.Println(test.mode)
 	}
-	fmt.Println(Mock)
 	fmt.Println(Mode(1234578))
 }
 
 // test png image is 160*90
 const testImageFullSize = 160 * 90
+
+// TODO add compare image
+
+func testCompareOriginImage(t *testing.T, original, output image.Image) {
+
+}
 
 func TestWriterAndReader(t *testing.T) {
 	t.Run("black", func(t *testing.T) { testWriterAndReader(t, "black") })
@@ -1346,7 +1351,7 @@ func (mockWriter) Cap() int64 {
 }
 
 func (mockWriter) Mode() Mode {
-	return Mock
+	return 12345678
 }
 
 type mockReader struct{}
@@ -1370,5 +1375,5 @@ func (mockReader) Cap() int64 {
 }
 
 func (mockReader) Mode() Mode {
-	return Mock
+	return 12345678
 }

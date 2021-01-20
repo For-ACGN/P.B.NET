@@ -1,10 +1,15 @@
 package lsb
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"image"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
+	"strings"
 )
 
 // errors about Reader, Writer, Encrypter and Decrypter.
@@ -24,7 +29,6 @@ const (
 	Invalid Mode = iota
 	PNGWithNRGBA32
 	PNGWithNRGBA64
-	Mock
 )
 
 // Mode is the lsb mode.
@@ -36,8 +40,6 @@ func (m Mode) String() string {
 		return "PNG-NRGBA32"
 	case PNGWithNRGBA64:
 		return "PNG-NRGBA64"
-	case Mock:
-		return "mock"
 	default:
 		return fmt.Sprintf("unknown mode: %d", m)
 	}
@@ -137,4 +139,34 @@ type Decrypter interface {
 
 	// Mode is used to get the decrypter mode.
 	Mode() Mode
+}
+
+var decoders = map[string]func(io.Reader) (image.Image, error){
+	"png":  png.Decode,
+	"jpeg": jpeg.Decode,
+	"gif":  gif.Decode,
+}
+
+// LoadImage is used to load image from reader.
+func LoadImage(r io.Reader, ext string) (image.Image, error) {
+	decoder, ok := decoders[strings.ToLower(ext)]
+	if ok {
+		return decoder(r)
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	reader := bytes.NewReader(data)
+	for _, decoder := range decoders {
+		_, err = reader.Seek(0, io.SeekStart)
+		if err != nil {
+			panic("lsb: internal error")
+		}
+		img, err := decoder(reader)
+		if err == nil {
+			return img, nil
+		}
+	}
+	return nil, errors.New("unsupported image format")
 }
