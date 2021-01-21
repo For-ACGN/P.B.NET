@@ -6,8 +6,10 @@ import (
 	"crypto/sha256"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"project/internal/crypto/aes"
 	"project/internal/crypto/lsb"
@@ -19,66 +21,103 @@ var (
 	decrypt    bool
 	textMode   bool
 	binaryMode bool
-	pngPath    string
+	lsbMode    lsb.Mode
+	imgPath    string
 	data       string
+	offset     int64
 	password   string
 	output     string
 )
 
-func main() {
+func init() {
+	var mode uint
+
 	flag.CommandLine.SetOutput(os.Stdout)
-	flag.CommandLine.Usage = printHelp
+	flag.CommandLine.Usage = printUsage
 
 	flag.BoolVar(&encrypt, "enc", false, "encrypt data to a png file")
 	flag.BoolVar(&decrypt, "dec", false, "decrypt data from a png file")
 	flag.BoolVar(&textMode, "text", false, "use text mode")
 	flag.BoolVar(&binaryMode, "bin", false, "use binary mode")
-	flag.StringVar(&pngPath, "png", "", "raw or encrypted png file path")
-	flag.StringVar(&data, "data", "", "text message or binary file path")
-	flag.StringVar(&password, "pwd", "lsb", "password")
+	flag.UintVar(&mode, "mode", 0, "set lsb mode (see internal/crypto/lsb/lsb.go)")
+	flag.StringVar(&imgPath, "img", "", "raw or encrypted image file path")
+	flag.StringVar(&data, "data", "", "text message or binary file path for encrypt")
+	flag.Int64Var(&offset, "offset", 0, "set offset for encrypter or decrypter")
+	flag.StringVar(&password, "pwd", "lsb", "password for encrypt or decrypt data")
 	flag.StringVar(&output, "output", "", "output file path")
 	flag.Parse()
 
+	// set default lsb mode
+	lsbMode = lsb.Mode(mode)
+	if lsbMode == 0 {
+		lsbMode = lsb.PNGWithNRGBA32
+	}
+}
+
+func printUsage() {
+	exe, err := system.ExecutableName()
+	system.CheckError(err)
+	const format = `
+usage:
+
+ [encrypt]
+   text mode:   %s -enc -text -img "raw.png" -data "secret" -pwd "pass"
+   binary mode: %s -enc -bin -img "raw.png" -data "secret.txt" -pwd "pass"
+
+ [decrypt]
+   text mode:   %s -dec -text -img "enc.png" -pwd "pass"
+   binary mode: %s -dec -bin -img "enc.png" -pwd "pass"
+
+`
+	fmt.Printf(format[1:], exe, exe, exe, exe)
+	flag.PrintDefaults()
+}
+
+func main() {
 	switch {
 	case encrypt:
 		encryptData()
 	case decrypt:
 		decryptData()
 	default:
-		printHelp()
+		printUsage()
 	}
 }
 
 func encryptData() {
-	// read plain data
-	var plainData []byte
+	// create plain data reader
+	var reader io.Reader
 	switch {
 	case textMode:
-		plainData = []byte(data)
+		reader = strings.NewReader(data)
 	case binaryMode:
-		var err error
-		plainData, err = ioutil.ReadFile(data) // #nosec
+		file, err := os.Open(data) // #nosec
 		system.CheckError(err)
+		defer func() { _ = file.Close() }()
+		reader = file
 	default:
-		fmt.Println("select text or binary mode")
-		return
+		system.PrintError("select text or binary mode")
 	}
-	if len(plainData) == 0 {
-		fmt.Println("empty data")
-		return
+	// read image
+	switch lsbMode {
+	case lsb.PNGWithNRGBA32:
+		file, err := os.Open(imgPath)
+		system.CheckError(err)
+		defer func() { _ = file.Close() }()
+
 	}
-	png := readPNG()
+
 	// compress plain data
-	buf := bytes.NewBuffer(make([]byte, 0, len(plainData)/2))
+	buf := bytes.NewBuffer(make([]byte, 0, len(reader)/2))
 	writer, err := flate.NewWriter(buf, flate.BestCompression)
 	system.CheckError(err)
-	_, err = writer.Write(plainData)
+	_, err = writer.Write(reader)
 	system.CheckError(err)
 	err = writer.Close()
 	system.CheckError(err)
 	// encrypt
 	key, iv := generateAESKeyIV()
-	pngEnc, err := lsb.EncryptToPNG(png, buf.Bytes(), key, iv)
+	pngEnc, err := lsb.EncryptToPNG(img, buf.Bytes(), key, iv)
 	system.CheckError(err)
 	// write file
 	if output == "" {
@@ -117,39 +156,6 @@ func decryptData() {
 		err = system.WriteFile(output, buf.Bytes())
 		system.CheckError(err)
 	}
-}
-
-func printHelp() {
-	exe, err := system.ExecutableName()
-	system.CheckError(err)
-	const format = `usage:
-
- [encrypt]
-   text mode:   %s -enc -text -png "raw.png" -data "secret" -pwd "pass" -output "enc.png"
-   binary mode: %s -enc -bin -png "raw.png" -data "secret.txt" -pwd "pass" -output "enc.png"
-
- [decrypt]
-   text mode:   %s -dec -text -png "enc.png" -pwd "pass"
-   binary mode: %s -dec -bin -png "enc.png" -pwd "pass" -output "secret.txt"
-
-`
-	fmt.Printf(format, exe, exe, exe, exe)
-	flag.PrintDefaults()
-}
-
-func readPNG() []byte {
-	path := pngPath
-	if path == "" {
-		switch {
-		case encrypt:
-			path = "raw.png"
-		case decrypt:
-			path = "enc.png"
-		}
-	}
-	png, err := ioutil.ReadFile(path) // #nosec
-	system.CheckError(err)
-	return png
 }
 
 func generateAESKeyIV() ([]byte, []byte) {
