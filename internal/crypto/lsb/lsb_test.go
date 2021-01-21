@@ -69,10 +69,39 @@ func TestMode_String(t *testing.T) {
 // test png image is 160*90
 const testImageFullSize = 160 * 90
 
-// TODO add compare image
+// testCompareImage is used to compare each pixel for check the gap will not be too big.
+func testCompareImage(t *testing.T, original, output image.Image) {
+	var maxDelta float64
+	switch output.ColorModel() {
+	case color.NRGBAModel:
+		maxDelta = 2048
+	case color.NRGBA64Model:
+		maxDelta = 768
+	default:
+		maxDelta = 2048
+	}
 
-func testCompareOriginImage(t *testing.T, original, output image.Image) {
+	rect := original.Bounds()
+	min := rect.Min
+	width := rect.Dx()
+	height := rect.Dy()
 
+	for x := min.X; x < width; x++ {
+		for y := min.Y; y < height; y++ {
+			r1, g1, b1, a1 := original.At(x, y).RGBA()
+			r2, g2, b2, a2 := output.At(x, y).RGBA()
+
+			rd := math.Abs(float64(r1) - float64(r2))
+			gd := math.Abs(float64(g1) - float64(g2))
+			bd := math.Abs(float64(b1) - float64(b2))
+			ad := math.Abs(float64(a1) - float64(a2))
+
+			require.True(t, rd < maxDelta)
+			require.True(t, gd < maxDelta)
+			require.True(t, bd < maxDelta)
+			require.True(t, ad < maxDelta)
+		}
+	}
 }
 
 func TestWriterAndReader(t *testing.T) {
@@ -133,6 +162,8 @@ func testWriterAndReader(t *testing.T, name string) {
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, reader.Image())
+
+				testCompareImage(t, img, outputPNG)
 
 				// compare mode
 				require.Equal(t, writer.Mode(), reader.Mode())
@@ -215,6 +246,8 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, reader.Image())
 
+				testCompareImage(t, img, outputPNG)
+
 				// compare mode
 				require.Equal(t, writer.Mode(), reader.Mode())
 
@@ -281,6 +314,8 @@ func testWriterAndReader(t *testing.T, name string) {
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, reader.Image())
+
+				testCompareImage(t, img, outputPNG)
 
 				// compare mode
 				require.Equal(t, writer.Mode(), reader.Mode())
@@ -381,6 +416,8 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, reader.Image())
 
+				testCompareImage(t, img, outputPNG)
+
 				// compare mode
 				require.Equal(t, writer.Mode(), reader.Mode())
 
@@ -480,6 +517,8 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, reader.Image())
 
+				testCompareImage(t, img, outputPNG)
+
 				// compare mode
 				require.Equal(t, writer.Mode(), reader.Mode())
 
@@ -553,6 +592,8 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, decrypter.Image())
+
+				testCompareImage(t, img, outputPNG)
 
 				// compare capacity
 				require.Equal(t, encrypter.Cap(), decrypter.Cap())
@@ -644,6 +685,8 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, decrypter.Image())
 
+				testCompareImage(t, img, outputPNG)
+
 				// compare capacity
 				require.Equal(t, encrypter.Cap(), decrypter.Cap())
 
@@ -721,12 +764,14 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare image
 				require.Equal(t, img, encrypter.Image())
 
-				// compare capacity
-				require.Equal(t, encrypter.Cap(), decrypter.Cap())
-
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, decrypter.Image())
+
+				testCompareImage(t, img, outputPNG)
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
 
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
@@ -829,12 +874,14 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare image
 				require.Equal(t, img, encrypter.Image())
 
-				// compare capacity
-				require.Equal(t, encrypter.Cap(), decrypter.Cap())
-
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, decrypter.Image())
+
+				testCompareImage(t, img, outputPNG)
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
 
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
@@ -973,12 +1020,14 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare image
 				require.Equal(t, img, encrypter.Image())
 
-				// compare capacity
-				require.Equal(t, encrypter.Cap(), decrypter.Cap())
-
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, decrypter.Image())
+
+				testCompareImage(t, img, outputPNG)
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
 
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
@@ -1082,12 +1131,14 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare image
 				require.Equal(t, img, encrypter.Image())
 
-				// compare capacity
-				require.Equal(t, encrypter.Cap(), decrypter.Cap())
-
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, decrypter.Image())
+
+				testCompareImage(t, img, outputPNG)
+
+				// compare capacity
+				require.Equal(t, encrypter.Cap(), decrypter.Cap())
 
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
@@ -1225,6 +1276,8 @@ func TestWriterAndReader_Fuzz(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, reader.Image())
 
+				testCompareImage(t, img, outputPNG)
+
 				// compare mode
 				require.Equal(t, writer.Mode(), reader.Mode())
 
@@ -1305,6 +1358,8 @@ func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 				outputPNG, err := png.Decode(bytes.NewReader(output.Bytes()))
 				require.NoError(t, err)
 				require.Equal(t, outputPNG, decrypter.Image())
+
+				testCompareImage(t, img, outputPNG)
 
 				// compare capacity
 				require.Equal(t, encrypter.Cap(), decrypter.Cap())
