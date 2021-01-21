@@ -149,10 +149,12 @@ var decoders = map[string]func(io.Reader) (image.Image, error){
 
 // LoadImage is used to load image from reader.
 func LoadImage(r io.Reader, ext string) (image.Image, error) {
+	// use the decoder with the file name extension
 	decoder, ok := decoders[strings.ToLower(ext)]
 	if ok {
 		return decoder(r)
 	}
+	// try all the decoders that supported
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -167,6 +169,9 @@ func LoadImage(r io.Reader, ext string) (image.Image, error) {
 		if err == nil {
 			return img, nil
 		}
+	}
+	if ext != "" {
+		return nil, fmt.Errorf("unsupported image format: %s", ext)
 	}
 	return nil, errors.New("unsupported image format")
 }

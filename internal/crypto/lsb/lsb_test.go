@@ -16,6 +16,7 @@ import (
 
 	"project/internal/convert"
 	"project/internal/crypto/aes"
+	"project/internal/patch/monkey"
 	"project/internal/random"
 	"project/internal/testsuite"
 )
@@ -64,6 +65,65 @@ func TestMode_String(t *testing.T) {
 		fmt.Println(test.mode)
 	}
 	fmt.Println(Mode(1234578))
+}
+
+func TestLoadImage(t *testing.T) {
+	img := image.NewNRGBA64(image.Rect(0, 0, 160, 90))
+	buf := bytes.NewBuffer(make([]byte, 0, 16384))
+	err := png.Encode(buf, img)
+	require.NoError(t, err)
+
+	t.Run("with the file name extension", func(t *testing.T) {
+		reader := bytes.NewReader(buf.Bytes())
+
+		p, err := LoadImage(reader, "PNG")
+		require.NoError(t, err)
+
+		require.Equal(t, img, p)
+	})
+
+	t.Run("without the file name extension", func(t *testing.T) {
+		reader := bytes.NewReader(buf.Bytes())
+
+		p, err := LoadImage(reader, "")
+		require.NoError(t, err)
+
+		require.Equal(t, img, p)
+	})
+
+	t.Run("unsupported image format", func(t *testing.T) {
+		reader := bytes.NewReader([]byte{1, 2, 3, 4})
+
+		p, err := LoadImage(reader, "")
+		require.EqualError(t, err, "unsupported image format")
+		require.Nil(t, p)
+
+		p, err = LoadImage(reader, "p")
+		require.EqualError(t, err, "unsupported image format: p")
+		require.Nil(t, p)
+	})
+
+	t.Run("failed to read image", func(t *testing.T) {
+		reader := testsuite.NewMockConnWithReadError()
+
+		p, err := LoadImage(reader, "")
+		testsuite.IsMockConnReadError(t, err)
+		require.Nil(t, p)
+	})
+
+	t.Run("seek error", func(t *testing.T) {
+		var r *bytes.Reader
+		patch := func(interface{}, int64, int) (int64, error) {
+			return 0, monkey.Error
+		}
+		pg := monkey.PatchInstanceMethod(r, "Seek", patch)
+		defer pg.Unpatch()
+
+		reader := bytes.NewReader([]byte{1, 2, 3, 4})
+
+		defer testsuite.DeferForPanic(t)
+		_, _ = LoadImage(reader, "")
+	})
 }
 
 // test png image is 160*90
