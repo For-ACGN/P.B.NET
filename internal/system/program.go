@@ -15,9 +15,9 @@ func ExecutableName() (string, error) {
 	return filepath.Base(path), nil
 }
 
-// ChangeCurrentDirectory is used to changed path for service program
+// ChdirToExe is used to changed path for service program
 // and prevent to get invalid path when running test.
-func ChangeCurrentDirectory() error {
+func ChdirToExe() error {
 	path, err := os.Executable()
 	if err != nil {
 		return err
@@ -34,9 +34,24 @@ func CheckError(err error) {
 	}
 }
 
+// CheckErrorf is used to check error is nil, if err is not nil,
+// it will print error with format and exit program with code 1.
+func CheckErrorf(format string, err error) {
+	if err != nil {
+		fmt.Printf(format, err)
+		os.Exit(1)
+	}
+}
+
 // PrintError is used to print error and exit program with code 1.
-func PrintError(err ...interface{}) {
-	fmt.Println(err...)
+func PrintError(a ...interface{}) {
+	fmt.Println(a...)
+	os.Exit(1)
+}
+
+// PrintErrorf is used to print error with format and exit program with code 1.
+func PrintErrorf(format string, a ...interface{}) {
+	fmt.Printf(format, a...)
 	os.Exit(1)
 }
 

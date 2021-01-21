@@ -30,7 +30,7 @@ func TestExecutableName(t *testing.T) {
 	})
 }
 
-func TestChangeCurrentDirectory(t *testing.T) {
+func TestChdirToExe(t *testing.T) {
 	cd, err := os.Getwd()
 	require.NoError(t, err)
 	t.Log("current directory:", cd)
@@ -40,7 +40,7 @@ func TestChangeCurrentDirectory(t *testing.T) {
 	}()
 
 	t.Run("ok", func(t *testing.T) {
-		err = ChangeCurrentDirectory()
+		err = ChdirToExe()
 		require.NoError(t, err)
 
 		dd, err := os.Getwd()
@@ -57,7 +57,7 @@ func TestChangeCurrentDirectory(t *testing.T) {
 		pg := monkey.Patch(os.Executable, patch)
 		defer pg.Unpatch()
 
-		err = ChangeCurrentDirectory()
+		err = ChdirToExe()
 		monkey.IsMonkeyError(t, err)
 	})
 }
@@ -76,12 +76,34 @@ func TestCheckError(t *testing.T) {
 	})
 }
 
+func TestCheckErrorf(t *testing.T) {
+	t.Run("not nil", func(t *testing.T) {
+		patch := func(int) {}
+		pg := monkey.Patch(os.Exit, patch)
+		defer pg.Unpatch()
+
+		CheckErrorf("error: %s\n", errors.New("test error"))
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		CheckErrorf("error: %s\n", nil)
+	})
+}
+
 func TestPrintError(t *testing.T) {
 	patch := func(int) {}
 	pg := monkey.Patch(os.Exit, patch)
 	defer pg.Unpatch()
 
 	PrintError("test error")
+}
+
+func TestPrintErrorf(t *testing.T) {
+	patch := func(int) {}
+	pg := monkey.Patch(os.Exit, patch)
+	defer pg.Unpatch()
+
+	PrintErrorf("error: %s\n", "test error")
 }
 
 func TestCommandLineToArgv(t *testing.T) {
