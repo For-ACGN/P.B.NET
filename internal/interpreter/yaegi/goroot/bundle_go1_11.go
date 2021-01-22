@@ -32,6 +32,11 @@ import (
 	"crypto/rc4" // #nosec
 	"crypto/rsa"
 	"crypto/sha1" // #nosec
+	"crypto/sha256"
+	"crypto/sha512"
+	"crypto/subtle"
+	"crypto/tls"
+	"crypto/x509"
 	"go/constant"
 	"go/token"
 	"io"
@@ -76,6 +81,11 @@ func init() {
 	init_crypto_rc4()
 	init_crypto_rsa()
 	init_crypto_sha1()
+	init_crypto_sha256()
+	init_crypto_sha512()
+	init_crypto_subtle()
+	init_crypto_tls()
+	init_crypto_x509()
 	init_io()
 	init_math()
 	init_math_big()
@@ -806,6 +816,253 @@ func init_crypto_sha1() {
 		"New":       reflect.ValueOf(sha1.New),
 		"Size":      reflect.ValueOf(constant.MakeFromLiteral("20", token.INT, 0)),
 		"Sum":       reflect.ValueOf(sha1.Sum),
+	}
+}
+
+func init_crypto_sha256() {
+	Symbols["crypto/sha256"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BlockSize": reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"New":       reflect.ValueOf(sha256.New),
+		"New224":    reflect.ValueOf(sha256.New224),
+		"Size":      reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+		"Size224":   reflect.ValueOf(constant.MakeFromLiteral("28", token.INT, 0)),
+		"Sum224":    reflect.ValueOf(sha256.Sum224),
+		"Sum256":    reflect.ValueOf(sha256.Sum256),
+	}
+}
+
+func init_crypto_sha512() {
+	Symbols["crypto/sha512"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BlockSize":  reflect.ValueOf(constant.MakeFromLiteral("128", token.INT, 0)),
+		"New":        reflect.ValueOf(sha512.New),
+		"New384":     reflect.ValueOf(sha512.New384),
+		"New512_224": reflect.ValueOf(sha512.New512_224),
+		"New512_256": reflect.ValueOf(sha512.New512_256),
+		"Size":       reflect.ValueOf(constant.MakeFromLiteral("64", token.INT, 0)),
+		"Size224":    reflect.ValueOf(constant.MakeFromLiteral("28", token.INT, 0)),
+		"Size256":    reflect.ValueOf(constant.MakeFromLiteral("32", token.INT, 0)),
+		"Size384":    reflect.ValueOf(constant.MakeFromLiteral("48", token.INT, 0)),
+		"Sum384":     reflect.ValueOf(sha512.Sum384),
+		"Sum512":     reflect.ValueOf(sha512.Sum512),
+		"Sum512_224": reflect.ValueOf(sha512.Sum512_224),
+		"Sum512_256": reflect.ValueOf(sha512.Sum512_256),
+	}
+}
+
+func init_crypto_subtle() {
+	Symbols["crypto/subtle"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ConstantTimeByteEq":   reflect.ValueOf(subtle.ConstantTimeByteEq),
+		"ConstantTimeCompare":  reflect.ValueOf(subtle.ConstantTimeCompare),
+		"ConstantTimeCopy":     reflect.ValueOf(subtle.ConstantTimeCopy),
+		"ConstantTimeEq":       reflect.ValueOf(subtle.ConstantTimeEq),
+		"ConstantTimeLessOrEq": reflect.ValueOf(subtle.ConstantTimeLessOrEq),
+		"ConstantTimeSelect":   reflect.ValueOf(subtle.ConstantTimeSelect),
+	}
+}
+
+func init_crypto_tls() {
+	Symbols["crypto/tls"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Client":                               reflect.ValueOf(tls.Client),
+		"CurveP256":                            reflect.ValueOf(tls.CurveP256),
+		"CurveP384":                            reflect.ValueOf(tls.CurveP384),
+		"CurveP521":                            reflect.ValueOf(tls.CurveP521),
+		"Dial":                                 reflect.ValueOf(tls.Dial),
+		"DialWithDialer":                       reflect.ValueOf(tls.DialWithDialer),
+		"ECDSAWithP256AndSHA256":               reflect.ValueOf(tls.ECDSAWithP256AndSHA256),
+		"ECDSAWithP384AndSHA384":               reflect.ValueOf(tls.ECDSAWithP384AndSHA384),
+		"ECDSAWithP521AndSHA512":               reflect.ValueOf(tls.ECDSAWithP521AndSHA512),
+		"ECDSAWithSHA1":                        reflect.ValueOf(tls.ECDSAWithSHA1),
+		"Listen":                               reflect.ValueOf(tls.Listen),
+		"LoadX509KeyPair":                      reflect.ValueOf(tls.LoadX509KeyPair),
+		"NewLRUClientSessionCache":             reflect.ValueOf(tls.NewLRUClientSessionCache),
+		"NewListener":                          reflect.ValueOf(tls.NewListener),
+		"NoClientCert":                         reflect.ValueOf(tls.NoClientCert),
+		"PKCS1WithSHA1":                        reflect.ValueOf(tls.PKCS1WithSHA1),
+		"PKCS1WithSHA256":                      reflect.ValueOf(tls.PKCS1WithSHA256),
+		"PKCS1WithSHA384":                      reflect.ValueOf(tls.PKCS1WithSHA384),
+		"PKCS1WithSHA512":                      reflect.ValueOf(tls.PKCS1WithSHA512),
+		"PSSWithSHA256":                        reflect.ValueOf(tls.PSSWithSHA256),
+		"PSSWithSHA384":                        reflect.ValueOf(tls.PSSWithSHA384),
+		"PSSWithSHA512":                        reflect.ValueOf(tls.PSSWithSHA512),
+		"RenegotiateFreelyAsClient":            reflect.ValueOf(tls.RenegotiateFreelyAsClient),
+		"RenegotiateNever":                     reflect.ValueOf(tls.RenegotiateNever),
+		"RenegotiateOnceAsClient":              reflect.ValueOf(tls.RenegotiateOnceAsClient),
+		"RequestClientCert":                    reflect.ValueOf(tls.RequestClientCert),
+		"RequireAndVerifyClientCert":           reflect.ValueOf(tls.RequireAndVerifyClientCert),
+		"RequireAnyClientCert":                 reflect.ValueOf(tls.RequireAnyClientCert),
+		"Server":                               reflect.ValueOf(tls.Server),
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA": reflect.ValueOf(tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA),
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": reflect.ValueOf(tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256),
+		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": reflect.ValueOf(tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256),
+		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    reflect.ValueOf(tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA),
+		"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": reflect.ValueOf(tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384),
+		"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  reflect.ValueOf(tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305),
+		"TLS_ECDHE_ECDSA_WITH_RC4_128_SHA":        reflect.ValueOf(tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA),
+		"TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA":     reflect.ValueOf(tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA),
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      reflect.ValueOf(tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA),
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   reflect.ValueOf(tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256),
+		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   reflect.ValueOf(tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256),
+		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      reflect.ValueOf(tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA),
+		"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   reflect.ValueOf(tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384),
+		"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    reflect.ValueOf(tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305),
+		"TLS_ECDHE_RSA_WITH_RC4_128_SHA":          reflect.ValueOf(tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA),
+		"TLS_FALLBACK_SCSV":                       reflect.ValueOf(tls.TLS_FALLBACK_SCSV),
+		"TLS_RSA_WITH_3DES_EDE_CBC_SHA":           reflect.ValueOf(tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA),
+		"TLS_RSA_WITH_AES_128_CBC_SHA":            reflect.ValueOf(tls.TLS_RSA_WITH_AES_128_CBC_SHA),
+		"TLS_RSA_WITH_AES_128_CBC_SHA256":         reflect.ValueOf(tls.TLS_RSA_WITH_AES_128_CBC_SHA256),
+		"TLS_RSA_WITH_AES_128_GCM_SHA256":         reflect.ValueOf(tls.TLS_RSA_WITH_AES_128_GCM_SHA256),
+		"TLS_RSA_WITH_AES_256_CBC_SHA":            reflect.ValueOf(tls.TLS_RSA_WITH_AES_256_CBC_SHA),
+		"TLS_RSA_WITH_AES_256_GCM_SHA384":         reflect.ValueOf(tls.TLS_RSA_WITH_AES_256_GCM_SHA384),
+		"TLS_RSA_WITH_RC4_128_SHA":                reflect.ValueOf(tls.TLS_RSA_WITH_RC4_128_SHA),
+		"VerifyClientCertIfGiven":                 reflect.ValueOf(tls.VerifyClientCertIfGiven),
+		"VersionSSL30":                            reflect.ValueOf(constant.MakeFromLiteral("768", token.INT, 0)),
+		"VersionTLS10":                            reflect.ValueOf(constant.MakeFromLiteral("769", token.INT, 0)),
+		"VersionTLS11":                            reflect.ValueOf(constant.MakeFromLiteral("770", token.INT, 0)),
+		"VersionTLS12":                            reflect.ValueOf(constant.MakeFromLiteral("771", token.INT, 0)),
+		"X25519":                                  reflect.ValueOf(tls.X25519),
+		"X509KeyPair":                             reflect.ValueOf(tls.X509KeyPair),
+
+		// type definitions
+		"Certificate":            reflect.ValueOf((*tls.Certificate)(nil)),
+		"CertificateRequestInfo": reflect.ValueOf((*tls.CertificateRequestInfo)(nil)),
+		"ClientAuthType":         reflect.ValueOf((*tls.ClientAuthType)(nil)),
+		"ClientHelloInfo":        reflect.ValueOf((*tls.ClientHelloInfo)(nil)),
+		"ClientSessionCache":     reflect.ValueOf((*tls.ClientSessionCache)(nil)),
+		"ClientSessionState":     reflect.ValueOf((*tls.ClientSessionState)(nil)),
+		"Config":                 reflect.ValueOf((*tls.Config)(nil)),
+		"Conn":                   reflect.ValueOf((*tls.Conn)(nil)),
+		"ConnectionState":        reflect.ValueOf((*tls.ConnectionState)(nil)),
+		"CurveID":                reflect.ValueOf((*tls.CurveID)(nil)),
+		"RecordHeaderError":      reflect.ValueOf((*tls.RecordHeaderError)(nil)),
+		"RenegotiationSupport":   reflect.ValueOf((*tls.RenegotiationSupport)(nil)),
+		"SignatureScheme":        reflect.ValueOf((*tls.SignatureScheme)(nil)),
+
+		// interface wrapper definitions
+		"_ClientSessionCache": reflect.ValueOf((*_crypto_tls_ClientSessionCache)(nil)),
+	}
+}
+
+// _crypto_tls_ClientSessionCache is an interface wrapper for ClientSessionCache type
+type _crypto_tls_ClientSessionCache struct {
+	WGet func(sessionKey string) (session *tls.ClientSessionState, ok bool)
+	WPut func(sessionKey string, cs *tls.ClientSessionState)
+}
+
+func (W _crypto_tls_ClientSessionCache) Get(sessionKey string) (session *tls.ClientSessionState, ok bool) {
+	return W.WGet(sessionKey)
+}
+func (W _crypto_tls_ClientSessionCache) Put(sessionKey string, cs *tls.ClientSessionState) {
+	W.WPut(sessionKey, cs)
+}
+
+func init_crypto_x509() {
+	Symbols["crypto/x509"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"CANotAuthorizedForExtKeyUsage":             reflect.ValueOf(x509.CANotAuthorizedForExtKeyUsage),
+		"CANotAuthorizedForThisName":                reflect.ValueOf(x509.CANotAuthorizedForThisName),
+		"CreateCertificate":                         reflect.ValueOf(x509.CreateCertificate),
+		"CreateCertificateRequest":                  reflect.ValueOf(x509.CreateCertificateRequest),
+		"DSA":                                       reflect.ValueOf(x509.DSA),
+		"DSAWithSHA1":                               reflect.ValueOf(x509.DSAWithSHA1),
+		"DSAWithSHA256":                             reflect.ValueOf(x509.DSAWithSHA256),
+		"DecryptPEMBlock":                           reflect.ValueOf(x509.DecryptPEMBlock),
+		"ECDSA":                                     reflect.ValueOf(x509.ECDSA),
+		"ECDSAWithSHA1":                             reflect.ValueOf(x509.ECDSAWithSHA1),
+		"ECDSAWithSHA256":                           reflect.ValueOf(x509.ECDSAWithSHA256),
+		"ECDSAWithSHA384":                           reflect.ValueOf(x509.ECDSAWithSHA384),
+		"ECDSAWithSHA512":                           reflect.ValueOf(x509.ECDSAWithSHA512),
+		"EncryptPEMBlock":                           reflect.ValueOf(x509.EncryptPEMBlock),
+		"ErrUnsupportedAlgorithm":                   reflect.ValueOf(&x509.ErrUnsupportedAlgorithm).Elem(),
+		"Expired":                                   reflect.ValueOf(x509.Expired),
+		"ExtKeyUsageAny":                            reflect.ValueOf(x509.ExtKeyUsageAny),
+		"ExtKeyUsageClientAuth":                     reflect.ValueOf(x509.ExtKeyUsageClientAuth),
+		"ExtKeyUsageCodeSigning":                    reflect.ValueOf(x509.ExtKeyUsageCodeSigning),
+		"ExtKeyUsageEmailProtection":                reflect.ValueOf(x509.ExtKeyUsageEmailProtection),
+		"ExtKeyUsageIPSECEndSystem":                 reflect.ValueOf(x509.ExtKeyUsageIPSECEndSystem),
+		"ExtKeyUsageIPSECTunnel":                    reflect.ValueOf(x509.ExtKeyUsageIPSECTunnel),
+		"ExtKeyUsageIPSECUser":                      reflect.ValueOf(x509.ExtKeyUsageIPSECUser),
+		"ExtKeyUsageMicrosoftCommercialCodeSigning": reflect.ValueOf(x509.ExtKeyUsageMicrosoftCommercialCodeSigning),
+		"ExtKeyUsageMicrosoftKernelCodeSigning":     reflect.ValueOf(x509.ExtKeyUsageMicrosoftKernelCodeSigning),
+		"ExtKeyUsageMicrosoftServerGatedCrypto":     reflect.ValueOf(x509.ExtKeyUsageMicrosoftServerGatedCrypto),
+		"ExtKeyUsageNetscapeServerGatedCrypto":      reflect.ValueOf(x509.ExtKeyUsageNetscapeServerGatedCrypto),
+		"ExtKeyUsageOCSPSigning":                    reflect.ValueOf(x509.ExtKeyUsageOCSPSigning),
+		"ExtKeyUsageServerAuth":                     reflect.ValueOf(x509.ExtKeyUsageServerAuth),
+		"ExtKeyUsageTimeStamping":                   reflect.ValueOf(x509.ExtKeyUsageTimeStamping),
+		"IncompatibleUsage":                         reflect.ValueOf(x509.IncompatibleUsage),
+		"IncorrectPasswordError":                    reflect.ValueOf(&x509.IncorrectPasswordError).Elem(),
+		"IsEncryptedPEMBlock":                       reflect.ValueOf(x509.IsEncryptedPEMBlock),
+		"KeyUsageCRLSign":                           reflect.ValueOf(x509.KeyUsageCRLSign),
+		"KeyUsageCertSign":                          reflect.ValueOf(x509.KeyUsageCertSign),
+		"KeyUsageContentCommitment":                 reflect.ValueOf(x509.KeyUsageContentCommitment),
+		"KeyUsageDataEncipherment":                  reflect.ValueOf(x509.KeyUsageDataEncipherment),
+		"KeyUsageDecipherOnly":                      reflect.ValueOf(x509.KeyUsageDecipherOnly),
+		"KeyUsageDigitalSignature":                  reflect.ValueOf(x509.KeyUsageDigitalSignature),
+		"KeyUsageEncipherOnly":                      reflect.ValueOf(x509.KeyUsageEncipherOnly),
+		"KeyUsageKeyAgreement":                      reflect.ValueOf(x509.KeyUsageKeyAgreement),
+		"KeyUsageKeyEncipherment":                   reflect.ValueOf(x509.KeyUsageKeyEncipherment),
+		"MD2WithRSA":                                reflect.ValueOf(x509.MD2WithRSA),
+		"MD5WithRSA":                                reflect.ValueOf(x509.MD5WithRSA),
+		"MarshalECPrivateKey":                       reflect.ValueOf(x509.MarshalECPrivateKey),
+		"MarshalPKCS1PrivateKey":                    reflect.ValueOf(x509.MarshalPKCS1PrivateKey),
+		"MarshalPKCS1PublicKey":                     reflect.ValueOf(x509.MarshalPKCS1PublicKey),
+		"MarshalPKCS8PrivateKey":                    reflect.ValueOf(x509.MarshalPKCS8PrivateKey),
+		"MarshalPKIXPublicKey":                      reflect.ValueOf(x509.MarshalPKIXPublicKey),
+		"NameConstraintsWithoutSANs":                reflect.ValueOf(x509.NameConstraintsWithoutSANs),
+		"NameMismatch":                              reflect.ValueOf(x509.NameMismatch),
+		"NewCertPool":                               reflect.ValueOf(x509.NewCertPool),
+		"NotAuthorizedToSign":                       reflect.ValueOf(x509.NotAuthorizedToSign),
+		"PEMCipher3DES":                             reflect.ValueOf(x509.PEMCipher3DES),
+		"PEMCipherAES128":                           reflect.ValueOf(x509.PEMCipherAES128),
+		"PEMCipherAES192":                           reflect.ValueOf(x509.PEMCipherAES192),
+		"PEMCipherAES256":                           reflect.ValueOf(x509.PEMCipherAES256),
+		"PEMCipherDES":                              reflect.ValueOf(x509.PEMCipherDES),
+		"ParseCRL":                                  reflect.ValueOf(x509.ParseCRL),
+		"ParseCertificate":                          reflect.ValueOf(x509.ParseCertificate),
+		"ParseCertificateRequest":                   reflect.ValueOf(x509.ParseCertificateRequest),
+		"ParseCertificates":                         reflect.ValueOf(x509.ParseCertificates),
+		"ParseDERCRL":                               reflect.ValueOf(x509.ParseDERCRL),
+		"ParseECPrivateKey":                         reflect.ValueOf(x509.ParseECPrivateKey),
+		"ParsePKCS1PrivateKey":                      reflect.ValueOf(x509.ParsePKCS1PrivateKey),
+		"ParsePKCS1PublicKey":                       reflect.ValueOf(x509.ParsePKCS1PublicKey),
+		"ParsePKCS8PrivateKey":                      reflect.ValueOf(x509.ParsePKCS8PrivateKey),
+		"ParsePKIXPublicKey":                        reflect.ValueOf(x509.ParsePKIXPublicKey),
+		"RSA":                                       reflect.ValueOf(x509.RSA),
+		"SHA1WithRSA":                               reflect.ValueOf(x509.SHA1WithRSA),
+		"SHA256WithRSA":                             reflect.ValueOf(x509.SHA256WithRSA),
+		"SHA256WithRSAPSS":                          reflect.ValueOf(x509.SHA256WithRSAPSS),
+		"SHA384WithRSA":                             reflect.ValueOf(x509.SHA384WithRSA),
+		"SHA384WithRSAPSS":                          reflect.ValueOf(x509.SHA384WithRSAPSS),
+		"SHA512WithRSA":                             reflect.ValueOf(x509.SHA512WithRSA),
+		"SHA512WithRSAPSS":                          reflect.ValueOf(x509.SHA512WithRSAPSS),
+		"SystemCertPool":                            reflect.ValueOf(x509.SystemCertPool),
+		"TooManyConstraints":                        reflect.ValueOf(x509.TooManyConstraints),
+		"TooManyIntermediates":                      reflect.ValueOf(x509.TooManyIntermediates),
+		"UnconstrainedName":                         reflect.ValueOf(x509.UnconstrainedName),
+		"UnknownPublicKeyAlgorithm":                 reflect.ValueOf(x509.UnknownPublicKeyAlgorithm),
+		"UnknownSignatureAlgorithm":                 reflect.ValueOf(x509.UnknownSignatureAlgorithm),
+
+		// type definitions
+		"CertPool":                   reflect.ValueOf((*x509.CertPool)(nil)),
+		"Certificate":                reflect.ValueOf((*x509.Certificate)(nil)),
+		"CertificateInvalidError":    reflect.ValueOf((*x509.CertificateInvalidError)(nil)),
+		"CertificateRequest":         reflect.ValueOf((*x509.CertificateRequest)(nil)),
+		"ConstraintViolationError":   reflect.ValueOf((*x509.ConstraintViolationError)(nil)),
+		"ExtKeyUsage":                reflect.ValueOf((*x509.ExtKeyUsage)(nil)),
+		"HostnameError":              reflect.ValueOf((*x509.HostnameError)(nil)),
+		"InsecureAlgorithmError":     reflect.ValueOf((*x509.InsecureAlgorithmError)(nil)),
+		"InvalidReason":              reflect.ValueOf((*x509.InvalidReason)(nil)),
+		"KeyUsage":                   reflect.ValueOf((*x509.KeyUsage)(nil)),
+		"PEMCipher":                  reflect.ValueOf((*x509.PEMCipher)(nil)),
+		"PublicKeyAlgorithm":         reflect.ValueOf((*x509.PublicKeyAlgorithm)(nil)),
+		"SignatureAlgorithm":         reflect.ValueOf((*x509.SignatureAlgorithm)(nil)),
+		"SystemRootsError":           reflect.ValueOf((*x509.SystemRootsError)(nil)),
+		"UnhandledCriticalExtension": reflect.ValueOf((*x509.UnhandledCriticalExtension)(nil)),
+		"UnknownAuthorityError":      reflect.ValueOf((*x509.UnknownAuthorityError)(nil)),
+		"VerifyOptions":              reflect.ValueOf((*x509.VerifyOptions)(nil)),
 	}
 }
 
