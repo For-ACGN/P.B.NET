@@ -7,21 +7,21 @@ import (
 	"os"
 )
 
-const defaultLineLength = 8
+const defaultBytesLineLen = 8
 
 // FdumpBytes is used to convert []byte to go source and dump it to io.Writer.
 func FdumpBytes(w io.Writer, b []byte) (int, error) {
-	return FdumpBytesWithLineLength(w, b, defaultLineLength)
+	return FdumpBytesWithLineLength(w, b, defaultBytesLineLen)
 }
 
 // SdumpBytes is used to convert []byte to go source and dump it to a string.
 func SdumpBytes(b []byte) string {
-	return SdumpBytesWithLineLength(b, defaultLineLength)
+	return SdumpBytesWithLineLength(b, defaultBytesLineLen)
 }
 
 // DumpBytes is used to convert []byte to go source and dump it to a os.Stdout.
 func DumpBytes(b []byte) {
-	DumpBytesWithLineLength(b, defaultLineLength)
+	DumpBytesWithLineLength(b, defaultBytesLineLen)
 }
 
 // FdumpBytesWithLineLength is used to convert []byte to go source with line length and dump it to io.Writer.
@@ -57,7 +57,7 @@ func DumpBytesWithLineLength(b []byte, l int) {
 //		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 //		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 // }
-func fdumpBytes(b []byte, lineLength int) *bytes.Buffer {
+func fdumpBytes(b []byte, lineLen int) *bytes.Buffer {
 	const (
 		begin = "[]byte{"
 		end   = "}"
@@ -68,8 +68,8 @@ func fdumpBytes(b []byte, lineLength int) *bytes.Buffer {
 		return bytes.NewBuffer([]byte(begin + end))
 	}
 	// invalid line size
-	if lineLength < 1 {
-		lineLength = 8
+	if lineLen < 1 {
+		lineLen = 8
 	}
 	// create buffer
 	bufSize := len(begin+end) + len("0x00, ")*l + l/8
@@ -78,7 +78,7 @@ func fdumpBytes(b []byte, lineLength int) *bytes.Buffer {
 	buf.WriteString("[]byte{")
 	hexBuf := make([]byte, 2)
 	// special: one line
-	if l <= lineLength {
+	if l <= lineLen {
 		for i := 0; i < l; i++ {
 			hex.Encode(hexBuf, []byte{b[i]})
 			buf.WriteString("0x")
@@ -101,7 +101,7 @@ func fdumpBytes(b []byte, lineLength int) *bytes.Buffer {
 		buf.WriteString("0x")
 		buf.Write(bytes.ToUpper(hexBuf))
 		counter++
-		if counter == lineLength {
+		if counter == lineLen {
 			buf.WriteString(",\n")
 			counter = 0
 		} else {
