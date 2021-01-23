@@ -3,119 +3,143 @@ package convert
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 const defaultBytesLineLen = 8
 
-// FdumpBytes is used to convert []byte to go source and dump it to io.Writer.
-func FdumpBytes(w io.Writer, b []byte) (int, error) {
-	return FdumpBytesWithLineLength(w, b, defaultBytesLineLen)
+// DumpBytes is used to convert byte slice to go source and write it to os.Stdout.
+func DumpBytes(b []byte) (int, error) {
+	n1, _ := fmt.Println("[]byte{")
+	n2, err := DumpBytesWithPL(b, "\t", defaultBytesLineLen)
+	n3, _ := fmt.Println("\n}")
+	return n1 + n2 + n3, err
 }
 
-// SdumpBytes is used to convert []byte to go source and dump it to a string.
+// SdumpBytes is used to convert byte slice to go source and write it to a string.
 func SdumpBytes(b []byte) string {
-	return SdumpBytesWithLineLength(b, defaultBytesLineLen)
+	return
 }
 
-// DumpBytes is used to convert []byte to go source and dump it to a os.Stdout.
-func DumpBytes(b []byte) {
-	DumpBytesWithLineLength(b, defaultBytesLineLen)
+// FdumpBytes is used to convert byte slice to go source and write it to io.Writer.
+func FdumpBytes(w io.Writer, b []byte) (int, error) {
+	return
 }
 
-// FdumpBytesWithLineLength is used to convert []byte to go source with line length and dump it to io.Writer.
-func FdumpBytesWithLineLength(w io.Writer, b []byte, l int) (int, error) {
-	return w.Write(fdumpBytes(b, l).Bytes())
+// DumpBytesWithPL is used to convert byte slice to go source code with prefix
+// and line length, then write it to os.Stdout.
+func DumpBytesWithPL(b []byte, prefix string, lineLen int) (int, error) {
+	// calculate buffer size
+	bl := len(b)
+	pl := len(prefix)
+	body := (bl / lineLen) * (pl + lineLen*6 - 1 + len(newLine))
+	tail := pl + (bl%lineLen)*6
+	// dump string
+	buf := bytes.NewBuffer(make([]byte, 0, body+tail+1))
+	_, _ = FdumpBytesWithPL(buf, b, prefix, lineLen)
+	buf.Write(newLine)
+	// write to stdout
+	n, err := buf.WriteTo(os.Stdout)
+	return int(n), err
 }
 
-// SdumpBytesWithLineLength is used to convert []byte to go source with line length and dump it to a string.
-func SdumpBytesWithLineLength(b []byte, l int) string {
-	return fdumpBytes(b, l).String()
+// SdumpBytesWithPL is used to convert byte slice to go source code with prefix
+// and line length, then write it to a string.
+func SdumpBytesWithPL(b []byte, prefix string, lineLen int) string {
+	// calculate buffer size
+	bl := len(b)
+	pl := len(prefix)
+	body := (bl / lineLen) * (pl + lineLen*6 - 1 + len(newLine))
+	tail := pl + (bl%lineLen)*6
+	// dump string
+	builder := strings.Builder{}
+	builder.Grow(body + tail)
+	_, _ = FdumpBytesWithPL(&builder, b, prefix, lineLen)
+	return builder.String()
 }
 
-// DumpBytesWithLineLength is used to convert []byte to go source with line length and dump it to a os.Stdout.
-func DumpBytesWithLineLength(b []byte, l int) {
-	buf := fdumpBytes(b, l)
-	buf.WriteString("\n")
-	_, _ = os.Stdout.Write(buf.Bytes())
-}
+var newLine = []byte("\n")
 
-// fdumpBytes is used to convert byte slice to go code, usually it used for go template code.
+// FdumpBytesWithPL is used to convert byte slice to go source code with prefix
+// and line length, then write it to io.Writer.
 //
 // Output:
 // ------one line------
-// []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 // -------common-------
-// []byte{
-//		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-//		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-//		0x00, 0x00, 0x00, 0x00,
-// }
-// ------full line-----
-// []byte{
-//		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-//		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-// }
-func fdumpBytes(b []byte, lineLen int) *bytes.Buffer {
-	const (
-		begin = "[]byte{"
-		end   = "}"
-	)
-	// special: empty data
+// 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+// 0x00, 0x00, 0x00, 0x00,
+// -----with prefix----
+//     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+//     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+func FdumpBytesWithPL(w io.Writer, b []byte, prefix string, lineLen int) (int, error) {
 	l := len(b)
 	if l == 0 {
-		return bytes.NewBuffer([]byte(begin + end))
+		return 0, nil
 	}
-	// invalid line size
 	if lineLen < 1 {
-		lineLen = 8
+		lineLen = defaultBytesLineLen
 	}
-	// create buffer
-	bufSize := len(begin+end) + len("0x00, ")*l + l/8
-	buf := bytes.NewBuffer(make([]byte, 0, bufSize))
-	// write begin string
-	buf.WriteString("[]byte{")
+	hasPrefix := len(prefix) != 0
+	var prefixBytes []byte
+	if hasPrefix {
+		prefixBytes = []byte(prefix)
+	}
+	reader := bytes.NewReader(b)
+	buf := make([]byte, lineLen)
 	hexBuf := make([]byte, 2)
-	// special: one line
-	if l <= lineLen {
-		for i := 0; i < l; i++ {
-			hex.Encode(hexBuf, []byte{b[i]})
-			buf.WriteString("0x")
-			buf.Write(bytes.ToUpper(hexBuf))
-			if i != l-1 {
-				buf.WriteString(", ")
+	byt := []byte("0xFF, ")
+	var (
+		num int
+		nn  int
+		n   int
+		err error
+	)
+	for {
+		// write prefix
+		if hasPrefix {
+			nn, err = w.Write(prefixBytes)
+			num += nn
+			if err != nil {
+				return num, err
 			}
 		}
-		buf.WriteString("}")
-		return buf
-	}
-	// write begin string
-	var counter int // need new line
-	buf.WriteString("\n")
-	for i := 0; i < l; i++ {
-		if counter == 0 {
-			buf.WriteString("\t")
+		// read line
+		n, _ = reader.Read(buf)
+		for i := 0; i < n; i++ {
+			hex.Encode(hexBuf, []byte{buf[i]})
+			hexBuf = bytes.ToUpper(hexBuf)
+			copy(byt[2:], hexBuf)
+			// need last space
+			if i == lineLen-1 || ((n != lineLen) && (i == n-1)) {
+				nn, err = w.Write(byt[:5])
+			} else {
+				nn, err = w.Write(byt)
+			}
+			num += nn
+			if err != nil {
+				return num, err
+			}
 		}
-		hex.Encode(hexBuf, []byte{b[i]})
-		buf.WriteString("0x")
-		buf.Write(bytes.ToUpper(hexBuf))
-		counter++
-		if counter == lineLen {
-			buf.WriteString(",\n")
-			counter = 0
+		// finish
+		if n != lineLen {
+			break
+		}
+		// write new line
+		if reader.Len() != 0 {
+			nn, err = w.Write(newLine)
+			num += nn
+			if err != nil {
+				return num, err
+			}
 		} else {
-			buf.WriteString(", ")
+			break
 		}
 	}
-	// write end string
-	if counter != 0 { // delete last space
-		buf.Truncate(buf.Len() - 1)
-		buf.WriteString("\n}")
-		return buf
-	}
-	buf.WriteString("}")
-	return buf
+	return num, nil
 }
 
 // MergeBytes is used to merge multi bytes slice to one, it will deep copy each slice.

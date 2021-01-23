@@ -31,10 +31,11 @@ func DumpStringWithPL(str, prefix string, lineLen int) (int, error) {
 	pl := len(prefix)
 	body := (sl / lineLen) * (pl + lineLen + len(newLine))
 	tail := pl + sl%lineLen
-	buf := bytes.NewBuffer(make([]byte, 0, body+tail+1))
 	// dump string
+	buf := bytes.NewBuffer(make([]byte, 0, body+tail+1))
 	_, _ = FdumpStringWithPL(buf, str, prefix, lineLen)
 	buf.Write(newLine)
+	// write to stdout
 	n, err := buf.WriteTo(os.Stdout)
 	return int(n), err
 }
@@ -46,14 +47,12 @@ func SdumpStringWithPL(str, prefix string, lineLen int) string {
 	pl := len(prefix)
 	body := (sl / lineLen) * (pl + lineLen + len(newLine))
 	tail := pl + sl%lineLen
+	// dump string
 	builder := strings.Builder{}
 	builder.Grow(body + tail)
-	// dump string
 	_, _ = FdumpStringWithPL(&builder, str, prefix, lineLen)
 	return builder.String()
 }
-
-var newLine = []byte("\n")
 
 // FdumpStringWithPL is used to split string with prefix and line length, write it to io.Writer.
 //
@@ -63,7 +62,7 @@ var newLine = []byte("\n")
 // -------common-------
 // abc12345abc12345abc12345abc12345abc12345abc12345abc12345abc12345
 // abc12345abc12345abc12345abc12345
-// ------with prefix-----
+// -----with prefix----
 //   abc12345abc12345abc12345abc12345abc12345abc12345abc12345abc12345
 //   abc12345abc12345abc12345abc12345abc12345abc12345abc12345abc12345
 func FdumpStringWithPL(w io.Writer, str, prefix string, lineLen int) (int, error) {
@@ -80,19 +79,24 @@ func FdumpStringWithPL(w io.Writer, str, prefix string, lineLen int) (int, error
 	}
 	reader := strings.NewReader(str)
 	buf := make([]byte, lineLen)
-	var num int
+	var (
+		num int
+		nn  int
+		n   int
+		err error
+	)
 	for {
 		// write prefix
 		if hasPrefix {
-			nn, err := w.Write(prefixBytes)
+			nn, err = w.Write(prefixBytes)
 			num += nn
 			if err != nil {
 				return num, err
 			}
 		}
 		// read line
-		n, _ := reader.Read(buf)
-		nn, err := w.Write(buf[:n])
+		n, _ = reader.Read(buf)
+		nn, err = w.Write(buf[:n])
 		num += nn
 		if err != nil {
 			return num, err
