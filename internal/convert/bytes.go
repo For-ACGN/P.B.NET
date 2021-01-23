@@ -29,7 +29,7 @@ func calcDumpBytesBufferSize(b []byte) int {
 	size := calcDumpBytesWithPLBufferSize(b, prefix, defaultBytesLineLen) +
 		len("[]byte{") + len("}")
 	if needNewLine {
-		size += 2 * len("\n")
+		size += 2 * len(newLine)
 	}
 	return size
 }
@@ -67,6 +67,7 @@ func FdumpBytes(w io.Writer, b []byte) (int, error) {
 		n   int
 		err error
 	)
+	// write begin
 	n, err = w.Write([]byte("[]byte{"))
 	num += n
 	if err != nil {
@@ -75,24 +76,26 @@ func FdumpBytes(w io.Writer, b []byte) (int, error) {
 	var prefix string
 	if needNewLine {
 		prefix = "\t"
-		n, err = w.Write([]byte("\n"))
+		n, err = w.Write(newLine)
 		num += n
 		if err != nil {
 			return num, err
 		}
 	}
+	// write body
 	n, err = FdumpBytesWithPL(w, b, prefix, defaultBytesLineLen)
 	num += n
 	if err != nil {
 		return num, err
 	}
 	if needNewLine {
-		n, err = w.Write([]byte("\n"))
+		n, err = w.Write(newLine)
 		num += n
 		if err != nil {
 			return num, err
 		}
 	}
+	// write end
 	n, err = w.Write([]byte("}"))
 	num += n
 	return num, err
