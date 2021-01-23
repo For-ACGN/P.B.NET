@@ -9,6 +9,14 @@ import (
 
 const defaultStringsLineLen = 64
 
+func calcDumpStringWithPLBufferSize(str, prefix string, lineLen int) int {
+	sl := len(str)
+	pl := len(prefix)
+	body := (sl / lineLen) * (pl + lineLen + len(newLine))
+	tail := pl + sl%lineLen
+	return body + tail
+}
+
 // DumpString is used to split string to each line and write it to os.Stdout.
 func DumpString(str string) (int, error) {
 	return DumpStringWithPL(str, "", defaultStringsLineLen)
@@ -27,12 +35,9 @@ func FdumpString(w io.Writer, str string) (int, error) {
 // DumpStringWithPL is used to split string with prefix and line length, write it to os.Stdout.
 func DumpStringWithPL(str, prefix string, lineLen int) (int, error) {
 	// calculate buffer size
-	sl := len(str)
-	pl := len(prefix)
-	body := (sl / lineLen) * (pl + lineLen + len(newLine))
-	tail := pl + sl%lineLen
+	size := calcDumpStringWithPLBufferSize(str, prefix, lineLen) + 1
 	// dump string
-	buf := bytes.NewBuffer(make([]byte, 0, body+tail+1))
+	buf := bytes.NewBuffer(make([]byte, 0, size))
 	_, _ = FdumpStringWithPL(buf, str, prefix, lineLen)
 	buf.Write(newLine)
 	// write to stdout
@@ -43,14 +48,12 @@ func DumpStringWithPL(str, prefix string, lineLen int) (int, error) {
 // SdumpStringWithPL is used to split string with prefix and line length, write it to a string.
 func SdumpStringWithPL(str, prefix string, lineLen int) string {
 	// calculate buffer size
-	sl := len(str)
-	pl := len(prefix)
-	body := (sl / lineLen) * (pl + lineLen + len(newLine))
-	tail := pl + sl%lineLen
+	size := calcDumpStringWithPLBufferSize(str, prefix, lineLen)
 	// dump string
 	builder := strings.Builder{}
-	builder.Grow(body + tail)
+	builder.Grow(size)
 	_, _ = FdumpStringWithPL(&builder, str, prefix, lineLen)
+	// build string
 	return builder.String()
 }
 

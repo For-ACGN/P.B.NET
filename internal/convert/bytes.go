@@ -10,11 +10,13 @@ import (
 
 const defaultBytesLineLen = 8
 
+var newLine = []byte("\n")
+
 func calcDumpBytesWithPLBufferSize(b []byte, prefix string, lineLen int) int {
 	bl := len(b)
 	pl := len(prefix)
-	body := (bl / lineLen) * (pl + lineLen*6 - 1 + len(newLine))
-	tail := pl + (bl%lineLen)*6
+	body := (bl / lineLen) * (pl + lineLen*len("0xFF, ") - 1 + len(newLine))
+	tail := pl + (bl%lineLen)*len("0xFF, ")
 	return body + tail
 }
 
@@ -34,19 +36,26 @@ func calcDumpBytesBufferSize(b []byte) int {
 
 // DumpBytes is used to convert byte slice to go source and write it to os.Stdout.
 func DumpBytes(b []byte) (int, error) {
+	// calculate buffer size
 	size := calcDumpBytesBufferSize(b)
+	// dump bytes
 	buf := bytes.NewBuffer(make([]byte, 0, size))
 	_, _ = FdumpBytes(buf, b)
+	buf.Write(newLine)
+	// write to stdout
 	n, err := buf.WriteTo(os.Stdout)
 	return int(n), err
 }
 
 // SdumpBytes is used to convert byte slice to go source and write it to a string.
 func SdumpBytes(b []byte) string {
+	// calculate buffer size
 	size := calcDumpBytesBufferSize(b)
+	// dump bytes
 	builder := strings.Builder{}
 	builder.Grow(size)
 	_, _ = FdumpBytes(&builder, b)
+	// build string
 	return builder.String()
 }
 
@@ -92,9 +101,10 @@ func FdumpBytes(w io.Writer, b []byte) (int, error) {
 // DumpBytesWithPL is used to convert byte slice to go source code with prefix
 // and line length, then write it to os.Stdout.
 func DumpBytesWithPL(b []byte, prefix string, lineLen int) (int, error) {
-	size := calcDumpBytesWithPLBufferSize(b, prefix, lineLen)
+	// calculate buffer size
+	size := calcDumpBytesWithPLBufferSize(b, prefix, lineLen) + 1
 	// dump string
-	buf := bytes.NewBuffer(make([]byte, 0, size+1))
+	buf := bytes.NewBuffer(make([]byte, 0, size))
 	_, _ = FdumpBytesWithPL(buf, b, prefix, lineLen)
 	buf.Write(newLine)
 	// write to stdout
@@ -105,15 +115,15 @@ func DumpBytesWithPL(b []byte, prefix string, lineLen int) (int, error) {
 // SdumpBytesWithPL is used to convert byte slice to go source code with prefix
 // and line length, then write it to a string.
 func SdumpBytesWithPL(b []byte, prefix string, lineLen int) string {
+	// calculate buffer size
 	size := calcDumpBytesWithPLBufferSize(b, prefix, lineLen)
 	// dump string
 	builder := strings.Builder{}
 	builder.Grow(size)
 	_, _ = FdumpBytesWithPL(&builder, b, prefix, lineLen)
+	// build string
 	return builder.String()
 }
-
-var newLine = []byte("\n")
 
 // FdumpBytesWithPL is used to convert byte slice to go source code with prefix
 // and line length, then write it to io.Writer.
