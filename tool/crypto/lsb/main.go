@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"compress/flate"
 	"crypto/sha256"
 	"flag"
 	"fmt"
-	"image"
 	"io"
 	"os"
 	"path/filepath"
@@ -75,6 +73,22 @@ func main() {
 	imgFile, err := os.Open(imgPath)
 	system.CheckError(err)
 	defer func() { _ = imgFile.Close() }()
+	// use default mode
+	mode := lsb.Mode(lsbMode)
+	if mode == 0 {
+		mode = lsb.PNGWithNRGBA32
+	}
+	switch {
+	case encrypt:
+		encryptImage(mode, imgFile)
+	case decrypt:
+		decryptImage(mode, imgFile)
+	default:
+		printUsage()
+	}
+}
+
+func encryptImage(mode lsb.Mode, imgFile io.Reader) {
 	ext := filepath.Ext(imgPath)
 	img, err := lsb.LoadImage(imgFile, ext)
 	system.CheckError(err)
@@ -88,35 +102,10 @@ func main() {
 	} else {
 		reader = strings.NewReader(text)
 	}
-	// use default mode
-	mode := lsb.Mode(lsbMode)
-	if mode == 0 {
-		mode = lsb.PNGWithNRGBA32
-	}
-	switch {
-	case encrypt:
-		encryptImage(mode, img, reader)
-	case decrypt:
-		decryptImage(mode, img)
-	default:
-		printUsage()
-	}
-}
-
-func encryptImage(mode lsb.Mode, img image.Image, src io.Reader) {
 	// create lsb encrypter
 	aesKey := calculateAESKey()
-	var (
-		encrypter lsb.Encrypter
-		err       error
-	)
-	switch mode {
-	case lsb.PNGWithNRGBA32, lsb.PNGWithNRGBA64:
-		encrypter, err = lsb.NewPNGEncrypter(img, mode, aesKey)
-		system.CheckError(err)
-	default:
-		system.PrintError(mode)
-	}
+	encrypter, err := lsb.NewEncrypter(mode, img, aesKey)
+	system.CheckError(err)
 	// set offset
 	if offset != 0 {
 		err = encrypter.SetOffset(offset)
@@ -125,7 +114,7 @@ func encryptImage(mode lsb.Mode, img image.Image, src io.Reader) {
 	// compress plain data and encrypted to image
 	writer, err := flate.NewWriter(encrypter, flate.BestCompression)
 	system.CheckError(err)
-	_, err = io.Copy(writer, src)
+	_, err = io.Copy(writer, reader)
 	system.CheckError(err)
 	err = writer.Close()
 	system.CheckError(err)
@@ -140,35 +129,36 @@ func encryptImage(mode lsb.Mode, img image.Image, src io.Reader) {
 	system.CheckError(err)
 }
 
-func decryptImage(mode lsb.Mode, img image.Image) {
-	// check mode first
-	switch {
-	case textMode, binMode:
-	default:
-		fmt.Println("select text or binary mode")
-	}
-	png := readPNG()
-	key, iv := generateAESKeyIV()
-	plainData, err := lsb.DecryptFromPNG(png, key, iv)
+func decryptImage(mode lsb.Mode, img io.Reader) {
+	// create lsb decrypter
+	aesKey := calculateAESKey()
+	decrypter, err := lsb.NewDecrypter(mode, img, aesKey)
 	system.CheckError(err)
-	// decompress plain data
-	reader := flate.NewReader(bytes.NewReader(plainData))
-	buf := bytes.NewBuffer(make([]byte, 0, len(plainData)*2))
-	_, err = buf.ReadFrom(reader)
+	// set offset
+	if offset != 0 {
+		err = decrypter.SetOffset(offset)
+		system.CheckError(err)
+	}
+	// decrypt and decompress plain data
+	var (
+		dst io.Writer
+		buf []byte
+	)
+	if output != "" {
+		file, err := os.Create(output)
+		system.CheckError(err)
+		defer func() { _ = file.Close() }()
+		dst = file
+		buf = make([]byte, 1024*1024)
+	} else {
+		dst = os.Stdout
+		buf = make([]byte, 1024)
+	}
+	reader := flate.NewReader(decrypter)
+	_, err = io.CopyBuffer(dst, reader, buf)
 	system.CheckError(err)
 	err = reader.Close()
 	system.CheckError(err)
-	// handle data
-	switch {
-	case textMode:
-		fmt.Println(buf)
-	case binMode:
-		if output == "" {
-			output = "file.txt"
-		}
-		err = system.WriteFile(output, buf.Bytes())
-		system.CheckError(err)
-	}
 }
 
 func calculateAESKey() []byte {
