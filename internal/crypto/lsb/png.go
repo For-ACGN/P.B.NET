@@ -1,7 +1,6 @@
 package lsb
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"hash"
 	"image"
@@ -157,8 +156,8 @@ type PNGReader struct {
 }
 
 // NewPNGReader is used to create a png lsb reader.
-func NewPNGReader(img []byte) (*PNGReader, error) {
-	p, err := png.Decode(bytes.NewReader(img))
+func NewPNGReader(img io.Reader) (*PNGReader, error) {
+	p, err := png.Decode(img)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -246,6 +245,7 @@ func NewPNGEncrypter(img image.Image, mode Mode, key []byte) (*PNGEncrypter, err
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
 	}
+	// create encrypter
 	pe := PNGEncrypter{
 		writer:   writer,
 		capacity: capacity,
@@ -411,7 +411,7 @@ type PNGDecrypter struct {
 }
 
 // NewPNGDecrypter is used to create a new png decrypter.
-func NewPNGDecrypter(img, key []byte) (*PNGDecrypter, error) {
+func NewPNGDecrypter(img io.Reader, key []byte) (*PNGDecrypter, error) {
 	reader, err := NewPNGReader(img)
 	if err != nil {
 		return nil, err
@@ -421,6 +421,7 @@ func NewPNGDecrypter(img, key []byte) (*PNGDecrypter, error) {
 	if capacity < 1 {
 		return nil, ErrImgTooSmall
 	}
+	// create decrypter
 	pd := PNGDecrypter{
 		reader:   reader,
 		capacity: capacity,

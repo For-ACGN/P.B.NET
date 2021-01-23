@@ -175,3 +175,43 @@ func LoadImage(r io.Reader, ext string) (image.Image, error) {
 	}
 	return nil, errors.New("unsupported image format")
 }
+
+// NewWriter is used to create a lsb writer with mode.
+func NewWriter(mode Mode, img image.Image) (Writer, error) {
+	switch mode {
+	case PNGWithNRGBA32, PNGWithNRGBA64:
+		return NewPNGWriter(img, mode)
+	default:
+		return nil, errors.New(mode.String())
+	}
+}
+
+// NewReader is used to create a lsb reader with mode.
+func NewReader(mode Mode, img io.Reader) (Reader, error) {
+	switch mode {
+	case PNGWithNRGBA32, PNGWithNRGBA64:
+		return NewPNGReader(img)
+	default:
+		return nil, errors.New(mode.String())
+	}
+}
+
+// NewEncrypter is used to create a lsb encrypter with mode.
+func NewEncrypter(mode Mode, img image.Image, key []byte) (Encrypter, error) {
+	switch mode {
+	case PNGWithNRGBA32, PNGWithNRGBA64:
+		return NewPNGEncrypter(img, mode, key)
+	default:
+		return nil, errors.New(mode.String())
+	}
+}
+
+// NewDecrypter is used to create a lsb decrypter with mode.
+func NewDecrypter(mode Mode, img io.Reader, key []byte) (Decrypter, error) {
+	switch mode {
+	case PNGWithNRGBA32, PNGWithNRGBA64:
+		return NewPNGDecrypter(img, key)
+	default:
+		return nil, errors.New(mode.String())
+	}
+}

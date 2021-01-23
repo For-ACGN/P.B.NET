@@ -34,13 +34,13 @@ var tests = [...]*struct {
 			return NewPNGWriter(img, PNGWithNRGBA32)
 		},
 		func(img []byte) (Reader, error) {
-			return NewPNGReader(img)
+			return NewPNGReader(bytes.NewReader(img))
 		},
 		func(img image.Image, key []byte) (Encrypter, error) {
 			return NewPNGEncrypter(img, PNGWithNRGBA32, key)
 		},
 		func(img, key []byte) (Decrypter, error) {
-			return NewPNGDecrypter(img, key)
+			return NewPNGDecrypter(bytes.NewReader(img), key)
 		},
 	},
 	{
@@ -49,13 +49,13 @@ var tests = [...]*struct {
 			return NewPNGWriter(img, PNGWithNRGBA64)
 		},
 		func(img []byte) (Reader, error) {
-			return NewPNGReader(img)
+			return NewPNGReader(bytes.NewReader(img))
 		},
 		func(img image.Image, key []byte) (Encrypter, error) {
 			return NewPNGEncrypter(img, PNGWithNRGBA64, key)
 		},
 		func(img, key []byte) (Decrypter, error) {
-			return NewPNGDecrypter(img, key)
+			return NewPNGDecrypter(bytes.NewReader(img), key)
 		},
 	},
 }

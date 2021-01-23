@@ -24,12 +24,12 @@ func testGeneratePNG(width, height int) *image.NRGBA64 {
 	return image.NewNRGBA64(rect)
 }
 
-func testGeneratePNGBytes(t *testing.T, width, height int) []byte {
+func testGeneratePNGReader(t *testing.T, width, height int) io.Reader {
 	img := testGeneratePNG(width, height)
 	buf := bytes.NewBuffer(make([]byte, 0, width*height/4))
 	err := png.Encode(buf, img)
 	require.NoError(t, err)
-	return buf.Bytes()
+	return buf
 }
 
 func TestNewPNGWriter(t *testing.T) {
@@ -66,23 +66,26 @@ func TestPNGWriterWithInvalidMode(t *testing.T) {
 
 func TestNewPNGReader(t *testing.T) {
 	t.Run("invalid image", func(t *testing.T) {
-		reader, err := NewPNGReader(nil)
+		img := testsuite.NewMockConnWithReadError()
+
+		reader, err := NewPNGReader(img)
 		require.Error(t, err)
 		require.Nil(t, reader)
 	})
 
 	t.Run("unsupported png format", func(t *testing.T) {
-		data, err := os.ReadFile("testdata/black.png")
+		file, err := os.Open("testdata/black.png")
 		require.NoError(t, err)
+		defer func() { _ = file.Close() }()
 
-		reader, err := NewPNGReader(data)
+		reader, err := NewPNGReader(file)
 		require.EqualError(t, err, "unsupported png format: *image.RGBA")
 		require.Nil(t, reader)
 	})
 }
 
 func TestPNGReaderWithInvalidMode(t *testing.T) {
-	img := testGeneratePNGBytes(t, 160, 90)
+	img := testGeneratePNGReader(t, 160, 90)
 	reader, err := NewPNGReader(img)
 	require.NoError(t, err)
 	reader.mode = Invalid
@@ -231,19 +234,21 @@ func TestPNGEncrypter_writeHeader(t *testing.T) {
 
 func TestNewPNGDecrypter(t *testing.T) {
 	t.Run("invalid image", func(t *testing.T) {
-		_, err := NewPNGDecrypter(nil, nil)
+		img := testsuite.NewMockConnWithReadError()
+
+		_, err := NewPNGDecrypter(img, nil)
 		require.Error(t, err)
 	})
 
 	t.Run("too small image", func(t *testing.T) {
-		img := testGeneratePNGBytes(t, 1, 2)
+		img := testGeneratePNGReader(t, 1, 2)
 
 		_, err := NewPNGDecrypter(img, nil)
 		require.Equal(t, ErrImgTooSmall, err)
 	})
 
 	t.Run("failed to reset", func(t *testing.T) {
-		img := testGeneratePNGBytes(t, 160, 90)
+		img := testGeneratePNGReader(t, 160, 90)
 		invalidKey := make([]byte, 8)
 
 		_, err := NewPNGDecrypter(img, invalidKey)
@@ -252,7 +257,7 @@ func TestNewPNGDecrypter(t *testing.T) {
 }
 
 func TestPNGDecrypter_Read(t *testing.T) {
-	img := testGeneratePNGBytes(t, 160, 90)
+	img := testGeneratePNGReader(t, 160, 90)
 	key := make([]byte, aes.Key256Bit)
 	decrypter, err := NewPNGDecrypter(img, key)
 	require.NoError(t, err)
@@ -274,7 +279,7 @@ func TestPNGDecrypter_Read(t *testing.T) {
 }
 
 func TestPNGDecrypter_validate(t *testing.T) {
-	img := testGeneratePNGBytes(t, 160, 90)
+	img := testGeneratePNGReader(t, 160, 90)
 	key := make([]byte, aes.Key256Bit)
 	decrypter, err := NewPNGDecrypter(img, key)
 	require.NoError(t, err)
