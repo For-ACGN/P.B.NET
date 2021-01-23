@@ -6,10 +6,13 @@ import (
 	"crypto/sha256"
 	"flag"
 	"fmt"
+	"image"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/crypto/pbkdf2"
 
 	"project/internal/crypto/aes"
 	"project/internal/crypto/lsb"
@@ -17,41 +20,31 @@ import (
 )
 
 var (
-	encrypt    bool
-	decrypt    bool
-	textMode   bool
-	binaryMode bool
-	lsbMode    lsb.Mode
-	imgPath    string
-	data       string
-	offset     int64
-	password   string
-	output     string
+	encrypt  bool
+	decrypt  bool
+	lsbMode  uint
+	imgPath  string
+	text     string
+	filePath string
+	offset   int64
+	key      string
+	output   string
 )
 
 func init() {
-	var mode uint
-
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.CommandLine.Usage = printUsage
 
-	flag.BoolVar(&encrypt, "enc", false, "encrypt data to a png file")
-	flag.BoolVar(&decrypt, "dec", false, "decrypt data from a png file")
-	flag.BoolVar(&textMode, "text", false, "use text mode")
-	flag.BoolVar(&binaryMode, "bin", false, "use binary mode")
-	flag.UintVar(&mode, "mode", 0, "set lsb mode (see internal/crypto/lsb/lsb.go)")
-	flag.StringVar(&imgPath, "img", "", "raw or encrypted image file path")
-	flag.StringVar(&data, "data", "", "text message or binary file path for encrypt")
+	flag.BoolVar(&encrypt, "enc", false, "encrypt data to a image")
+	flag.BoolVar(&decrypt, "dec", false, "decrypt data from a image")
+	flag.UintVar(&lsbMode, "mode", 0, "specify lsb mode (see internal/crypto/lsb/lsb.go)")
+	flag.StringVar(&imgPath, "img", "", "original or encrypted image file path")
+	flag.StringVar(&text, "text", "", "text message that will be encrypted")
+	flag.StringVar(&filePath, "file", "", "file that will be encrypted")
 	flag.Int64Var(&offset, "offset", 0, "set offset for encrypter or decrypter")
-	flag.StringVar(&password, "pwd", "lsb", "password for encrypt or decrypt data")
-	flag.StringVar(&output, "output", "", "output file path")
+	flag.StringVar(&key, "key", "lsb", "password for encrypt or decrypt data")
+	flag.StringVar(&output, "output", "", "output encrypted image or secret file path")
 	flag.Parse()
-
-	// set default lsb mode
-	lsbMode = lsb.Mode(mode)
-	if lsbMode == 0 {
-		lsbMode = lsb.PNGWithNRGBA32
-	}
 }
 
 func printUsage() {
@@ -60,77 +53,97 @@ func printUsage() {
 	const format = `
 usage:
 
- [encrypt]
-   text mode:   %s -enc -text -img "raw.png" -data "secret" -pwd "pass"
-   binary mode: %s -enc -bin -img "raw.png" -data "secret.txt" -pwd "pass"
+  [encrypt]
+    text mode: %s -enc -img "raw.png" -text "secret" -key "lsb" -output "enc.png"
+    file mode: %s -enc -img "raw.png" -file "se.txt" -key "lsb" -output "enc.png"
 
- [decrypt]
-   text mode:   %s -dec -text -img "enc.png" -pwd "pass"
-   binary mode: %s -dec -bin -img "enc.png" -pwd "pass"
-
+  [decrypt]
+    text mode: %s -dec -img "enc.png" -key "lsb"
+    file mode: %s -dec -img "enc.png" -key "lsb" -output "secret.txt"
 `
-	fmt.Printf(format[1:], exe, exe, exe, exe)
+	fmt.Printf(format[1:]+"\n", exe, exe, exe, exe)
 	flag.PrintDefaults()
 }
 
 func main() {
+	// check arguments
+	if len(os.Args) == 1 {
+		printUsage()
+		return
+	}
+	// load image file
+	imgFile, err := os.Open(imgPath)
+	system.CheckError(err)
+	defer func() { _ = imgFile.Close() }()
+	ext := filepath.Ext(imgPath)
+	img, err := lsb.LoadImage(imgFile, ext)
+	system.CheckError(err)
+	// create data reader
+	var reader io.Reader
+	if filePath != "" {
+		file, err := os.Open(filePath)
+		system.CheckError(err)
+		defer func() { _ = file.Close() }()
+		reader = file
+	} else {
+		reader = strings.NewReader(text)
+	}
+	// use default mode
+	mode := lsb.Mode(lsbMode)
+	if mode == 0 {
+		mode = lsb.PNGWithNRGBA32
+	}
 	switch {
 	case encrypt:
-		encryptData()
+		encryptImage(mode, img, reader)
 	case decrypt:
-		decryptData()
+		decryptImage(mode, img)
 	default:
 		printUsage()
 	}
 }
 
-func encryptData() {
-	// create plain data reader
-	var reader io.Reader
-	switch {
-	case textMode:
-		reader = strings.NewReader(data)
-	case binaryMode:
-		file, err := os.Open(data) // #nosec
+func encryptImage(mode lsb.Mode, img image.Image, src io.Reader) {
+	// create lsb encrypter
+	aesKey := calculateAESKey()
+	var (
+		encrypter lsb.Encrypter
+		err       error
+	)
+	switch mode {
+	case lsb.PNGWithNRGBA32, lsb.PNGWithNRGBA64:
+		encrypter, err = lsb.NewPNGEncrypter(img, mode, aesKey)
 		system.CheckError(err)
-		defer func() { _ = file.Close() }()
-		reader = file
 	default:
-		system.PrintError("select text or binary mode")
+		system.PrintError(mode)
 	}
-	// read image
-	switch lsbMode {
-	case lsb.PNGWithNRGBA32:
-		file, err := os.Open(imgPath)
+	// set offset
+	if offset != 0 {
+		err = encrypter.SetOffset(offset)
 		system.CheckError(err)
-		defer func() { _ = file.Close() }()
-
 	}
-
-	// compress plain data
-	buf := bytes.NewBuffer(make([]byte, 0, len(reader)/2))
-	writer, err := flate.NewWriter(buf, flate.BestCompression)
+	// compress plain data and encrypted to image
+	writer, err := flate.NewWriter(encrypter, flate.BestCompression)
 	system.CheckError(err)
-	_, err = writer.Write(reader)
+	_, err = io.Copy(writer, src)
 	system.CheckError(err)
 	err = writer.Close()
-	system.CheckError(err)
-	// encrypt
-	key, iv := generateAESKeyIV()
-	pngEnc, err := lsb.EncryptToPNG(img, buf.Bytes(), key, iv)
 	system.CheckError(err)
 	// write file
 	if output == "" {
 		output = "enc.png"
 	}
-	err = system.WriteFile(output, pngEnc)
+	outputFile, err := os.Create(output)
+	system.CheckError(err)
+	defer func() { _ = outputFile.Close() }()
+	err = encrypter.Encode(outputFile)
 	system.CheckError(err)
 }
 
-func decryptData() {
+func decryptImage(mode lsb.Mode, img image.Image) {
 	// check mode first
 	switch {
-	case textMode, binaryMode:
+	case textMode, binMode:
 	default:
 		fmt.Println("select text or binary mode")
 	}
@@ -149,7 +162,7 @@ func decryptData() {
 	switch {
 	case textMode:
 		fmt.Println(buf)
-	case binaryMode:
+	case binMode:
 		if output == "" {
 			output = "file.txt"
 		}
@@ -158,7 +171,8 @@ func decryptData() {
 	}
 }
 
-func generateAESKeyIV() ([]byte, []byte) {
-	hash := sha256.Sum256([]byte(password))
-	return hash[:], hash[:aes.IVSize]
+func calculateAESKey() []byte {
+	pwd := []byte(key)
+	salt := []byte("lsb")
+	return pbkdf2.Key(pwd, salt, 4096, aes.Key256Bit, sha256.New)
 }
