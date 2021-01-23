@@ -94,7 +94,7 @@ func FdumpStringWithPL(w io.Writer, str, prefix string, lineLen int) (int, error
 				return num, err
 			}
 		}
-		// read line
+		// read line and write string
 		n, _ = reader.Read(buf)
 		nn, err = w.Write(buf[:n])
 		num += nn
@@ -102,18 +102,14 @@ func FdumpStringWithPL(w io.Writer, str, prefix string, lineLen int) (int, error
 			return num, err
 		}
 		// finish
-		if n != lineLen {
+		if n != lineLen || reader.Len() == 0 {
 			break
 		}
 		// write new line
-		if reader.Len() != 0 {
-			nn, err = w.Write(newLine)
-			num += nn
-			if err != nil {
-				return num, err
-			}
-		} else {
-			break
+		nn, err = w.Write(newLine)
+		num += nn
+		if err != nil {
+			return num, err
 		}
 	}
 	return num, nil

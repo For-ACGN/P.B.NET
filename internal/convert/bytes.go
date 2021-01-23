@@ -3,7 +3,6 @@ package convert
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -11,34 +10,91 @@ import (
 
 const defaultBytesLineLen = 8
 
+func calcDumpBytesWithPLBufferSize(b []byte, prefix string, lineLen int) int {
+	bl := len(b)
+	pl := len(prefix)
+	body := (bl / lineLen) * (pl + lineLen*6 - 1 + len(newLine))
+	tail := pl + (bl%lineLen)*6
+	return body + tail
+}
+
+func calcDumpBytesBufferSize(b []byte) int {
+	needNewLine := len(b) > defaultBytesLineLen
+	var prefix string
+	if needNewLine {
+		prefix = "\t"
+	}
+	size := calcDumpBytesWithPLBufferSize(b, prefix, defaultBytesLineLen) +
+		len("[]byte{") + len("}")
+	if needNewLine {
+		size += 2 * len("\n")
+	}
+	return size
+}
+
 // DumpBytes is used to convert byte slice to go source and write it to os.Stdout.
 func DumpBytes(b []byte) (int, error) {
-	n1, _ := fmt.Println("[]byte{")
-	n2, err := DumpBytesWithPL(b, "\t", defaultBytesLineLen)
-	n3, _ := fmt.Println("\n}")
-	return n1 + n2 + n3, err
+	size := calcDumpBytesBufferSize(b)
+	buf := bytes.NewBuffer(make([]byte, 0, size))
+	_, _ = FdumpBytes(buf, b)
+	n, err := buf.WriteTo(os.Stdout)
+	return int(n), err
 }
 
 // SdumpBytes is used to convert byte slice to go source and write it to a string.
 func SdumpBytes(b []byte) string {
-	return
+	size := calcDumpBytesBufferSize(b)
+	builder := strings.Builder{}
+	builder.Grow(size)
+	_, _ = FdumpBytes(&builder, b)
+	return builder.String()
 }
 
 // FdumpBytes is used to convert byte slice to go source and write it to io.Writer.
 func FdumpBytes(w io.Writer, b []byte) (int, error) {
-	return
+	needNewLine := len(b) > defaultBytesLineLen
+	var (
+		num int
+		n   int
+		err error
+	)
+	n, err = w.Write([]byte("[]byte{"))
+	num += n
+	if err != nil {
+		return num, err
+	}
+	var prefix string
+	if needNewLine {
+		prefix = "\t"
+		n, err = w.Write([]byte("\n"))
+		num += n
+		if err != nil {
+			return num, err
+		}
+	}
+	n, err = FdumpBytesWithPL(w, b, prefix, defaultBytesLineLen)
+	num += n
+	if err != nil {
+		return num, err
+	}
+	if needNewLine {
+		n, err = w.Write([]byte("\n"))
+		num += n
+		if err != nil {
+			return num, err
+		}
+	}
+	n, err = w.Write([]byte("}"))
+	num += n
+	return num, err
 }
 
 // DumpBytesWithPL is used to convert byte slice to go source code with prefix
 // and line length, then write it to os.Stdout.
 func DumpBytesWithPL(b []byte, prefix string, lineLen int) (int, error) {
-	// calculate buffer size
-	bl := len(b)
-	pl := len(prefix)
-	body := (bl / lineLen) * (pl + lineLen*6 - 1 + len(newLine))
-	tail := pl + (bl%lineLen)*6
+	size := calcDumpBytesWithPLBufferSize(b, prefix, lineLen)
 	// dump string
-	buf := bytes.NewBuffer(make([]byte, 0, body+tail+1))
+	buf := bytes.NewBuffer(make([]byte, 0, size+1))
 	_, _ = FdumpBytesWithPL(buf, b, prefix, lineLen)
 	buf.Write(newLine)
 	// write to stdout
@@ -49,14 +105,10 @@ func DumpBytesWithPL(b []byte, prefix string, lineLen int) (int, error) {
 // SdumpBytesWithPL is used to convert byte slice to go source code with prefix
 // and line length, then write it to a string.
 func SdumpBytesWithPL(b []byte, prefix string, lineLen int) string {
-	// calculate buffer size
-	bl := len(b)
-	pl := len(prefix)
-	body := (bl / lineLen) * (pl + lineLen*6 - 1 + len(newLine))
-	tail := pl + (bl%lineLen)*6
+	size := calcDumpBytesWithPLBufferSize(b, prefix, lineLen)
 	// dump string
 	builder := strings.Builder{}
-	builder.Grow(body + tail)
+	builder.Grow(size)
 	_, _ = FdumpBytesWithPL(&builder, b, prefix, lineLen)
 	return builder.String()
 }
@@ -109,6 +161,7 @@ func FdumpBytesWithPL(w io.Writer, b []byte, prefix string, lineLen int) (int, e
 		}
 		// read line
 		n, _ = reader.Read(buf)
+		// write each byte
 		for i := 0; i < n; i++ {
 			hex.Encode(hexBuf, []byte{buf[i]})
 			hexBuf = bytes.ToUpper(hexBuf)
@@ -125,18 +178,14 @@ func FdumpBytesWithPL(w io.Writer, b []byte, prefix string, lineLen int) (int, e
 			}
 		}
 		// finish
-		if n != lineLen {
+		if n != lineLen || reader.Len() == 0 {
 			break
 		}
 		// write new line
-		if reader.Len() != 0 {
-			nn, err = w.Write(newLine)
-			num += nn
-			if err != nil {
-				return num, err
-			}
-		} else {
-			break
+		nn, err = w.Write(newLine)
+		num += nn
+		if err != nil {
+			return num, err
 		}
 	}
 	return num, nil
