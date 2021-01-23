@@ -157,11 +157,73 @@ func TestDumpBytesWithPL(t *testing.T) {
 }
 
 func TestSdumpBytesWithPL(t *testing.T) {
-
+	for _, testdata := range [...]*struct {
+		input  []byte
+		output string
+	}{
+		{[]byte{}, ""},
+		{[]byte{1}, "\t0x01,"},
+		{[]byte{1, 2, 3, 4}, "\t0x01, 0x02, 0x03, 0x04,"},
+		{[]byte{1, 2, 3, 4, 5}, "\t0x01, 0x02, 0x03, 0x04,\n\t0x05,"},
+	} {
+		output := SdumpBytesWithPL(testdata.input, "\t", 4)
+		require.Equal(t, testdata.output, output)
+	}
 }
 
 func TestFdumpBytesWithPL(t *testing.T) {
+	t.Run("invalid line length", func(t *testing.T) {
+		output := SdumpBytesWithPL([]byte{1, 2}, "", -1)
+		expected := "0x01, 0x02,"
+		require.Equal(t, expected, output)
+	})
 
+	t.Run("failed to write prefix", func(t *testing.T) {
+		var builder *strings.Builder
+		patch := func(builder *strings.Builder, b []byte) (int, error) {
+			str := string(b)
+			if str == "\t" {
+				return 0, monkey.Error
+			}
+			return builder.WriteString(str)
+		}
+		pg := monkey.PatchInstanceMethod(builder, "Write", patch)
+		defer pg.Unpatch()
+
+		output := SdumpBytesWithPL([]byte{1, 2}, "\t", 2)
+		require.Zero(t, output)
+	})
+
+	t.Run("failed to write hexed byte", func(t *testing.T) {
+		var builder *strings.Builder
+		patch := func(builder *strings.Builder, b []byte) (int, error) {
+			str := string(b)
+			if str == "0x02, " {
+				return 0, monkey.Error
+			}
+			return builder.WriteString(str)
+		}
+		pg := monkey.PatchInstanceMethod(builder, "Write", patch)
+		defer pg.Unpatch()
+
+		output := SdumpBytesWithPL([]byte{1, 2, 3}, "\t", 4)
+		require.Equal(t, "\t0x01, ", output)
+	})
+
+	t.Run("failed to write new line", func(t *testing.T) {
+		var builder *strings.Builder
+		patch := func(builder *strings.Builder, b []byte) (int, error) {
+			if bytes.Equal(b, newLine) {
+				return 0, monkey.Error
+			}
+			return builder.WriteString(string(b))
+		}
+		pg := monkey.PatchInstanceMethod(builder, "Write", patch)
+		defer pg.Unpatch()
+
+		output := SdumpBytesWithPL([]byte{1, 2, 3}, "\t", 2)
+		require.Equal(t, "\t0x01, 0x02,", output)
+	})
 }
 
 func TestMergeBytes(t *testing.T) {
