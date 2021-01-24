@@ -56,7 +56,7 @@ func NewCTREncrypter(writer Writer, key []byte) (*CTREncrypter, error) {
 		capacity: capacity,
 		hmac:     hmac.New(sha256.New, key),
 	}
-	err := pe.reset(key, 0)
+	err := pe.reset(key)
 	if err != nil {
 		return nil, err
 	}
@@ -128,47 +128,44 @@ func (ce *CTREncrypter) writeHeader() error {
 	return nil
 }
 
-// SetOffset is used to set data start area.
-func (ce *CTREncrypter) SetOffset(v int64) error {
-	if v < 0 {
-		return ErrInvalidOffset
-	}
+// Seek sets the offset for the next Write to offset.
+func (ce *CTREncrypter) Seek(offset int64, whence int) (int64, error) {
 	if ce.written > 0 {
 		err := ce.writeHeader()
 		if err != nil {
-			return err
+			return 0, err
 		}
 	}
-	return ce.setOffset(v)
+	return ce.seek(offset, whence)
 }
 
-func (ce *CTREncrypter) setOffset(offset int64) error {
-	err := ce.writer.SetOffset(offset + ctrReverseSize)
+func (ce *CTREncrypter) seek(offset int64, whence int) (int64, error) {
+	offset, err := ce.writer.Seek(offset+ctrReverseSize, whence)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	iv, err := aes.GenerateIV()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = ce.ctr.SetStream(iv)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	ce.hmac.Reset()
 	ce.iv = security.NewBytes(iv)
-	ce.offset = offset
+	ce.offset = offset - ctrReverseSize
 	ce.written = 0
-	return nil
+	return offset, nil
 }
 
 // Reset is used to reset AES-CTR encrypter.
 func (ce *CTREncrypter) Reset(key []byte) error {
 	ce.writer.Reset()
-	return ce.reset(key, 0)
+	return ce.reset(key)
 }
 
-func (ce *CTREncrypter) reset(key []byte, offset int64) error {
+func (ce *CTREncrypter) reset(key []byte) error {
 	if key != nil {
 		ctr, err := aes.NewCTR(key)
 		if err != nil {
@@ -177,7 +174,8 @@ func (ce *CTREncrypter) reset(key []byte, offset int64) error {
 		ce.ctr = ctr
 		ce.hmac = hmac.New(sha256.New, key)
 	}
-	return ce.setOffset(offset)
+	_, err := ce.seek(0, io.SeekStart)
+	return err
 }
 
 // Key is used to get the aes key.
@@ -311,8 +309,8 @@ func (cd *CTRDecrypter) validate() error {
 	if !hmac.Equal(signature, cd.hmac.Sum(nil)) {
 		return errors.New("invalid hmac signature")
 	}
-	// reset offset
-	err = cd.reader.SetOffset(cd.offset + ctrReverseSize)
+	// reset offset that after iv
+	_, err = cd.reader.Seek(-size, io.SeekCurrent)
 	if err != nil {
 		return errors.WithMessage(err, "failed to reset offset")
 	}
@@ -325,9 +323,17 @@ func (cd *CTRDecrypter) validate() error {
 	return nil
 }
 
-// SetOffset is used to set data start area.
-func (cd *CTRDecrypter) SetOffset(v int64) error {
-	return cd.reset(v)
+// Seek sets the offset for the next Read to offset.
+func (cd *CTRDecrypter) Seek(offset int64, whence int) (int64, error) {
+	offset, err := cd.reader.Seek(offset, whence)
+	if err != nil {
+		return 0, err
+	}
+	cd.hmac.Reset()
+	cd.offset = offset
+	cd.size = 0
+	cd.read = 0
+	return offset, nil
 }
 
 // Reset is used to reset AES-CTR decrypter.
@@ -340,19 +346,8 @@ func (cd *CTRDecrypter) Reset(key []byte) error {
 		cd.ctr = ctr
 		cd.hmac = hmac.New(sha256.New, key)
 	}
-	return cd.reset(0)
-}
-
-func (cd *CTRDecrypter) reset(offset int64) error {
-	err := cd.reader.SetOffset(offset)
-	if err != nil {
-		return err
-	}
-	cd.hmac.Reset()
-	cd.offset = offset
-	cd.size = 0
-	cd.read = 0
-	return nil
+	_, err := cd.Seek(0, io.SeekStart)
+	return err
 }
 
 // Key is used to get the aes key.

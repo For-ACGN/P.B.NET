@@ -244,7 +244,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, reader)
 			})
 
-			t.Run("SetOffset", func(t *testing.T) {
+			t.Run("Seek", func(t *testing.T) {
 				testdata1 := random.Bytes(256 + random.Intn(256))
 				testdata2 := random.Bytes(512 + random.Intn(512))
 				testdata1Len := len(testdata1)
@@ -259,8 +259,9 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
 
-				err = writer.SetOffset(offset)
+				abs, err := writer.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
+				require.Equal(t, offset, abs)
 
 				n, err = writer.Write(testdata2)
 				require.NoError(t, err)
@@ -284,8 +285,9 @@ func testWriterAndReader(t *testing.T, name string) {
 				data := convert.MergeBytes(buf1, buf2)
 				require.Equal(t, testdata1, data)
 
-				err = reader.SetOffset(offset)
+				abs, err = reader.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
+				require.Equal(t, offset, abs)
 
 				rv = 64 + random.Intn(64)
 				buf1 = make([]byte, testdata2Len-rv)
@@ -313,7 +315,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, reader)
 			})
 
-			t.Run("SetOffset Full", func(t *testing.T) {
+			t.Run("Seek Full", func(t *testing.T) {
 				// write data
 				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
@@ -330,8 +332,9 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
 
-				err = writer.SetOffset(offset)
+				abs, err := writer.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
+				require.Equal(t, offset, abs)
 
 				n, err = writer.Write(testdata2)
 				require.NoError(t, err)
@@ -365,8 +368,9 @@ func testWriterAndReader(t *testing.T, name string) {
 				data := convert.MergeBytes(buf1, buf2)
 				require.Equal(t, testdata1, data)
 
-				err = reader.SetOffset(offset)
+				abs, err = reader.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
+				require.Equal(t, offset, abs)
 
 				rv = 64 + random.Intn(64)
 				buf1 = make([]byte, testdata2Len-rv)
@@ -390,7 +394,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.Equal(t, 0, n)
 
 				// read remaining
-				err = reader.SetOffset(offset)
+				abs, err = reader.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
 
 				n, err = reader.Read(buf)
@@ -414,17 +418,19 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, reader)
 			})
 
-			t.Run("SetOffset with invalid value", func(t *testing.T) {
+			t.Run("Seek with invalid offset", func(t *testing.T) {
 				testdata := random.Bytes(128)
 
 				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
 
-				err = writer.SetOffset(-1)
-				require.Equal(t, ErrInvalidOffset, err)
+				offset, err := writer.Seek(-1, io.SeekStart)
+				require.Equal(t, ErrNegativePosition, err)
+				require.Zero(t, offset)
 
-				err = writer.SetOffset(math.MaxInt64)
+				offset, err = writer.Seek(math.MaxInt64, io.SeekStart)
 				require.Equal(t, ErrInvalidOffset, err)
+				require.Zero(t, offset)
 
 				n, err := writer.Write(testdata)
 				require.NoError(t, err)
@@ -437,11 +443,13 @@ func testWriterAndReader(t *testing.T, name string) {
 				reader, err := test.NewReader(output.Bytes())
 				require.NoError(t, err)
 
-				err = reader.SetOffset(-1)
-				require.Equal(t, ErrInvalidOffset, err)
+				offset, err = reader.Seek(-1, io.SeekStart)
+				require.Equal(t, ErrNegativePosition, err)
+				require.Zero(t, offset)
 
-				err = reader.SetOffset(math.MaxInt64)
+				offset, err = reader.Seek(math.MaxInt64, io.SeekStart)
 				require.Equal(t, ErrInvalidOffset, err)
+				require.Zero(t, offset)
 
 				buf := make([]byte, 128)
 				_, err = io.ReadFull(reader, buf)
@@ -692,7 +700,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, decrypter)
 			})
 
-			t.Run("SetOffset", func(t *testing.T) {
+			t.Run("Seek", func(t *testing.T) {
 				key := random.Bytes(aes.Key256Bit)
 				testdata1 := random.Bytes(256 + random.Intn(256))
 				testdata2 := random.Bytes(512 + random.Intn(512))
@@ -704,14 +712,14 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
-				err = encrypter.SetOffset(0)
+				_, err = encrypter.Seek(0, io.SeekStart)
 				require.NoError(t, err)
 
 				n, err := encrypter.Write(testdata1)
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
 
-				err = encrypter.SetOffset(offset)
+				_, err = encrypter.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
 
 				n, err = encrypter.Write(testdata2)
@@ -726,7 +734,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
-				err = decrypter.SetOffset(0)
+				_, err = decrypter.Seek(0, io.SeekStart)
 				require.NoError(t, err)
 
 				rv := 64 + random.Intn(64)
@@ -739,7 +747,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				plainData := convert.MergeBytes(buf1, buf2)
 				require.Equal(t, testdata1, plainData)
 
-				err = decrypter.SetOffset(offset)
+				_, err = decrypter.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
 
 				rv = 64 + random.Intn(64)
@@ -778,7 +786,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, decrypter)
 			})
 
-			t.Run("SetOffset Full", func(t *testing.T) {
+			t.Run("Seek Full", func(t *testing.T) {
 				key := random.Bytes(aes.Key256Bit)
 
 				// encrypt data
@@ -797,7 +805,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
 
-				err = encrypter.SetOffset(offset)
+				_, err = encrypter.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
 
 				n, err = encrypter.Write(testdata2)
@@ -832,7 +840,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				plainData := convert.MergeBytes(buf1, buf2)
 				require.Equal(t, testdata1, plainData)
 
-				err = decrypter.SetOffset(offset)
+				_, err = decrypter.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
 
 				rv = 64 + random.Intn(64)
@@ -857,7 +865,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.Equal(t, 0, n)
 
 				// read remaining
-				err = decrypter.SetOffset(offset)
+				_, err = decrypter.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
 
 				n, err = decrypter.Read(buf)
@@ -891,17 +899,17 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, decrypter)
 			})
 
-			t.Run("SetOffset with invalid value", func(t *testing.T) {
+			t.Run("Seek with invalid offset", func(t *testing.T) {
 				key := random.Bytes(aes.Key256Bit)
 				testdata := random.Bytes(128)
 
 				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
-				err = encrypter.SetOffset(-1)
-				require.Equal(t, ErrInvalidOffset, err)
+				_, err = encrypter.Seek(-1, io.SeekStart)
+				require.Equal(t, ErrNegativePosition, err)
 
-				err = encrypter.SetOffset(math.MaxInt64)
+				_, err = encrypter.Seek(math.MaxInt64, io.SeekStart)
 				require.Equal(t, ErrInvalidOffset, err)
 
 				n, err := encrypter.Write(testdata)
@@ -915,10 +923,10 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
-				err = decrypter.SetOffset(-1)
-				require.Equal(t, ErrInvalidOffset, err)
+				_, err = decrypter.Seek(-1, io.SeekStart)
+				require.Equal(t, ErrNegativePosition, err)
 
-				err = decrypter.SetOffset(math.MaxInt64)
+				_, err = decrypter.Seek(math.MaxInt64, io.SeekStart)
 				require.Equal(t, ErrInvalidOffset, err)
 
 				plainData, err := io.ReadAll(decrypter)
@@ -1236,8 +1244,9 @@ func TestWriterAndReader_Fuzz(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
 
-				err = writer.SetOffset(offset)
+				abs, err := writer.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
+				require.Equal(t, offset, abs)
 
 				n, err = writer.Write(testdata2)
 				require.NoError(t, err)
@@ -1262,8 +1271,9 @@ func TestWriterAndReader_Fuzz(t *testing.T) {
 
 				require.Equal(t, testdata1, data)
 
-				err = reader.SetOffset(offset)
+				abs, err = reader.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
+				require.Equal(t, offset, abs)
 
 				rv = 64 + random.Intn(64)
 				buf1 = make([]byte, testdata2Len-rv)
@@ -1315,7 +1325,7 @@ func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, testdata1Len, n)
 
-				err = encrypter.SetOffset(offset)
+				_, err = encrypter.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
 
 				n, err = encrypter.Write(testdata2)
@@ -1341,7 +1351,7 @@ func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 
 				require.Equal(t, testdata1, data)
 
-				err = decrypter.SetOffset(offset)
+				_, err = decrypter.Seek(offset, io.SeekStart)
 				require.NoError(t, err)
 
 				rv = 64 + random.Intn(64)

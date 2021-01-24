@@ -96,8 +96,9 @@ func TestCTREncrypter_SetOffset(t *testing.T) {
 
 		encrypter.writer = new(mockWriter)
 
-		err = encrypter.SetOffset(1)
+		offset, err := encrypter.Seek(1, io.SeekStart)
 		require.Equal(t, errMockError, err)
+		require.Zero(t, offset)
 	})
 
 	t.Run("failed to generate IV", func(t *testing.T) {
@@ -107,8 +108,9 @@ func TestCTREncrypter_SetOffset(t *testing.T) {
 		pg := monkey.Patch(aes.GenerateIV, patch)
 		defer pg.Unpatch()
 
-		err = encrypter.SetOffset(1)
+		offset, err := encrypter.Seek(1, io.SeekStart)
 		monkey.IsMonkeyError(t, err)
+		require.Zero(t, offset)
 	})
 
 	t.Run("failed to set stream", func(t *testing.T) {
@@ -118,8 +120,9 @@ func TestCTREncrypter_SetOffset(t *testing.T) {
 		pg := monkey.Patch(aes.GenerateIV, patch)
 		defer pg.Unpatch()
 
-		err = encrypter.SetOffset(1)
+		offset, err := encrypter.Seek(1, io.SeekStart)
 		require.Equal(t, aes.ErrInvalidIVSize, err)
+		require.Zero(t, offset)
 	})
 
 	testsuite.IsDestroyed(t, encrypter)
@@ -141,10 +144,10 @@ func TestCTREncrypter_writeHeader(t *testing.T) {
 		require.NoError(t, err)
 
 		defer testsuite.DeferForPanic(t)
-		_ = encrypter.SetOffset(1)
+		_, _ = encrypter.Seek(1, io.SeekStart)
 	})
 
-	t.Run("failed to set offset", func(t *testing.T) {
+	t.Run("failed to seek", func(t *testing.T) {
 		offset := encrypter.offset
 		defer func() { encrypter.offset = offset }()
 
@@ -154,7 +157,7 @@ func TestCTREncrypter_writeHeader(t *testing.T) {
 		require.NoError(t, err)
 
 		defer testsuite.DeferForPanic(t)
-		_ = encrypter.SetOffset(1)
+		_, _ = encrypter.Seek(1, io.SeekStart)
 	})
 
 	testsuite.IsDestroyed(t, encrypter)

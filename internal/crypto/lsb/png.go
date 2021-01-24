@@ -187,7 +187,7 @@ func NewPNGReader(r io.Reader) (*PNGReader, error) {
 	return &pr, nil
 }
 
-// Read is used to read data from png.
+// Read is used to read data from this png image.
 func (pr *PNGReader) Read(b []byte) (int, error) {
 	l := len(b)
 	if l == 0 {
