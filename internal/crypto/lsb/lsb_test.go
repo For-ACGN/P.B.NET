@@ -1517,7 +1517,7 @@ func TestLoadImage(t *testing.T) {
 }
 
 func TestNewWriter(t *testing.T) {
-	t.Run("invalid mode", func(t *testing.T) {
+	t.Run("unknown mode", func(t *testing.T) {
 		writer, err := NewWriter(0, nil)
 		errStr := "failed to create lsb writer with unknown mode: 0"
 		require.EqualError(t, err, errStr)
@@ -1538,7 +1538,7 @@ func TestNewWriter(t *testing.T) {
 }
 
 func TestNewReader(t *testing.T) {
-	t.Run("invalid mode", func(t *testing.T) {
+	t.Run("unknown mode", func(t *testing.T) {
 		reader, err := NewReader(0, nil)
 		errStr := "failed to create lsb reader with unknown mode: 0"
 		require.EqualError(t, err, errStr)
@@ -1552,5 +1552,41 @@ func TestNewReader(t *testing.T) {
 		errStr := "failed to create lsb reader: error in mockConn.Read()"
 		require.EqualError(t, err, errStr)
 		require.Nil(t, reader)
+	})
+}
+
+func TestNewEncrypter(t *testing.T) {
+	t.Run("unknown algorithm", func(t *testing.T) {
+		encrypter, err := NewEncrypter(nil, 0, nil)
+		errStr := "failed to create lsb encrypter with unknown algorithm: 0"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, encrypter)
+	})
+
+	t.Run("failed to create encrypter", func(t *testing.T) {
+		writer := testGeneratePNGWriter(t, 160, 90)
+
+		encrypter, err := NewEncrypter(writer, AESWithCTR, []byte{0})
+		errStr := "failed to create lsb encrypter: crypto/aes: invalid key size 1"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, encrypter)
+	})
+}
+
+func TestNewDecrypter(t *testing.T) {
+	t.Run("unknown algorithm", func(t *testing.T) {
+		decrypter, err := NewDecrypter(nil, 0, nil)
+		errStr := "failed to create lsb decrypter with unknown algorithm: 0"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, decrypter)
+	})
+
+	t.Run("failed to create decrypter", func(t *testing.T) {
+		reader := testGeneratePNGReader(t, 160, 90)
+
+		decrypter, err := NewDecrypter(reader, AESWithCTR, []byte{0})
+		errStr := "failed to create lsb decrypter: crypto/aes: invalid key size 1"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, decrypter)
 	})
 }
