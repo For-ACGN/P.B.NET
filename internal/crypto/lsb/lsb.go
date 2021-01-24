@@ -237,43 +237,37 @@ func NewReader(mode Mode, r io.Reader) (Reader, error) {
 }
 
 // NewEncrypter is used to create a lsb encrypter with algorithm.
-func NewEncrypter(mode Mode, img image.Image, alg Algorithm, key []byte) (Encrypter, error) {
-	// create lsb writer
-	writer, err := NewWriter(mode, img)
-	if err != nil {
-		return nil, err
-	}
-	// create lsb encrypter
-	var encrypter Encrypter
+func NewEncrypter(writer Writer, alg Algorithm, key []byte) (Encrypter, error) {
+	var (
+		enc Encrypter
+		err error
+	)
 	switch alg {
 	case AESWithCTR:
-		encrypter, err = NewCTREncrypter(writer, key)
+		enc, err = NewCTREncrypter(writer, key)
 	default:
 		return nil, fmt.Errorf("failed to create lsb encrypter with %s", alg)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create lsb encrypter: %s", err)
 	}
-	return encrypter, nil
+	return enc, nil
 }
 
 // NewDecrypter is used to create a lsb decrypter with algorithm.
-func NewDecrypter(mode Mode, r io.Reader, alg Algorithm, key []byte) (Decrypter, error) {
-	// create lsb reader
-	reader, err := NewReader(mode, r)
-	if err != nil {
-		return nil, err
-	}
-	// create lsb decrypter
-	var decrypter Decrypter
+func NewDecrypter(reader Reader, alg Algorithm, key []byte) (Decrypter, error) {
+	var (
+		dec Decrypter
+		err error
+	)
 	switch alg {
 	case AESWithCTR:
-		decrypter, err = NewCTRDecrypter(reader, key)
+		dec, err = NewCTRDecrypter(reader, key)
 	default:
 		return nil, fmt.Errorf("failed to create lsb decrypter with %s", alg)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create lsb decrypter: %s", err)
 	}
-	return decrypter, nil
+	return dec, nil
 }

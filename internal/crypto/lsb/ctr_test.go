@@ -26,7 +26,7 @@ func testGeneratePNGWriter(t *testing.T, width, height int) Writer {
 
 func testGeneratePNGReader(t *testing.T, width, height int) Reader {
 	img := testGeneratePNG(width, height)
-	buf := bytes.NewBuffer(make([]byte, 0, width*height/4))
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
 	err := png.Encode(buf, img)
 	require.NoError(t, err)
 	reader, err := NewPNGReader(buf)

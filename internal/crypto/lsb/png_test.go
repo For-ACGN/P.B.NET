@@ -1,7 +1,9 @@
 package lsb
 
 import (
+	"bytes"
 	"image"
+	"image/png"
 	"os"
 	"testing"
 
@@ -68,8 +70,12 @@ func TestNewPNGReader(t *testing.T) {
 }
 
 func TestPNGReaderWithInvalidMode(t *testing.T) {
-	r := testGeneratePNGReader(t, 160, 90)
-	reader, err := NewPNGReader(r)
+	img := testGeneratePNG(160, 90)
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
+	err := png.Encode(buf, img)
+	require.NoError(t, err)
+
+	reader, err := NewPNGReader(buf)
 	require.NoError(t, err)
 	reader.mode = 0
 

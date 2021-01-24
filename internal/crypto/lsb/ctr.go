@@ -29,7 +29,7 @@ const (
 
 var _ Encrypter = new(CTREncrypter)
 
-// CTREncrypter is used to encrypt data and write it to a png image.
+// CTREncrypter is used to encrypt data and write it to a lsb Writer.
 type CTREncrypter struct {
 	writer   Writer
 	capacity int64
@@ -42,7 +42,7 @@ type CTREncrypter struct {
 	written int64
 }
 
-// NewCTREncrypter is used to create a new png encrypter.
+// NewCTREncrypter is used to create a new AES-CTR encrypter.
 func NewCTREncrypter(writer Writer, key []byte) (*CTREncrypter, error) {
 	// calculate capacity that can encrypt
 	capacity := writer.Cap() - ctrReverseSize
@@ -161,7 +161,7 @@ func (ce *CTREncrypter) setOffset(offset int64) error {
 	return nil
 }
 
-// Reset is used to reset png encrypter.
+// Reset is used to reset AES-CTR encrypter.
 func (ce *CTREncrypter) Reset(key []byte) error {
 	ce.writer.Reset()
 	return ce.reset(key, 0)
@@ -184,12 +184,12 @@ func (ce *CTREncrypter) Key() []byte {
 	return ce.ctr.Key()
 }
 
-// Image is used to get the original png image.
+// Image is used to get the original image in the under Writer.
 func (ce *CTREncrypter) Image() image.Image {
 	return ce.writer.Image()
 }
 
-// Cap is used to calculate the capacity that can encrypt to this png image.
+// Cap is used to calculate the capacity that can encrypt to the under Writer.
 func (ce *CTREncrypter) Cap() int64 {
 	return ce.capacity
 }
@@ -206,7 +206,7 @@ func (ce *CTREncrypter) Algorithm() Algorithm {
 
 var _ Decrypter = new(CTRDecrypter)
 
-// CTRDecrypter is used to read data from a png image and decrypt it.
+// CTRDecrypter is used to read data from a lsb Reader and decrypt it.
 type CTRDecrypter struct {
 	reader   Reader
 	capacity int64
@@ -219,7 +219,7 @@ type CTRDecrypter struct {
 	read   int64
 }
 
-// NewCTRDecrypter is used to create a new png decrypter.
+// NewCTRDecrypter is used to create a new AES-CTR decrypter.
 func NewCTRDecrypter(reader Reader, key []byte) (*CTRDecrypter, error) {
 	// calculate capacity that can decrypt
 	capacity := reader.Cap() - ctrReverseSize
@@ -329,7 +329,7 @@ func (cd *CTRDecrypter) SetOffset(v int64) error {
 	return cd.reset(v)
 }
 
-// Reset is used to reset png decrypter.
+// Reset is used to reset AES-CTR decrypter.
 func (cd *CTRDecrypter) Reset(key []byte) error {
 	if key != nil {
 		ctr, err := aes.NewCTR(key)
@@ -359,12 +359,12 @@ func (cd *CTRDecrypter) Key() []byte {
 	return cd.ctr.Key()
 }
 
-// Image is used to get the original png image.
+// Image is used to get the original image in the under Reader.
 func (cd *CTRDecrypter) Image() image.Image {
 	return cd.reader.Image()
 }
 
-// Cap is used to calculate the capacity that can decrypt from this png image.
+// Cap is used to calculate the capacity that can decrypt from the under Reader.
 func (cd *CTRDecrypter) Cap() int64 {
 	return cd.capacity
 }

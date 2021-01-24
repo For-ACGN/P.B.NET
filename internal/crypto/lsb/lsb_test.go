@@ -21,50 +21,52 @@ import (
 	"project/internal/testsuite"
 )
 
-var tests = [...]*struct {
-	mode         Mode
-	newWriter    func(img image.Image) (Writer, error)
-	newReader    func(img []byte) (Reader, error)
-	newEncrypter func(img image.Image, key []byte) (Encrypter, error)
-	newDecrypter func(img, key []byte) (Decrypter, error)
-}{
-	{
-		PNGWithNRGBA32,
-		func(img image.Image) (Writer, error) {
-			return NewWriter(PNGWithNRGBA32, img)
-		},
-		func(img []byte) (Reader, error) {
-			return NewReader(PNGWithNRGBA32, bytes.NewReader(img))
-		},
-		func(img image.Image, key []byte) (Encrypter, error) {
-			return NewEncrypter(PNGWithNRGBA32, img, AESWithCTR, key)
-		},
-		func(img, key []byte) (Decrypter, error) {
-			return NewDecrypter(PNGWithNRGBA32, bytes.NewReader(img), AESWithCTR, key)
-		},
-	},
-	{
-		PNGWithNRGBA64,
-		func(img image.Image) (Writer, error) {
-			return NewWriter(PNGWithNRGBA64, img)
-		},
-		func(img []byte) (Reader, error) {
-			return NewReader(PNGWithNRGBA64, bytes.NewReader(img))
-		},
-		func(img image.Image, key []byte) (Encrypter, error) {
-			return NewEncrypter(PNGWithNRGBA64, img, AESWithCTR, key)
-		},
-		func(img, key []byte) (Decrypter, error) {
-			return NewDecrypter(PNGWithNRGBA64, bytes.NewReader(img), AESWithCTR, key)
-		},
-	},
+var tests = [...]*test{
+	{PNGWithNRGBA32, AESWithCTR},
+	{PNGWithNRGBA64, AESWithCTR},
+}
+
+type test struct {
+	Mode Mode
+	Alg  Algorithm
+}
+
+func (t *test) NewWriter(img image.Image) (Writer, error) {
+	return NewWriter(t.Mode, img)
+}
+
+func (t *test) NewReader(img []byte) (Reader, error) {
+	return NewReader(t.Mode, bytes.NewReader(img))
+}
+
+func (t *test) NewEncrypter(img image.Image, key []byte) (Encrypter, error) {
+	writer, err := NewWriter(t.Mode, img)
+	if err != nil {
+		return nil, err
+	}
+	return NewEncrypter(writer, t.Alg, key)
+}
+
+func (t *test) NewDecrypter(img, key []byte) (Decrypter, error) {
+	reader, err := NewReader(t.Mode, bytes.NewReader(img))
+	if err != nil {
+		return nil, err
+	}
+	return NewDecrypter(reader, t.Alg, key)
 }
 
 func TestMode_String(t *testing.T) {
 	for _, test := range tests {
-		fmt.Println(test.mode)
+		fmt.Println(test.Mode)
 	}
 	fmt.Println(Mode(1234578))
+}
+
+func TestAlgorithm_String(t *testing.T) {
+	for _, test := range tests {
+		fmt.Println(test.Alg)
+	}
+	fmt.Println(Algorithm(1234578))
 }
 
 func TestLoadImage(t *testing.T) {
@@ -194,7 +196,7 @@ func testWriterAndReader(t *testing.T, name string) {
 	require.NoError(t, err)
 
 	for _, test := range tests {
-		t.Run(test.mode.String(), func(t *testing.T) {
+		t.Run(test.Mode.String(), func(t *testing.T) {
 			t.Run("Common", func(t *testing.T) {
 				testdata1 := random.Bytes(256 + random.Intn(256))
 				testdata2 := random.Bytes(512 + random.Intn(512))
@@ -202,7 +204,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testdata2Len := len(testdata2)
 
 				// write data
-				writer, err := test.newWriter(img)
+				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
 
 				n, err := writer.Write(testdata1)
@@ -217,7 +219,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// read data
-				reader, err := test.newReader(output.Bytes())
+				reader, err := test.NewReader(output.Bytes())
 				require.NoError(t, err)
 
 				rv := 64 + random.Intn(64)
@@ -250,7 +252,7 @@ func testWriterAndReader(t *testing.T, name string) {
 
 			t.Run("Common Full", func(t *testing.T) {
 				// write data
-				writer, err := test.newWriter(img)
+				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
 
 				testdata := random.Bytes(int(writer.Cap()))
@@ -282,7 +284,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// read data
-				reader, err := test.newReader(output.Bytes())
+				reader, err := test.NewReader(output.Bytes())
 				require.NoError(t, err)
 
 				rv = 32 + random.Intn(32)
@@ -339,7 +341,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				offset := 512 + random.Int63n(128)
 
 				// write data
-				writer, err := test.newWriter(img)
+				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
 
 				n, err := writer.Write(testdata1)
@@ -358,7 +360,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// read data
-				reader, err := test.newReader(output.Bytes())
+				reader, err := test.NewReader(output.Bytes())
 				require.NoError(t, err)
 
 				rv := 64 + random.Intn(64)
@@ -402,7 +404,7 @@ func testWriterAndReader(t *testing.T, name string) {
 
 			t.Run("SetOffset Full", func(t *testing.T) {
 				// write data
-				writer, err := test.newWriter(img)
+				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
 
 				testdata := random.Bytes(int(writer.Cap()))
@@ -439,7 +441,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// read data
-				reader, err := test.newReader(output.Bytes())
+				reader, err := test.NewReader(output.Bytes())
 				require.NoError(t, err)
 
 				rv = 64 + random.Intn(64)
@@ -504,7 +506,7 @@ func testWriterAndReader(t *testing.T, name string) {
 			t.Run("SetOffset with invalid value", func(t *testing.T) {
 				testdata := random.Bytes(128)
 
-				writer, err := test.newWriter(img)
+				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
 
 				err = writer.SetOffset(-1)
@@ -521,7 +523,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				err = writer.Encode(output)
 				require.NoError(t, err)
 
-				reader, err := test.newReader(output.Bytes())
+				reader, err := test.NewReader(output.Bytes())
 				require.NoError(t, err)
 
 				err = reader.SetOffset(-1)
@@ -547,7 +549,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testdata2Len := len(testdata2)
 
 				// write data
-				writer, err := test.newWriter(img)
+				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
 
 				// reset writer
@@ -566,7 +568,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// read data
-				reader, err := test.newReader(output.Bytes())
+				reader, err := test.NewReader(output.Bytes())
 				require.NoError(t, err)
 
 				// reset reader
@@ -619,7 +621,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 	require.NoError(t, err)
 
 	for _, test := range tests {
-		t.Run(test.mode.String(), func(t *testing.T) {
+		t.Run(test.Mode.String(), func(t *testing.T) {
 			t.Run("Common", func(t *testing.T) {
 				key := random.Bytes(aes.Key256Bit)
 				testdata1 := random.Bytes(256 + random.Intn(256))
@@ -628,7 +630,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testdata2Len := len(testdata2)
 
 				// encrypt data
-				encrypter, err := test.newEncrypter(img, key)
+				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
 				n, err := encrypter.Write(testdata1)
@@ -643,7 +645,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// decrypt data
-				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
 				rv := 64 + random.Intn(64)
@@ -677,6 +679,9 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
 
+				// compare algorithm
+				require.Equal(t, encrypter.Algorithm(), decrypter.Algorithm())
+
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)
 			})
@@ -685,7 +690,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				key := random.Bytes(aes.Key256Bit)
 
 				// encrypt data
-				encrypter, err := test.newEncrypter(img, key)
+				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
 				testdata := random.Bytes(int(encrypter.Cap()))
@@ -717,7 +722,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// decrypt data
-				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
 				rv = 32 + random.Intn(32)
@@ -769,6 +774,9 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
 
+				// compare algorithm
+				require.Equal(t, encrypter.Algorithm(), decrypter.Algorithm())
+
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)
 			})
@@ -782,7 +790,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				offset := 1024 + random.Int63n(128)
 
 				// encrypt data
-				encrypter, err := test.newEncrypter(img, key)
+				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
 				err = encrypter.SetOffset(0)
@@ -804,7 +812,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// decrypt data
-				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
 				err = decrypter.SetOffset(0)
@@ -852,6 +860,9 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
 
+				// compare algorithm
+				require.Equal(t, encrypter.Algorithm(), decrypter.Algorithm())
+
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)
 			})
@@ -860,7 +871,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				key := random.Bytes(aes.Key256Bit)
 
 				// encrypt data
-				encrypter, err := test.newEncrypter(img, key)
+				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
 				testdata := random.Bytes(int(encrypter.Cap()))
@@ -897,7 +908,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// decrypt data
-				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
 				rv = 64 + random.Intn(64)
@@ -962,6 +973,9 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
 
+				// compare algorithm
+				require.Equal(t, encrypter.Algorithm(), decrypter.Algorithm())
+
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)
 			})
@@ -970,7 +984,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				key := random.Bytes(aes.Key256Bit)
 				testdata := random.Bytes(128)
 
-				encrypter, err := test.newEncrypter(img, key)
+				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
 				err = encrypter.SetOffset(-1)
@@ -987,7 +1001,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				err = encrypter.Encode(output)
 				require.NoError(t, err)
 
-				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
 				err = decrypter.SetOffset(-1)
@@ -1013,7 +1027,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testdata2Len := len(testdata2)
 
 				// encrypt data
-				encrypter, err := test.newEncrypter(img, key)
+				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
 				n, err := encrypter.Write(testdata1)
@@ -1028,7 +1042,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// decrypt data
-				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
 				rv := 64 + random.Intn(64)
@@ -1058,7 +1072,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				err = encrypter.Encode(output)
 				require.NoError(t, err)
 
-				decrypter, err = test.newDecrypter(output.Bytes(), key)
+				decrypter, err = test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
 				rv = 64 + random.Intn(64)
@@ -1108,6 +1122,9 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
 
+				// compare algorithm
+				require.Equal(t, encrypter.Algorithm(), decrypter.Algorithm())
+
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)
 			})
@@ -1121,7 +1138,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testdata2Len := len(testdata2)
 
 				// encrypt data
-				encrypter, err := test.newEncrypter(img, key1)
+				encrypter, err := test.NewEncrypter(img, key1)
 				require.NoError(t, err)
 
 				n, err := encrypter.Write(testdata1)
@@ -1136,7 +1153,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				require.NoError(t, err)
 
 				// decrypt data
-				decrypter, err := test.newDecrypter(output.Bytes(), key1)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key1)
 				require.NoError(t, err)
 
 				rv := 64 + random.Intn(64)
@@ -1169,7 +1186,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				err = encrypter.Encode(output)
 				require.NoError(t, err)
 
-				decrypter, err = test.newDecrypter(output.Bytes(), key2)
+				decrypter, err = test.NewDecrypter(output.Bytes(), key2)
 				require.NoError(t, err)
 
 				rv = 64 + random.Intn(64)
@@ -1219,6 +1236,9 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
 
+				// compare algorithm
+				require.Equal(t, encrypter.Algorithm(), decrypter.Algorithm())
+
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)
 			})
@@ -1229,7 +1249,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				invalidKey := random.Bytes(4)
 				testdata := random.Bytes(128)
 
-				encrypter, err := test.newEncrypter(img, key1)
+				encrypter, err := test.NewEncrypter(img, key1)
 				require.NoError(t, err)
 
 				err = encrypter.Reset(invalidKey)
@@ -1246,7 +1266,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				err = encrypter.Encode(output)
 				require.NoError(t, err)
 
-				decrypter, err := test.newDecrypter(output.Bytes(), key1)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key1)
 				require.NoError(t, err)
 
 				err = decrypter.Reset(invalidKey)
@@ -1288,7 +1308,7 @@ func testGenerateImage() image.Image {
 
 func TestWriterAndReader_Fuzz(t *testing.T) {
 	for _, test := range tests {
-		t.Run(test.mode.String(), func(t *testing.T) {
+		t.Run(test.Mode.String(), func(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				img := testGenerateImage()
 				testdata1 := random.Bytes(256 + random.Intn(256))
@@ -1298,7 +1318,7 @@ func TestWriterAndReader_Fuzz(t *testing.T) {
 				offset := 1024 + random.Int63n(512)
 
 				// writer
-				writer, err := test.newWriter(img)
+				writer, err := test.NewWriter(img)
 				require.NoError(t, err)
 
 				n, err := writer.Write(testdata1)
@@ -1317,7 +1337,7 @@ func TestWriterAndReader_Fuzz(t *testing.T) {
 				require.NoError(t, err)
 
 				// reader
-				reader, err := test.newReader(output.Bytes())
+				reader, err := test.NewReader(output.Bytes())
 				require.NoError(t, err)
 
 				rv := 64 + random.Intn(64)
@@ -1366,7 +1386,7 @@ func TestWriterAndReader_Fuzz(t *testing.T) {
 
 func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 	for _, test := range tests {
-		t.Run(test.mode.String(), func(t *testing.T) {
+		t.Run(test.Mode.String(), func(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				img := testGenerateImage()
 				key := random.Bytes(aes.Key256Bit)
@@ -1377,7 +1397,7 @@ func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 				offset := 1024 + random.Int63n(512)
 
 				// encrypt data
-				encrypter, err := test.newEncrypter(img, key)
+				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
 				n, err := encrypter.Write(testdata1)
@@ -1396,7 +1416,7 @@ func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 				require.NoError(t, err)
 
 				// decrypt data
-				decrypter, err := test.newDecrypter(output.Bytes(), key)
+				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
 				rv := 64 + random.Intn(64)
@@ -1442,6 +1462,9 @@ func TestEncrypterAndDecrypter_Fuzz(t *testing.T) {
 
 				// compare mode
 				require.Equal(t, encrypter.Mode(), decrypter.Mode())
+
+				// compare algorithm
+				require.Equal(t, encrypter.Algorithm(), decrypter.Algorithm())
 
 				testsuite.IsDestroyed(t, encrypter)
 				testsuite.IsDestroyed(t, decrypter)
