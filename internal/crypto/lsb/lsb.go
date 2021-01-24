@@ -24,14 +24,20 @@ var (
 	ErrImgTooSmall = errors.New("image rectangle is too small")
 )
 
-// supported lsb modes.
+// supported lsb Writer and Reader modes.
 const (
-	Invalid Mode = iota
+	_ Mode = iota
 	PNGWithNRGBA32
 	PNGWithNRGBA64
 )
 
-// Mode is the lsb mode.
+// supported lsb Encrypter and Decrypter algorithms.
+const (
+	_ Algorithm = iota
+	AESWithCTR
+)
+
+// Mode is the lsb Writer and Reader mode.
 type Mode uint32
 
 func (m Mode) String() string {
@@ -45,7 +51,19 @@ func (m Mode) String() string {
 	}
 }
 
-// Writer is the LSB writer interface.
+// Algorithm is the lsb Encrypter and Decrypter algorithm.
+type Algorithm uint32
+
+func (alg Algorithm) String() string {
+	switch alg {
+	case AESWithCTR:
+		return "AES-CTR"
+	default:
+		return fmt.Sprintf("unknown algorithm: %d", alg)
+	}
+}
+
+// Writer is the lsb writer interface.
 type Writer interface {
 	// Write is used to write data to this image.
 	Write(b []byte) (int, error)
@@ -69,7 +87,7 @@ type Writer interface {
 	Mode() Mode
 }
 
-// Reader is the LSB reader interface.
+// Reader is the lsb reader interface.
 type Reader interface {
 	// Read is used to read data from this image.
 	Read(b []byte) (int, error)
@@ -90,7 +108,7 @@ type Reader interface {
 	Mode() Mode
 }
 
-// Encrypter is the LSB encrypter interface.
+// Encrypter is the lsb encrypter interface.
 type Encrypter interface {
 	// Write is used to encrypt data and write it to under image.
 	Write(b []byte) (int, error)
@@ -113,11 +131,14 @@ type Encrypter interface {
 	// Cap is used to calculate the capacity that can encrypt to this image.
 	Cap() int64
 
-	// Mode is used to get the encrypter mode.
+	// Mode is used to get the mode about the under Writer.
 	Mode() Mode
+
+	// Algorithm is used to get the algorithm.
+	Algorithm() Algorithm
 }
 
-// Decrypter is the LSB decrypter interface.
+// Decrypter is the lsb decrypter interface.
 type Decrypter interface {
 	// Read is used to read data from under image and decrypt it.
 	Read(b []byte) (int, error)
@@ -137,8 +158,11 @@ type Decrypter interface {
 	// Cap is used to calculate the capacity that can decrypt from this image.
 	Cap() int64
 
-	// Mode is used to get the decrypter mode.
+	// Mode is used to get the mode about the under Reader.
 	Mode() Mode
+
+	// Algorithm is used to get the algorithm.
+	Algorithm() Algorithm
 }
 
 var decoders = map[string]func(io.Reader) (image.Image, error){
@@ -178,40 +202,78 @@ func LoadImage(r io.Reader, ext string) (image.Image, error) {
 
 // NewWriter is used to create a lsb writer with mode.
 func NewWriter(mode Mode, img image.Image) (Writer, error) {
+	var (
+		writer Writer
+		err    error
+	)
 	switch mode {
 	case PNGWithNRGBA32, PNGWithNRGBA64:
-		return NewPNGWriter(img, mode)
+		writer, err = NewPNGWriter(img, mode)
 	default:
-		return nil, errors.New(mode.String())
+		return nil, fmt.Errorf("failed to create lsb writer with %s", mode)
 	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create lsb writer: %s", err)
+	}
+	return writer, nil
 }
 
 // NewReader is used to create a lsb reader with mode.
-func NewReader(mode Mode, reader io.Reader) (Reader, error) {
+func NewReader(mode Mode, r io.Reader) (Reader, error) {
+	var (
+		reader Reader
+		err    error
+	)
 	switch mode {
 	case PNGWithNRGBA32, PNGWithNRGBA64:
-		return NewPNGReader(reader)
+		reader, err = NewPNGReader(r)
 	default:
-		return nil, errors.New(mode.String())
+		return nil, fmt.Errorf("failed to create lsb reader with %s", mode)
 	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create lsb reader: %s", err)
+	}
+	return reader, nil
 }
 
-// NewEncrypter is used to create a lsb encrypter with mode.
-func NewEncrypter(mode Mode, img image.Image, key []byte) (Encrypter, error) {
-	switch mode {
-	case PNGWithNRGBA32, PNGWithNRGBA64:
-		return NewCTREncrypter(img, mode, key)
-	default:
-		return nil, errors.New(mode.String())
+// NewEncrypter is used to create a lsb encrypter with algorithm.
+func NewEncrypter(mode Mode, img image.Image, alg Algorithm, key []byte) (Encrypter, error) {
+	// create lsb writer
+	writer, err := NewWriter(mode, img)
+	if err != nil {
+		return nil, err
 	}
+	// create lsb encrypter
+	var encrypter Encrypter
+	switch alg {
+	case AESWithCTR:
+		encrypter, err = NewCTREncrypter(writer, key)
+	default:
+		return nil, fmt.Errorf("failed to create lsb encrypter with %s", alg)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create lsb encrypter: %s", err)
+	}
+	return encrypter, nil
 }
 
-// NewDecrypter is used to create a lsb decrypter with mode.
-func NewDecrypter(mode Mode, reader io.Reader, key []byte) (Decrypter, error) {
-	switch mode {
-	case PNGWithNRGBA32, PNGWithNRGBA64:
-		return NewCTRDecrypter(reader, key)
-	default:
-		return nil, errors.New(mode.String())
+// NewDecrypter is used to create a lsb decrypter with algorithm.
+func NewDecrypter(mode Mode, r io.Reader, alg Algorithm, key []byte) (Decrypter, error) {
+	// create lsb reader
+	reader, err := NewReader(mode, r)
+	if err != nil {
+		return nil, err
 	}
+	// create lsb decrypter
+	var decrypter Decrypter
+	switch alg {
+	case AESWithCTR:
+		decrypter, err = NewCTRDecrypter(reader, key)
+	default:
+		return nil, fmt.Errorf("failed to create lsb decrypter with %s", alg)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create lsb decrypter: %s", err)
+	}
+	return decrypter, nil
 }

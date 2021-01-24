@@ -31,31 +31,31 @@ var tests = [...]*struct {
 	{
 		PNGWithNRGBA32,
 		func(img image.Image) (Writer, error) {
-			return NewPNGWriter(img, PNGWithNRGBA32)
+			return NewWriter(PNGWithNRGBA32, img)
 		},
 		func(img []byte) (Reader, error) {
-			return NewPNGReader(bytes.NewReader(img))
+			return NewReader(PNGWithNRGBA32, bytes.NewReader(img))
 		},
 		func(img image.Image, key []byte) (Encrypter, error) {
-			return NewCTREncrypter(img, PNGWithNRGBA32, key)
+			return NewEncrypter(PNGWithNRGBA32, img, AESWithCTR, key)
 		},
 		func(img, key []byte) (Decrypter, error) {
-			return NewCTRDecrypter(bytes.NewReader(img), key)
+			return NewDecrypter(PNGWithNRGBA32, bytes.NewReader(img), AESWithCTR, key)
 		},
 	},
 	{
 		PNGWithNRGBA64,
 		func(img image.Image) (Writer, error) {
-			return NewPNGWriter(img, PNGWithNRGBA64)
+			return NewWriter(PNGWithNRGBA64, img)
 		},
 		func(img []byte) (Reader, error) {
-			return NewPNGReader(bytes.NewReader(img))
+			return NewReader(PNGWithNRGBA64, bytes.NewReader(img))
 		},
 		func(img image.Image, key []byte) (Encrypter, error) {
-			return NewCTREncrypter(img, PNGWithNRGBA64, key)
+			return NewEncrypter(PNGWithNRGBA64, img, AESWithCTR, key)
 		},
 		func(img, key []byte) (Decrypter, error) {
-			return NewCTRDecrypter(bytes.NewReader(img), key)
+			return NewDecrypter(PNGWithNRGBA64, bytes.NewReader(img), AESWithCTR, key)
 		},
 	},
 }
