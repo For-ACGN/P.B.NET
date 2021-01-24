@@ -187,10 +187,10 @@ func NewWriter(mode Mode, img image.Image) (Writer, error) {
 }
 
 // NewReader is used to create a lsb reader with mode.
-func NewReader(mode Mode, img io.Reader) (Reader, error) {
+func NewReader(mode Mode, reader io.Reader) (Reader, error) {
 	switch mode {
 	case PNGWithNRGBA32, PNGWithNRGBA64:
-		return NewPNGReader(img)
+		return NewPNGReader(reader)
 	default:
 		return nil, errors.New(mode.String())
 	}
@@ -200,17 +200,17 @@ func NewReader(mode Mode, img io.Reader) (Reader, error) {
 func NewEncrypter(mode Mode, img image.Image, key []byte) (Encrypter, error) {
 	switch mode {
 	case PNGWithNRGBA32, PNGWithNRGBA64:
-		return NewPNGEncrypter(img, mode, key)
+		return NewCTREncrypter(img, mode, key)
 	default:
 		return nil, errors.New(mode.String())
 	}
 }
 
 // NewDecrypter is used to create a lsb decrypter with mode.
-func NewDecrypter(mode Mode, img io.Reader, key []byte) (Decrypter, error) {
+func NewDecrypter(mode Mode, reader io.Reader, key []byte) (Decrypter, error) {
 	switch mode {
 	case PNGWithNRGBA32, PNGWithNRGBA64:
-		return NewPNGDecrypter(img, key)
+		return NewCTRDecrypter(reader, key)
 	default:
 		return nil, errors.New(mode.String())
 	}

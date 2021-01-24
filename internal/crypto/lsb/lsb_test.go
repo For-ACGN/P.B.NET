@@ -37,10 +37,10 @@ var tests = [...]*struct {
 			return NewPNGReader(bytes.NewReader(img))
 		},
 		func(img image.Image, key []byte) (Encrypter, error) {
-			return NewPNGEncrypter(img, PNGWithNRGBA32, key)
+			return NewCTREncrypter(img, PNGWithNRGBA32, key)
 		},
 		func(img, key []byte) (Decrypter, error) {
-			return NewPNGDecrypter(bytes.NewReader(img), key)
+			return NewCTRDecrypter(bytes.NewReader(img), key)
 		},
 	},
 	{
@@ -52,10 +52,10 @@ var tests = [...]*struct {
 			return NewPNGReader(bytes.NewReader(img))
 		},
 		func(img image.Image, key []byte) (Encrypter, error) {
-			return NewPNGEncrypter(img, PNGWithNRGBA64, key)
+			return NewCTREncrypter(img, PNGWithNRGBA64, key)
 		},
 		func(img, key []byte) (Decrypter, error) {
-			return NewPNGDecrypter(bytes.NewReader(img), key)
+			return NewCTRDecrypter(bytes.NewReader(img), key)
 		},
 	},
 }
@@ -124,6 +124,22 @@ func TestLoadImage(t *testing.T) {
 		defer testsuite.DeferForPanic(t)
 		_, _ = LoadImage(reader, "")
 	})
+}
+
+func TestNewWriter(t *testing.T) {
+
+}
+
+func TestNewReader(t *testing.T) {
+
+}
+
+func TestNewEncrypter(t *testing.T) {
+
+}
+
+func TestNewDecrypter(t *testing.T) {
+
 }
 
 // test png image is 160*90
