@@ -2,6 +2,7 @@ package lsb
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"hash"
 	"image"
 	"io"
@@ -104,16 +105,16 @@ func (ce *CTREncrypter) writeHeader() error {
 	// encrypt size buffer
 	size, err := ce.ctr.EncryptWithIV(size, iv)
 	if err != nil {
-		panic("lsb: internal error")
+		panic(fmt.Sprintf("lsb: internal error: %s", err))
 	}
 	// calculate signature
 	ce.hmac.Write(iv)
 	ce.hmac.Write(size)
 	signature := ce.hmac.Sum(nil)
 	// set offset for write header
-	err = ce.writer.SetOffset(ce.offset)
+	_, err = ce.writer.Seek(ce.offset, io.SeekStart)
 	if err != nil {
-		panic("lsb: internal error")
+		panic(fmt.Sprintf("lsb: internal error: %s", err))
 	}
 	// write header data
 	for _, b := range [][]byte{

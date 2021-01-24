@@ -1,6 +1,7 @@
 package lsb
 
 import (
+	"fmt"
 	"image"
 	"image/png"
 	"io"
@@ -13,14 +14,14 @@ type pngCommon struct {
 	capacity int64
 	mode     Mode
 
-	// output/input png image
+	// output or input png image
 	nrgba32 *image.NRGBA
 	nrgba64 *image.NRGBA64
 
-	// record writer/reader pointer
-	current int64
-	x       *int
-	y       *int
+	// current writer or reader index
+	i int64
+	x *int
+	y *int
 }
 
 func newPNGCommon(img image.Image) *pngCommon {
@@ -35,22 +36,38 @@ func newPNGCommon(img image.Image) *pngCommon {
 	}
 }
 
-// SetOffset is used to set pointer about position.
-func (pc *pngCommon) SetOffset(v int64) error {
-	if v > pc.Cap() || v < 0 {
-		return ErrInvalidOffset
+// Seek is used to set the offset for the next Write or Read to offset.
+func (pc *pngCommon) Seek(offset int64, whence int) (int64, error) {
+	// calculate target index
+	var abs int64
+	switch whence {
+	case io.SeekStart:
+		abs = offset
+	case io.SeekCurrent:
+		abs = pc.i + offset
+	case io.SeekEnd:
+		abs = pc.capacity + offset
+	default:
+		return 0, errors.New("seek: invalid whence")
 	}
-	pc.current = v
-	vv := int(v)
+	if abs < 0 {
+		return 0, ErrNegativePosition
+	}
+	if abs > pc.capacity {
+		return 0, ErrInvalidOffset
+	}
+	pc.i = abs
+	// update current x and y about image
+	v := int(abs)
 	height := pc.origin.Bounds().Dy()
-	*pc.x = vv / height
-	*pc.y = vv % height
-	return nil
+	*pc.x = v / height
+	*pc.y = v % height
+	return abs, nil
 }
 
 // Reset is used to reset write or read pointer.
 func (pc *pngCommon) Reset() {
-	pc.current = 0
+	pc.i = 0
 	*pc.x = 0
 	*pc.y = 0
 }
@@ -101,7 +118,7 @@ func (pw *PNGWriter) Write(b []byte) (int, error) {
 		return 0, nil
 	}
 	ll := int64(l)
-	if ll > pw.capacity-pw.current {
+	if ll > pw.capacity-pw.i {
 		return 0, ErrNoEnoughCapacity
 	}
 	switch pw.mode {
@@ -110,9 +127,9 @@ func (pw *PNGWriter) Write(b []byte) (int, error) {
 	case PNGWithNRGBA64:
 		writeNRGBA64(pw.origin, pw.nrgba64, pw.x, pw.y, b)
 	default:
-		panic("lsb: internal error")
+		panic(fmt.Sprintf("lsb: invalid mode: %s", pw.mode))
 	}
-	pw.current += ll
+	pw.i += ll
 	return l, nil
 }
 
@@ -124,7 +141,7 @@ func (pw *PNGWriter) Encode(w io.Writer) error {
 	case PNGWithNRGBA64:
 		return png.Encode(w, pw.nrgba64)
 	default:
-		panic("lsb: internal error")
+		panic(fmt.Sprintf("lsb: invalid mode: %s", pw.mode))
 	}
 }
 
@@ -137,7 +154,7 @@ func (pw *PNGWriter) Reset() {
 	case PNGWithNRGBA64:
 		pw.nrgba64 = copyNRGBA64(pw.origin)
 	default:
-		panic("lsb: internal error")
+		panic(fmt.Sprintf("lsb: invalid mode: %s", pw.mode))
 	}
 }
 
@@ -177,7 +194,7 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 		return 0, nil
 	}
 	// calculate remaining
-	r := pr.capacity - pr.current
+	r := pr.capacity - pr.i
 	if r <= 0 {
 		return 0, io.EOF
 	}
@@ -193,8 +210,8 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 	case PNGWithNRGBA64:
 		readNRGBA64(pr.nrgba64, pr.x, pr.y, b)
 	default:
-		panic("lsb: internal error")
+		panic(fmt.Sprintf("lsb: invalid mode: %s", pr.mode))
 	}
-	pr.current += ll
+	pr.i += ll
 	return l, nil
 }

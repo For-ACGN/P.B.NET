@@ -14,8 +14,11 @@ import (
 
 // errors about Reader, Writer, Encrypter and Decrypter.
 var (
+	// ErrNegativePosition is a error about negative position.
+	ErrNegativePosition = errors.New("seek: negative position")
+
 	// ErrInvalidOffset is a error about invalid offset.
-	ErrInvalidOffset = errors.New("offset is larger than capacity that can read/write")
+	ErrInvalidOffset = errors.New("offset is larger than capacity")
 
 	// ErrNoEnoughCapacity is a error that image can not write data.
 	ErrNoEnoughCapacity = errors.New("image has no enough capacity for write")
@@ -63,7 +66,7 @@ func (alg Algorithm) String() string {
 	}
 }
 
-// Writer is the lsb writer interface.
+// Writer is the lsb writer interface, use Seek to write data to different area.
 type Writer interface {
 	// Write is used to write data to this image.
 	Write(b []byte) (int, error)
@@ -71,8 +74,8 @@ type Writer interface {
 	// Encode is used to encode image to writer.
 	Encode(w io.Writer) error
 
-	// SetOffset is used to set pointer about position.
-	SetOffset(v int64) error
+	// Seek sets the offset for the next Write to offset.
+	Seek(offset int64, whence int) (int64, error)
 
 	// Reset is used to reset writer.
 	Reset()
@@ -87,13 +90,13 @@ type Writer interface {
 	Mode() Mode
 }
 
-// Reader is the lsb reader interface.
+// Reader is the lsb reader interface, use Seek to read data from different area.
 type Reader interface {
 	// Read is used to read data from this image.
 	Read(b []byte) (int, error)
 
-	// SetOffset is used to set pointer about position.
-	SetOffset(v int64) error
+	// Seek sets the offset for the next Read to offset.
+	Seek(offset int64, whence int) (int64, error)
 
 	// Reset is used to reset reader.
 	Reset()
@@ -108,7 +111,7 @@ type Reader interface {
 	Mode() Mode
 }
 
-// Encrypter is the lsb encrypter interface.
+// Encrypter is the lsb encrypter interface, use Seek to encrypt data to different area.
 type Encrypter interface {
 	// Write is used to encrypt data and write it to under image.
 	Write(b []byte) (int, error)
@@ -116,8 +119,8 @@ type Encrypter interface {
 	// Encode is used to encode image to writer, if success, it will reset writer.
 	Encode(w io.Writer) error
 
-	// SetOffset is used to set pointer about data start area.
-	SetOffset(v int64) error
+	// Seek sets the offset for the next Write to offset.
+	Seek(offset int64, whence int) (int64, error)
 
 	// Reset is used to reset under writer and key, if key is nil, only reset writer.
 	Reset(key []byte) error
@@ -138,13 +141,13 @@ type Encrypter interface {
 	Algorithm() Algorithm
 }
 
-// Decrypter is the lsb decrypter interface.
+// Decrypter is the lsb decrypter interface, use Seek to decrypt data from different area.
 type Decrypter interface {
 	// Read is used to read data from under image and decrypt it.
 	Read(b []byte) (int, error)
 
-	// SetOffset is used to set pointer about data start area.
-	SetOffset(v int64) error
+	// Seek sets the offset for the next Read to offset.
+	Seek(offset int64, whence int) (int64, error)
 
 	// Reset is used to reset under writer and key, if key is nil, only reset reader.
 	Reset(key []byte) error
@@ -187,7 +190,7 @@ func LoadImage(r io.Reader, ext string) (image.Image, error) {
 	for _, decoder = range decoders {
 		_, err = reader.Seek(0, io.SeekStart)
 		if err != nil {
-			panic("lsb: internal error")
+			panic(fmt.Sprintf("lsb: internal error: %s", err))
 		}
 		img, err := decoder(reader)
 		if err == nil {
