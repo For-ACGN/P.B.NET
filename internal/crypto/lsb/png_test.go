@@ -51,9 +51,9 @@ func TestPNGWriterWithInvalidMode(t *testing.T) {
 
 func TestNewPNGReader(t *testing.T) {
 	t.Run("invalid image", func(t *testing.T) {
-		img := testsuite.NewMockConnWithReadError()
+		r := testsuite.NewMockConnWithReadError()
 
-		reader, err := NewPNGReader(img)
+		reader, err := NewPNGReader(r)
 		require.Error(t, err)
 		require.Nil(t, reader)
 	})

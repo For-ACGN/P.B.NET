@@ -21,6 +21,9 @@ import (
 	"project/internal/testsuite"
 )
 
+// testImageFullSize is the test png image size.
+const testImageFullSize = 160 * 90
+
 var tests = [...]*test{
 	{PNGWithNRGBA32, AESWithCTR},
 	{PNGWithNRGBA64, AESWithCTR},
@@ -54,98 +57,6 @@ func (t *test) NewDecrypter(img, key []byte) (Decrypter, error) {
 	}
 	return NewDecrypter(reader, t.Alg, key)
 }
-
-func TestMode_String(t *testing.T) {
-	for _, test := range tests {
-		fmt.Println(test.Mode)
-	}
-	fmt.Println(Mode(1234578))
-}
-
-func TestAlgorithm_String(t *testing.T) {
-	for _, test := range tests {
-		fmt.Println(test.Alg)
-	}
-	fmt.Println(Algorithm(1234578))
-}
-
-func TestLoadImage(t *testing.T) {
-	img := image.NewNRGBA64(image.Rect(0, 0, 160, 90))
-	buf := bytes.NewBuffer(make([]byte, 0, 16384))
-	err := png.Encode(buf, img)
-	require.NoError(t, err)
-
-	t.Run("with the file name extension", func(t *testing.T) {
-		reader := bytes.NewReader(buf.Bytes())
-
-		p, err := LoadImage(reader, "PNG")
-		require.NoError(t, err)
-
-		require.Equal(t, img, p)
-	})
-
-	t.Run("without the file name extension", func(t *testing.T) {
-		reader := bytes.NewReader(buf.Bytes())
-
-		p, err := LoadImage(reader, "")
-		require.NoError(t, err)
-
-		require.Equal(t, img, p)
-	})
-
-	t.Run("unsupported image format", func(t *testing.T) {
-		reader := bytes.NewReader([]byte{1, 2, 3, 4})
-
-		p, err := LoadImage(reader, "")
-		require.EqualError(t, err, "unsupported image format")
-		require.Nil(t, p)
-
-		p, err = LoadImage(reader, "p")
-		require.EqualError(t, err, "unsupported image format: p")
-		require.Nil(t, p)
-	})
-
-	t.Run("failed to read image", func(t *testing.T) {
-		reader := testsuite.NewMockConnWithReadError()
-
-		p, err := LoadImage(reader, "")
-		testsuite.IsMockConnReadError(t, err)
-		require.Nil(t, p)
-	})
-
-	t.Run("seek error", func(t *testing.T) {
-		var r *bytes.Reader
-		patch := func(interface{}, int64, int) (int64, error) {
-			return 0, monkey.Error
-		}
-		pg := monkey.PatchInstanceMethod(r, "Seek", patch)
-		defer pg.Unpatch()
-
-		reader := bytes.NewReader([]byte{1, 2, 3, 4})
-
-		defer testsuite.DeferForPanic(t)
-		_, _ = LoadImage(reader, "")
-	})
-}
-
-func TestNewWriter(t *testing.T) {
-
-}
-
-func TestNewReader(t *testing.T) {
-
-}
-
-func TestNewEncrypter(t *testing.T) {
-
-}
-
-func TestNewDecrypter(t *testing.T) {
-
-}
-
-// test png image is 160*90
-const testImageFullSize = 160 * 90
 
 // testCompareImage is used to compare each pixel for check the gap will not be too big.
 func testCompareImage(t *testing.T, original, output image.Image) {
@@ -1530,4 +1441,116 @@ func (mockReader) Cap() int64 {
 
 func (mockReader) Mode() Mode {
 	return 12345678
+}
+
+func TestMode_String(t *testing.T) {
+	for _, test := range tests {
+		fmt.Println(test.Mode)
+	}
+	fmt.Println(Mode(1234578))
+}
+
+func TestAlgorithm_String(t *testing.T) {
+	for _, test := range tests {
+		fmt.Println(test.Alg)
+	}
+	fmt.Println(Algorithm(1234578))
+}
+
+func TestLoadImage(t *testing.T) {
+	img := image.NewNRGBA64(image.Rect(0, 0, 160, 90))
+	buf := bytes.NewBuffer(make([]byte, 0, 16384))
+	err := png.Encode(buf, img)
+	require.NoError(t, err)
+
+	t.Run("with the file name extension", func(t *testing.T) {
+		reader := bytes.NewReader(buf.Bytes())
+
+		p, err := LoadImage(reader, "PNG")
+		require.NoError(t, err)
+
+		require.Equal(t, img, p)
+	})
+
+	t.Run("without the file name extension", func(t *testing.T) {
+		reader := bytes.NewReader(buf.Bytes())
+
+		p, err := LoadImage(reader, "")
+		require.NoError(t, err)
+
+		require.Equal(t, img, p)
+	})
+
+	t.Run("unsupported image format", func(t *testing.T) {
+		reader := bytes.NewReader([]byte{1, 2, 3, 4})
+
+		p, err := LoadImage(reader, "")
+		require.EqualError(t, err, "unsupported image format")
+		require.Nil(t, p)
+
+		p, err = LoadImage(reader, "p")
+		require.EqualError(t, err, "unsupported image format: p")
+		require.Nil(t, p)
+	})
+
+	t.Run("failed to read image", func(t *testing.T) {
+		reader := testsuite.NewMockConnWithReadError()
+
+		p, err := LoadImage(reader, "")
+		testsuite.IsMockConnReadError(t, err)
+		require.Nil(t, p)
+	})
+
+	t.Run("seek error", func(t *testing.T) {
+		var r *bytes.Reader
+		patch := func(interface{}, int64, int) (int64, error) {
+			return 0, monkey.Error
+		}
+		pg := monkey.PatchInstanceMethod(r, "Seek", patch)
+		defer pg.Unpatch()
+
+		reader := bytes.NewReader([]byte{1, 2, 3, 4})
+
+		defer testsuite.DeferForPanic(t)
+		_, _ = LoadImage(reader, "")
+	})
+}
+
+func TestNewWriter(t *testing.T) {
+	t.Run("invalid mode", func(t *testing.T) {
+		writer, err := NewWriter(0, nil)
+		errStr := "failed to create lsb writer with unknown mode: 0"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, writer)
+	})
+
+	t.Run("failed to create writer", func(t *testing.T) {
+		patch := func(image.Image, Mode) (*PNGWriter, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.Patch(NewPNGWriter, patch)
+		defer pg.Unpatch()
+
+		writer, err := NewWriter(PNGWithNRGBA32, nil)
+		monkey.IsExistMonkeyError(t, err)
+		require.Nil(t, writer)
+	})
+}
+
+func TestNewReader(t *testing.T) {
+	t.Run("invalid mode", func(t *testing.T) {
+		reader, err := NewReader(0, nil)
+		errStr := "failed to create lsb reader with unknown mode: 0"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, reader)
+	})
+
+	t.Run("failed to create reader", func(t *testing.T) {
+		r := testsuite.NewMockConnWithReadError()
+
+		reader, err := NewReader(PNGWithNRGBA32, r)
+		errStr := "failed to create lsb reader: error in mockConn.Read()"
+		require.EqualError(t, err, errStr)
+		require.Nil(t, reader)
+	})
 }

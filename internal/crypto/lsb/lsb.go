@@ -184,7 +184,7 @@ func LoadImage(r io.Reader, ext string) (image.Image, error) {
 		return nil, err
 	}
 	reader := bytes.NewReader(data)
-	for _, decoder := range decoders {
+	for _, decoder = range decoders {
 		_, err = reader.Seek(0, io.SeekStart)
 		if err != nil {
 			panic("lsb: internal error")
