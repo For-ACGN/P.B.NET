@@ -14,7 +14,7 @@ import (
 	"project/internal/security"
 )
 
-// data structure in the under image
+// Data structure in the under image.
 //
 // +-------------+-------------+----------+-------------+
 // | size(int64) | HMAC-SHA256 |    IV    | cipher data |
@@ -43,11 +43,7 @@ type CTREncrypter struct {
 }
 
 // NewCTREncrypter is used to create a new png encrypter.
-func NewCTREncrypter(img image.Image, mode Mode, key []byte) (*CTREncrypter, error) {
-	writer, err := NewPNGWriter(img, mode)
-	if err != nil {
-		return nil, err
-	}
+func NewCTREncrypter(writer Writer, key []byte) (*CTREncrypter, error) {
 	// calculate capacity that can encrypt
 	capacity := writer.Cap() - ctrReverseSize
 	if capacity < 1 {
@@ -59,7 +55,7 @@ func NewCTREncrypter(img image.Image, mode Mode, key []byte) (*CTREncrypter, err
 		capacity: capacity,
 		hmac:     hmac.New(sha256.New, key),
 	}
-	err = pe.reset(key, 0)
+	err := pe.reset(key, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -198,9 +194,14 @@ func (ce *CTREncrypter) Cap() int64 {
 	return ce.capacity
 }
 
-// Mode is used to get the encrypter mode.
+// Mode is used to get the mode about the under Writer.
 func (ce *CTREncrypter) Mode() Mode {
 	return ce.writer.Mode()
+}
+
+// Algorithm is used to get the algorithm.
+func (ce *CTREncrypter) Algorithm() Algorithm {
+	return AESWithCTR
 }
 
 var _ Decrypter = new(CTRDecrypter)
@@ -219,11 +220,7 @@ type CTRDecrypter struct {
 }
 
 // NewCTRDecrypter is used to create a new png decrypter.
-func NewCTRDecrypter(r io.Reader, key []byte) (*CTRDecrypter, error) {
-	reader, err := NewPNGReader(r)
-	if err != nil {
-		return nil, err
-	}
+func NewCTRDecrypter(reader Reader, key []byte) (*CTRDecrypter, error) {
 	// calculate capacity that can decrypt
 	capacity := reader.Cap() - ctrReverseSize
 	if capacity < 1 {
@@ -235,7 +232,7 @@ func NewCTRDecrypter(r io.Reader, key []byte) (*CTRDecrypter, error) {
 		capacity: capacity,
 		hmac:     hmac.New(sha256.New, key),
 	}
-	err = pd.Reset(key)
+	err := pd.Reset(key)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +369,12 @@ func (cd *CTRDecrypter) Cap() int64 {
 	return cd.capacity
 }
 
-// Mode is used to get the decrypter mode.
+// Mode is used to get the mode about the under Reader.
 func (cd *CTRDecrypter) Mode() Mode {
 	return cd.reader.Mode()
+}
+
+// Algorithm is used to get the algorithm.
+func (*CTRDecrypter) Algorithm() Algorithm {
+	return AESWithCTR
 }

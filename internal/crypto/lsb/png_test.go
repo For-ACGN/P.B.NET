@@ -1,10 +1,7 @@
 package lsb
 
 import (
-	"bytes"
 	"image"
-	"image/png"
-	"io"
 	"os"
 	"testing"
 
@@ -16,14 +13,6 @@ import (
 func testGeneratePNG(width, height int) *image.NRGBA64 {
 	rect := image.Rect(0, 0, width, height)
 	return image.NewNRGBA64(rect)
-}
-
-func testGeneratePNGReader(t *testing.T, width, height int) io.Reader {
-	img := testGeneratePNG(width, height)
-	buf := bytes.NewBuffer(make([]byte, 0, width*height/4))
-	err := png.Encode(buf, img)
-	require.NoError(t, err)
-	return buf
 }
 
 func TestNewPNGWriter(t *testing.T) {
@@ -38,7 +27,7 @@ func TestPNGWriterWithInvalidMode(t *testing.T) {
 	img := testGeneratePNG(160, 90)
 	writer, err := NewPNGWriter(img, PNGWithNRGBA32)
 	require.NoError(t, err)
-	writer.mode = Invalid
+	writer.mode = 0
 
 	t.Run("Write", func(t *testing.T) {
 		defer testsuite.DeferForPanic(t)
@@ -82,7 +71,7 @@ func TestPNGReaderWithInvalidMode(t *testing.T) {
 	r := testGeneratePNGReader(t, 160, 90)
 	reader, err := NewPNGReader(r)
 	require.NoError(t, err)
-	reader.mode = Invalid
+	reader.mode = 0
 
 	t.Run("Read", func(t *testing.T) {
 		defer testsuite.DeferForPanic(t)

@@ -1,7 +1,9 @@
 package lsb
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"image/png"
 	"io"
 	"testing"
 
@@ -15,38 +17,47 @@ import (
 	"project/internal/testsuite"
 )
 
+func testGeneratePNGWriter(t *testing.T, width, height int) Writer {
+	img := testGeneratePNG(width, height)
+	writer, err := NewPNGWriter(img, PNGWithNRGBA32)
+	require.NoError(t, err)
+	return writer
+}
+
+func testGeneratePNGReader(t *testing.T, width, height int) Reader {
+	img := testGeneratePNG(width, height)
+	buf := bytes.NewBuffer(make([]byte, 0, width*height/4))
+	err := png.Encode(buf, img)
+	require.NoError(t, err)
+	reader, err := NewPNGReader(buf)
+	require.NoError(t, err)
+	return reader
+}
+
 func TestNewCTREncrypter(t *testing.T) {
-	t.Run("unknown mode", func(t *testing.T) {
-		img := testGeneratePNG(160, 90)
-
-		encrypter, err := NewCTREncrypter(img, 0, nil)
-		require.EqualError(t, err, "png writer with unknown mode: 0")
-		require.Nil(t, encrypter)
-	})
-
 	t.Run("too small image", func(t *testing.T) {
-		img := testGeneratePNG(1, 2)
+		writer := testGeneratePNGWriter(t, 1, 2)
 
-		encrypter, err := NewCTREncrypter(img, PNGWithNRGBA32, nil)
+		encrypter, err := NewCTREncrypter(writer, nil)
 		require.Equal(t, err, ErrImgTooSmall)
 		require.Nil(t, encrypter)
 	})
 
 	t.Run("failed to reset", func(t *testing.T) {
-		img := testGeneratePNG(160, 90)
+		writer := testGeneratePNGWriter(t, 160, 90)
 		invalidKey := make([]byte, 8)
 
-		encrypter, err := NewCTREncrypter(img, PNGWithNRGBA32, invalidKey)
+		encrypter, err := NewCTREncrypter(writer, invalidKey)
 		require.Error(t, err)
 		require.Nil(t, encrypter)
 	})
 }
 
 func TestCTREncrypter_Write(t *testing.T) {
-	img := testGeneratePNG(160, 90)
+	writer := testGeneratePNGWriter(t, 160, 90)
 	Key := make([]byte, aes.Key256Bit)
 
-	encrypter, err := NewCTREncrypter(img, PNGWithNRGBA32, Key)
+	encrypter, err := NewCTREncrypter(writer, Key)
 	require.NoError(t, err)
 	encrypter.writer = new(mockWriter)
 
@@ -55,10 +66,10 @@ func TestCTREncrypter_Write(t *testing.T) {
 }
 
 func TestCTREncrypter_Encode(t *testing.T) {
-	img := testGeneratePNG(160, 90)
+	writer := testGeneratePNGWriter(t, 160, 90)
 	Key := make([]byte, aes.Key256Bit)
 
-	encrypter, err := NewCTREncrypter(img, PNGWithNRGBA32, Key)
+	encrypter, err := NewCTREncrypter(writer, Key)
 	require.NoError(t, err)
 
 	_, err = encrypter.Write([]byte{0})
@@ -71,9 +82,9 @@ func TestCTREncrypter_Encode(t *testing.T) {
 }
 
 func TestCTREncrypter_SetOffset(t *testing.T) {
-	img := testGeneratePNG(160, 90)
+	writer := testGeneratePNGWriter(t, 160, 90)
 	Key := make([]byte, aes.Key256Bit)
-	encrypter, err := NewCTREncrypter(img, PNGWithNRGBA32, Key)
+	encrypter, err := NewCTREncrypter(writer, Key)
 	require.NoError(t, err)
 
 	t.Run("failed to write header", func(t *testing.T) {
@@ -115,9 +126,9 @@ func TestCTREncrypter_SetOffset(t *testing.T) {
 }
 
 func TestCTREncrypter_writeHeader(t *testing.T) {
-	img := testGeneratePNG(160, 90)
+	writer := testGeneratePNGWriter(t, 160, 90)
 	Key := make([]byte, aes.Key256Bit)
-	encrypter, err := NewCTREncrypter(img, PNGWithNRGBA32, Key)
+	encrypter, err := NewCTREncrypter(writer, Key)
 	require.NoError(t, err)
 
 	t.Run("failed to encrypt size buffer", func(t *testing.T) {
@@ -150,13 +161,6 @@ func TestCTREncrypter_writeHeader(t *testing.T) {
 }
 
 func TestNewCTRDecrypter(t *testing.T) {
-	t.Run("invalid image", func(t *testing.T) {
-		r := testsuite.NewMockConnWithReadError()
-
-		_, err := NewCTRDecrypter(r, nil)
-		require.Error(t, err)
-	})
-
 	t.Run("too small image", func(t *testing.T) {
 		r := testGeneratePNGReader(t, 1, 2)
 
