@@ -418,7 +418,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, reader)
 			})
 
-			t.Run("Seek with invalid offset", func(t *testing.T) {
+			t.Run("Seek with various offset", func(t *testing.T) {
 				testdata := random.Bytes(128)
 
 				writer, err := test.NewWriter(img)
@@ -431,6 +431,22 @@ func testWriterAndReader(t *testing.T, name string) {
 				offset, err = writer.Seek(math.MaxInt64, io.SeekStart)
 				require.Equal(t, ErrInvalidOffset, err)
 				require.Zero(t, offset)
+
+				offset, err = writer.Seek(0, 123)
+				require.Error(t, err)
+				require.Zero(t, offset)
+
+				offset, err = writer.Seek(-16, io.SeekEnd)
+				require.NoError(t, err)
+				require.Equal(t, int64(testImageFullSize-16), offset)
+
+				offset, err = writer.Seek(16, io.SeekStart)
+				require.NoError(t, err)
+				require.Equal(t, int64(16), offset)
+
+				offset, err = writer.Seek(16, io.SeekCurrent)
+				require.NoError(t, err)
+				require.Equal(t, int64(32), offset)
 
 				n, err := writer.Write(testdata)
 				require.NoError(t, err)
@@ -450,6 +466,22 @@ func testWriterAndReader(t *testing.T, name string) {
 				offset, err = reader.Seek(math.MaxInt64, io.SeekStart)
 				require.Equal(t, ErrInvalidOffset, err)
 				require.Zero(t, offset)
+
+				offset, err = reader.Seek(0, 123)
+				require.Error(t, err)
+				require.Zero(t, offset)
+
+				offset, err = reader.Seek(-16, io.SeekEnd)
+				require.NoError(t, err)
+				require.Equal(t, int64(testImageFullSize-16), offset)
+
+				offset, err = reader.Seek(16, io.SeekStart)
+				require.NoError(t, err)
+				require.Equal(t, int64(16), offset)
+
+				offset, err = reader.Seek(16, io.SeekCurrent)
+				require.NoError(t, err)
+				require.Equal(t, int64(32), offset)
 
 				buf := make([]byte, 128)
 				_, err = io.ReadFull(reader, buf)
@@ -899,7 +931,7 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				testsuite.IsDestroyed(t, decrypter)
 			})
 
-			t.Run("Seek with invalid offset", func(t *testing.T) {
+			t.Run("Seek with various offset", func(t *testing.T) {
 				key := random.Bytes(aes.Key256Bit)
 				testdata := random.Bytes(128)
 

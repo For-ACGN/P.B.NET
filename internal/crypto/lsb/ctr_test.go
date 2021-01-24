@@ -147,7 +147,7 @@ func TestCTREncrypter_writeHeader(t *testing.T) {
 		_, _ = encrypter.Seek(1, io.SeekStart)
 	})
 
-	t.Run("failed to seek", func(t *testing.T) {
+	t.Run("failed to reset writer offset", func(t *testing.T) {
 		offset := encrypter.offset
 		defer func() { encrypter.offset = offset }()
 
@@ -293,7 +293,7 @@ func TestCTRDecrypter_validate(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("failed to reset offset", func(t *testing.T) {
+	t.Run("failed to reset reader offset", func(t *testing.T) {
 		patch1 := func([]byte) int64 {
 			return 128
 		}
@@ -306,11 +306,15 @@ func TestCTRDecrypter_validate(t *testing.T) {
 		pg2 := monkey.Patch(hmac.Equal, patch2)
 		defer pg2.Unpatch()
 
-		decrypter.offset = -1024
-		defer func() { decrypter.offset = 0 }()
+		var pngReader *PNGReader
+		patch3 := func(int64, int) (int64, error) {
+			return 0, err
+		}
+		pg3 := monkey.PatchInstanceMethod(pngReader, "Seek", patch3)
+		defer pg3.Unpatch()
 
-		_, err = decrypter.Read(make([]byte, 16))
-		require.Error(t, err)
+		defer testsuite.DeferForPanic(t)
+		_, _ = decrypter.Read(make([]byte, 16))
 	})
 
 	t.Run("failed to set stream", func(t *testing.T) {
@@ -333,8 +337,8 @@ func TestCTRDecrypter_validate(t *testing.T) {
 		pg3 := monkey.PatchInstanceMethod(ctr, "SetStream", patch3)
 		defer pg3.Unpatch()
 
-		_, err = decrypter.Read(make([]byte, 16))
-		monkey.IsMonkeyError(t, err)
+		defer testsuite.DeferForPanic(t)
+		_, _ = decrypter.Read(make([]byte, 16))
 	})
 
 	testsuite.IsDestroyed(t, decrypter)

@@ -190,7 +190,7 @@ func LoadImage(r io.Reader, ext string) (image.Image, error) {
 	for _, decoder = range decoders {
 		_, err = reader.Seek(0, io.SeekStart)
 		if err != nil {
-			panic(fmt.Sprintf("lsb: internal error: %s", err))
+			panic(fmt.Sprintf("lsb: reset image reader: %s", err))
 		}
 		img, err := decoder(reader)
 		if err == nil {

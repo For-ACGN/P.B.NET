@@ -105,16 +105,16 @@ func (ce *CTREncrypter) writeHeader() error {
 	// encrypt size buffer
 	size, err := ce.ctr.EncryptWithIV(size, iv)
 	if err != nil {
-		panic(fmt.Sprintf("lsb: internal error: %s", err))
+		panic(fmt.Sprintf("lsb: encrypt size buffer: %s", err))
 	}
 	// calculate signature
 	ce.hmac.Write(iv)
 	ce.hmac.Write(size)
 	signature := ce.hmac.Sum(nil)
 	// set offset for write header
-	_, err = ce.writer.Seek(ce.offset, io.SeekStart)
+	_, err = ce.writer.Seek(-(ce.written + ctrReverseSize), io.SeekCurrent)
 	if err != nil {
-		panic(fmt.Sprintf("lsb: internal error: %s", err))
+		panic(fmt.Sprintf("lsb: reset writer offset: %s", err))
 	}
 	// write header data
 	for _, b := range [][]byte{
@@ -213,9 +213,8 @@ type CTRDecrypter struct {
 	hmac hash.Hash
 	ctr  *aes.CTR
 
-	offset int64
-	size   int64
-	read   int64
+	size int64
+	read int64
 }
 
 // NewCTRDecrypter is used to create a new AES-CTR decrypter.
@@ -312,12 +311,12 @@ func (cd *CTRDecrypter) validate() error {
 	// reset offset that after iv
 	_, err = cd.reader.Seek(-size, io.SeekCurrent)
 	if err != nil {
-		return errors.WithMessage(err, "failed to reset offset")
+		panic(fmt.Sprintf("lsb: reset reader offset: %s", err))
 	}
 	// set stream
 	err = cd.ctr.SetStream(iv)
 	if err != nil {
-		return err
+		panic(fmt.Sprintf("lsb: set stream: %s", err))
 	}
 	cd.size = size
 	return nil
@@ -330,7 +329,6 @@ func (cd *CTRDecrypter) Seek(offset int64, whence int) (int64, error) {
 		return 0, err
 	}
 	cd.hmac.Reset()
-	cd.offset = offset
 	cd.size = 0
 	cd.read = 0
 	return offset, nil
