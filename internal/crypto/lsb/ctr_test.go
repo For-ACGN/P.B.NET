@@ -120,7 +120,7 @@ func TestCTREncrypter_Seek(t *testing.T) {
 		pg := monkey.Patch(aes.GenerateIV, patch)
 		defer pg.Unpatch()
 
-		offset, err := encrypter.Seek(1, io.SeekStart)
+		offset, err := encrypter.seek(1, io.SeekStart)
 		monkey.IsMonkeyError(t, err)
 		require.Zero(t, offset)
 	})
@@ -132,7 +132,7 @@ func TestCTREncrypter_Seek(t *testing.T) {
 		pg := monkey.Patch(aes.GenerateIV, patch)
 		defer pg.Unpatch()
 
-		offset, err := encrypter.Seek(1, io.SeekStart)
+		offset, err := encrypter.seek(1, io.SeekStart)
 		require.Equal(t, aes.ErrInvalidIVSize, err)
 		require.Zero(t, offset)
 	})
