@@ -18,7 +18,7 @@ var (
 	ErrNegativePosition = errors.New("seek: negative position")
 
 	// ErrInvalidOffset is a error about invalid offset.
-	ErrInvalidOffset = errors.New("offset is larger than capacity")
+	ErrInvalidOffset = errors.New("seek: invalid offset")
 
 	// ErrNoEnoughCapacity is a error that image can not write data.
 	ErrNoEnoughCapacity = errors.New("image has no enough capacity for write")

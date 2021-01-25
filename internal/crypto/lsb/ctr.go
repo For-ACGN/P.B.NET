@@ -144,6 +144,9 @@ func (ce *CTREncrypter) seek(offset int64, whence int) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if offset < ctrReverseSize {
+		return 0, ErrInvalidOffset
+	}
 	iv, err := aes.GenerateIV()
 	if err != nil {
 		return 0, err

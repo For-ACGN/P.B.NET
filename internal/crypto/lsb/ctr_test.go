@@ -148,16 +148,39 @@ func TestCTREncrypter_writeHeader(t *testing.T) {
 	})
 
 	t.Run("failed to reset writer offset", func(t *testing.T) {
-		offset := encrypter.offset
-		defer func() { encrypter.offset = offset }()
-
-		encrypter.offset = -1024
-
 		_, err = encrypter.Write([]byte{0})
 		require.NoError(t, err)
 
+		var pw *PNGWriter
+		patch := func(interface{}, int64, int) (int64, error) {
+			return 0, monkey.Error
+		}
+		pg := monkey.PatchInstanceMethod(pw, "Seek", patch)
+		defer pg.Unpatch()
+
 		defer testsuite.DeferForPanic(t)
-		_, _ = encrypter.Seek(1, io.SeekStart)
+		_, _ = encrypter.Seek(-1024, io.SeekStart)
+	})
+
+	testsuite.IsDestroyed(t, encrypter)
+}
+
+func TestCTREncrypter_Seek(t *testing.T) {
+	writer := testGeneratePNGWriter(t, 160, 90)
+	Key := make([]byte, aes.Key256Bit)
+	encrypter, err := NewCTREncrypter(writer, Key)
+	require.NoError(t, err)
+
+	t.Run("negative offset", func(t *testing.T) {
+		offset, err := encrypter.seek(-1024, io.SeekStart)
+		require.Equal(t, ErrNegativePosition, err)
+		require.Zero(t, offset)
+	})
+
+	t.Run("invalid offset", func(t *testing.T) {
+		offset, err := encrypter.seek(-1, io.SeekStart)
+		require.Equal(t, ErrInvalidOffset, err)
+		require.Zero(t, offset)
 	})
 
 	testsuite.IsDestroyed(t, encrypter)
@@ -306,11 +329,11 @@ func TestCTRDecrypter_validate(t *testing.T) {
 		pg2 := monkey.Patch(hmac.Equal, patch2)
 		defer pg2.Unpatch()
 
-		var pngReader *PNGReader
-		patch3 := func(int64, int) (int64, error) {
-			return 0, err
+		var pr *PNGReader
+		patch3 := func(interface{}, int64, int) (int64, error) {
+			return 0, monkey.Error
 		}
-		pg3 := monkey.PatchInstanceMethod(pngReader, "Seek", patch3)
+		pg3 := monkey.PatchInstanceMethod(pr, "Seek", patch3)
 		defer pg3.Unpatch()
 
 		defer testsuite.DeferForPanic(t)
