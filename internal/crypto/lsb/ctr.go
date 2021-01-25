@@ -88,16 +88,17 @@ func (ce *CTREncrypter) Write(b []byte) (int, error) {
 
 // Encode is used to encode under image to writer.
 func (ce *CTREncrypter) Encode(w io.Writer) error {
-	if ce.written > 0 {
-		err := ce.writeHeader()
-		if err != nil {
-			return err
-		}
+	err := ce.writeHeader()
+	if err != nil {
+		return err
 	}
 	return ce.writer.Encode(w)
 }
 
 func (ce *CTREncrypter) writeHeader() error {
+	if ce.written < 1 {
+		return nil
+	}
 	size := convert.BEInt64ToBytes(ce.written)
 	// get iv
 	iv := ce.iv.Get()
@@ -130,11 +131,9 @@ func (ce *CTREncrypter) writeHeader() error {
 
 // Seek sets the offset for the next Write to offset.
 func (ce *CTREncrypter) Seek(offset int64, whence int) (int64, error) {
-	if ce.written > 0 {
-		err := ce.writeHeader()
-		if err != nil {
-			return 0, err
-		}
+	err := ce.writeHeader()
+	if err != nil {
+		return 0, err
 	}
 	return ce.seek(offset, whence)
 }
@@ -144,7 +143,7 @@ func (ce *CTREncrypter) seek(offset int64, whence int) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if offset < ctrReverseSize {
+	if offset < ctrReverseSize || offset > ce.capacity-ctrReverseSize {
 		return 0, ErrInvalidOffset
 	}
 	iv, err := aes.GenerateIV()

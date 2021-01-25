@@ -432,7 +432,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.Equal(t, ErrInvalidOffset, err)
 				require.Zero(t, offset)
 
-				offset, err = writer.Seek(0, 123)
+				offset, err = writer.Seek(0, 123) // invalid whence
 				require.Error(t, err)
 				require.Zero(t, offset)
 
@@ -467,7 +467,7 @@ func testWriterAndReader(t *testing.T, name string) {
 				require.Equal(t, ErrInvalidOffset, err)
 				require.Zero(t, offset)
 
-				offset, err = reader.Seek(0, 123)
+				offset, err = reader.Seek(0, 123) // invalid whence
 				require.Error(t, err)
 				require.Zero(t, offset)
 
@@ -938,12 +938,33 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				encrypter, err := test.NewEncrypter(img, key)
 				require.NoError(t, err)
 
-				_, err = encrypter.Seek(-1, io.SeekStart)
-				require.Equal(t, ErrNegativePosition, err)
+				offset, err := encrypter.Seek(-1, io.SeekStart)
+				require.Error(t, err)
+				require.Zero(t, offset)
 
-				_, err = encrypter.Seek(math.MaxInt64, io.SeekStart)
+				offset, err = encrypter.Seek(testImageFullSize, io.SeekStart)
 				require.Equal(t, ErrInvalidOffset, err)
+				require.Zero(t, offset)
 
+				offset, err = encrypter.Seek(0, 123) // invalid whence
+				require.Error(t, err)
+				require.Zero(t, offset)
+
+				offset, err = encrypter.Seek(-1024, io.SeekEnd)
+				require.NoError(t, err)
+				require.NotZero(t, offset)
+
+				offset, err = encrypter.Seek(16, io.SeekStart)
+				require.NoError(t, err)
+				require.NotZero(t, offset)
+
+				offset, err = encrypter.Seek(16, io.SeekCurrent)
+				require.NoError(t, err)
+				require.NotZero(t, offset)
+
+				offset, err = encrypter.Seek(16, io.SeekStart)
+				require.NoError(t, err)
+				require.NotZero(t, offset)
 				n, err := encrypter.Write(testdata)
 				require.NoError(t, err)
 				require.Equal(t, 128, n)
@@ -955,12 +976,33 @@ func testEncrypterAndDecrypter(t *testing.T, name string) {
 				decrypter, err := test.NewDecrypter(output.Bytes(), key)
 				require.NoError(t, err)
 
-				_, err = decrypter.Seek(-1, io.SeekStart)
-				require.Equal(t, ErrNegativePosition, err)
+				offset, err = decrypter.Seek(-1, io.SeekStart)
+				require.Error(t, err)
+				require.Zero(t, offset)
 
-				_, err = decrypter.Seek(math.MaxInt64, io.SeekStart)
+				offset, err = decrypter.Seek(testImageFullSize+1, io.SeekStart)
 				require.Equal(t, ErrInvalidOffset, err)
+				require.Zero(t, offset)
 
+				offset, err = decrypter.Seek(0, 123) // invalid whence
+				require.Error(t, err)
+				require.Zero(t, offset)
+
+				offset, err = decrypter.Seek(-1024, io.SeekEnd)
+				require.NoError(t, err)
+				require.NotZero(t, offset)
+
+				offset, err = decrypter.Seek(16, io.SeekStart)
+				require.NoError(t, err)
+				require.NotZero(t, offset)
+
+				offset, err = decrypter.Seek(16, io.SeekCurrent)
+				require.NoError(t, err)
+				require.NotZero(t, offset)
+
+				offset, err = decrypter.Seek(16, io.SeekStart)
+				require.NoError(t, err)
+				require.NotZero(t, offset)
 				plainData, err := io.ReadAll(decrypter)
 				require.NoError(t, err)
 

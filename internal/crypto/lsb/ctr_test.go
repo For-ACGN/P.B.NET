@@ -81,7 +81,7 @@ func TestCTREncrypter_Encode(t *testing.T) {
 	require.Equal(t, errMockError, err)
 }
 
-func TestCTREncrypter_SetOffset(t *testing.T) {
+func TestCTREncrypter_Seek(t *testing.T) {
 	writer := testGeneratePNGWriter(t, 160, 90)
 	Key := make([]byte, aes.Key256Bit)
 	encrypter, err := NewCTREncrypter(writer, Key)
@@ -98,6 +98,18 @@ func TestCTREncrypter_SetOffset(t *testing.T) {
 
 		offset, err := encrypter.Seek(1, io.SeekStart)
 		require.Equal(t, errMockError, err)
+		require.Zero(t, offset)
+	})
+
+	t.Run("negative offset", func(t *testing.T) {
+		offset, err := encrypter.seek(-1024, io.SeekStart)
+		require.Equal(t, ErrNegativePosition, err)
+		require.Zero(t, offset)
+	})
+
+	t.Run("invalid offset", func(t *testing.T) {
+		offset, err := encrypter.seek(-1, io.SeekStart)
+		require.Equal(t, ErrInvalidOffset, err)
 		require.Zero(t, offset)
 	})
 
@@ -160,27 +172,6 @@ func TestCTREncrypter_writeHeader(t *testing.T) {
 
 		defer testsuite.DeferForPanic(t)
 		_, _ = encrypter.Seek(-1024, io.SeekStart)
-	})
-
-	testsuite.IsDestroyed(t, encrypter)
-}
-
-func TestCTREncrypter_Seek(t *testing.T) {
-	writer := testGeneratePNGWriter(t, 160, 90)
-	Key := make([]byte, aes.Key256Bit)
-	encrypter, err := NewCTREncrypter(writer, Key)
-	require.NoError(t, err)
-
-	t.Run("negative offset", func(t *testing.T) {
-		offset, err := encrypter.seek(-1024, io.SeekStart)
-		require.Equal(t, ErrNegativePosition, err)
-		require.Zero(t, offset)
-	})
-
-	t.Run("invalid offset", func(t *testing.T) {
-		offset, err := encrypter.seek(-1, io.SeekStart)
-		require.Equal(t, ErrInvalidOffset, err)
-		require.Zero(t, offset)
 	})
 
 	testsuite.IsDestroyed(t, encrypter)
