@@ -75,19 +75,28 @@ func printUsage() {
 	system.CheckError(err)
 	const format = `
 supported algorithms:
+
   md5, sha1, sha224, sha256, sha384, sha512,
   hmac-md5, hmac-sha1, hmac-sha224, hmac-sha256
   hmac-sha384, hmac-sha512
 
 usage:
+
   %s -alg "sha256" -text "hello"
   %s -alg "sha256" -file "f.txt"
   %s -alg "hmac-sha256" -text "hello" -key "hash"
   %s -alg "hmac-sha256" -file "f.txt" -key "hash"
 
   If -alg is empty, use all supported algorithms.
+
+arguments:
 `
-	fmt.Printf(format[1:]+"\n", exe, exe, exe, exe)
+	const n = 4
+	exes := make([]interface{}, n)
+	for i := 0; i < n; i++ {
+		exes[i] = exe
+	}
+	fmt.Printf(format[1:]+"\n", exes...)
 	flag.PrintDefaults()
 }
 
