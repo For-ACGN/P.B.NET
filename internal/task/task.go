@@ -180,7 +180,7 @@ func (task *Task) process() error {
 	case pStateFinish:
 		return errors.New("task canceled")
 	default:
-		panic(fmt.Sprintf("task: internal error: invalid pState %d", state))
+		panic(fmt.Sprintf("task: invalid pState: %d", state))
 	}
 	err = task.fsm.Event(EventComplete)
 	if err != nil {
