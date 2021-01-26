@@ -3,57 +3,80 @@ package option
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
 
 const (
-	// http transport and server default timeout
+	// http transport and server default timeout.
 	httpDefaultTimeout = time.Minute
 
-	// http server income request max header size
+	// http server income request max header size.
 	httpDefaultMaxHeaderBytes = 512 * 1024
 
-	// http transport max response header size
+	// http transport max response header size.
 	httpDefaultMaxResponseHeaderBytes int64 = 512 * 1024
 )
 
 // HTTPRequest contains options about http.Request.
 type HTTPRequest struct {
-	Method string      `toml:"method"`
-	URL    string      `toml:"url"`
-	Post   string      `toml:"post"` // hex
-	Header http.Header `toml:"header"`
-	Host   string      `toml:"host"`
-	Close  bool        `toml:"close"`
-}
+	// Method specifies the HTTP method (GET, POST, PUT, etc.).
+	Method string `toml:"method"`
 
-func (hr *HTTPRequest) error(err error) error {
-	return fmt.Errorf("failed to apply http request options: %s", err)
+	// URL specifies either the URI being requested.
+	URL string `toml:"url"`
+
+	// Post is the http request body that encoded with hex.
+	Post string `toml:"post"`
+
+	// Header contains the http request header.
+	Header http.Header `toml:"header"`
+
+	// Host optionally overrides the Host header to send.
+	Host string `toml:"host"`
+
+	// Close is used to prevent re-use of connections between
+	// requests to the same hosts.
+	Close bool `toml:"close"`
+
+	// Body is the http request body, if it is set, Apply will
+	// use it to replace Post field.
+	Body io.Reader `toml:"-" msgpack:"-"`
 }
 
 // Apply is used to create *http.Request.
 func (hr *HTTPRequest) Apply() (*http.Request, error) {
 	if hr.URL == "" {
-		return nil, hr.error(errors.New("empty url"))
+		return nil, hr.error("empty url")
 	}
-	post, err := hex.DecodeString(hr.Post)
+	var body io.Reader
+	if hr.Body != nil {
+		body = hr.Body
+	} else {
+		post, err := hex.DecodeString(hr.Post)
+		if err != nil {
+			return nil, hr.error(err)
+		}
+		body = bytes.NewReader(post)
+	}
+	req, err := http.NewRequest(hr.Method, hr.URL, body)
 	if err != nil {
 		return nil, hr.error(err)
 	}
-	req, err := http.NewRequest(hr.Method, hr.URL, bytes.NewReader(post))
-	if err != nil {
-		return nil, hr.error(err)
-	}
-	req.Header = hr.Header.Clone()
 	if req.Header == nil {
 		req.Header = make(http.Header)
+	} else {
+		req.Header = hr.Header.Clone()
 	}
 	req.Host = hr.Host
 	req.Close = hr.Close
 	return req, nil
+}
+
+func (hr *HTTPRequest) error(err interface{}) error {
+	return fmt.Errorf("failed to apply http request options: %s", err)
 }
 
 // HTTPTransport contains options about http.Transport.
@@ -61,7 +84,7 @@ type HTTPTransport struct {
 	TLSClientConfig        TLSConfig     `toml:"tls_config" testsuite:"-"`
 	MaxIdleConns           int           `toml:"max_idle_conns"`
 	MaxIdleConnsPerHost    int           `toml:"max_idle_conns_per_host"`
-	MaxConnsPerHost        int           `toml:"max_conns_per_host" testsuite:"-"`
+	MaxConnsPerHost        int           `toml:"max_conns_per_host"`
 	TLSHandshakeTimeout    time.Duration `toml:"tls_handshake_timeout"`
 	IdleConnTimeout        time.Duration `toml:"idle_conn_timeout"`
 	ResponseHeaderTimeout  time.Duration `toml:"response_header_timeout"`
@@ -73,14 +96,11 @@ type HTTPTransport struct {
 }
 
 // Apply is used to create *http.Transport.
-//
-// TODO [external] go internal bug: MaxConnsPerHost
-// when set MaxConnsPerHost, use HTTP/2 get test.com will panic, wait golang fix it.
 func (ht *HTTPTransport) Apply() (*http.Transport, error) {
 	tr := http.Transport{
-		MaxIdleConns:        ht.MaxIdleConns,
-		MaxIdleConnsPerHost: ht.MaxIdleConnsPerHost,
-		// MaxConnsPerHost:        ht.MaxConnsPerHost,
+		MaxIdleConns:           ht.MaxIdleConns,
+		MaxIdleConnsPerHost:    ht.MaxIdleConnsPerHost,
+		MaxConnsPerHost:        ht.MaxConnsPerHost,
 		TLSHandshakeTimeout:    ht.TLSHandshakeTimeout,
 		IdleConnTimeout:        ht.IdleConnTimeout,
 		ResponseHeaderTimeout:  ht.ResponseHeaderTimeout,
@@ -103,9 +123,9 @@ func (ht *HTTPTransport) Apply() (*http.Transport, error) {
 	if tr.MaxIdleConnsPerHost < 1 {
 		tr.MaxIdleConnsPerHost = 1
 	}
-	// if tr.MaxConnsPerHost < 1 {
-	// 	tr.MaxConnsPerHost = 1
-	// }
+	if tr.MaxConnsPerHost < 0 {
+		tr.MaxConnsPerHost = 16
+	}
 	// about timeout
 	if tr.TLSHandshakeTimeout < 1 {
 		tr.TLSHandshakeTimeout = httpDefaultTimeout
