@@ -88,11 +88,11 @@ func TestHTTPTransportDefault(t *testing.T) {
 	require.Equal(t, 1, transport.MaxIdleConns)
 	require.Equal(t, 1, transport.MaxIdleConnsPerHost)
 	// require.Equal(t, 1, transport.MaxConnsPerHost)
-	require.Equal(t, httpDefaultTimeout, transport.TLSHandshakeTimeout)
-	require.Equal(t, httpDefaultTimeout, transport.IdleConnTimeout)
-	require.Equal(t, httpDefaultTimeout, transport.ResponseHeaderTimeout)
-	require.Equal(t, httpDefaultTimeout, transport.ExpectContinueTimeout)
-	require.Equal(t, httpDefaultMaxResponseHeaderBytes, transport.MaxResponseHeaderBytes)
+	require.Equal(t, defaultHTTPMultiTimeout, transport.TLSHandshakeTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, transport.IdleConnTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, transport.ResponseHeaderTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, transport.ExpectContinueTimeout)
+	require.Equal(t, defaultHTTPMaxResponseHeaderBytes, transport.MaxResponseHeaderBytes)
 	require.Equal(t, false, transport.DisableKeepAlives)
 	require.Equal(t, false, transport.DisableCompression)
 	require.Empty(t, transport.ProxyConnectHeader)
@@ -156,9 +156,9 @@ func TestHTTPServerDefault(t *testing.T) {
 
 	require.Equal(t, time.Duration(0), server.ReadTimeout)
 	require.Equal(t, time.Duration(0), server.WriteTimeout)
-	require.Equal(t, httpDefaultTimeout, server.ReadHeaderTimeout)
-	require.Equal(t, httpDefaultTimeout, server.IdleTimeout)
-	require.Equal(t, httpDefaultMaxHeaderBytes, server.MaxHeaderBytes)
+	require.Equal(t, defaultHTTPMultiTimeout, server.ReadHeaderTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, server.IdleTimeout)
+	require.Equal(t, defaultHTTPMaxHeaderBytes, server.MaxHeaderBytes)
 }
 
 func TestHTTPServer(t *testing.T) {
