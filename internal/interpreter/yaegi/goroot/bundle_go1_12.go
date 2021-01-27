@@ -37,6 +37,15 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
+	"database/sql"
+	"encoding"
+	"encoding/ascii85"
+	"encoding/asn1"
+	"encoding/base32"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/csv"
+	"errors"
 	"go/constant"
 	"go/token"
 	"io"
@@ -86,6 +95,15 @@ func init() {
 	init_crypto_subtle()
 	init_crypto_tls()
 	init_crypto_x509()
+	init_database_sql()
+	init_encoding()
+	init_encoding_ascii85()
+	init_encoding_asn1()
+	init_encoding_base32()
+	init_encoding_base64()
+	init_encoding_binary()
+	init_encoding_csv()
+	init_errors()
 	init_io()
 	init_math()
 	init_math_big()
@@ -1067,6 +1085,282 @@ func init_crypto_x509() {
 		"UnhandledCriticalExtension": reflect.ValueOf((*x509.UnhandledCriticalExtension)(nil)),
 		"UnknownAuthorityError":      reflect.ValueOf((*x509.UnknownAuthorityError)(nil)),
 		"VerifyOptions":              reflect.ValueOf((*x509.VerifyOptions)(nil)),
+	}
+}
+
+func init_database_sql() {
+	Symbols["database/sql"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Drivers":              reflect.ValueOf(sql.Drivers),
+		"ErrConnDone":          reflect.ValueOf(&sql.ErrConnDone).Elem(),
+		"ErrNoRows":            reflect.ValueOf(&sql.ErrNoRows).Elem(),
+		"ErrTxDone":            reflect.ValueOf(&sql.ErrTxDone).Elem(),
+		"LevelDefault":         reflect.ValueOf(sql.LevelDefault),
+		"LevelLinearizable":    reflect.ValueOf(sql.LevelLinearizable),
+		"LevelReadCommitted":   reflect.ValueOf(sql.LevelReadCommitted),
+		"LevelReadUncommitted": reflect.ValueOf(sql.LevelReadUncommitted),
+		"LevelRepeatableRead":  reflect.ValueOf(sql.LevelRepeatableRead),
+		"LevelSerializable":    reflect.ValueOf(sql.LevelSerializable),
+		"LevelSnapshot":        reflect.ValueOf(sql.LevelSnapshot),
+		"LevelWriteCommitted":  reflect.ValueOf(sql.LevelWriteCommitted),
+		"Named":                reflect.ValueOf(sql.Named),
+		"Open":                 reflect.ValueOf(sql.Open),
+		"OpenDB":               reflect.ValueOf(sql.OpenDB),
+		"Register":             reflect.ValueOf(sql.Register),
+
+		// type definitions
+		"ColumnType":     reflect.ValueOf((*sql.ColumnType)(nil)),
+		"Conn":           reflect.ValueOf((*sql.Conn)(nil)),
+		"DB":             reflect.ValueOf((*sql.DB)(nil)),
+		"DBStats":        reflect.ValueOf((*sql.DBStats)(nil)),
+		"IsolationLevel": reflect.ValueOf((*sql.IsolationLevel)(nil)),
+		"NamedArg":       reflect.ValueOf((*sql.NamedArg)(nil)),
+		"NullBool":       reflect.ValueOf((*sql.NullBool)(nil)),
+		"NullFloat64":    reflect.ValueOf((*sql.NullFloat64)(nil)),
+		"NullInt64":      reflect.ValueOf((*sql.NullInt64)(nil)),
+		"NullString":     reflect.ValueOf((*sql.NullString)(nil)),
+		"Out":            reflect.ValueOf((*sql.Out)(nil)),
+		"RawBytes":       reflect.ValueOf((*sql.RawBytes)(nil)),
+		"Result":         reflect.ValueOf((*sql.Result)(nil)),
+		"Row":            reflect.ValueOf((*sql.Row)(nil)),
+		"Rows":           reflect.ValueOf((*sql.Rows)(nil)),
+		"Scanner":        reflect.ValueOf((*sql.Scanner)(nil)),
+		"Stmt":           reflect.ValueOf((*sql.Stmt)(nil)),
+		"Tx":             reflect.ValueOf((*sql.Tx)(nil)),
+		"TxOptions":      reflect.ValueOf((*sql.TxOptions)(nil)),
+
+		// interface wrapper definitions
+		"_Result":  reflect.ValueOf((*_database_sql_Result)(nil)),
+		"_Scanner": reflect.ValueOf((*_database_sql_Scanner)(nil)),
+	}
+}
+
+// _database_sql_Result is an interface wrapper for Result type
+type _database_sql_Result struct {
+	WLastInsertId func() (int64, error)
+	WRowsAffected func() (int64, error)
+}
+
+func (W _database_sql_Result) LastInsertId() (int64, error) { return W.WLastInsertId() }
+func (W _database_sql_Result) RowsAffected() (int64, error) { return W.WRowsAffected() }
+
+// _database_sql_Scanner is an interface wrapper for Scanner type
+type _database_sql_Scanner struct {
+	WScan func(src interface{}) error
+}
+
+func (W _database_sql_Scanner) Scan(src interface{}) error { return W.WScan(src) }
+
+func init_encoding() {
+	Symbols["encoding"] = map[string]reflect.Value{
+		// type definitions
+		"BinaryMarshaler":   reflect.ValueOf((*encoding.BinaryMarshaler)(nil)),
+		"BinaryUnmarshaler": reflect.ValueOf((*encoding.BinaryUnmarshaler)(nil)),
+		"TextMarshaler":     reflect.ValueOf((*encoding.TextMarshaler)(nil)),
+		"TextUnmarshaler":   reflect.ValueOf((*encoding.TextUnmarshaler)(nil)),
+
+		// interface wrapper definitions
+		"_BinaryMarshaler":   reflect.ValueOf((*_encoding_BinaryMarshaler)(nil)),
+		"_BinaryUnmarshaler": reflect.ValueOf((*_encoding_BinaryUnmarshaler)(nil)),
+		"_TextMarshaler":     reflect.ValueOf((*_encoding_TextMarshaler)(nil)),
+		"_TextUnmarshaler":   reflect.ValueOf((*_encoding_TextUnmarshaler)(nil)),
+	}
+}
+
+// _encoding_BinaryMarshaler is an interface wrapper for BinaryMarshaler type
+type _encoding_BinaryMarshaler struct {
+	WMarshalBinary func() (data []byte, err error)
+}
+
+func (W _encoding_BinaryMarshaler) MarshalBinary() (data []byte, err error) {
+	return W.WMarshalBinary()
+}
+
+// _encoding_BinaryUnmarshaler is an interface wrapper for BinaryUnmarshaler type
+type _encoding_BinaryUnmarshaler struct {
+	WUnmarshalBinary func(data []byte) error
+}
+
+func (W _encoding_BinaryUnmarshaler) UnmarshalBinary(data []byte) error {
+	return W.WUnmarshalBinary(data)
+}
+
+// _encoding_TextMarshaler is an interface wrapper for TextMarshaler type
+type _encoding_TextMarshaler struct {
+	WMarshalText func() (text []byte, err error)
+}
+
+func (W _encoding_TextMarshaler) MarshalText() (text []byte, err error) { return W.WMarshalText() }
+
+// _encoding_TextUnmarshaler is an interface wrapper for TextUnmarshaler type
+type _encoding_TextUnmarshaler struct {
+	WUnmarshalText func(text []byte) error
+}
+
+func (W _encoding_TextUnmarshaler) UnmarshalText(text []byte) error { return W.WUnmarshalText(text) }
+
+func init_encoding_ascii85() {
+	Symbols["encoding/ascii85"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Decode":        reflect.ValueOf(ascii85.Decode),
+		"Encode":        reflect.ValueOf(ascii85.Encode),
+		"MaxEncodedLen": reflect.ValueOf(ascii85.MaxEncodedLen),
+		"NewDecoder":    reflect.ValueOf(ascii85.NewDecoder),
+		"NewEncoder":    reflect.ValueOf(ascii85.NewEncoder),
+
+		// type definitions
+		"CorruptInputError": reflect.ValueOf((*ascii85.CorruptInputError)(nil)),
+	}
+}
+
+func init_encoding_asn1() {
+	Symbols["encoding/asn1"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ClassApplication":     reflect.ValueOf(constant.MakeFromLiteral("1", token.INT, 0)),
+		"ClassContextSpecific": reflect.ValueOf(constant.MakeFromLiteral("2", token.INT, 0)),
+		"ClassPrivate":         reflect.ValueOf(constant.MakeFromLiteral("3", token.INT, 0)),
+		"ClassUniversal":       reflect.ValueOf(constant.MakeFromLiteral("0", token.INT, 0)),
+		"Marshal":              reflect.ValueOf(asn1.Marshal),
+		"MarshalWithParams":    reflect.ValueOf(asn1.MarshalWithParams),
+		"NullBytes":            reflect.ValueOf(&asn1.NullBytes).Elem(),
+		"NullRawValue":         reflect.ValueOf(&asn1.NullRawValue).Elem(),
+		"TagBitString":         reflect.ValueOf(constant.MakeFromLiteral("3", token.INT, 0)),
+		"TagBoolean":           reflect.ValueOf(constant.MakeFromLiteral("1", token.INT, 0)),
+		"TagEnum":              reflect.ValueOf(constant.MakeFromLiteral("10", token.INT, 0)),
+		"TagGeneralString":     reflect.ValueOf(constant.MakeFromLiteral("27", token.INT, 0)),
+		"TagGeneralizedTime":   reflect.ValueOf(constant.MakeFromLiteral("24", token.INT, 0)),
+		"TagIA5String":         reflect.ValueOf(constant.MakeFromLiteral("22", token.INT, 0)),
+		"TagInteger":           reflect.ValueOf(constant.MakeFromLiteral("2", token.INT, 0)),
+		"TagNull":              reflect.ValueOf(constant.MakeFromLiteral("5", token.INT, 0)),
+		"TagNumericString":     reflect.ValueOf(constant.MakeFromLiteral("18", token.INT, 0)),
+		"TagOID":               reflect.ValueOf(constant.MakeFromLiteral("6", token.INT, 0)),
+		"TagOctetString":       reflect.ValueOf(constant.MakeFromLiteral("4", token.INT, 0)),
+		"TagPrintableString":   reflect.ValueOf(constant.MakeFromLiteral("19", token.INT, 0)),
+		"TagSequence":          reflect.ValueOf(constant.MakeFromLiteral("16", token.INT, 0)),
+		"TagSet":               reflect.ValueOf(constant.MakeFromLiteral("17", token.INT, 0)),
+		"TagT61String":         reflect.ValueOf(constant.MakeFromLiteral("20", token.INT, 0)),
+		"TagUTCTime":           reflect.ValueOf(constant.MakeFromLiteral("23", token.INT, 0)),
+		"TagUTF8String":        reflect.ValueOf(constant.MakeFromLiteral("12", token.INT, 0)),
+		"Unmarshal":            reflect.ValueOf(asn1.Unmarshal),
+		"UnmarshalWithParams":  reflect.ValueOf(asn1.UnmarshalWithParams),
+
+		// type definitions
+		"BitString":        reflect.ValueOf((*asn1.BitString)(nil)),
+		"Enumerated":       reflect.ValueOf((*asn1.Enumerated)(nil)),
+		"Flag":             reflect.ValueOf((*asn1.Flag)(nil)),
+		"ObjectIdentifier": reflect.ValueOf((*asn1.ObjectIdentifier)(nil)),
+		"RawContent":       reflect.ValueOf((*asn1.RawContent)(nil)),
+		"RawValue":         reflect.ValueOf((*asn1.RawValue)(nil)),
+		"StructuralError":  reflect.ValueOf((*asn1.StructuralError)(nil)),
+		"SyntaxError":      reflect.ValueOf((*asn1.SyntaxError)(nil)),
+	}
+}
+
+func init_encoding_base32() {
+	Symbols["encoding/base32"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"HexEncoding": reflect.ValueOf(&base32.HexEncoding).Elem(),
+		"NewDecoder":  reflect.ValueOf(base32.NewDecoder),
+		"NewEncoder":  reflect.ValueOf(base32.NewEncoder),
+		"NewEncoding": reflect.ValueOf(base32.NewEncoding),
+		"NoPadding":   reflect.ValueOf(base32.NoPadding),
+		"StdEncoding": reflect.ValueOf(&base32.StdEncoding).Elem(),
+		"StdPadding":  reflect.ValueOf(base32.StdPadding),
+
+		// type definitions
+		"CorruptInputError": reflect.ValueOf((*base32.CorruptInputError)(nil)),
+		"Encoding":          reflect.ValueOf((*base32.Encoding)(nil)),
+	}
+}
+
+func init_encoding_base64() {
+	Symbols["encoding/base64"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"NewDecoder":     reflect.ValueOf(base64.NewDecoder),
+		"NewEncoder":     reflect.ValueOf(base64.NewEncoder),
+		"NewEncoding":    reflect.ValueOf(base64.NewEncoding),
+		"NoPadding":      reflect.ValueOf(base64.NoPadding),
+		"RawStdEncoding": reflect.ValueOf(&base64.RawStdEncoding).Elem(),
+		"RawURLEncoding": reflect.ValueOf(&base64.RawURLEncoding).Elem(),
+		"StdEncoding":    reflect.ValueOf(&base64.StdEncoding).Elem(),
+		"StdPadding":     reflect.ValueOf(base64.StdPadding),
+		"URLEncoding":    reflect.ValueOf(&base64.URLEncoding).Elem(),
+
+		// type definitions
+		"CorruptInputError": reflect.ValueOf((*base64.CorruptInputError)(nil)),
+		"Encoding":          reflect.ValueOf((*base64.Encoding)(nil)),
+	}
+}
+
+func init_encoding_binary() {
+	Symbols["encoding/binary"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"BigEndian":      reflect.ValueOf(&binary.BigEndian).Elem(),
+		"LittleEndian":   reflect.ValueOf(&binary.LittleEndian).Elem(),
+		"MaxVarintLen16": reflect.ValueOf(constant.MakeFromLiteral("3", token.INT, 0)),
+		"MaxVarintLen32": reflect.ValueOf(constant.MakeFromLiteral("5", token.INT, 0)),
+		"MaxVarintLen64": reflect.ValueOf(constant.MakeFromLiteral("10", token.INT, 0)),
+		"PutUvarint":     reflect.ValueOf(binary.PutUvarint),
+		"PutVarint":      reflect.ValueOf(binary.PutVarint),
+		"Read":           reflect.ValueOf(binary.Read),
+		"ReadUvarint":    reflect.ValueOf(binary.ReadUvarint),
+		"ReadVarint":     reflect.ValueOf(binary.ReadVarint),
+		"Size":           reflect.ValueOf(binary.Size),
+		"Uvarint":        reflect.ValueOf(binary.Uvarint),
+		"Varint":         reflect.ValueOf(binary.Varint),
+		"Write":          reflect.ValueOf(binary.Write),
+
+		// type definitions
+		"ByteOrder": reflect.ValueOf((*binary.ByteOrder)(nil)),
+
+		// interface wrapper definitions
+		"_ByteOrder": reflect.ValueOf((*_encoding_binary_ByteOrder)(nil)),
+	}
+}
+
+// _encoding_binary_ByteOrder is an interface wrapper for ByteOrder type
+type _encoding_binary_ByteOrder struct {
+	WPutUint16 func(a0 []byte, a1 uint16)
+	WPutUint32 func(a0 []byte, a1 uint32)
+	WPutUint64 func(a0 []byte, a1 uint64)
+	WString    func() string
+	WUint16    func(a0 []byte) uint16
+	WUint32    func(a0 []byte) uint32
+	WUint64    func(a0 []byte) uint64
+}
+
+func (W _encoding_binary_ByteOrder) PutUint16(a0 []byte, a1 uint16) { W.WPutUint16(a0, a1) }
+func (W _encoding_binary_ByteOrder) PutUint32(a0 []byte, a1 uint32) { W.WPutUint32(a0, a1) }
+func (W _encoding_binary_ByteOrder) PutUint64(a0 []byte, a1 uint64) { W.WPutUint64(a0, a1) }
+func (W _encoding_binary_ByteOrder) String() string                 { return W.WString() }
+func (W _encoding_binary_ByteOrder) Uint16(a0 []byte) uint16        { return W.WUint16(a0) }
+func (W _encoding_binary_ByteOrder) Uint32(a0 []byte) uint32        { return W.WUint32(a0) }
+func (W _encoding_binary_ByteOrder) Uint64(a0 []byte) uint64        { return W.WUint64(a0) }
+
+func init_encoding_csv() {
+	Symbols["encoding/csv"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"ErrBareQuote":     reflect.ValueOf(&csv.ErrBareQuote).Elem(),
+		"ErrFieldCount":    reflect.ValueOf(&csv.ErrFieldCount).Elem(),
+		"ErrQuote":         reflect.ValueOf(&csv.ErrQuote).Elem(),
+		"ErrTrailingComma": reflect.ValueOf(&csv.ErrTrailingComma).Elem(),
+		"NewReader":        reflect.ValueOf(csv.NewReader),
+		"NewWriter":        reflect.ValueOf(csv.NewWriter),
+
+		// type definitions
+		"ParseError": reflect.ValueOf((*csv.ParseError)(nil)),
+		"Reader":     reflect.ValueOf((*csv.Reader)(nil)),
+		"Writer":     reflect.ValueOf((*csv.Writer)(nil)),
+	}
+}
+
+func init_errors() {
+	Symbols["errors"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"As":     reflect.ValueOf(errors.As),
+		"Is":     reflect.ValueOf(errors.Is),
+		"New":    reflect.ValueOf(errors.New),
+		"Unwrap": reflect.ValueOf(errors.Unwrap),
 	}
 }
 
