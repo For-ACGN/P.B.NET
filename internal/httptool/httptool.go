@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -110,7 +109,7 @@ func dumpRequest(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 // dumpBody is used to dump http response body to io.Writer.
 func dumpBody(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 	rawBody := new(bytes.Buffer)
-	defer func() { r.Body = ioutil.NopCloser(io.MultiReader(rawBody, r.Body)) }()
+	defer func() { r.Body = io.NopCloser(io.MultiReader(rawBody, r.Body)) }()
 	var (
 		total int
 		err   error

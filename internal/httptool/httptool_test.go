@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -37,9 +36,9 @@ func TestDumpRequest(t *testing.T) {
 	})
 
 	equalBody := func(b1, b2 io.Reader) {
-		d1, err := ioutil.ReadAll(b1)
+		d1, err := io.ReadAll(b1)
 		require.NoError(t, err)
-		d2, err := ioutil.ReadAll(b2)
+		d2, err := io.ReadAll(b2)
 		require.NoError(t, err)
 		require.Equal(t, d1, d2)
 	}
@@ -47,7 +46,7 @@ func TestDumpRequest(t *testing.T) {
 	rawBody := bytes.NewReader(body.Bytes())
 
 	t.Run("GET with body but no data", func(t *testing.T) {
-		req.Body = ioutil.NopCloser(body)
+		req.Body = io.NopCloser(body)
 
 		fmt.Println("-----begin-----")
 		DumpRequest(req)
@@ -60,7 +59,7 @@ func TestDumpRequest(t *testing.T) {
 		body.Reset()
 		body.WriteString(strings.Repeat("a", defaultBodyLineLength-10))
 		rawBody.Reset(body.Bytes())
-		req.Body = ioutil.NopCloser(body)
+		req.Body = io.NopCloser(body)
 
 		fmt.Println("-----begin-----")
 		DumpRequest(req)
@@ -73,7 +72,7 @@ func TestDumpRequest(t *testing.T) {
 		body.Reset()
 		body.WriteString(strings.Repeat("a", defaultBodyLineLength))
 		rawBody.Reset(body.Bytes())
-		req.Body = ioutil.NopCloser(body)
+		req.Body = io.NopCloser(body)
 
 		fmt.Println("-----begin-----")
 		DumpRequest(req)
@@ -86,7 +85,7 @@ func TestDumpRequest(t *testing.T) {
 		body.Reset()
 		body.WriteString(strings.Repeat("a", 3*defaultBodyLineLength-1))
 		rawBody = bytes.NewReader(body.Bytes())
-		req.Body = ioutil.NopCloser(body)
+		req.Body = io.NopCloser(body)
 
 		fmt.Println("-----begin-----")
 		DumpRequest(req)
@@ -99,7 +98,7 @@ func TestDumpRequest(t *testing.T) {
 		body.Reset()
 		body.WriteString(strings.Repeat("a", 100*defaultBodyLineLength-1))
 		rawBody = bytes.NewReader(body.Bytes())
-		req.Body = ioutil.NopCloser(body)
+		req.Body = io.NopCloser(body)
 
 		fmt.Println("-----begin-----")
 		DumpRequest(req)
@@ -173,7 +172,7 @@ func TestDumpBodyWithError(t *testing.T) {
 		pg := monkey.Patch(fmt.Fprintf, patch)
 		defer pg.Unpatch()
 
-		req.Body = ioutil.NopCloser(strings.NewReader("test"))
+		req.Body = io.NopCloser(strings.NewReader("test"))
 
 		_, err := FdumpRequest(os.Stdout, req)
 		monkey.IsMonkeyError(t, err)
@@ -193,7 +192,7 @@ func TestDumpBodyWithError(t *testing.T) {
 		defer pg.Unpatch()
 
 		testdata := "test" + strings.Repeat("a", defaultBodyLineLength)
-		req.Body = ioutil.NopCloser(strings.NewReader(testdata))
+		req.Body = io.NopCloser(strings.NewReader(testdata))
 
 		_, err := FdumpRequest(os.Stdout, req)
 		monkey.IsMonkeyError(t, err)
@@ -213,7 +212,7 @@ func TestDumpBodyWithError(t *testing.T) {
 		defer pg.Unpatch()
 
 		testdata := "test" + strings.Repeat("a", defaultBodyLineLength)
-		req.Body = ioutil.NopCloser(strings.NewReader(testdata))
+		req.Body = io.NopCloser(strings.NewReader(testdata))
 
 		_, err := FdumpRequest(os.Stdout, req)
 		monkey.IsMonkeyError(t, err)
@@ -233,7 +232,7 @@ func TestDumpBodyWithError(t *testing.T) {
 		defer pg.Unpatch()
 
 		testdata := "test" + strings.Repeat("a", 2*defaultBodyLineLength)
-		req.Body = ioutil.NopCloser(strings.NewReader(testdata))
+		req.Body = io.NopCloser(strings.NewReader(testdata))
 
 		_, err := FdumpRequest(os.Stdout, req)
 		monkey.IsMonkeyError(t, err)
@@ -251,7 +250,7 @@ func TestSubHTTPFileSystem_Open(t *testing.T) {
 	sfs := NewSubHTTPFileSystem(fs, "testdata")
 	file, err := sfs.Open("data.txt")
 	require.NoError(t, err)
-	data, err := ioutil.ReadAll(file)
+	data, err := io.ReadAll(file)
 	require.NoError(t, err)
 	require.Equal(t, "hello", string(data))
 

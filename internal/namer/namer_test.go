@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -259,7 +259,7 @@ func TestLoad_Parallel(t *testing.T) {
 }
 
 func TestOptions(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/options.toml")
+	data, err := os.ReadFile("testdata/options.toml")
 	require.NoError(t, err)
 
 	// check unnecessary field
