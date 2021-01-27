@@ -1,8 +1,13 @@
 package option
 
 import (
-	"io/ioutil"
+	"context"
+	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,49 +20,61 @@ import (
 func TestHTTPRequestDefault(t *testing.T) {
 	const URL = "http://127.0.0.1/"
 
-	req := &HTTPRequest{URL: URL}
-	request, err := req.Apply()
+	hr := HTTPRequest{URL: URL}
+	req, err := hr.Apply()
 	require.NoError(t, err)
 
-	require.Equal(t, http.MethodGet, request.Method)
-	require.Equal(t, URL, request.URL.String())
-	require.Equal(t, http.NoBody, request.Body)
-	require.NotNil(t, request.Header)
-	require.Zero(t, request.Host)
-	require.Equal(t, false, request.Close)
+	require.Equal(t, http.MethodGet, req.Method)
+	require.Equal(t, URL, req.URL.String())
+	require.NotNil(t, req.Header)
+	require.Zero(t, req.Host)
+	require.Equal(t, false, req.Close)
+	require.Equal(t, http.NoBody, req.Body)
 }
 
 func TestHTTPRequest(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/http_request.toml")
+	data, err := os.ReadFile("testdata/http_request.toml")
 	require.NoError(t, err)
 
 	// check unnecessary field
-	req := HTTPRequest{}
-	err = toml.Unmarshal(data, &req)
+	hr := HTTPRequest{}
+	err = toml.Unmarshal(data, &hr)
 	require.NoError(t, err)
 
 	// check zero value
-	testsuite.ContainZeroValue(t, req)
+	testsuite.ContainZeroValue(t, hr)
 
-	request, err := req.Apply()
+	req, err := hr.Apply()
 	require.NoError(t, err)
-	postData, err := ioutil.ReadAll(request.Body)
+	post, err := io.ReadAll(req.Body)
 	require.NoError(t, err)
 
 	for _, testdata := range [...]*struct {
 		expected interface{}
 		actual   interface{}
 	}{
-		{expected: http.MethodPost, actual: request.Method},
-		{expected: "https://127.0.0.1/", actual: request.URL.String()},
-		{expected: []byte{1, 2}, actual: postData},
-		{expected: "keep-alive", actual: request.Header.Get("Connection")},
-		{expected: 7, actual: len(request.Header)},
-		{expected: "localhost", actual: request.Host},
-		{expected: true, actual: request.Close},
+		{expected: http.MethodPost, actual: req.Method},
+		{expected: "https://127.0.0.1/", actual: req.URL.String()},
+		{expected: "keep-alive", actual: req.Header.Get("Connection")},
+		{expected: 7, actual: len(req.Header)},
+		{expected: "localhost", actual: req.Host},
+		{expected: true, actual: req.Close},
+		{expected: []byte{1, 2}, actual: post},
 	} {
 		require.Equal(t, testdata.expected, testdata.actual)
 	}
+}
+
+func TestHTTPRequest_Body(t *testing.T) {
+	hr := HTTPRequest{URL: "http://127.0.0.1/"}
+	hr.Body = strings.NewReader("test")
+
+	req, err := hr.Apply()
+	require.NoError(t, err)
+
+	post, err := io.ReadAll(req.Body)
+	require.NoError(t, err)
+	require.Equal(t, "test", string(post))
 }
 
 func TestHTTPRequest_Apply(t *testing.T) {
@@ -101,11 +118,21 @@ func TestHTTPTransportDefault(t *testing.T) {
 }
 
 func TestHTTPTransport(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/http_transport.toml")
+	data, err := os.ReadFile("testdata/http_transport.toml")
 	require.NoError(t, err)
 
+	proxy := func(*http.Request) (*url.URL, error) {
+		return nil, nil
+	}
+	dialContext := func(context.Context, string, string) (net.Conn, error) {
+		return nil, nil
+	}
+	tr := HTTPTransport{
+		Proxy:       proxy,
+		DialContext: dialContext,
+	}
+
 	// check unnecessary field
-	tr := HTTPTransport{}
 	err = toml.Unmarshal(data, &tr)
 	require.NoError(t, err)
 
@@ -162,7 +189,7 @@ func TestHTTPServerDefault(t *testing.T) {
 }
 
 func TestHTTPServer(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/http_server.toml")
+	data, err := os.ReadFile("testdata/http_server.toml")
 	require.NoError(t, err)
 
 	// check unnecessary field

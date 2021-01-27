@@ -31,9 +31,6 @@ type HTTPRequest struct {
 	// URL specifies either the URI being requested.
 	URL string `toml:"url"`
 
-	// Post is the http request body that encoded by hex.
-	Post string `toml:"post"`
-
 	// Header contains the http request header.
 	Header http.Header `toml:"header"`
 
@@ -43,6 +40,9 @@ type HTTPRequest struct {
 	// Close is used to prevent re-use of connections between
 	// requests to the same hosts.
 	Close bool `toml:"close"`
+
+	// Post is the http request body that encoded by hex.
+	Post string `toml:"post"`
 
 	// Body is the http request body, if it is set, Apply will
 	// use it to replace Post field.
@@ -68,9 +68,7 @@ func (hr *HTTPRequest) Apply() (*http.Request, error) {
 	if err != nil {
 		return nil, hr.error(err)
 	}
-	if req.Header == nil {
-		req.Header = make(http.Header)
-	} else {
+	if hr.Header != nil {
 		req.Header = hr.Header.Clone()
 	}
 	req.Host = hr.Host
@@ -87,8 +85,8 @@ type HTTPTransport struct {
 	// TLSClientConfig contain TLS configuration.
 	TLSClientConfig TLSConfig `toml:"tls_config" testsuite:"-"`
 
-	// TLSHandshakeTimeout specifies the maximum amount of time waiting to
-	// wait for a TLS handshake. Zero means no timeout.
+	// TLSHandshakeTimeout specifies the maximum amount of time waiting
+	// to wait for a TLS handshake. Zero means no timeout.
 	TLSHandshakeTimeout time.Duration `toml:"tls_handshake_timeout"`
 
 	// MaxIdleConns controls the maximum number of idle (keep-alive)
@@ -109,39 +107,36 @@ type HTTPTransport struct {
 	// connection will remain idle before closing itself. Zero means no limit.
 	IdleConnTimeout time.Duration `toml:"idle_conn_timeout"`
 
-	// ResponseHeaderTimeout, if non-zero, specifies the amount of
-	// time to wait for a server's response headers after fully
-	// writing the request (including its body, if any). This
-	// time does not include the time to read the response body.
+	// ResponseHeaderTimeout, if non-zero, specifies the amount of time to
+	// wait for a server's response headers after fully writing the request
+	// (including its body, if any). This time does not include the time to
+	// read the response body.
 	ResponseHeaderTimeout time.Duration `toml:"response_header_timeout"`
 
-	// ExpectContinueTimeout, if non-zero, specifies the amount of
-	// time to wait for a server's first response headers after fully
-	// writing the request headers if the request has an
-	// "Expect: 100-continue" header. Zero means no timeout and
-	// causes the body to be sent immediately, without
-	// waiting for the server to approve.
-	// This time does not include the time to send the request header.
+	// ExpectContinueTimeout, if non-zero, specifies the amount of time to
+	// wait for a server's first response headers after fully writing the
+	// request headers if the request has an "Expect: 100-continue" header.
+	// Zero means no timeout and causes the body to be sent immediately,
+	// without waiting for the server to approve. This time does not include
+	// the time to send the request header.
 	ExpectContinueTimeout time.Duration `toml:"expect_continue_timeout"`
 
-	// MaxResponseHeaderBytes specifies a limit on how many response
-	// bytes are allowed in the server's response header. Zero means
-	// to use a default limit.
+	// MaxResponseHeaderBytes specifies a limit on how many response bytes
+	// are allowed in the server's response header. Zero means to use a
+	// default limit.
 	MaxResponseHeaderBytes int64 `toml:"max_response_header_bytes"`
 
 	// DisableKeepAlives, if true, disables HTTP keep-alives and will only
-	// use the connection to the server for a single HTTP request.
-	// This is unrelated to the similarly named TCP keep-alives.
+	// use the connection to the server for a single HTTP request. This is
+	// unrelated to the similarly named TCP keep-alives.
 	DisableKeepAlives bool `toml:"disable_keep_alives"`
 
-	// DisableCompression, if true, prevents the Transport from
-	// requesting compression with an "Accept-Encoding: gzip"
-	// request header when the Request contains no existing
-	// Accept-Encoding value. If the Transport requests gzip on
-	// its own and gets a gzipped response, it's transparently
-	// decoded in the Response.Body. However, if the user
-	// explicitly requested gzip it is not automatically
-	// uncompressed.
+	// DisableCompression, if true, prevents the Transport from requesting
+	// compression with an "Accept-Encoding: gzip" request header when the
+	// Request contains no existing Accept-Encoding value. If the Transport
+	// requests gzip on its own and gets a gzipped response, it's transparently
+	// decoded in the Response.Body. However, if the user explicitly requested
+	// gzip it is not automatically uncompressed.
 	DisableCompression bool `toml:"disable_compression"`
 
 	// ProxyConnectHeader optionally specifies headers to send to proxies
@@ -195,9 +190,9 @@ func (ht *HTTPTransport) Apply() (*http.Transport, error) {
 	if tr.TLSHandshakeTimeout < 1 {
 		tr.TLSHandshakeTimeout = defaultHTTPMultiTimeout
 	}
-	// about connection
+	// about maximum connection
 	if tr.MaxIdleConns < 1 {
-		tr.MaxIdleConns = 1
+		tr.MaxIdleConns = 4
 	}
 	if tr.MaxIdleConnsPerHost < 1 {
 		tr.MaxIdleConnsPerHost = 1
@@ -243,16 +238,13 @@ type HTTPServer struct {
 	// ReadHeaderTimeout is the amount of time allowed to read request headers.
 	// The connection's read deadline is reset after reading the headers and
 	// the Handler can decide what is considered too slow for the body. If
-	// ReadHeaderTimeout is zero, the value of ReadTimeout is used.
-	//
-	// If both are zero, there is no timeout.
+	// ReadHeaderTimeout is zero, the value of ReadTimeout is used. If both are
+	// zero, there is no timeout.
 	ReadHeaderTimeout time.Duration `toml:"read_header_timeout"`
 
 	// IdleTimeout is the maximum amount of time to wait for the next request
 	// when keep-alives are enabled. If IdleTimeout is zero, the value of
-	// ReadTimeout is used.
-	//
-	// If both are zero, there is no timeout.
+	// ReadTimeout is used. If both are zero, there is no timeout.
 	IdleTimeout time.Duration `toml:"idle_timeout"`
 
 	// MaxHeaderBytes controls the maximum number of bytes the server will read
@@ -278,10 +270,11 @@ func (hs *HTTPServer) Apply() (*http.Server, error) {
 		MaxHeaderBytes:    hs.MaxHeaderBytes,
 	}
 	// force set it to server side
-	hs.TLSConfig.ServerSide = true
+	tlsConfig := hs.TLSConfig
+	tlsConfig.ServerSide = true
 	// about TLS configuration
 	var err error
-	srv.TLSConfig, err = hs.TLSConfig.Apply()
+	srv.TLSConfig, err = tlsConfig.Apply()
 	if err != nil {
 		return nil, err
 	}

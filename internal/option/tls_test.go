@@ -2,7 +2,7 @@ package option
 
 import (
 	"crypto/tls"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -81,7 +81,7 @@ const (
 )
 
 func TestTLSConfig(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/tls.toml")
+	data, err := os.ReadFile("testdata/tls_config.toml")
 	require.NoError(t, err)
 
 	// check unnecessary field
