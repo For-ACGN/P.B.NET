@@ -1,7 +1,7 @@
 read_timeout        = "10s"
-write_timeout       = "10s"
-read_header_timeout = "10s"
-idle_timeout        = "10s"
+write_timeout       = "12s"
+read_header_timeout = "14s"
+idle_timeout        = "16s"
 max_header_bytes    = 16384
 disable_keep_alive  = true
 

@@ -12,16 +12,7 @@ import (
 	"time"
 )
 
-const (
-	// http transport and server default timeout.
-	defaultHTTPMultiTimeout = time.Minute
-
-	// http server income request max header size.
-	defaultHTTPMaxHeaderBytes = 1024 * 1024
-
-	// http transport max response header size.
-	defaultHTTPMaxResponseHeaderBytes = 1024 * 1024
-)
+const defaultHTTPMultiTimeout = time.Minute
 
 // HTTPRequest contains options about http.Request.
 type HTTPRequest struct {
@@ -54,10 +45,8 @@ func (hr *HTTPRequest) Apply() (*http.Request, error) {
 	if hr.URL == "" {
 		return nil, hr.error("empty url")
 	}
-	var body io.Reader
-	if hr.Body != nil {
-		body = hr.Body
-	} else {
+	body := hr.Body
+	if hr.Body == nil {
 		post, err := hex.DecodeString(hr.Post)
 		if err != nil {
 			return nil, hr.error(err)
@@ -77,7 +66,7 @@ func (hr *HTTPRequest) Apply() (*http.Request, error) {
 }
 
 func (hr *HTTPRequest) error(err interface{}) error {
-	return fmt.Errorf("failed to apply http request options %s", err)
+	return fmt.Errorf("failed to apply http request option: %s", err)
 }
 
 // HTTPTransport contains options about http.Transport.
@@ -212,7 +201,7 @@ func (ht *HTTPTransport) Apply() (*http.Transport, error) {
 	}
 	// max header bytes
 	if tr.MaxResponseHeaderBytes < 1 {
-		tr.MaxResponseHeaderBytes = defaultHTTPMaxResponseHeaderBytes
+		tr.MaxResponseHeaderBytes = 1024 * 1024
 	}
 	return &tr, nil
 }
@@ -293,7 +282,7 @@ func (hs *HTTPServer) Apply() (*http.Server, error) {
 	}
 	// max header bytes
 	if srv.MaxHeaderBytes < 1 {
-		srv.MaxHeaderBytes = defaultHTTPMaxHeaderBytes
+		srv.MaxHeaderBytes = 1024 * 1024
 	}
 	srv.SetKeepAlivesEnabled(!hs.DisableKeepAlive)
 	return &srv, nil

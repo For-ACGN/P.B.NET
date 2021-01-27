@@ -1,11 +1,8 @@
 package option
 
 import (
-	"context"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -65,99 +62,96 @@ func TestHTTPRequest(t *testing.T) {
 	}
 }
 
-func TestHTTPRequest_Body(t *testing.T) {
-	hr := HTTPRequest{URL: "http://127.0.0.1/"}
-	hr.Body = strings.NewReader("test")
-
-	req, err := hr.Apply()
-	require.NoError(t, err)
-
-	post, err := io.ReadAll(req.Body)
-	require.NoError(t, err)
-	require.Equal(t, "test", string(post))
-}
-
 func TestHTTPRequest_Apply(t *testing.T) {
-	// empty url
-	req := HTTPRequest{}
-	_, err := req.Apply()
-	require.Errorf(t, err, "failed to apply http request options: empty url")
+	const URL = "http://127.0.0.1/"
 
-	// invalid post data
-	req = HTTPRequest{
-		URL:  "http://localhost/",
-		Post: "foo post data",
-	}
-	_, err = req.Apply()
-	require.Error(t, err)
+	t.Run("empty url", func(t *testing.T) {
+		hr := HTTPRequest{}
+		_, err := hr.Apply()
+		require.EqualError(t, err, "failed to apply http request option: empty url")
+	})
 
-	// invalid method
-	req.Post = "0102"
-	req.Method = "invalid method"
-	_, err = req.Apply()
-	require.Error(t, err)
+	t.Run("with body", func(t *testing.T) {
+		hr := HTTPRequest{URL: URL}
+		hr.Body = strings.NewReader("test")
+
+		req, err := hr.Apply()
+		require.NoError(t, err)
+
+		post, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+		require.Equal(t, "test", string(post))
+	})
+
+	t.Run("invalid post data", func(t *testing.T) {
+		hr := HTTPRequest{
+			URL:  URL,
+			Post: "foo post data",
+		}
+		_, err := hr.Apply()
+		require.Error(t, err)
+	})
+
+	t.Run("invalid method", func(t *testing.T) {
+		hr := HTTPRequest{
+			Method: "invalid method",
+			URL:    URL,
+			Post:   "0102",
+		}
+		_, err := hr.Apply()
+		require.Error(t, err)
+	})
 }
 
 func TestHTTPTransportDefault(t *testing.T) {
-	transport, err := new(HTTPTransport).Apply()
+	ht, err := new(HTTPTransport).Apply()
 	require.NoError(t, err)
 
-	require.Equal(t, 1, transport.MaxIdleConns)
-	require.Equal(t, 1, transport.MaxIdleConnsPerHost)
-	// require.Equal(t, 1, transport.MaxConnsPerHost)
-	require.Equal(t, defaultHTTPMultiTimeout, transport.TLSHandshakeTimeout)
-	require.Equal(t, defaultHTTPMultiTimeout, transport.IdleConnTimeout)
-	require.Equal(t, defaultHTTPMultiTimeout, transport.ResponseHeaderTimeout)
-	require.Equal(t, defaultHTTPMultiTimeout, transport.ExpectContinueTimeout)
-	require.Equal(t, defaultHTTPMaxResponseHeaderBytes, transport.MaxResponseHeaderBytes)
-	require.Equal(t, false, transport.DisableKeepAlives)
-	require.Equal(t, false, transport.DisableCompression)
-	require.Empty(t, transport.ProxyConnectHeader)
-	require.Nil(t, transport.Proxy)
-	require.Nil(t, transport.DialContext)
+	require.Equal(t, defaultHTTPMultiTimeout, ht.TLSHandshakeTimeout)
+	require.Equal(t, 4, ht.MaxIdleConns)
+	require.Equal(t, 1, ht.MaxIdleConnsPerHost)
+	require.Equal(t, 0, ht.MaxConnsPerHost)
+	require.Equal(t, defaultHTTPMultiTimeout, ht.IdleConnTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, ht.ResponseHeaderTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, ht.ExpectContinueTimeout)
+	require.Equal(t, int64(1024*1024), ht.MaxResponseHeaderBytes)
+	require.Equal(t, false, ht.DisableKeepAlives)
+	require.Equal(t, false, ht.DisableCompression)
+	require.Empty(t, ht.ProxyConnectHeader)
+	require.Nil(t, ht.Proxy)
+	require.Nil(t, ht.DialContext)
 }
 
 func TestHTTPTransport(t *testing.T) {
 	data, err := os.ReadFile("testdata/http_transport.toml")
 	require.NoError(t, err)
 
-	proxy := func(*http.Request) (*url.URL, error) {
-		return nil, nil
-	}
-	dialContext := func(context.Context, string, string) (net.Conn, error) {
-		return nil, nil
-	}
-	tr := HTTPTransport{
-		Proxy:       proxy,
-		DialContext: dialContext,
-	}
-
 	// check unnecessary field
-	err = toml.Unmarshal(data, &tr)
+	ht := HTTPTransport{}
+	err = toml.Unmarshal(data, &ht)
 	require.NoError(t, err)
 
 	// check zero value
-	testsuite.ContainZeroValue(t, tr)
+	testsuite.ContainZeroValue(t, ht)
 
-	transport, err := tr.Apply()
+	transport, err := ht.Apply()
 	require.NoError(t, err)
-	const timeout = 10 * time.Second
 
 	for _, testdata := range [...]*struct {
 		expected interface{}
 		actual   interface{}
 	}{
+		{expected: "test.com", actual: transport.TLSClientConfig.ServerName},
+		{expected: 20 * time.Second, actual: transport.TLSHandshakeTimeout},
 		{expected: 2, actual: transport.MaxIdleConns},
-		{expected: 2, actual: transport.MaxIdleConnsPerHost},
-		// {expected: 2, actual: transport.MaxConnsPerHost},
-		{expected: timeout, actual: transport.TLSHandshakeTimeout},
-		{expected: timeout, actual: transport.IdleConnTimeout},
-		{expected: timeout, actual: transport.ResponseHeaderTimeout},
-		{expected: timeout, actual: transport.ExpectContinueTimeout},
+		{expected: 4, actual: transport.MaxIdleConnsPerHost},
+		{expected: 8, actual: transport.MaxConnsPerHost},
+		{expected: 10 * time.Second, actual: transport.IdleConnTimeout},
+		{expected: 12 * time.Second, actual: transport.ResponseHeaderTimeout},
+		{expected: 14 * time.Second, actual: transport.ExpectContinueTimeout},
 		{expected: int64(16384), actual: transport.MaxResponseHeaderBytes},
 		{expected: true, actual: transport.DisableKeepAlives},
 		{expected: true, actual: transport.DisableCompression},
-		{expected: "test.com", actual: transport.TLSClientConfig.ServerName},
 		{expected: []string{"testdata"}, actual: transport.ProxyConnectHeader["Test"]},
 	} {
 		require.Equal(t, testdata.expected, testdata.actual)
@@ -170,11 +164,23 @@ var testInvalidTLSConfig = TLSConfig{
 }
 
 func TestHTTPTransport_Apply(t *testing.T) {
-	tr := HTTPTransport{
-		TLSClientConfig: testInvalidTLSConfig,
-	}
-	_, err := tr.Apply()
-	require.Error(t, err)
+	t.Run("invalid tls config", func(t *testing.T) {
+		ht := HTTPTransport{
+			TLSClientConfig: testInvalidTLSConfig,
+		}
+		_, err := ht.Apply()
+		require.Error(t, err)
+	})
+
+	t.Run("invalid MaxConnsPerHost", func(t *testing.T) {
+		ht := HTTPTransport{
+			MaxConnsPerHost: -1,
+		}
+		tr, err := ht.Apply()
+		require.NoError(t, err)
+
+		require.Equal(t, 16, tr.MaxConnsPerHost)
+	})
 }
 
 func TestHTTPServerDefault(t *testing.T) {
@@ -185,7 +191,7 @@ func TestHTTPServerDefault(t *testing.T) {
 	require.Equal(t, time.Duration(0), server.WriteTimeout)
 	require.Equal(t, defaultHTTPMultiTimeout, server.ReadHeaderTimeout)
 	require.Equal(t, defaultHTTPMultiTimeout, server.IdleTimeout)
-	require.Equal(t, defaultHTTPMaxHeaderBytes, server.MaxHeaderBytes)
+	require.Equal(t, 1024*1024, server.MaxHeaderBytes)
 }
 
 func TestHTTPServer(t *testing.T) {
@@ -202,16 +208,15 @@ func TestHTTPServer(t *testing.T) {
 
 	server, err := hs.Apply()
 	require.NoError(t, err)
-	const timeout = 10 * time.Second
 
 	for _, testdata := range [...]*struct {
 		expected interface{}
 		actual   interface{}
 	}{
-		{expected: timeout, actual: server.ReadTimeout},
-		{expected: timeout, actual: server.WriteTimeout},
-		{expected: timeout, actual: server.ReadHeaderTimeout},
-		{expected: timeout, actual: server.IdleTimeout},
+		{expected: 10 * time.Second, actual: server.ReadTimeout},
+		{expected: 12 * time.Second, actual: server.WriteTimeout},
+		{expected: 14 * time.Second, actual: server.ReadHeaderTimeout},
+		{expected: 16 * time.Second, actual: server.IdleTimeout},
 		{expected: 16384, actual: server.MaxHeaderBytes},
 		{expected: "test.com", actual: server.TLSConfig.ServerName},
 	} {
@@ -220,18 +225,23 @@ func TestHTTPServer(t *testing.T) {
 }
 
 func TestHTTPServer_Apply(t *testing.T) {
-	s := HTTPServer{
-		TLSConfig: testInvalidTLSConfig,
-	}
-	_, err := s.Apply()
-	require.Error(t, err)
-}
+	t.Run("invalid tls config", func(t *testing.T) {
+		hs := HTTPServer{
+			TLSConfig: testInvalidTLSConfig,
+		}
+		_, err := hs.Apply()
+		require.Error(t, err)
+	})
 
-func TestHTTPServerSetTimeout(t *testing.T) {
-	s := HTTPServer{
-		ReadTimeout:  -1,
-		WriteTimeout: -1,
-	}
-	_, err := s.Apply()
-	require.NoError(t, err)
+	t.Run("invalid timeout", func(t *testing.T) {
+		hs := HTTPServer{
+			ReadTimeout:  -1,
+			WriteTimeout: -1,
+		}
+		server, err := hs.Apply()
+		require.NoError(t, err)
+
+		require.Equal(t, defaultHTTPMultiTimeout, server.ReadTimeout)
+		require.Equal(t, defaultHTTPMultiTimeout, server.WriteTimeout)
+	})
 }
