@@ -297,7 +297,8 @@ func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
 }
 
 // PipeWithReaderWriter is used to call net.Pipe that one side write
-// and other side read. reader will block until return.
+// and other side read. Reader will block until return. It is used to
+// test packages about protocol.
 func PipeWithReaderWriter(t *testing.T, reader, writer func(net.Conn)) {
 	server, client := net.Pipe()
 	defer func() {

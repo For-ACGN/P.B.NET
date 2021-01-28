@@ -3,7 +3,7 @@ package testsuite
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -39,7 +39,7 @@ func TestIsDestroyed(t *testing.T) {
 	t.Run("destroyed", func(t *testing.T) {
 		obj := 1
 
-		n, err := fmt.Fprintln(ioutil.Discard, obj)
+		n, err := fmt.Fprintln(io.Discard, obj)
 		require.Equal(t, n, 2)
 		require.NoError(t, err)
 
@@ -55,7 +55,7 @@ func TestIsDestroyed(t *testing.T) {
 			t.Fatal("destroyed")
 		}
 
-		n, err := fmt.Fprintln(ioutil.Discard, obj)
+		n, err := fmt.Fprintln(io.Discard, obj)
 		require.Equal(t, n, 2)
 		require.NoError(t, err)
 	})
@@ -63,7 +63,7 @@ func TestIsDestroyed(t *testing.T) {
 	t.Run("is destroyed", func(t *testing.T) {
 		obj := 3
 
-		n, err := fmt.Fprintln(ioutil.Discard, obj)
+		n, err := fmt.Fprintln(io.Discard, obj)
 		require.Equal(t, n, 2)
 		require.NoError(t, err)
 

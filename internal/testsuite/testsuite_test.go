@@ -3,7 +3,6 @@ package testsuite
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"sync"
@@ -27,14 +26,13 @@ func TestPrintNetworkInfo(t *testing.T) {
 }
 
 func TestDeployPprofHTTPServer(t *testing.T) {
-	defer DeferForPanic(t)
-
 	patch := func(string, string) (net.Listener, error) {
 		return nil, monkey.Error
 	}
 	pg := monkey.Patch(net.Listen, patch)
 	defer pg.Unpatch()
 
+	defer DeferForPanic(t)
 	deployPprofHTTPServer()
 }
 
@@ -217,7 +215,7 @@ func TestRunHTTPServer(t *testing.T) {
 		defer client.CloseIdleConnections()
 		resp, err := client.Get(fmt.Sprintf("http://localhost:%s/", port))
 		require.NoError(t, err)
-		_, err = io.Copy(ioutil.Discard, resp.Body)
+		_, err = io.Copy(io.Discard, resp.Body)
 		require.NoError(t, err)
 	})
 
@@ -239,7 +237,7 @@ func TestRunHTTPServer(t *testing.T) {
 		defer client.CloseIdleConnections()
 		resp, err := client.Get(fmt.Sprintf("https://localhost:%s/", port))
 		require.NoError(t, err)
-		_, err = io.Copy(ioutil.Discard, resp.Body)
+		_, err = io.Copy(io.Discard, resp.Body)
 		require.NoError(t, err)
 	})
 }

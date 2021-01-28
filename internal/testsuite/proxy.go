@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strings"
@@ -206,13 +205,15 @@ func HTTPClient(t *testing.T, transport *http.Transport, hostname string) {
 		require.NoError(t, err)
 		defer func() { _ = resp.Body.Close() }()
 		require.Equal(t, http.StatusOK, resp.StatusCode)
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, testHandlerData, data)
 	}
 
+	const format = "://%s:%s/t"
+
 	t.Run("http target", func(t *testing.T) {
-		url := fmt.Sprintf("http://%s:%s/t", hostname, HTTPServerPort)
+		url := fmt.Sprintf("http"+format, hostname, HTTPServerPort)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		require.NoError(t, err)
 		wg.Add(1)
@@ -220,7 +221,7 @@ func HTTPClient(t *testing.T, transport *http.Transport, hostname string) {
 	})
 
 	t.Run("https target", func(t *testing.T) {
-		url := fmt.Sprintf("https://%s:%s/t", hostname, HTTPSServerPort)
+		url := fmt.Sprintf("https"+format, hostname, HTTPSServerPort)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		require.NoError(t, err)
 		wg.Add(1)
@@ -522,7 +523,7 @@ func ProxyClientWithHTTPSTarget(t testing.TB, client proxyClient) {
 		require.NoError(t, err)
 	}()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
+	_, err = io.Copy(io.Discard, resp.Body)
 	require.NoError(t, err)
 }
 

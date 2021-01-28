@@ -20,7 +20,7 @@ import (
 func TLSCertificate(t testing.TB, ipv4 string) (caASN1 []byte, cPEMBlock, cPriPEMBlock []byte) {
 	// generate CA certificate
 	caCert := &x509.Certificate{
-		SerialNumber: big.NewInt(random.Int64()),
+		SerialNumber: big.NewInt(random.Int63()),
 		SubjectKeyId: random.Bytes(4),
 		NotBefore:    time.Now().AddDate(0, 0, -1),
 		NotAfter:     time.Now().AddDate(0, 0, 1),
@@ -39,7 +39,7 @@ func TLSCertificate(t testing.TB, ipv4 string) (caASN1 []byte, cPEMBlock, cPriPE
 
 	// sign certificate
 	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(random.Int64()),
+		SerialNumber: big.NewInt(random.Int63()),
 		SubjectKeyId: random.Bytes(4),
 		NotBefore:    time.Now().AddDate(0, 0, -1),
 		NotAfter:     time.Now().AddDate(0, 0, 1),
@@ -53,6 +53,8 @@ func TLSCertificate(t testing.TB, ipv4 string) (caASN1 []byte, cPEMBlock, cPriPE
 	cPub := &cPri.PublicKey
 	cASN1, err := x509.CreateCertificate(rand.Reader, cert, caCert, cPub, caPri)
 	require.NoError(t, err)
+
+	// encode with pem
 	cPEMBlock = pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: cASN1,
@@ -73,6 +75,7 @@ func TLSConfigPair(t testing.TB, ipv4 string) (server, client *tls.Config) {
 	tlsCert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
 	require.NoError(t, err)
 
+	// create tls config
 	server = &tls.Config{
 		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{tlsCert},
