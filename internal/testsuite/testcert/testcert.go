@@ -20,9 +20,9 @@ var PublicRootCANum int
 // the number of the generated certificates.
 const (
 	PublicClientCANum    = 2
-	PublicClientCertNum  = 4
+	PublicClientCertNum  = 2 * PublicClientCANum
 	PrivateRootCANum     = 3
-	PrivateClientCANum   = 6
+	PrivateClientCANum   = 1 + PrivateClientCertNum
 	PrivateClientCertNum = 5
 )
 
@@ -41,14 +41,14 @@ func loadSystemCertPool() {
 // CertPool is used to create a certificate pool for test.
 func CertPool(t *testing.T) *cert.Pool {
 	pool := cert.NewPool()
-	addPublicRootCACerts(t, pool)
-	addPublicClientCACerts(t, pool)
-	addPrivateRootCACerts(t, pool)
-	addPrivateClientCACerts(t, pool)
+	addPublicRootCA(t, pool)
+	addPublicClientCAAndCert(t, pool)
+	addPrivateRootCA(t, pool)
+	addPrivateClientCAAndCert(t, pool)
 	return pool
 }
 
-func addPublicRootCACerts(t *testing.T, pool *cert.Pool) {
+func addPublicRootCA(t *testing.T, pool *cert.Pool) {
 	for i := 0; i < PublicRootCANum; i++ {
 		err := pool.AddPublicRootCACert(systemCerts[i].Raw)
 		require.NoError(t, err)
@@ -57,7 +57,7 @@ func addPublicRootCACerts(t *testing.T, pool *cert.Pool) {
 
 var opts = &cert.Options{Algorithm: "rsa|1024"}
 
-func addPublicClientCACerts(t *testing.T, pool *cert.Pool) {
+func addPublicClientCAAndCert(t *testing.T, pool *cert.Pool) {
 	for i := 0; i < PublicClientCANum; i++ {
 		caPair, err := cert.GenerateCA(opts)
 		require.NoError(t, err)
@@ -75,7 +75,7 @@ func addPublicClientCACerts(t *testing.T, pool *cert.Pool) {
 	}
 }
 
-func addPrivateRootCACerts(t *testing.T, pool *cert.Pool) {
+func addPrivateRootCA(t *testing.T, pool *cert.Pool) {
 	for i := 0; i < PrivateRootCANum; i++ {
 		caPair, err := cert.GenerateCA(opts)
 		require.NoError(t, err)
@@ -84,7 +84,7 @@ func addPrivateRootCACerts(t *testing.T, pool *cert.Pool) {
 	}
 }
 
-func addPrivateClientCACerts(t *testing.T, pool *cert.Pool) {
+func addPrivateClientCAAndCert(t *testing.T, pool *cert.Pool) {
 	caPair, err := cert.GenerateCA(opts)
 	require.NoError(t, err)
 	err = pool.AddPrivateClientCAPair(caPair.Encode())
