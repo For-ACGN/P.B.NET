@@ -86,28 +86,28 @@ type X509KeyPair struct {
 }
 
 // GetCertificates is used to make TLS certificates.
-func (t *TLSConfig) GetCertificates() ([]tls.Certificate, error) {
+func (tc *TLSConfig) GetCertificates() ([]tls.Certificate, error) {
 	var certs []tls.Certificate
-	for i := 0; i < len(t.Certificates); i++ {
-		c := []byte(t.Certificates[i].Cert)
-		k := []byte(t.Certificates[i].Key)
-		tlsCert, err := tls.X509KeyPair(c, k)
+	for i := 0; i < len(tc.Certificates); i++ {
+		crt := []byte(tc.Certificates[i].Cert)
+		key := []byte(tc.Certificates[i].Key)
+		tlsCert, err := tls.X509KeyPair(crt, key)
 		if err != nil {
 			return nil, err
 		}
-		security.CoverBytes(c)
-		security.CoverBytes(k)
+		security.CoverBytes(crt)
+		security.CoverBytes(key)
 		certs = append(certs, tlsCert)
 	}
-	if t.CertPool == nil {
+	if tc.CertPool == nil {
 		return certs, nil
 	}
-	if !t.ServerSide && !t.CertPoolConfig.SkipPublicClientCert {
-		pairs := t.CertPool.GetPublicClientPairs()
+	if !tc.ServerSide && !tc.CertPoolConfig.SkipPublicClientCert {
+		pairs := tc.CertPool.GetPublicClientPairs()
 		certs = append(certs, makeTLSCertificates(pairs)...)
 	}
-	if !t.ServerSide && t.CertPoolConfig.LoadPrivateClientCert {
-		pairs := t.CertPool.GetPrivateClientPairs()
+	if !tc.ServerSide && tc.CertPoolConfig.LoadPrivateClientCert {
+		pairs := tc.CertPool.GetPrivateClientPairs()
 		certs = append(certs, makeTLSCertificates(pairs)...)
 	}
 	return certs, nil
@@ -123,111 +123,111 @@ func makeTLSCertificates(pairs []*cert.Pair) []tls.Certificate {
 }
 
 // GetRootCAs is used to parse TLSConfig.RootCAs.
-func (t *TLSConfig) GetRootCAs() ([]*x509.Certificate, error) {
-	if t.ServerSide {
+func (tc *TLSConfig) GetRootCAs() ([]*x509.Certificate, error) {
+	if tc.ServerSide {
 		return nil, nil
 	}
-	rootCAs, err := t.parseCertificates(t.RootCAs)
+	rootCAs, err := tc.parseCertificates(tc.RootCAs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse root ca: %s", err)
 	}
-	if t.CertPool == nil {
+	if tc.CertPool == nil {
 		return rootCAs, nil
 	}
-	if !t.CertPoolConfig.SkipPublicRootCA {
-		rootCAs = append(rootCAs, t.CertPool.GetPublicRootCACerts()...)
+	if !tc.CertPoolConfig.SkipPublicRootCA {
+		rootCAs = append(rootCAs, tc.CertPool.GetPublicRootCACerts()...)
 	}
-	if t.CertPoolConfig.LoadPrivateRootCA {
-		rootCAs = append(rootCAs, t.CertPool.GetPrivateRootCACerts()...)
+	if tc.CertPoolConfig.LoadPrivateRootCA {
+		rootCAs = append(rootCAs, tc.CertPool.GetPrivateRootCACerts()...)
 	}
 	return rootCAs, nil
 }
 
 // GetClientCAs is used to parse TLSConfig.ClientCAs.
-func (t *TLSConfig) GetClientCAs() ([]*x509.Certificate, error) {
-	if !t.ServerSide {
+func (tc *TLSConfig) GetClientCAs() ([]*x509.Certificate, error) {
+	if !tc.ServerSide {
 		return nil, nil
 	}
-	clientCAs, err := t.parseCertificates(t.ClientCAs)
+	clientCAs, err := tc.parseCertificates(tc.ClientCAs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse client ca: %s", err)
 	}
-	if t.CertPool == nil {
+	if tc.CertPool == nil {
 		return clientCAs, nil
 	}
-	if !t.CertPoolConfig.SkipPublicClientCA {
-		clientCAs = append(clientCAs, t.CertPool.GetPublicClientCACerts()...)
+	if !tc.CertPoolConfig.SkipPublicClientCA {
+		clientCAs = append(clientCAs, tc.CertPool.GetPublicClientCACerts()...)
 	}
-	if t.CertPoolConfig.LoadPrivateClientCA {
-		clientCAs = append(clientCAs, t.CertPool.GetPrivateClientCACerts()...)
+	if tc.CertPoolConfig.LoadPrivateClientCA {
+		clientCAs = append(clientCAs, tc.CertPool.GetPrivateClientCACerts()...)
 	}
 	return clientCAs, nil
 }
 
-func (t *TLSConfig) parseCertificates(pem []string) ([]*x509.Certificate, error) {
+func (tc *TLSConfig) parseCertificates(pem []string) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
 	for _, p := range pem {
-		c, err := cert.ParseCertificates([]byte(p))
+		crt, err := cert.ParseCertificates([]byte(p))
 		if err != nil {
 			return nil, err
 		}
-		certs = append(certs, c...)
+		certs = append(certs, crt...)
 	}
 	return certs, nil
 }
 
 // Apply is used to create *tls.Config.
-func (t *TLSConfig) Apply() (*tls.Config, error) {
-	config := tls.Config{
+func (tc *TLSConfig) Apply() (*tls.Config, error) {
+	cfg := tls.Config{
 		Rand:       rand.Reader,
-		ServerName: t.ServerName,
-		MinVersion: t.MinVersion,
-		MaxVersion: t.MaxVersion,
-		ClientAuth: t.ClientAuth,
+		ServerName: tc.ServerName,
+		MinVersion: tc.MinVersion,
+		MaxVersion: tc.MaxVersion,
+		ClientAuth: tc.ClientAuth,
 	}
 	// set certificates
-	certs, err := t.GetCertificates()
+	certs, err := tc.GetCertificates()
 	if err != nil {
-		return nil, t.error(err)
+		return nil, tc.error(err)
 	}
-	config.Certificates = certs
+	cfg.Certificates = certs
 	// set root CAs
-	rootCAs, err := t.GetRootCAs()
+	rootCAs, err := tc.GetRootCAs()
 	if err != nil {
-		return nil, t.error(err)
+		return nil, tc.error(err)
 	}
-	config.RootCAs = x509.NewCertPool()
+	cfg.RootCAs = x509.NewCertPool()
 	for i := 0; i < len(rootCAs); i++ {
-		config.RootCAs.AddCert(rootCAs[i])
+		cfg.RootCAs.AddCert(rootCAs[i])
 	}
 	// set client CAs
-	clientCAs, err := t.GetClientCAs()
+	clientCAs, err := tc.GetClientCAs()
 	if err != nil {
-		return nil, t.error(err)
+		return nil, tc.error(err)
 	}
-	config.ClientCAs = x509.NewCertPool()
+	cfg.ClientCAs = x509.NewCertPool()
 	for i := 0; i < len(clientCAs); i++ {
-		config.ClientCAs.AddCert(clientCAs[i])
+		cfg.ClientCAs.AddCert(clientCAs[i])
 	}
 	// set next protocols
-	l := len(t.NextProtos)
+	l := len(tc.NextProtos)
 	if l > 0 {
-		config.NextProtos = make([]string, l)
-		copy(config.NextProtos, t.NextProtos)
+		cfg.NextProtos = make([]string, l)
+		copy(cfg.NextProtos, tc.NextProtos)
 	}
 	// set cipher suites
-	l = len(t.CipherSuites)
+	l = len(tc.CipherSuites)
 	if l > 0 {
-		config.CipherSuites = make([]uint16, l)
-		copy(config.CipherSuites, t.CipherSuites)
+		cfg.CipherSuites = make([]uint16, l)
+		copy(cfg.CipherSuites, tc.CipherSuites)
 	}
 	// set default minimum version
-	if config.MinVersion == 0 {
-		config.MinVersion = tls.VersionTLS12
+	if cfg.MinVersion == 0 {
+		cfg.MinVersion = tls.VersionTLS12
 	}
-	return &config, nil
+	return &cfg, nil
 }
 
-func (t *TLSConfig) error(err error) error {
+func (tc *TLSConfig) error(err error) error {
 	return fmt.Errorf("failed to apply tls configuration: %s", err)
 }

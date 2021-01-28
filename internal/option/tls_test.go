@@ -73,11 +73,11 @@ func TestTLSConfigDefault(t *testing.T) {
 	})
 }
 
-// the number of the certificate in testdata/tls.toml
+// the number of the certificate in testdata/tls_config.toml
 const (
-	testRootCANum      = 3
-	testClientCANum    = 2
-	testCertificateNum = 1
+	testRootCANum   = 3
+	testClientCANum = 2
+	testCertNum     = 1
 )
 
 func TestTLSConfig(t *testing.T) {
@@ -97,7 +97,7 @@ func TestTLSConfig(t *testing.T) {
 			config, err := tlsConfig.Apply()
 			require.NoError(t, err)
 
-			require.Len(t, config.Certificates, testCertificateNum)
+			require.Len(t, config.Certificates, testCertNum)
 			require.Len(t, config.RootCAs.Certs(), testRootCANum)
 			require.Len(t, config.ClientCAs.Certs(), 0)
 		})
@@ -107,7 +107,7 @@ func TestTLSConfig(t *testing.T) {
 			config, err := tlsConfig.Apply()
 			require.NoError(t, err)
 
-			clientCertNum := testCertificateNum + testcert.PrivateClientCertNum
+			clientCertNum := testCertNum + testcert.PrivateClientCertNum
 			require.Len(t, config.Certificates, clientCertNum)
 			rootCANum := testRootCANum + testcert.PrivateRootCANum
 			require.Len(t, config.RootCAs.Certs(), rootCANum)
@@ -123,7 +123,7 @@ func TestTLSConfig(t *testing.T) {
 			config, err := tlsConfig.Apply()
 			require.NoError(t, err)
 
-			require.Len(t, config.Certificates, testCertificateNum)
+			require.Len(t, config.Certificates, testCertNum)
 			require.Len(t, config.RootCAs.Certs(), 0)
 			require.Len(t, config.ClientCAs.Certs(), testClientCANum)
 		})
@@ -133,7 +133,7 @@ func TestTLSConfig(t *testing.T) {
 			config, err := tlsConfig.Apply()
 			require.NoError(t, err)
 
-			require.Len(t, config.Certificates, testCertificateNum)
+			require.Len(t, config.Certificates, testCertNum)
 			require.Len(t, config.RootCAs.Certs(), 0)
 			clientCANum := testClientCANum + testcert.PrivateClientCANum
 			require.Len(t, config.ClientCAs.Certs(), clientCANum)
@@ -163,28 +163,28 @@ func TestTLSConfig(t *testing.T) {
 }
 
 func TestTLSConfig_Apply(t *testing.T) {
-	config := TLSConfig{}
+	tlsConfig := TLSConfig{}
 
 	t.Run("invalid certificates", func(t *testing.T) {
-		config.Certificates = append(config.Certificates, X509KeyPair{
+		tlsConfig.Certificates = append(tlsConfig.Certificates, X509KeyPair{
 			Cert: "foo data",
 			Key:  "foo data",
 		})
-		_, err := config.Apply()
+		_, err := tlsConfig.Apply()
 		require.Error(t, err)
 	})
 
 	t.Run("invalid Root CAs", func(t *testing.T) {
-		config.Certificates = nil
-		config.RootCAs = []string{"foo data"}
-		_, err := config.Apply()
+		tlsConfig.Certificates = nil
+		tlsConfig.RootCAs = []string{"foo data"}
+		_, err := tlsConfig.Apply()
 		require.Error(t, err)
 	})
 
 	t.Run("invalid Client CAs", func(t *testing.T) {
-		config.ServerSide = true
-		config.ClientCAs = []string{"foo data"}
-		_, err := config.Apply()
+		tlsConfig.ServerSide = true
+		tlsConfig.ClientCAs = []string{"foo data"}
+		_, err := tlsConfig.Apply()
 		require.Error(t, err)
 	})
 }
