@@ -1,4 +1,4 @@
-package testdata
+package testrole
 
 import (
 	"github.com/stretchr/testify/require"

@@ -1,7 +1,7 @@
-package testdata
+package testrole
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/stretchr/testify/require"
 
@@ -13,7 +13,7 @@ import (
 func Bootstrap(t require.TestingT) []*messages.Bootstrap {
 	var bootstraps []*messages.Bootstrap
 	// http
-	config, err := ioutil.ReadFile("../internal/bootstrap/testdata/http.toml")
+	config, err := os.ReadFile("../internal/bootstrap/testdata/http.toml")
 	require.NoError(t, err)
 	boot := &messages.Bootstrap{
 		Tag:    "http",
@@ -22,7 +22,7 @@ func Bootstrap(t require.TestingT) []*messages.Bootstrap {
 	}
 	bootstraps = append(bootstraps, boot)
 	// dns
-	config, err = ioutil.ReadFile("../internal/bootstrap/testdata/dns.toml")
+	config, err = os.ReadFile("../internal/bootstrap/testdata/dns.toml")
 	require.NoError(t, err)
 	boot = &messages.Bootstrap{
 		Tag:    "dns",
@@ -31,7 +31,7 @@ func Bootstrap(t require.TestingT) []*messages.Bootstrap {
 	}
 	bootstraps = append(bootstraps, boot)
 	// direct
-	config, err = ioutil.ReadFile("../internal/bootstrap/testdata/direct.toml")
+	config, err = os.ReadFile("../internal/bootstrap/testdata/direct.toml")
 	require.NoError(t, err)
 	boot = &messages.Bootstrap{
 		Tag:    "direct",
