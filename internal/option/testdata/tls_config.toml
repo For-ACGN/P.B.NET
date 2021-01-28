@@ -167,9 +167,9 @@ client_ca = [
   """
 
 [cert_pool]
-  skip_public_root_ca    = true
-  skip_public_client_ca  = true
-  skip_public_client     = true
-  load_private_root_ca   = true
-  load_private_client_ca = true
-  load_private_client    = true
+  skip_public_root_ca      = true
+  skip_public_client_ca    = true
+  skip_public_client_cert  = true
+  load_private_root_ca     = true
+  load_private_client_ca   = true
+  load_private_client_cert = true

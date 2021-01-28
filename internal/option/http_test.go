@@ -104,22 +104,22 @@ func TestHTTPRequest_Apply(t *testing.T) {
 }
 
 func TestHTTPTransportDefault(t *testing.T) {
-	ht, err := new(HTTPTransport).Apply()
+	tr, err := new(HTTPTransport).Apply()
 	require.NoError(t, err)
 
-	require.Equal(t, defaultHTTPMultiTimeout, ht.TLSHandshakeTimeout)
-	require.Equal(t, 4, ht.MaxIdleConns)
-	require.Equal(t, 1, ht.MaxIdleConnsPerHost)
-	require.Equal(t, 0, ht.MaxConnsPerHost)
-	require.Equal(t, defaultHTTPMultiTimeout, ht.IdleConnTimeout)
-	require.Equal(t, defaultHTTPMultiTimeout, ht.ResponseHeaderTimeout)
-	require.Equal(t, defaultHTTPMultiTimeout, ht.ExpectContinueTimeout)
-	require.Equal(t, int64(1024*1024), ht.MaxResponseHeaderBytes)
-	require.Equal(t, false, ht.DisableKeepAlives)
-	require.Equal(t, false, ht.DisableCompression)
-	require.Empty(t, ht.ProxyConnectHeader)
-	require.Nil(t, ht.Proxy)
-	require.Nil(t, ht.DialContext)
+	require.Equal(t, defaultHTTPMultiTimeout, tr.TLSHandshakeTimeout)
+	require.Equal(t, 4, tr.MaxIdleConns)
+	require.Equal(t, 1, tr.MaxIdleConnsPerHost)
+	require.Equal(t, 0, tr.MaxConnsPerHost)
+	require.Equal(t, defaultHTTPMultiTimeout, tr.IdleConnTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, tr.ResponseHeaderTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, tr.ExpectContinueTimeout)
+	require.Equal(t, int64(1024*1024), tr.MaxResponseHeaderBytes)
+	require.Equal(t, false, tr.DisableKeepAlives)
+	require.Equal(t, false, tr.DisableCompression)
+	require.Empty(t, tr.ProxyConnectHeader)
+	require.Nil(t, tr.Proxy)
+	require.Nil(t, tr.DialContext)
 }
 
 func TestHTTPTransport(t *testing.T) {
@@ -134,25 +134,25 @@ func TestHTTPTransport(t *testing.T) {
 	// check zero value
 	testsuite.ContainZeroValue(t, ht)
 
-	transport, err := ht.Apply()
+	tr, err := ht.Apply()
 	require.NoError(t, err)
 
 	for _, testdata := range [...]*struct {
 		expected interface{}
 		actual   interface{}
 	}{
-		{expected: "test.com", actual: transport.TLSClientConfig.ServerName},
-		{expected: 20 * time.Second, actual: transport.TLSHandshakeTimeout},
-		{expected: 2, actual: transport.MaxIdleConns},
-		{expected: 4, actual: transport.MaxIdleConnsPerHost},
-		{expected: 8, actual: transport.MaxConnsPerHost},
-		{expected: 10 * time.Second, actual: transport.IdleConnTimeout},
-		{expected: 12 * time.Second, actual: transport.ResponseHeaderTimeout},
-		{expected: 14 * time.Second, actual: transport.ExpectContinueTimeout},
-		{expected: int64(16384), actual: transport.MaxResponseHeaderBytes},
-		{expected: true, actual: transport.DisableKeepAlives},
-		{expected: true, actual: transport.DisableCompression},
-		{expected: []string{"testdata"}, actual: transport.ProxyConnectHeader["Test"]},
+		{expected: "test.com", actual: tr.TLSClientConfig.ServerName},
+		{expected: 20 * time.Second, actual: tr.TLSHandshakeTimeout},
+		{expected: 2, actual: tr.MaxIdleConns},
+		{expected: 4, actual: tr.MaxIdleConnsPerHost},
+		{expected: 8, actual: tr.MaxConnsPerHost},
+		{expected: 10 * time.Second, actual: tr.IdleConnTimeout},
+		{expected: 12 * time.Second, actual: tr.ResponseHeaderTimeout},
+		{expected: 14 * time.Second, actual: tr.ExpectContinueTimeout},
+		{expected: int64(16384), actual: tr.MaxResponseHeaderBytes},
+		{expected: true, actual: tr.DisableKeepAlives},
+		{expected: true, actual: tr.DisableCompression},
+		{expected: []string{"testdata"}, actual: tr.ProxyConnectHeader["Test"]},
 	} {
 		require.Equal(t, testdata.expected, testdata.actual)
 	}
@@ -184,14 +184,14 @@ func TestHTTPTransport_Apply(t *testing.T) {
 }
 
 func TestHTTPServerDefault(t *testing.T) {
-	server, err := new(HTTPServer).Apply()
+	srv, err := new(HTTPServer).Apply()
 	require.NoError(t, err)
 
-	require.Equal(t, time.Duration(0), server.ReadTimeout)
-	require.Equal(t, time.Duration(0), server.WriteTimeout)
-	require.Equal(t, defaultHTTPMultiTimeout, server.ReadHeaderTimeout)
-	require.Equal(t, defaultHTTPMultiTimeout, server.IdleTimeout)
-	require.Equal(t, 1024*1024, server.MaxHeaderBytes)
+	require.Equal(t, time.Duration(0), srv.ReadTimeout)
+	require.Equal(t, time.Duration(0), srv.WriteTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, srv.ReadHeaderTimeout)
+	require.Equal(t, defaultHTTPMultiTimeout, srv.IdleTimeout)
+	require.Equal(t, 1024*1024, srv.MaxHeaderBytes)
 }
 
 func TestHTTPServer(t *testing.T) {
@@ -206,19 +206,19 @@ func TestHTTPServer(t *testing.T) {
 	// check zero value
 	testsuite.ContainZeroValue(t, hs)
 
-	server, err := hs.Apply()
+	srv, err := hs.Apply()
 	require.NoError(t, err)
 
 	for _, testdata := range [...]*struct {
 		expected interface{}
 		actual   interface{}
 	}{
-		{expected: 10 * time.Second, actual: server.ReadTimeout},
-		{expected: 12 * time.Second, actual: server.WriteTimeout},
-		{expected: 14 * time.Second, actual: server.ReadHeaderTimeout},
-		{expected: 16 * time.Second, actual: server.IdleTimeout},
-		{expected: 16384, actual: server.MaxHeaderBytes},
-		{expected: "test.com", actual: server.TLSConfig.ServerName},
+		{expected: 10 * time.Second, actual: srv.ReadTimeout},
+		{expected: 12 * time.Second, actual: srv.WriteTimeout},
+		{expected: 14 * time.Second, actual: srv.ReadHeaderTimeout},
+		{expected: 16 * time.Second, actual: srv.IdleTimeout},
+		{expected: 16384, actual: srv.MaxHeaderBytes},
+		{expected: "test.com", actual: srv.TLSConfig.ServerName},
 	} {
 		require.Equal(t, testdata.expected, testdata.actual)
 	}
@@ -238,10 +238,10 @@ func TestHTTPServer_Apply(t *testing.T) {
 			ReadTimeout:  -1,
 			WriteTimeout: -1,
 		}
-		server, err := hs.Apply()
+		srv, err := hs.Apply()
 		require.NoError(t, err)
 
-		require.Equal(t, defaultHTTPMultiTimeout, server.ReadTimeout)
-		require.Equal(t, defaultHTTPMultiTimeout, server.WriteTimeout)
+		require.Equal(t, defaultHTTPMultiTimeout, srv.ReadTimeout)
+		require.Equal(t, defaultHTTPMultiTimeout, srv.WriteTimeout)
 	})
 }
