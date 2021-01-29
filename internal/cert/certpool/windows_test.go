@@ -12,8 +12,38 @@ import (
 	"project/internal/patch/monkey"
 )
 
+func TestSystem_Windows(t *testing.T) {
+	// must clean systemCerts, otherwise it will return a
+	// copy of cache if you run other tests in this package.
+	func() {
+		systemCertsMu.Lock()
+		defer systemCertsMu.Unlock()
+		systemCerts = nil
+	}()
+
+	patch := func() ([]*x509.Certificate, error) {
+		return nil, monkey.Error
+	}
+	pg := monkey.Patch(loadSystemCerts, patch)
+	defer pg.Unpatch()
+
+	_, err := System()
+	monkey.IsExistMonkeyError(t, err)
+}
+
+func TestLoadSystemCerts(t *testing.T) {
+	patch := func(string) ([][]byte, error) {
+		return nil, monkey.Error
+	}
+	pg := monkey.Patch(LoadSystemCertsWithName, patch)
+	defer pg.Unpatch()
+
+	_, err := loadSystemCerts()
+	monkey.IsMonkeyError(t, err)
+}
+
 func TestLoadSystemCertsWithName(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ROOT and CA", func(t *testing.T) {
 		root, err := LoadSystemCertsWithName("ROOT")
 		require.NoError(t, err)
 		ca, err := LoadSystemCertsWithName("CA")
@@ -89,34 +119,4 @@ func TestLoadSystemCertsWithName(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, certs)
 	})
-}
-
-func TestLoadSystemCerts(t *testing.T) {
-	patch := func(string) ([][]byte, error) {
-		return nil, monkey.Error
-	}
-	pg := monkey.Patch(LoadSystemCertsWithName, patch)
-	defer pg.Unpatch()
-
-	_, err := loadSystemCerts()
-	monkey.IsMonkeyError(t, err)
-}
-
-func TestSystem_Windows(t *testing.T) {
-	// must clean systemCerts, otherwise it will return a copy of cache
-	// if you run other tests in this package.
-	func() {
-		systemCertsMu.Lock()
-		defer systemCertsMu.Unlock()
-		systemCerts = nil
-	}()
-
-	patch := func() ([]*x509.Certificate, error) {
-		return nil, monkey.Error
-	}
-	pg := monkey.Patch(loadSystemCerts, patch)
-	defer pg.Unpatch()
-
-	_, err := System()
-	monkey.IsExistMonkeyError(t, err)
 }

@@ -8,20 +8,21 @@ import (
 )
 
 func TestSystem(t *testing.T) {
+	fn := func() {
+		pool, err := System()
+		require.NoError(t, err)
+		t.Log("the number of the system certificates:", len(pool.Certs()))
+		for _, cert := range pool.Certs() {
+			t.Log(cert.Subject.CommonName)
+		}
+	}
+
 	wg := sync.WaitGroup{}
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-
-			pool, err := System()
-			require.NoError(t, err)
-			num := len(pool.Subjects())
-			t.Log("the number of the system certificates:", num)
-
-			for _, subject := range pool.Subjects() {
-				t.Log(string(subject))
-			}
+			fn()
 		}()
 	}
 	wg.Wait()
