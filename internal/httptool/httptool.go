@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 const (
@@ -14,9 +13,9 @@ const (
 	defaultMaxBodyLength  = 1024 // default maximum body length.
 )
 
-// FdumpRequest is used to dump http request to a io.Writer.
-func FdumpRequest(w io.Writer, r *http.Request) (int, error) {
-	return FdumpRequestWithBM(w, r, defaultBodyLineLength, defaultMaxBodyLength)
+// DumpRequest is used to dump http request to os.Stdout.
+func DumpRequest(r *http.Request) {
+	DumpRequestWithBM(r, defaultBodyLineLength, defaultMaxBodyLength)
 }
 
 // SdumpRequest is used to dump http request to a string.
@@ -24,44 +23,30 @@ func SdumpRequest(r *http.Request) string {
 	return SdumpRequestWithBM(r, defaultBodyLineLength, defaultMaxBodyLength)
 }
 
-// DumpRequest is used to dump http request to os.Stdout.
-func DumpRequest(r *http.Request) {
-	DumpRequestWithBM(r, defaultBodyLineLength, defaultMaxBodyLength)
-}
-
-// FdumpRequestWithBM is used to dump http request to a io.Writer.
-// bll is the body line length, mbl is the max body length.
-func FdumpRequestWithBM(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
-	return dumpRequest(w, r, bll, mbl)
-}
-
-// SdumpRequestWithBM is used to dump http request to a string.
-// bll is the body line length, mbl is the max body length.
-func SdumpRequestWithBM(r *http.Request, bll, mbl int) string {
-	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	n, err := dumpRequest(buf, r, bll, mbl)
-	if err != nil {
-		buf.WriteString("\n[error] appear error when dump http request:\n" + err.Error())
-		buf.WriteString("\nwritten bytes: " + strconv.Itoa(n))
-	}
-	return buf.String()
+// FdumpRequest is used to dump http request to a io.Writer.
+func FdumpRequest(w io.Writer, r *http.Request) (int, error) {
+	return FdumpRequestWithBM(w, r, defaultBodyLineLength, defaultMaxBodyLength)
 }
 
 // DumpRequestWithBM is used to dump http request to os.Stdout.
 // bll is the body line length, mbl is the max body length.
 func DumpRequestWithBM(r *http.Request, bll, mbl int) {
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	n, err := dumpRequest(buf, r, bll, mbl)
-	if err != nil {
-		buf.WriteString("\n[error] appear error when dump http request:\n" + err.Error())
-		buf.WriteString("\nwritten bytes: " + strconv.Itoa(n))
-	}
+	_, _ = FdumpRequestWithBM(buf, r, bll, mbl)
 	buf.WriteString("\n")
-	_, _ = os.Stdout.Write(buf.Bytes())
+	_, _ = buf.WriteTo(os.Stdout)
 }
 
-// dumpRequest is used to dump http request to io.Writer.
-// bll is the body line length, mbl is the max body size.
+// SdumpRequestWithBM is used to dump http request to a string.
+// bll is the body line length, mbl is the max body length.
+func SdumpRequestWithBM(r *http.Request, bll, mbl int) string {
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
+	_, _ = FdumpRequestWithBM(buf, r, bll, mbl)
+	return buf.String()
+}
+
+// FdumpRequestWithBM is used to dump http request to a io.Writer.
+// bll is the body line length, mbl is the max body length.
 //
 // Output:
 // Remote: 127.0.0.1:1234
@@ -73,7 +58,7 @@ func DumpRequestWithBM(r *http.Request, bll, mbl int) {
 //
 // post data...
 // post data...
-func dumpRequest(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
+func FdumpRequestWithBM(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 	n, err := fmt.Fprintf(w, "Remote: %s\n", r.RemoteAddr)
 	if err != nil {
 		return n, err
@@ -102,12 +87,12 @@ func dumpRequest(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 	if r.Body == nil {
 		return n, nil
 	}
-	nn, err = dumpBody(w, r, bll, mbl)
+	nn, err = fDumpBody(w, r, bll, mbl)
 	return n + nn, err
 }
 
-// dumpBody is used to dump http response body to io.Writer.
-func dumpBody(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
+// fDumpBody is used to dump http response body to io.Writer.
+func fDumpBody(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 	rawBody := new(bytes.Buffer)
 	defer func() { r.Body = io.NopCloser(io.MultiReader(rawBody, r.Body)) }()
 	var (
