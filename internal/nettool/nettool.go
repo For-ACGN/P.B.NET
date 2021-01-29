@@ -184,15 +184,12 @@ func DeadlineConn(conn net.Conn, deadline time.Duration) net.Conn {
 	return &dc
 }
 
-// FprintConn is used to print information about net.Conn to a io.Writer.
-//
-// local:  tcp 127.0.0.1:1234
-// remote: tcp 127.0.0.1:1235
-func FprintConn(w io.Writer, c net.Conn) (int, error) {
-	return fmt.Fprintf(w, "local:  %s %s\nremote: %s %s",
-		c.LocalAddr().Network(), c.LocalAddr(),
-		c.RemoteAddr().Network(), c.RemoteAddr(),
-	)
+// PrintConn is used to print information about net.Conn to os.Stdout.
+func PrintConn(conn net.Conn) {
+	buf := bytes.NewBuffer(make([]byte, 0, 64))
+	_, _ = FprintConn(buf, conn)
+	buf.WriteString("\n")
+	_, _ = buf.WriteTo(os.Stdout)
 }
 
 // SprintConn is used to print information about net.Conn to string.
@@ -202,19 +199,25 @@ func SprintConn(conn net.Conn) string {
 	return buf.String()
 }
 
-// PrintConn is used to print information about net.Conn to os.Stdout.
-func PrintConn(conn net.Conn) {
-	_, _ = FprintConn(os.Stdout, conn)
+// FprintConn is used to print information about net.Conn to a io.Writer.
+//
+// Output:
+// local:  tcp 127.0.0.1:1234
+// remote: tcp 127.0.0.1:1235
+func FprintConn(w io.Writer, c net.Conn) (int, error) {
+	return fmt.Fprintf(w, "local:  %s %s\nremote: %s %s",
+		c.LocalAddr().Network(), c.LocalAddr(),
+		c.RemoteAddr().Network(), c.RemoteAddr(),
+	)
 }
 
-// Server implemented method Addresses() []net.Addr.
-// It is used to wait server until it running.
+// Server is the interface for wait server serve.
 type Server interface {
 	Addresses() []net.Addr
 }
 
 // WaitServerServe is used to wait server serve, n is the target number of the addresses.
-func WaitServerServe(ctx context.Context, errCh <-chan error, srv Server, n int) ([]net.Addr, error) {
+func WaitServerServe(ctx context.Context, ec <-chan error, s Server, n int) ([]net.Addr, error) {
 	if n < 1 {
 		panic("n < 1")
 	}
@@ -223,11 +226,11 @@ func WaitServerServe(ctx context.Context, errCh <-chan error, srv Server, n int)
 	for {
 		select {
 		case <-timer.C:
-			addrs := srv.Addresses()
+			addrs := s.Addresses()
 			if len(addrs) >= n {
 				return addrs, nil
 			}
-		case err := <-errCh:
+		case err := <-ec:
 			if err != nil {
 				return nil, err
 			}
