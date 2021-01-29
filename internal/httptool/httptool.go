@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 const (
@@ -40,9 +41,10 @@ func DumpRequestWithBM(r *http.Request, bll, mbl int) {
 // SdumpRequestWithBM is used to dump http request to a string.
 // bll is the body line length, mbl is the max body length.
 func SdumpRequestWithBM(r *http.Request, bll, mbl int) string {
-	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	_, _ = FdumpRequestWithBM(buf, r, bll, mbl)
-	return buf.String()
+	builder := strings.Builder{}
+	builder.Grow(512)
+	_, _ = FdumpRequestWithBM(&builder, r, bll, mbl)
+	return builder.String()
 }
 
 // FdumpRequestWithBM is used to dump http request to a io.Writer.

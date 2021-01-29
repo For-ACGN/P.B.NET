@@ -194,9 +194,10 @@ func PrintConn(conn net.Conn) {
 
 // SprintConn is used to print information about net.Conn to string.
 func SprintConn(conn net.Conn) string {
-	buf := bytes.NewBuffer(make([]byte, 0, 64))
-	_, _ = FprintConn(buf, conn)
-	return buf.String()
+	builder := strings.Builder{}
+	builder.Grow(64)
+	_, _ = FprintConn(&builder, conn)
+	return builder.String()
 }
 
 // FprintConn is used to print information about net.Conn to a io.Writer.
