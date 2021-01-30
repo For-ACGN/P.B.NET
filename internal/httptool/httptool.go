@@ -61,46 +61,47 @@ func SdumpRequestWithBM(r *http.Request, bll, mbl int) string {
 // post data...
 // post data...
 func FdumpRequestWithBM(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
+	var num int
 	n, err := fmt.Fprintf(w, "Remote: %s\n", r.RemoteAddr)
+	num += n
 	if err != nil {
-		return n, err
+		return num, err
 	}
-	var nn int
-	// request
-	nn, err = fmt.Fprintf(w, "%s %s %s", r.Method, r.RequestURI, r.Proto)
+	// header
+	n, err = fmt.Fprintf(w, "%s %s %s", r.Method, r.RequestURI, r.Proto)
+	num += n
 	if err != nil {
-		return n + nn, err
+		return num, err
 	}
-	n += nn
 	// dump host
-	nn, err = fmt.Fprintf(w, "\nHost: %s", r.Host)
+	n, err = fmt.Fprintf(w, "\nHost: %s", r.Host)
+	num += n
 	if err != nil {
-		return n + nn, err
+		return num, err
 	}
-	n += nn
 	// dump header
 	for k, v := range r.Header {
-		nn, err = fmt.Fprintf(w, "\n%s: %s", k, v[0])
+		n, err = fmt.Fprintf(w, "\n%s: %s", k, v[0])
+		num += n
 		if err != nil {
-			return n + nn, err
+			return num, err
 		}
-		n += nn
 	}
 	if r.Body == nil {
 		return n, nil
 	}
-	nn, err = fDumpBody(w, r, bll, mbl)
-	return n + nn, err
+	n, err = fDumpBody(w, r, bll, mbl)
+	num += n
+	return num, err
 }
 
 // fDumpBody is used to dump http response body to io.Writer.
 func fDumpBody(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 	rawBody := new(bytes.Buffer)
-	defer func() { r.Body = io.NopCloser(io.MultiReader(rawBody, r.Body)) }()
-	var (
-		total int
-		err   error
-	)
+	defer func() {
+		// for recover already read body data
+		r.Body = io.NopCloser(io.MultiReader(rawBody, r.Body))
+	}()
 	// check body
 	buffer := make([]byte, bll)
 	n, err := io.ReadFull(r.Body, buffer)
@@ -116,12 +117,13 @@ func fDumpBody(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 		rawBody.Write(buffer[:n])
 		return n, nil
 	}
-	// new line and write data
+	var num int
+	// write new line and data
 	n, err = fmt.Fprintf(w, "\n\n%s", buffer)
+	num += n
 	if err != nil {
-		return n, err
+		return num, err
 	}
-	total += n
 	rawBody.Write(buffer)
 	for {
 		// <security> prevent too large resp.Body
@@ -133,21 +135,22 @@ func fDumpBody(w io.Writer, r *http.Request, bll, mbl int) (int, error) {
 			// write last line
 			if n != 0 {
 				nn, err := fmt.Fprintf(w, "\n%s", buffer[:n])
+				num += nn
 				if err != nil {
-					return total + nn, err
+					return num, err
 				}
 				rawBody.Write(buffer[:n])
 			}
 			break
 		}
 		n, err = fmt.Fprintf(w, "\n%s", buffer)
+		num += n
 		if err != nil {
-			return total + n, err
+			return num, err
 		}
-		total += n
 		rawBody.Write(buffer)
 	}
-	return total, nil
+	return num, nil
 }
 
 // subHTTPFileSystem is used to open sub directory for http file server.
