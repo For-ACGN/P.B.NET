@@ -469,7 +469,7 @@ Not after:  %s
 		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "", 16), ","),
 		cert.Subject.CommonName, strings.Join(cert.Subject.Organization, ", "),
 		cert.Issuer.CommonName, strings.Join(cert.Issuer.Organization, ", "),
-		cert.PublicKeyAlgorithm,
+		cert.PublicKeyAlgorithm, // TODO print public key
 		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
 		cert.SignatureAlgorithm,
 		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
@@ -481,36 +481,40 @@ Not after:  %s
 		return num, err
 	}
 	if len(cert.DNSNames) != 0 {
-		n, err = fmt.Fprintf(w, "\nDNS names: [%s]", strings.Join(cert.DNSNames, ", "))
+		const format = "\nDNS names: [%s]"
+		n, err = fmt.Fprintf(w, format, strings.Join(cert.DNSNames, ", "))
 		num += n
 		if err != nil {
 			return num, err
 		}
 	}
 	if len(cert.IPAddresses) != 0 {
+		const format = "\nIP addresses: [%s]"
 		ip := make([]string, len(cert.IPAddresses))
 		for i := 0; i < len(cert.IPAddresses); i++ {
 			ip[i] = cert.IPAddresses[i].String()
 		}
-		n, err = fmt.Fprintf(w, "\nIP addresses: [%s]", strings.Join(ip, ", "))
+		n, err = fmt.Fprintf(w, format, strings.Join(ip, ", "))
 		num += n
 		if err != nil {
 			return num, err
 		}
 	}
 	if len(cert.EmailAddresses) != 0 {
-		n, err = fmt.Fprintf(w, "\nEmail addresses: [%s]", strings.Join(cert.EmailAddresses, ", "))
+		const format = "\nEmail addresses: [%s]"
+		n, err = fmt.Fprintf(w, format, strings.Join(cert.EmailAddresses, ", "))
 		num += n
 		if err != nil {
 			return num, err
 		}
 	}
 	if len(cert.URIs) != 0 {
+		const format = "\nURLs: [%s]"
 		urls := make([]string, len(cert.URIs))
 		for i := 0; i < len(cert.URIs); i++ {
 			urls[i] = cert.URIs[i].String()
 		}
-		n, err = fmt.Fprintf(w, "\nURLs: [%s]", strings.Join(urls, ", "))
+		n, err = fmt.Fprintf(w, format, strings.Join(urls, ", "))
 		num += n
 		if err != nil {
 			return num, err

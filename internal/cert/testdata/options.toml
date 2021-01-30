@@ -17,7 +17,7 @@ not_after       = 2028-11-27
   street_address      = ["test6"]
   postal_code         = ["test7"]
 
-[namer_opts]
+[namer]
   disable_prefix = true
   disable_stem   = true
   disable_suffix = true

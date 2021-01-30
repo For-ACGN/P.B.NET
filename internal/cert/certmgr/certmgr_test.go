@@ -4,18 +4,16 @@ import (
 	"bytes"
 	"compress/flate"
 	"crypto/sha256"
+	"fmt"
 	"io"
-	"os"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"project/internal/cert"
 	"project/internal/crypto/aes"
 	"project/internal/patch/monkey"
 	"project/internal/patch/msgpack"
-	"project/internal/system"
 )
 
 var testPassword = []byte("admin")
@@ -49,24 +47,12 @@ func testGenerateCertPool(t *testing.T) *cert.Pool {
 	return pool
 }
 
-func testReadCertPoolFile(t *testing.T) []byte {
-	certPool, err := os.ReadFile(CertPoolFilePath)
-	require.NoError(t, err)
-	return certPool
-}
-
-func testRemoveCertPoolFile(t *testing.T) {
-	err := os.Remove(CertPoolFilePath)
-	require.NoError(t, err)
-}
-
 func TestSaveCtrlCertPool(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		pool := testGenerateCertPool(t)
-		err := SaveCtrlCertPool(pool, testPassword)
+		data, err := SaveCtrlCertPool(pool, testPassword)
 		require.NoError(t, err)
-
-		testRemoveCertPoolFile(t)
+		require.NotNil(t, data)
 	})
 
 	pool := testGenerateCertPool(t)
@@ -78,8 +64,9 @@ func TestSaveCtrlCertPool(t *testing.T) {
 		pg := monkey.Patch(msgpack.Marshal, patch)
 		defer pg.Unpatch()
 
-		err := SaveCtrlCertPool(pool, testPassword)
+		data, err := SaveCtrlCertPool(pool, testPassword)
 		monkey.IsMonkeyError(t, err)
+		require.Nil(t, data)
 	})
 
 	t.Run("failed to NewWriter", func(t *testing.T) {
@@ -89,8 +76,9 @@ func TestSaveCtrlCertPool(t *testing.T) {
 		pg := monkey.Patch(flate.NewWriter, patch)
 		defer pg.Unpatch()
 
-		err := SaveCtrlCertPool(pool, testPassword)
-		monkey.IsMonkeyError(t, errors.Cause(err))
+		data, err := SaveCtrlCertPool(pool, testPassword)
+		monkey.IsExistMonkeyError(t, err)
+		require.Nil(t, data)
 	})
 
 	t.Run("failed to write about compress", func(t *testing.T) {
@@ -101,8 +89,9 @@ func TestSaveCtrlCertPool(t *testing.T) {
 		pg := monkey.PatchInstanceMethod(writer, "Write", patch)
 		defer pg.Unpatch()
 
-		err := SaveCtrlCertPool(pool, testPassword)
-		monkey.IsMonkeyError(t, errors.Cause(err))
+		data, err := SaveCtrlCertPool(pool, testPassword)
+		monkey.IsExistMonkeyError(t, err)
+		require.Nil(t, data)
 	})
 
 	t.Run("failed to close about compress", func(t *testing.T) {
@@ -113,44 +102,40 @@ func TestSaveCtrlCertPool(t *testing.T) {
 		pg := monkey.PatchInstanceMethod(writer, "Close", patch)
 		defer pg.Unpatch()
 
-		err := SaveCtrlCertPool(pool, testPassword)
-		monkey.IsMonkeyError(t, errors.Cause(err))
+		data, err := SaveCtrlCertPool(pool, testPassword)
+		monkey.IsExistMonkeyError(t, err)
+		require.Nil(t, data)
 	})
 
 	t.Run("failed to encrypt data", func(t *testing.T) {
 		patch := func([]byte, []byte, []byte) ([]byte, error) {
 			return nil, monkey.Error
 		}
-		pg := monkey.Patch(aes.CBCEncrypt, patch)
+		pg := monkey.Patch(aes.CTREncrypt, patch)
 		defer pg.Unpatch()
 
-		err := SaveCtrlCertPool(pool, testPassword)
-		monkey.IsMonkeyError(t, errors.Cause(err))
-	})
-
-	t.Run("failed to write file", func(t *testing.T) {
-		patch := func(string, []byte) error {
-			return monkey.Error
-		}
-		pg := monkey.Patch(system.WriteFile, patch)
-		defer pg.Unpatch()
-
-		err := SaveCtrlCertPool(pool, testPassword)
-		monkey.IsMonkeyError(t, errors.Cause(err))
+		data, err := SaveCtrlCertPool(pool, testPassword)
+		monkey.IsExistMonkeyError(t, err)
+		require.Nil(t, data)
 	})
 }
 
 func TestLoadCtrlCertPool(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		pool := testGenerateCertPool(t)
-		err := SaveCtrlCertPool(pool, testPassword)
+		data, err := SaveCtrlCertPool(pool, testPassword)
 		require.NoError(t, err)
-		defer testRemoveCertPoolFile(t)
 
 		pool = cert.NewPool()
-		certPool := testReadCertPoolFile(t)
-		err = LoadCtrlCertPool(pool, certPool, testPassword)
+		err = LoadCtrlCertPool(pool, data, testPassword)
 		require.NoError(t, err)
+
+		fmt.Println(len(pool.GetPublicRootCACerts()))
+		fmt.Println(len(pool.GetPublicClientCACerts()))
+		fmt.Println(len(pool.GetPublicClientPairs()))
+		fmt.Println(len(pool.GetPrivateRootCACerts()))
+		fmt.Println(len(pool.GetPrivateClientCACerts()))
+		fmt.Println(len(pool.GetPrivateClientPairs()))
 	})
 
 	pool := cert.NewPool()
@@ -160,8 +145,17 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("invalid hmac", func(t *testing.T) {
+		data := make([]byte, 4096)
+
+		err := LoadCtrlCertPool(pool, data, testPassword)
+		require.Error(t, err)
+	})
+
 	t.Run("invalid cert pool data", func(t *testing.T) {
-		data := bytes.Repeat([]byte{16}, 128)
+		pool = testGenerateCertPool(t)
+		data, err := SaveCtrlCertPool(pool, testPassword)
+		require.NoError(t, err)
 
 		err := LoadCtrlCertPool(pool, data, testPassword)
 		require.Error(t, err)
@@ -177,12 +171,6 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	pool = testGenerateCertPool(t)
-	err := SaveCtrlCertPool(pool, testPassword)
-	require.NoError(t, err)
-	defer testRemoveCertPoolFile(t)
-	certPool := testReadCertPoolFile(t)
-
 	t.Run("failed to close deflate reader", func(t *testing.T) {
 		reader := flate.NewReader(nil)
 		patch := func(interface{}) error {
@@ -192,18 +180,6 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		defer pg.Unpatch()
 
 		err := LoadCtrlCertPool(pool, certPool, testPassword)
-		require.Error(t, err)
-	})
-
-	t.Run("invalid hash", func(t *testing.T) {
-		// make broken hash
-		cp := make([]byte, len(certPool))
-		copy(cp, certPool)
-		for i := 0; i < sha256.Size; i++ {
-			cp[i] = 0
-		}
-
-		err := LoadCtrlCertPool(pool, cp, testPassword)
 		require.Error(t, err)
 	})
 

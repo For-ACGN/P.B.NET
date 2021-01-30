@@ -251,7 +251,7 @@ func SaveCtrlCertPool(pool *cert.Pool, password []byte) ([]byte, error) {
 
 // LoadCtrlCertPool is used to decrypt and decompress certificate pool.
 func LoadCtrlCertPool(pool *cert.Pool, data, password []byte) error {
-	if len(data) < sha256.Size+aes.IVSize+random2018+convert.Uint32Size+random1127 {
+	if len(data) < sha256.Size+aes.IVSize {
 		return errors.New("invalid certificate pool file size")
 	}
 	memory := security.NewMemory()
@@ -296,6 +296,7 @@ func LoadCtrlCertPool(pool *cert.Pool, data, password []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal certificate pool")
 	}
+	defer cp.Clean()
 	memory.Padding()
 	return cp.Dump(pool)
 }
