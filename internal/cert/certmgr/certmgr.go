@@ -7,14 +7,15 @@ import (
 	"crypto/subtle"
 
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/pbkdf2"
 
 	"project/internal/cert"
 	"project/internal/convert"
 	"project/internal/crypto/aes"
+	"project/internal/crypto/hmac"
 	"project/internal/patch/msgpack"
 	"project/internal/random"
 	"project/internal/security"
-	"project/internal/system"
 )
 
 // -----------------------------certificate pool file format-----------------------------
@@ -36,7 +37,7 @@ const (
 )
 
 // ctrlCertPool include bytes about certificates and private keys.
-// package controller and tool/certificate/manager will use it.
+// Controller and tool/certificate/manager will use it.
 type ctrlCertPool struct {
 	PublicRootCACerts   [][]byte `msgpack:"a"`
 	PublicClientCACerts [][]byte `msgpack:"b"`
@@ -58,7 +59,8 @@ type ctrlCertPool struct {
 	} `msgpack:"f"`
 }
 
-func (cp *ctrlCertPool) LoadCertsFromPool(pool *cert.Pool) {
+// Load is used to load certificates from certificate pool.
+func (cp *ctrlCertPool) Load(pool *cert.Pool) {
 	pubRootCACerts := pool.GetPublicRootCACerts()
 	for i := 0; i < len(pubRootCACerts); i++ {
 		cp.PublicRootCACerts = append(cp.PublicRootCACerts, pubRootCACerts[i].Raw)
@@ -101,7 +103,8 @@ func (cp *ctrlCertPool) LoadCertsFromPool(pool *cert.Pool) {
 	}
 }
 
-func (cp *ctrlCertPool) AddCertsToPool(pool *cert.Pool) error {
+// Dump is used to dump certificates to the certificate pool.
+func (cp *ctrlCertPool) Dump(pool *cert.Pool) error {
 	memory := security.NewMemory()
 	defer memory.Flush()
 
@@ -155,90 +158,96 @@ func (cp *ctrlCertPool) AddCertsToPool(pool *cert.Pool) error {
 	return nil
 }
 
+// Clean is used to clean all data in this certificate pool.
+func (cp *ctrlCertPool) Clean() {
+	for i := 0; i < len(cp.PublicRootCACerts); i++ {
+		security.CoverBytes(cp.PublicRootCACerts[i])
+	}
+	for i := 0; i < len(cp.PublicClientCACerts); i++ {
+		security.CoverBytes(cp.PublicClientCACerts[i])
+	}
+	for i := 0; i < len(cp.PublicClientPairs); i++ {
+		pair := cp.PublicClientPairs[i]
+		security.CoverBytes(pair.Cert)
+		security.CoverBytes(pair.Key)
+	}
+	for i := 0; i < len(cp.PrivateRootCAPairs); i++ {
+		pair := cp.PrivateRootCAPairs[i]
+		security.CoverBytes(pair.Cert)
+		security.CoverBytes(pair.Key)
+	}
+	for i := 0; i < len(cp.PrivateClientCAPairs); i++ {
+		pair := cp.PrivateClientCAPairs[i]
+		security.CoverBytes(pair.Cert)
+		security.CoverBytes(pair.Key)
+	}
+	for i := 0; i < len(cp.PrivateClientPairs); i++ {
+		pair := cp.PrivateClientPairs[i]
+		security.CoverBytes(pair.Cert)
+		security.CoverBytes(pair.Key)
+	}
+}
+
+// calculateAESKey is used to generate aes key for encrypt certificate pool.
+func calculateAESKey(password []byte) []byte {
+	hash := sha256.New()
+	hash.Write(password)
+	hash.Write([]byte{0x20, 0x17, 0x04, 0x17})
+	digest := hash.Sum(nil)
+	return pbkdf2.Key(digest, digest[:16], 8192, aes.Key256Bit, sha256.New)
+}
+
 // SaveCtrlCertPool is used to compress and encrypt certificate pool.
-func SaveCtrlCertPool(pool *cert.Pool, password []byte) error {
-	cp := new(ctrlCertPool)
-	// clean private key at once
-	defer func() {
-		for i := 0; i < len(cp.PublicClientPairs); i++ {
-			security.CoverBytes(cp.PublicClientPairs[i].Key)
-		}
-		for i := 0; i < len(cp.PrivateRootCAPairs); i++ {
-			security.CoverBytes(cp.PrivateRootCAPairs[i].Key)
-		}
-		for i := 0; i < len(cp.PrivateClientCAPairs); i++ {
-			security.CoverBytes(cp.PrivateClientCAPairs[i].Key)
-		}
-		for i := 0; i < len(cp.PrivateClientPairs); i++ {
-			security.CoverBytes(cp.PrivateClientPairs[i].Key)
-		}
-	}()
-	cp.LoadCertsFromPool(pool)
-	// marshal certificate pool
-	certPool, err := msgpack.Marshal(cp)
+func SaveCtrlCertPool(pool *cert.Pool, password []byte) ([]byte, error) {
+	certPool := ctrlCertPool{}
+	certPool.Load(pool)
+	defer certPool.Clean()
+	// marshal certificate pool data
+	certData, err := msgpack.Marshal(certPool)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer security.CoverBytes(certPool)
-	certPoolLen := len(certPool)
+	defer security.CoverBytes(certData)
+	certPool.Clean()
 	// make certificate pool file
-	buf := bytes.NewBuffer(make([]byte, 0, random2018+4+certPoolLen+random1127))
+	certPoolLen := len(certData)
+	bufSize := random2018 + convert.Uint32Size + certPoolLen + random1127
+	buf := bytes.NewBuffer(make([]byte, 0, bufSize))
+	defer security.CoverBytes(buf.Bytes())
+	// write all data
 	buf.Write(random.Bytes(random2018))                     // random data 1
-	buf.Write(convert.BEUint32ToBytes(uint32(certPoolLen))) // msgpack data size
-	buf.Write(certPool)                                     // msgpack data
-	secondSize := random1127 + random.Intn(1024)
-	buf.Write(random.Bytes(secondSize)) // random data 2
-	// compress
-	compressed := bytes.NewBuffer(make([]byte, 0, buf.Len()/2))
-	writer, err := flate.NewWriter(compressed, flate.BestCompression)
+	buf.Write(convert.BEUint32ToBytes(uint32(certPoolLen))) // cert pool data size
+	buf.Write(certData)                                     // cert pool data
+	buf.Write(random.Bytes(random1127 + random.Intn(1024))) // random data 2
+	// cover cert pool data at once
+	security.CoverBytes(certData)
+	// compress cert pool data
+	flateBuf := bytes.NewBuffer(make([]byte, 0, buf.Len()/2))
+	defer security.CoverBytes(flateBuf.Bytes())
+	writer, err := flate.NewWriter(flateBuf, flate.BestCompression)
 	if err != nil {
-		return errors.Wrap(err, "failed to create deflate writer")
+		return nil, errors.Wrap(err, "failed to create deflate writer")
 	}
-	_, err = writer.Write(buf.Bytes())
+	_, err = buf.WriteTo(writer)
 	if err != nil {
-		return errors.Wrap(err, "failed to compress certificate data")
+		return nil, errors.Wrap(err, "failed to compress certificate pool data")
 	}
 	err = writer.Close()
 	if err != nil {
-		return errors.Wrap(err, "failed to close deflate writer")
+		return nil, errors.Wrap(err, "failed to close deflate writer")
 	}
-	// encrypt file
-	aesKey, aesIV := calculateAESKeyFromPassword(password)
-	defer func() {
-		security.CoverBytes(aesKey)
-		security.CoverBytes(aesIV)
-	}()
-	fileEnc, err := aes.CBCEncrypt(compressed.Bytes(), aesKey)
+	// encrypt compressed data
+	aesKey := calculateAESKey(password)
+	defer security.CoverBytes(aesKey)
+	output, err := aes.CTREncrypt(flateBuf.Bytes(), aesKey)
 	if err != nil {
-		return errors.Wrap(err, "failed to encrypt certificate data")
+		return nil, errors.Wrap(err, "failed to encrypt certificate pool data")
 	}
-	// calculate file hash
-	hash := sha256.New()
-	hash.Write(buf.Bytes())
+	// write hash
+	hash := hmac.New(sha256.New, aesKey)
+	hash.Write(output)
 	digest := hash.Sum(nil)
-	return system.WriteFile(CertPoolFilePath, append(digest, fileEnc...))
-}
-
-// calculateAESKeyFromPassword is used to generate aes key for encrypt certificate pool.
-func calculateAESKeyFromPassword(password []byte) ([]byte, []byte) {
-	hash := sha256.New()
-	hash.Write(password)
-	hash.Write([]byte{20, 17, 4, 17})
-	digest := hash.Sum(nil)
-	// calculate more count
-	var n int
-	for i := 0; i < sha256.Size; i++ {
-		n += int(digest[i])
-	}
-	for i := 0; i < 10000+n; i++ {
-		hash.Write(digest)
-		digest = hash.Sum(nil)
-	}
-
-	// use PBKDF2
-
-	keyIV := hash.Sum(nil)
-	return keyIV, keyIV[:aes.IVSize]
+	return append(digest, output...), nil
 }
 
 // LoadCtrlCertPool is used to decrypt and decompress certificate pool.
@@ -249,7 +258,7 @@ func LoadCtrlCertPool(pool *cert.Pool, certPool, password []byte) error {
 	memory := security.NewMemory()
 	defer memory.Flush()
 	// decrypt certificate pool file
-	aesKey, aesIV := calculateAESKeyFromPassword(password)
+	aesKey, aesIV := calculateAESKey(password)
 	defer func() {
 		security.CoverBytes(aesKey)
 		security.CoverBytes(aesIV)
@@ -288,11 +297,11 @@ func LoadCtrlCertPool(pool *cert.Pool, certPool, password []byte) error {
 		return errors.Wrap(err, "failed to unmarshal certificate pool")
 	}
 	memory.Padding()
-	return cp.AddCertsToPool(pool)
+	return cp.Dump(pool)
 }
 
-// NBCertPool contains raw certificates, it used for Node and Beacon configuration.
-type NBCertPool struct {
+// CertPool contains raw certificates, it used for Node and Beacon configuration.
+type CertPool struct {
 	PublicRootCACerts   [][]byte `msgpack:"a"`
 	PublicClientCACerts [][]byte `msgpack:"b"`
 	PublicClientPairs   []struct {
@@ -307,9 +316,9 @@ type NBCertPool struct {
 	} `msgpack:"f"`
 }
 
-// LoadCertsFromPool is used to add certificates to NBCertPool from certificate pool
-// or other pool, Controller will add certificates to NBCertPool.
-func (cp *NBCertPool) LoadCertsFromPool(pool *cert.Pool) {
+// Load is used to load certificates from certificate pool or other pool,
+// Controller or tests will add certificates to CertPool.
+func (cp *CertPool) Load(pool *cert.Pool) {
 	pubRootCACerts := pool.GetPublicRootCACerts()
 	for i := 0; i < len(pubRootCACerts); i++ {
 		cp.PublicRootCACerts = append(cp.PublicRootCACerts, pubRootCACerts[i].Raw)
@@ -344,8 +353,8 @@ func (cp *NBCertPool) LoadCertsFromPool(pool *cert.Pool) {
 	}
 }
 
-// ToPool is used to create a certificate pool from NBCertPool.
-func (cp *NBCertPool) ToPool() (*cert.Pool, error) {
+// ToPool is used to create a certificate pool. Call Clean to cover bytes in pool.
+func (cp *CertPool) ToPool() (*cert.Pool, error) {
 	memory := security.NewMemory()
 	defer memory.Flush()
 
@@ -397,8 +406,8 @@ func (cp *NBCertPool) ToPool() (*cert.Pool, error) {
 	return pool, nil
 }
 
-// Clean is used to clean all data in this cert pool.
-func (cp *NBCertPool) Clean() {
+// Clean is used to clean all data in this certificate pool.
+func (cp *CertPool) Clean() {
 	for i := 0; i < len(cp.PublicRootCACerts); i++ {
 		security.CoverBytes(cp.PublicRootCACerts[i])
 	}

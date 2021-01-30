@@ -300,8 +300,8 @@ func TestNBCertPool_GetCertsFromPool(t *testing.T) {
 	err = pool.AddPrivateClientPair(c, k)
 	require.NoError(t, err)
 
-	cp := new(NBCertPool)
-	cp.LoadCertsFromPool(pool)
+	cp := new(CertPool)
+	cp.Load(pool)
 
 	require.Len(t, cp.PublicRootCACerts, 1)
 	require.Len(t, cp.PublicClientCACerts, 1)
@@ -312,7 +312,7 @@ func TestNBCertPool_GetCertsFromPool(t *testing.T) {
 }
 
 func TestNBCertPool_ToPool(t *testing.T) {
-	cp := new(NBCertPool)
+	cp := new(CertPool)
 
 	t.Run("public root ca cert", func(t *testing.T) {
 		pair := testGenerateCert(t)
