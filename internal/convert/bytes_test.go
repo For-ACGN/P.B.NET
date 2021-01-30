@@ -14,11 +14,7 @@ import (
 func TestDumpBytes(t *testing.T) {
 	testdata := []byte{0, 0, 0}
 
-	n, err := DumpBytes(testdata)
-	require.NoError(t, err)
-
-	expected := len("[]byte{}") + 6*len(testdata)
-	require.Equal(t, expected, n)
+	DumpBytes(testdata)
 }
 
 func TestSdumpBytes(t *testing.T) {
@@ -149,11 +145,7 @@ func TestFdumpBytes(t *testing.T) {
 func TestDumpBytesWithPL(t *testing.T) {
 	testdata := []byte{1, 2, 3, 4, 5}
 
-	n, err := DumpBytesWithPL(testdata, "\t", 4)
-	require.NoError(t, err)
-
-	expected := 5*6 + 2 - 2 + 2
-	require.Equal(t, expected, n)
+	DumpBytesWithPL(testdata, "\t", 4)
 }
 
 func TestSdumpBytesWithPL(t *testing.T) {

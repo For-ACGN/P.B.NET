@@ -18,8 +18,8 @@ func calcDumpStringWithPLBufferSize(str, prefix string, lineLen int) int {
 }
 
 // DumpString is used to split string to each line and write it to os.Stdout.
-func DumpString(str string) (int, error) {
-	return DumpStringWithPL(str, "", defaultStringsLineLen)
+func DumpString(str string) {
+	DumpStringWithPL(str, "", defaultStringsLineLen)
 }
 
 // SdumpString is used to split string to each line and write it to a string.
@@ -27,13 +27,13 @@ func SdumpString(str string) string {
 	return SdumpStringWithPL(str, "", defaultStringsLineLen)
 }
 
-// FdumpString is used to split string to each line and write it to io.Writer.
+// FdumpString is used to split string to each line and write it to a io.Writer.
 func FdumpString(w io.Writer, str string) (int, error) {
 	return FdumpStringWithPL(w, str, "", defaultStringsLineLen)
 }
 
 // DumpStringWithPL is used to split string with prefix and line length, write it to os.Stdout.
-func DumpStringWithPL(str, prefix string, lineLen int) (int, error) {
+func DumpStringWithPL(str, prefix string, lineLen int) {
 	// calculate buffer size
 	size := calcDumpStringWithPLBufferSize(str, prefix, lineLen) + 1
 	// dump string
@@ -41,8 +41,7 @@ func DumpStringWithPL(str, prefix string, lineLen int) (int, error) {
 	_, _ = FdumpStringWithPL(buf, str, prefix, lineLen)
 	buf.Write(newLine)
 	// write to stdout
-	n, err := buf.WriteTo(os.Stdout)
-	return int(n), err
+	_, _ = buf.WriteTo(os.Stdout)
 }
 
 // SdumpStringWithPL is used to split string with prefix and line length, write it to a string.
@@ -57,7 +56,7 @@ func SdumpStringWithPL(str, prefix string, lineLen int) string {
 	return builder.String()
 }
 
-// FdumpStringWithPL is used to split string with prefix and line length, write it to io.Writer.
+// FdumpStringWithPL is used to split string with prefix and line length, write it to a io.Writer.
 //
 // Output:
 // ------one line------

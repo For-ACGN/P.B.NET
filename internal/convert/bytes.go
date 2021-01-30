@@ -35,7 +35,7 @@ func calcDumpBytesBufferSize(b []byte) int {
 }
 
 // DumpBytes is used to convert byte slice to go source and write it to os.Stdout.
-func DumpBytes(b []byte) (int, error) {
+func DumpBytes(b []byte) {
 	// calculate buffer size
 	size := calcDumpBytesBufferSize(b)
 	// dump bytes
@@ -43,8 +43,7 @@ func DumpBytes(b []byte) (int, error) {
 	_, _ = FdumpBytes(buf, b)
 	buf.Write(newLine)
 	// write to stdout
-	n, err := buf.WriteTo(os.Stdout)
-	return int(n), err
+	_, _ = buf.WriteTo(os.Stdout)
 }
 
 // SdumpBytes is used to convert byte slice to go source and write it to a string.
@@ -59,7 +58,7 @@ func SdumpBytes(b []byte) string {
 	return builder.String()
 }
 
-// FdumpBytes is used to convert byte slice to go source and write it to io.Writer.
+// FdumpBytes is used to convert byte slice to go source and write it to a io.Writer.
 func FdumpBytes(w io.Writer, b []byte) (int, error) {
 	needNewLine := len(b) > defaultBytesLineLen
 	var (
@@ -103,7 +102,7 @@ func FdumpBytes(w io.Writer, b []byte) (int, error) {
 
 // DumpBytesWithPL is used to convert byte slice to go source code with prefix
 // and line length, then write it to os.Stdout.
-func DumpBytesWithPL(b []byte, prefix string, lineLen int) (int, error) {
+func DumpBytesWithPL(b []byte, prefix string, lineLen int) {
 	// calculate buffer size
 	size := calcDumpBytesWithPLBufferSize(b, prefix, lineLen) + 1
 	// dump string
@@ -111,8 +110,7 @@ func DumpBytesWithPL(b []byte, prefix string, lineLen int) (int, error) {
 	_, _ = FdumpBytesWithPL(buf, b, prefix, lineLen)
 	buf.Write(newLine)
 	// write to stdout
-	n, err := buf.WriteTo(os.Stdout)
-	return int(n), err
+	_, _ = buf.WriteTo(os.Stdout)
 }
 
 // SdumpBytesWithPL is used to convert byte slice to go source code with prefix
@@ -129,7 +127,7 @@ func SdumpBytesWithPL(b []byte, prefix string, lineLen int) string {
 }
 
 // FdumpBytesWithPL is used to convert byte slice to go source code with prefix
-// and line length, then write it to io.Writer.
+// and line length, then write it to a io.Writer.
 //
 // Output:
 // ------one line------
