@@ -222,7 +222,7 @@ func TestCTRDecrypter_validate(t *testing.T) {
 	decrypter, err := NewCTRDecrypter(reader, key)
 	require.NoError(t, err)
 
-	t.Run("failed to read hmac signature", func(t *testing.T) {
+	t.Run("failed to read mac", func(t *testing.T) {
 		var pg *monkey.PatchGuard
 		patch := func(r io.Reader, b []byte) (int, error) {
 			if len(b) == sha256.Size {
@@ -279,7 +279,7 @@ func TestCTRDecrypter_validate(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("failed to compare signature", func(t *testing.T) {
+	t.Run("failed to compare mac", func(t *testing.T) {
 		patch1 := func([]byte) int64 {
 			return 128
 		}
@@ -296,7 +296,7 @@ func TestCTRDecrypter_validate(t *testing.T) {
 		monkey.IsExistMonkeyError(t, err)
 	})
 
-	t.Run("invalid hmac signature", func(t *testing.T) {
+	t.Run("invalid mac", func(t *testing.T) {
 		patch := func([]byte) int64 {
 			return 128
 		}

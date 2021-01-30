@@ -108,10 +108,10 @@ func (ce *CTREncrypter) writeHeader() error {
 	if err != nil {
 		panic(fmt.Sprintf("lsb: encrypt size buffer: %s", err))
 	}
-	// calculate signature
+	// calculate mac
 	ce.hmac.Write(iv)
 	ce.hmac.Write(size)
-	signature := ce.hmac.Sum(nil)
+	mac := ce.hmac.Sum(nil)
 	// set offset for write header
 	_, err = ce.writer.Seek(-(ce.written + ctrReverseSize), io.SeekCurrent)
 	if err != nil {
@@ -119,7 +119,7 @@ func (ce *CTREncrypter) writeHeader() error {
 	}
 	// write header data
 	for _, b := range [][]byte{
-		size, signature, iv,
+		size, mac, iv,
 	} {
 		_, err = ce.writer.Write(b)
 		if err != nil {
@@ -279,11 +279,11 @@ func (cd *CTRDecrypter) validate() error {
 	if err != nil {
 		return errors.WithMessage(err, "failed to read cipher data size")
 	}
-	// read HMAC signature
-	signature := make([]byte, sha256.Size)
-	_, err = io.ReadFull(cd.reader, signature)
+	// read mac
+	mac := make([]byte, sha256.Size)
+	_, err = io.ReadFull(cd.reader, mac)
 	if err != nil {
-		return errors.WithMessage(err, "failed to read hmac signature")
+		return errors.WithMessage(err, "failed to read message authentication code")
 	}
 	// read iv
 	iv := make([]byte, aes.IVSize)
@@ -300,15 +300,15 @@ func (cd *CTRDecrypter) validate() error {
 	if size < 1 {
 		return errors.New("invalid cipher data size")
 	}
-	// compare signature
+	// compare mac
 	_, err = io.CopyN(cd.hmac, cd.reader, size)
 	if err != nil {
 		return errors.WithMessage(err, "failed to read cipher data")
 	}
 	cd.hmac.Write(iv)
 	cd.hmac.Write(sizeBuf)
-	if !hmac.Equal(signature, cd.hmac.Sum(nil)) {
-		return errors.New("invalid hmac signature")
+	if !hmac.Equal(mac, cd.hmac.Sum(nil)) {
+		return errors.New("invalid message authentication code")
 	}
 	// reset offset that after iv
 	_, err = cd.reader.Seek(-size, io.SeekCurrent)
