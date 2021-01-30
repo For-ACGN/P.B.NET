@@ -5,7 +5,6 @@ import (
 	"compress/flate"
 	"crypto/sha256"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -51,7 +50,7 @@ func testGenerateCertPool(t *testing.T) *cert.Pool {
 }
 
 func testReadCertPoolFile(t *testing.T) []byte {
-	certPool, err := ioutil.ReadFile(CertPoolFilePath)
+	certPool, err := os.ReadFile(CertPoolFilePath)
 	require.NoError(t, err)
 	return certPool
 }
@@ -169,9 +168,9 @@ func TestLoadCtrlCertPool(t *testing.T) {
 	})
 
 	t.Run("invalid compressed data", func(t *testing.T) {
-		aesKey, aesIV := calculateAESKeyFromPassword(testPassword)
+		aesKey, _ := calculateAESKeyFromPassword(testPassword)
 		data := bytes.Repeat([]byte{16}, 128)
-		certPool, err := aes.CBCEncrypt(data, aesKey, aesIV)
+		certPool, err := aes.CBCEncrypt(data, aesKey)
 		require.NoError(t, err)
 
 		err = LoadCtrlCertPool(pool, certPool, testPassword)
@@ -302,7 +301,7 @@ func TestNBCertPool_GetCertsFromPool(t *testing.T) {
 	require.NoError(t, err)
 
 	cp := new(NBCertPool)
-	cp.GetCertsFromPool(pool)
+	cp.LoadCertsFromPool(pool)
 
 	require.Len(t, cp.PublicRootCACerts, 1)
 	require.Len(t, cp.PublicClientCACerts, 1)
