@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/flate"
 	"crypto/sha256"
-	"crypto/subtle"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/pbkdf2"
@@ -26,10 +25,10 @@ import (
 // |  32 bytes   | 16 bytes | 2018 bytes |   4 bytes    |   var bytes    | > 1127 bytes |
 // +-------------+----------+------------+--------------+----------------+--------------+
 //
-// Hash is used to verify the integrality of the file.
-// Hash value is hmac-sha256(random + size + cert pool data + random)
-// Use flate to compress(random + size + data + random)
+// cert pool data is msgpack.Marshal(ctrlCertPool{})
+// Use flate to compress(random + size + cert pool data + random)
 // Use AES-CTR to encrypt compressed data
+// MAC value is hmac-sha256(IV + AES-CTR(compressed data))
 
 const (
 	random2018 = 2018
@@ -203,24 +202,24 @@ func SaveCtrlCertPool(pool *cert.Pool, password []byte) ([]byte, error) {
 	certPool.Load(pool)
 	defer certPool.Clean()
 	// marshal certificate pool data
-	certData, err := msgpack.Marshal(certPool)
+	certPoolData, err := msgpack.Marshal(certPool)
 	if err != nil {
 		return nil, err
 	}
-	defer security.CoverBytes(certData)
+	defer security.CoverBytes(certPoolData)
 	certPool.Clean()
 	// make certificate pool file
-	certPoolLen := len(certData)
-	bufSize := random2018 + convert.Uint32Size + certPoolLen + random1127
+	certPoolDataLen := len(certPoolData)
+	bufSize := random2018 + convert.Uint32Size + certPoolDataLen + random1127
 	buf := bytes.NewBuffer(make([]byte, 0, bufSize))
 	defer security.CoverBytes(buf.Bytes())
 	// write all data
-	buf.Write(random.Bytes(random2018))                     // random data 1
-	buf.Write(convert.BEUint32ToBytes(uint32(certPoolLen))) // cert pool data size
-	buf.Write(certData)                                     // cert pool data
-	buf.Write(random.Bytes(random1127 + random.Intn(1024))) // random data 2
+	buf.Write(random.Bytes(random2018))                         // random data 1
+	buf.Write(convert.BEUint32ToBytes(uint32(certPoolDataLen))) // cert pool data size
+	buf.Write(certPoolData)                                     // cert pool data
+	buf.Write(random.Bytes(random1127 + random.Intn(1024)))     // random data 2
 	// cover cert pool data at once
-	security.CoverBytes(certData)
+	security.CoverBytes(certPoolData)
 	// compress cert pool data
 	flateBuf := bytes.NewBuffer(make([]byte, 0, buf.Len()/2))
 	defer security.CoverBytes(flateBuf.Bytes())
@@ -243,56 +242,57 @@ func SaveCtrlCertPool(pool *cert.Pool, password []byte) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to encrypt certificate pool data")
 	}
-	// write hash
+	// write mac
 	hash := hmac.New(sha256.New, aesKey)
 	hash.Write(output)
-	digest := hash.Sum(nil)
-	return append(digest, output...), nil
+	mac := hash.Sum(nil)
+	return append(mac, output...), nil
 }
 
 // LoadCtrlCertPool is used to decrypt and decompress certificate pool.
-func LoadCtrlCertPool(pool *cert.Pool, certPool, password []byte) error {
-	if len(certPool) < sha256.Size+aes.BlockSize {
+func LoadCtrlCertPool(pool *cert.Pool, data, password []byte) error {
+	if len(data) < sha256.Size+aes.IVSize+random2018+convert.Uint32Size+random1127 {
 		return errors.New("invalid certificate pool file size")
 	}
 	memory := security.NewMemory()
 	defer memory.Flush()
-	// decrypt certificate pool file
-	aesKey, aesIV := calculateAESKey(password)
-	defer func() {
-		security.CoverBytes(aesKey)
-		security.CoverBytes(aesIV)
-	}()
-	compressed, err := aes.CBCDecrypt(certPool[sha256.Size:], aesKey)
+	// check certificate pool file mac
+	aesKey := calculateAESKey(password)
+	defer security.CoverBytes(aesKey)
+	memory.Padding()
+	hash := hmac.New(sha256.New, aesKey)
+	hash.Write(data[sha256.Size:])
+	mac := hash.Sum(nil)
+	if !hmac.Equal(mac, data[:sha256.Size]) {
+		return errors.New("incorrect password or certificate pool has been tampered")
+	}
+	// decrypt data
+	compressed, err := aes.CTRDecrypt(data[sha256.Size:], aesKey)
 	if err != nil {
-		return errors.Wrap(err, "failed to decrypt certificate pool file")
+		return errors.Wrap(err, "failed to decrypt certificate pool data")
 	}
 	defer security.CoverBytes(compressed)
 	// decompress
 	buf := bytes.NewBuffer(make([]byte, 0, len(compressed)*2))
+	defer security.CoverBytes(buf.Bytes())
 	reader := flate.NewReader(bytes.NewReader(compressed))
 	_, err = buf.ReadFrom(reader)
 	if err != nil {
-		return errors.Wrap(err, "failed to decompress certificate pool file")
+		return errors.Wrap(err, "failed to decompress certificate pool data")
 	}
 	err = reader.Close()
 	if err != nil {
 		return errors.Wrap(err, "failed to close deflate reader")
 	}
-	file := buf.Bytes()
-	// compare file hash
-	fileHash := sha256.Sum256(file)
-	if subtle.ConstantTimeCompare(certPool[:sha256.Size], fileHash[:]) != 1 {
-		return errors.New("incorrect password or certificate pool has been tampered")
-	}
+	// get cert pool data
 	memory.Padding()
-	offset := random2018
-	size := int(convert.BEBytesToUint32(file[offset : offset+4]))
-	memory.Padding()
-	offset += 4
+	buf.Next(random2018)
+	size := int(convert.BEBytesToUint32(buf.Next(convert.Uint32Size)))
+	certPoolData := buf.Next(size)
+	defer security.CoverBytes(certPoolData)
 	// unmarshal
 	cp := ctrlCertPool{}
-	err = msgpack.Unmarshal(file[offset:offset+size], &cp)
+	err = msgpack.Unmarshal(certPoolData, &cp)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal certificate pool")
 	}
