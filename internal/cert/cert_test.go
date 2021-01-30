@@ -25,6 +25,182 @@ import (
 	"project/internal/testsuite/testnamer"
 )
 
+func TestGenerateCA(t *testing.T) {
+	t.Run("compare", func(t *testing.T) {
+		notBefore := time.Now()
+		notAfter := notBefore.AddDate(0, 0, 1)
+		opts := &Options{
+			Algorithm: "rsa|2048",
+			NotBefore: notBefore,
+			NotAfter:  notAfter,
+		}
+		opts.Subject.CommonName = "test common name"
+		opts.Subject.Organization = []string{"test organization"}
+
+		ca, err := GenerateCA(opts)
+		require.NoError(t, err)
+
+		require.Equal(t, "test common name", ca.Certificate.Subject.CommonName)
+		require.Equal(t, []string{"test organization"}, ca.Certificate.Subject.Organization)
+
+		expected := notBefore.Format(timeLayout)
+		actual := ca.Certificate.NotBefore.Local().Format(timeLayout)
+		require.Equal(t, expected, actual)
+
+		expected = notAfter.Format(timeLayout)
+		actual = ca.Certificate.NotAfter.Local().Format(timeLayout)
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("failed to generate CA", func(t *testing.T) {
+		opts := Options{
+			DNSNames: []string{"foo-"},
+		}
+		pair, err := GenerateCA(&opts)
+		require.Error(t, err)
+		require.Nil(t, pair)
+	})
+
+	t.Run("failed to generate private key", func(t *testing.T) {
+		opts := Options{
+			Algorithm: "foo",
+		}
+		_, err := GenerateCA(&opts)
+		require.Error(t, err)
+	})
+
+	t.Run("failed to create certificate", func(t *testing.T) {
+		patch := func(_ io.Reader, _, _ *x509.Certificate, _, _ interface{}) ([]byte, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.Patch(x509.CreateCertificate, patch)
+		defer pg.Unpatch()
+
+		_, err := GenerateCA(nil)
+		monkey.IsMonkeyError(t, err)
+	})
+}
+
+func TestGenerate(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	for _, alg := range [...]string{
+		"rsa|2048", "ecdsa|p256", "ed25519",
+	} {
+		t.Run(alg, func(t *testing.T) {
+			opts := Options{Algorithm: alg}
+			ca, err := GenerateCA(&opts)
+			require.NoError(t, err)
+			testGenerate(t, ca)  // CA sign
+			testGenerate(t, nil) // self sign
+		})
+	}
+
+	t.Run("invalid domain name", func(t *testing.T) {
+		opts := Options{
+			DNSNames: []string{"foo-"},
+		}
+		_, err := Generate(nil, nil, &opts)
+		require.Error(t, err)
+	})
+
+	t.Run("failed to generate private key", func(t *testing.T) {
+		opts := Options{
+			Algorithm: "foo",
+		}
+		_, err := Generate(new(x509.Certificate), "foo", &opts)
+		require.Error(t, err)
+	})
+
+	t.Run("invalid private key", func(t *testing.T) {
+		_, err := Generate(new(x509.Certificate), "foo", nil)
+		require.Error(t, err)
+	})
+}
+
+func testGenerate(t *testing.T, ca *Pair) {
+	opts := &Options{
+		Algorithm:   "rsa|2048",
+		DNSNames:    []string{"localhost"},
+		IPAddresses: []string{"127.0.0.1", "::1"},
+	}
+	var (
+		pair *Pair
+		err  error
+	)
+	if ca != nil {
+		pair, err = Generate(ca.Certificate, ca.PrivateKey, opts)
+		require.NoError(t, err)
+	} else {
+		pair, err = Generate(nil, nil, opts)
+		require.NoError(t, err)
+	}
+	require.Equal(t, pair.Certificate.Raw, pair.ASN1())
+
+	// handler
+	respData := []byte("hello")
+	serveMux := http.NewServeMux()
+	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(respData)
+	})
+
+	tlsCert := pair.TLSCertificate()
+	// run https servers
+	server1 := http.Server{
+		Addr:      "localhost:0",
+		Handler:   serveMux,
+		TLSConfig: &tls.Config{Certificates: []tls.Certificate{tlsCert}},
+	}
+	port1 := testsuite.RunHTTPServer(t, "tcp", &server1)
+	defer func() { _ = server1.Close() }()
+	// IPv4-only
+	server2 := http.Server{
+		Addr:      "127.0.0.1:0",
+		Handler:   serveMux,
+		TLSConfig: &tls.Config{Certificates: []tls.Certificate{tlsCert}},
+	}
+	port2 := testsuite.RunHTTPServer(t, "tcp", &server2)
+	defer func() { _ = server2.Close() }()
+	// IPv6-only
+	server3 := http.Server{
+		Addr:      "[::1]:0",
+		Handler:   serveMux,
+		TLSConfig: &tls.Config{Certificates: []tls.Certificate{tlsCert}},
+	}
+	port3 := testsuite.RunHTTPServer(t, "tcp", &server3)
+	defer func() { _ = server3.Close() }()
+
+	// client
+	tlsConfig := tls.Config{RootCAs: x509.NewCertPool()}
+	if ca != nil {
+		tlsConfig.RootCAs.AddCert(ca.Certificate)
+	} else {
+		tlsConfig.RootCAs.AddCert(pair.Certificate)
+	}
+	client := http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tlsConfig,
+		},
+	}
+	defer client.CloseIdleConnections()
+
+	get := func(hostname, port string) {
+		resp, err := client.Get(fmt.Sprintf("https://%s:%s/", hostname, port))
+		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
+
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, respData, b)
+	}
+
+	// test
+	get("localhost", port1)
+	get("127.0.0.1", port2)
+	get("[::1]", port3)
+}
+
 func TestGenerateCertificate(t *testing.T) {
 	t.Run("with namer", func(t *testing.T) {
 		opts := Options{
@@ -275,316 +451,7 @@ func TestGenerateEd25519(t *testing.T) {
 	})
 }
 
-func TestGenerateCA(t *testing.T) {
-	t.Run("compare", func(t *testing.T) {
-		notBefore := time.Now()
-		notAfter := notBefore.AddDate(0, 0, 1)
-		opts := &Options{
-			Algorithm: "rsa|2048",
-			NotBefore: notBefore,
-			NotAfter:  notAfter,
-		}
-		opts.Subject.CommonName = "test common name"
-		opts.Subject.Organization = []string{"test organization"}
-
-		ca, err := GenerateCA(opts)
-		require.NoError(t, err)
-
-		require.Equal(t, "test common name", ca.Certificate.Subject.CommonName)
-		require.Equal(t, []string{"test organization"}, ca.Certificate.Subject.Organization)
-
-		expected := notBefore.Format(timeLayout)
-		actual := ca.Certificate.NotBefore.Local().Format(timeLayout)
-		require.Equal(t, expected, actual)
-
-		expected = notAfter.Format(timeLayout)
-		actual = ca.Certificate.NotAfter.Local().Format(timeLayout)
-		require.Equal(t, expected, actual)
-	})
-
-	t.Run("failed to generate CA", func(t *testing.T) {
-		opts := Options{
-			DNSNames: []string{"foo-"},
-		}
-		pair, err := GenerateCA(&opts)
-		require.Error(t, err)
-		require.Nil(t, pair)
-	})
-
-	t.Run("failed to generate private key", func(t *testing.T) {
-		opts := Options{
-			Algorithm: "foo",
-		}
-		_, err := GenerateCA(&opts)
-		require.Error(t, err)
-	})
-
-	t.Run("failed to create certificate", func(t *testing.T) {
-		patch := func(_ io.Reader, _, _ *x509.Certificate, _, _ interface{}) ([]byte, error) {
-			return nil, monkey.Error
-		}
-		pg := monkey.Patch(x509.CreateCertificate, patch)
-		defer pg.Unpatch()
-
-		_, err := GenerateCA(nil)
-		monkey.IsMonkeyError(t, err)
-	})
-}
-
-func TestGenerate(t *testing.T) {
-	gm := testsuite.MarkGoroutines(t)
-	defer gm.Compare()
-
-	for _, alg := range [...]string{
-		"rsa|2048", "ecdsa|p256", "ed25519",
-	} {
-		t.Run(alg, func(t *testing.T) {
-			opts := Options{Algorithm: alg}
-			ca, err := GenerateCA(&opts)
-			require.NoError(t, err)
-			testGenerate(t, ca)  // CA sign
-			testGenerate(t, nil) // self sign
-		})
-	}
-
-	t.Run("invalid domain name", func(t *testing.T) {
-		opts := Options{
-			DNSNames: []string{"foo-"},
-		}
-		_, err := Generate(nil, nil, &opts)
-		require.Error(t, err)
-	})
-
-	t.Run("failed to generate private key", func(t *testing.T) {
-		opts := Options{
-			Algorithm: "foo",
-		}
-		_, err := Generate(new(x509.Certificate), "foo", &opts)
-		require.Error(t, err)
-	})
-
-	t.Run("invalid private key", func(t *testing.T) {
-		_, err := Generate(new(x509.Certificate), "foo", nil)
-		require.Error(t, err)
-	})
-}
-
-func testGenerate(t *testing.T, ca *Pair) {
-	opts := &Options{
-		Algorithm:   "rsa|2048",
-		DNSNames:    []string{"localhost"},
-		IPAddresses: []string{"127.0.0.1", "::1"},
-	}
-	var (
-		pair *Pair
-		err  error
-	)
-	if ca != nil {
-		pair, err = Generate(ca.Certificate, ca.PrivateKey, opts)
-		require.NoError(t, err)
-	} else {
-		pair, err = Generate(nil, nil, opts)
-		require.NoError(t, err)
-	}
-	require.Equal(t, pair.Certificate.Raw, pair.ASN1())
-
-	// handler
-	respData := []byte("hello")
-	serveMux := http.NewServeMux()
-	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write(respData)
-	})
-
-	tlsCert := pair.TLSCertificate()
-	// run https servers
-	server1 := http.Server{
-		Addr:      "localhost:0",
-		Handler:   serveMux,
-		TLSConfig: &tls.Config{Certificates: []tls.Certificate{tlsCert}},
-	}
-	port1 := testsuite.RunHTTPServer(t, "tcp", &server1)
-	defer func() { _ = server1.Close() }()
-	// IPv4-only
-	server2 := http.Server{
-		Addr:      "127.0.0.1:0",
-		Handler:   serveMux,
-		TLSConfig: &tls.Config{Certificates: []tls.Certificate{tlsCert}},
-	}
-	port2 := testsuite.RunHTTPServer(t, "tcp", &server2)
-	defer func() { _ = server2.Close() }()
-	// IPv6-only
-	server3 := http.Server{
-		Addr:      "[::1]:0",
-		Handler:   serveMux,
-		TLSConfig: &tls.Config{Certificates: []tls.Certificate{tlsCert}},
-	}
-	port3 := testsuite.RunHTTPServer(t, "tcp", &server3)
-	defer func() { _ = server3.Close() }()
-
-	// client
-	tlsConfig := tls.Config{RootCAs: x509.NewCertPool()}
-	if ca != nil {
-		tlsConfig.RootCAs.AddCert(ca.Certificate)
-	} else {
-		tlsConfig.RootCAs.AddCert(pair.Certificate)
-	}
-	client := http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tlsConfig,
-		},
-	}
-	defer client.CloseIdleConnections()
-
-	get := func(hostname, port string) {
-		resp, err := client.Get(fmt.Sprintf("https://%s:%s/", hostname, port))
-		require.NoError(t, err)
-		defer func() { _ = resp.Body.Close() }()
-
-		b, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-		require.Equal(t, respData, b)
-	}
-
-	// test
-	get("localhost", port1)
-	get("127.0.0.1", port2)
-	get("[::1]", port3)
-}
-
-func TestPair_Encode(t *testing.T) {
-	ca, err := GenerateCA(nil)
-	require.NoError(t, err)
-
-	pair := &Pair{Certificate: ca.Certificate}
-
-	defer testsuite.DeferForPanic(t)
-	pair.Encode()
-}
-
-func TestPair_EncodeToPEM(t *testing.T) {
-	ca, err := GenerateCA(nil)
-	require.NoError(t, err)
-
-	_, err = tls.X509KeyPair(ca.EncodeToPEM())
-	require.NoError(t, err)
-}
-
-func TestDump(t *testing.T) {
-	opts := Options{
-		DNSNames:       []string{"test.com", "foo.com"},
-		IPAddresses:    []string{"1.1.1.1", "1234::1234"},
-		EmailAddresses: []string{"admin@test.com", "user@test.com"},
-		URLs:           []string{"https://1.1.1.1/", "http://example.com/"},
-	}
-	opts.Subject.Organization = []string{"org a", "org b"}
-
-	ca, err := GenerateCA(&opts)
-	require.NoError(t, err)
-
-	Dump(ca.Certificate)
-}
-
-func TestParseCertificate(t *testing.T) {
-	certPEMBlock, err := os.ReadFile("testdata/certs.pem")
-	require.NoError(t, err)
-	cert, err := ParseCertificate(certPEMBlock)
-	require.NoError(t, err)
-	t.Log(cert.Issuer)
-
-	// parse invalid PEM data
-	_, err = ParseCertificate([]byte{0, 1, 2, 3})
-	require.Equal(t, ErrInvalidPEMBlock, err)
-
-	// invalid Type
-	certPEMBlock = []byte(`
------BEGIN INVALID TYPE-----
------END INVALID TYPE-----
-`)
-	_, err = ParseCertificate(certPEMBlock)
-	require.EqualError(t, err, "invalid PEM block type: INVALID TYPE")
-
-	// invalid certificate data
-	certPEMBlock = []byte(`
------BEGIN CERTIFICATE-----
------END CERTIFICATE-----
-`)
-	_, err = ParseCertificate(certPEMBlock)
-	require.Error(t, err)
-}
-
-func TestParseCertificates(t *testing.T) {
-	certPEMBlock, err := os.ReadFile("testdata/certs.pem")
-	require.NoError(t, err)
-	certs, err := ParseCertificates(certPEMBlock)
-	require.NoError(t, err)
-	t.Log(certs[0].Issuer)
-	t.Log(certs[1].Issuer)
-
-	// parse invalid PEM data
-	_, err = ParseCertificates([]byte{0, 1, 2, 3})
-	require.Equal(t, ErrInvalidPEMBlock, err)
-
-	// invalid Type
-	certPEMBlock = []byte(`
------BEGIN INVALID TYPE-----
------END INVALID TYPE-----
-`)
-	_, err = ParseCertificates(certPEMBlock)
-	require.EqualError(t, err, "invalid PEM block type: INVALID TYPE")
-
-	// invalid certificate data
-	certPEMBlock = []byte(`
------BEGIN CERTIFICATE-----
------END CERTIFICATE-----
-`)
-	_, err = ParseCertificates(certPEMBlock)
-	require.Error(t, err)
-}
-
-func TestParsePrivateKey(t *testing.T) {
-	for _, file := range [...]string{
-		"pkcs1.key", "pkcs8.key", "ecp.key",
-	} {
-		keyPEMBlock, err := os.ReadFile("testdata/" + file)
-		require.NoError(t, err)
-		_, err = ParsePrivateKey(keyPEMBlock)
-		require.NoError(t, err)
-	}
-
-	// parse invalid PEM data
-	_, err := ParsePrivateKey([]byte{0, 1, 2, 3})
-	require.Equal(t, ErrInvalidPEMBlock, err)
-
-	// invalid certificate data
-	keyPEMBlock := []byte(`
------BEGIN PRIVATE KEY-----
------END PRIVATE KEY-----
-`)
-	_, err = ParsePrivateKey(keyPEMBlock)
-	require.Error(t, err)
-}
-
-func TestParsePrivateKeys(t *testing.T) {
-	keyPEMBlock, err := os.ReadFile("testdata/keys.pem")
-	require.NoError(t, err)
-	keys, err := ParsePrivateKeys(keyPEMBlock)
-	require.NoError(t, err)
-	require.Len(t, keys, 2)
-
-	// parse invalid PEM data
-	_, err = ParsePrivateKeys([]byte{0, 1, 2, 3})
-	require.Equal(t, ErrInvalidPEMBlock, err)
-
-	// invalid certificate data
-	keyPEMBlock = []byte(`
------BEGIN CERTIFICATE-----
------END CERTIFICATE-----
-`)
-	_, err = ParsePrivateKeys(keyPEMBlock)
-	require.Error(t, err)
-}
-
-func TestMatch(t *testing.T) {
+func TestIsMatchPrivateKey(t *testing.T) {
 	cert := new(x509.Certificate)
 
 	t.Run("rsa", func(t *testing.T) {

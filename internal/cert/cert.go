@@ -6,26 +6,20 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
-	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
 	"net"
 	"net/url"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"project/internal/convert"
 	"project/internal/crypto/rand"
 	"project/internal/namer"
 	"project/internal/random"
-	"project/internal/security"
 )
 
 // Options contains options about generate certificate.
@@ -66,57 +60,6 @@ type Subject struct {
 	Province           []string `toml:"province"`
 	StreetAddress      []string `toml:"street_address"`
 	PostalCode         []string `toml:"postal_code"`
-}
-
-// Pair contains certificate and private key.
-type Pair struct {
-	Certificate *x509.Certificate
-	PrivateKey  interface{}
-}
-
-// ASN1 is used to get certificate ASN1 data.
-func (p *Pair) ASN1() []byte {
-	asn1Data := make([]byte, len(p.Certificate.Raw))
-	copy(asn1Data, p.Certificate.Raw)
-	return asn1Data
-}
-
-// Encode is used to get certificate ASN1 data and encode private key to PKCS8.
-func (p *Pair) Encode() ([]byte, []byte) {
-	cert := p.ASN1()
-	key, err := x509.MarshalPKCS8PrivateKey(p.PrivateKey)
-	if err != nil {
-		panic(fmt.Sprintf("cert: internal error: %s", err))
-	}
-	return cert, key
-}
-
-// EncodeToPEM is used to encode certificate and private key to PEM data.
-func (p *Pair) EncodeToPEM() ([]byte, []byte) {
-	cert, key := p.Encode()
-	defer func() {
-		security.CoverBytes(cert)
-		security.CoverBytes(key)
-	}()
-	certBlock := &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cert,
-	}
-	keyBlock := &pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: key,
-	}
-	return pem.EncodeToMemory(certBlock), pem.EncodeToMemory(keyBlock)
-}
-
-// TLSCertificate is used to generate tls certificate.
-func (p *Pair) TLSCertificate() tls.Certificate {
-	var cert tls.Certificate
-	cert.Certificate = make([][]byte, 1)
-	cert.Certificate[0] = make([]byte, len(p.Certificate.Raw))
-	copy(cert.Certificate[0], p.Certificate.Raw)
-	cert.PrivateKey = p.PrivateKey
-	return cert
 }
 
 // GenerateCA is used to generate a CA certificate from Options.
@@ -420,194 +363,6 @@ func generateEd25519() (interface{}, interface{}, error) {
 		return nil, nil, err
 	}
 	return privateKey, publicKey, nil
-}
-
-const timeLayout = "2006-01-02 15:04:05 Z07:00"
-
-// Dump is used to dump certificate information to os.Stdout.
-func Dump(cert *x509.Certificate) {
-	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	_, _ = Fdump(buf, cert)
-	buf.WriteString("\n")
-	_, _ = buf.WriteTo(os.Stdout)
-}
-
-// Sdump is used to dump certificate information to a string.
-func Sdump(cert *x509.Certificate) string {
-	builder := strings.Builder{}
-	builder.Grow(512)
-	_, _ = Fdump(&builder, cert)
-	return builder.String()
-}
-
-// Fdump is used to dump certificate information to a io.Writer.
-func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
-	const format = `
-Version: %d
-Serial number: [%s]
-
-[Subject]
-  Common name:  %s
-  Organization: %s
-
-[Issuer]
-  Common name:  %s
-  Organization: %s
-
-Public key algorithm: %s
-Public key: [%s]
-
-Signature algorithm: %s
-Signature: [%s]
-
-Not before: %s
-Not after:  %s
-`
-	var num int
-	n, err := fmt.Fprintf(w, format[1:],
-		cert.Version,
-		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "", 16), ","),
-		cert.Subject.CommonName, strings.Join(cert.Subject.Organization, ", "),
-		cert.Issuer.CommonName, strings.Join(cert.Issuer.Organization, ", "),
-		cert.PublicKeyAlgorithm, // TODO print public key
-		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
-		cert.SignatureAlgorithm,
-		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
-		cert.NotBefore.Local().Format(timeLayout),
-		cert.NotAfter.Local().Format(timeLayout),
-	)
-	num += n
-	if err != nil {
-		return num, err
-	}
-	if len(cert.DNSNames) != 0 {
-		const format = "\nDNS names: [%s]"
-		n, err = fmt.Fprintf(w, format, strings.Join(cert.DNSNames, ", "))
-		num += n
-		if err != nil {
-			return num, err
-		}
-	}
-	if len(cert.IPAddresses) != 0 {
-		const format = "\nIP addresses: [%s]"
-		ip := make([]string, len(cert.IPAddresses))
-		for i := 0; i < len(cert.IPAddresses); i++ {
-			ip[i] = cert.IPAddresses[i].String()
-		}
-		n, err = fmt.Fprintf(w, format, strings.Join(ip, ", "))
-		num += n
-		if err != nil {
-			return num, err
-		}
-	}
-	if len(cert.EmailAddresses) != 0 {
-		const format = "\nEmail addresses: [%s]"
-		n, err = fmt.Fprintf(w, format, strings.Join(cert.EmailAddresses, ", "))
-		num += n
-		if err != nil {
-			return num, err
-		}
-	}
-	if len(cert.URIs) != 0 {
-		const format = "\nURLs: [%s]"
-		urls := make([]string, len(cert.URIs))
-		for i := 0; i < len(cert.URIs); i++ {
-			urls[i] = cert.URIs[i].String()
-		}
-		n, err = fmt.Fprintf(w, format, strings.Join(urls, ", "))
-		num += n
-		if err != nil {
-			return num, err
-		}
-	}
-	return num, nil
-}
-
-// ErrInvalidPEMBlock is the error about the PEM block.
-var ErrInvalidPEMBlock = errors.New("invalid PEM block")
-
-// ParseCertificate is used to parse certificate from PEM.
-func ParseCertificate(pemBlock []byte) (*x509.Certificate, error) {
-	block, _ := pem.Decode(pemBlock)
-	if block == nil {
-		return nil, ErrInvalidPEMBlock
-	}
-	if block.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("invalid PEM block type: %s", block.Type)
-	}
-	return x509.ParseCertificate(block.Bytes)
-}
-
-// ParseCertificates is used to parse certificates from PEM.
-func ParseCertificates(pemBlock []byte) ([]*x509.Certificate, error) {
-	var (
-		certs []*x509.Certificate
-		block *pem.Block
-	)
-	for {
-		block, pemBlock = pem.Decode(pemBlock)
-		if block == nil {
-			return nil, ErrInvalidPEMBlock
-		}
-		if block.Type != "CERTIFICATE" {
-			return nil, fmt.Errorf("invalid PEM block type: %s", block.Type)
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-		certs = append(certs, cert)
-		if len(pemBlock) == 0 {
-			break
-		}
-	}
-	return certs, nil
-}
-
-// ParsePrivateKey is used to parse private key from PEM.
-func ParsePrivateKey(pemBlock []byte) (interface{}, error) {
-	block, _ := pem.Decode(pemBlock)
-	if block == nil {
-		return nil, ErrInvalidPEMBlock
-	}
-	return ParsePrivateKeyBytes(block.Bytes)
-}
-
-// ParsePrivateKeys is used to parse private keys from PEM.
-func ParsePrivateKeys(pemBlock []byte) ([]interface{}, error) {
-	var (
-		keys  []interface{}
-		block *pem.Block
-	)
-	for {
-		block, pemBlock = pem.Decode(pemBlock)
-		if block == nil {
-			return nil, ErrInvalidPEMBlock
-		}
-		key, err := ParsePrivateKeyBytes(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, key)
-		if len(pemBlock) == 0 {
-			break
-		}
-	}
-	return keys, nil
-}
-
-// ParsePrivateKeyBytes is used to parse private key from bytes.
-func ParsePrivateKeyBytes(bytes []byte) (interface{}, error) {
-	if key, err := x509.ParsePKCS1PrivateKey(bytes); err == nil {
-		return key, nil
-	}
-	if key, err := x509.ParsePKCS8PrivateKey(bytes); err == nil {
-		return key, nil
-	}
-	if key, err := x509.ParseECPrivateKey(bytes); err == nil {
-		return key, nil
-	}
-	return nil, errors.New("failed to parse private key")
 }
 
 // IsMatchPrivateKey is used to check the private key is match the public key in the certificate.
