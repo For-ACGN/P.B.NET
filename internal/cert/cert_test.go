@@ -10,8 +10,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -253,9 +253,9 @@ func TestGenerateECDSA(t *testing.T) {
 	})
 }
 
-func TestGenerateED25519(t *testing.T) {
+func TestGenerateEd25519(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		pri, pub, err := generateED25519()
+		pri, pub, err := generateEd25519()
 		require.NoError(t, err)
 		require.NotNil(t, pub)
 		require.NotNil(t, pri)
@@ -268,7 +268,7 @@ func TestGenerateED25519(t *testing.T) {
 		pg := monkey.Patch(ed25519.GenerateKey, patch)
 		defer pg.Unpatch()
 
-		pri, pub, err := generateED25519()
+		pri, pub, err := generateEd25519()
 		monkey.IsMonkeyError(t, err)
 		require.Nil(t, pub)
 		require.Nil(t, pri)
@@ -440,7 +440,7 @@ func testGenerate(t *testing.T, ca *Pair) {
 		require.NoError(t, err)
 		defer func() { _ = resp.Body.Close() }()
 
-		b, err := ioutil.ReadAll(resp.Body)
+		b, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, respData, b)
 	}
@@ -469,7 +469,7 @@ func TestPair_EncodeToPEM(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestPrint(t *testing.T) {
+func TestDump(t *testing.T) {
 	opts := Options{
 		DNSNames:       []string{"test.com", "foo.com"},
 		IPAddresses:    []string{"1.1.1.1", "1234::1234"},
@@ -481,11 +481,11 @@ func TestPrint(t *testing.T) {
 	ca, err := GenerateCA(&opts)
 	require.NoError(t, err)
 
-	t.Logf("\n%s", Print(ca.Certificate))
+	Dump(ca.Certificate)
 }
 
 func TestParseCertificate(t *testing.T) {
-	certPEMBlock, err := ioutil.ReadFile("testdata/certs.pem")
+	certPEMBlock, err := os.ReadFile("testdata/certs.pem")
 	require.NoError(t, err)
 	cert, err := ParseCertificate(certPEMBlock)
 	require.NoError(t, err)
@@ -513,7 +513,7 @@ func TestParseCertificate(t *testing.T) {
 }
 
 func TestParseCertificates(t *testing.T) {
-	certPEMBlock, err := ioutil.ReadFile("testdata/certs.pem")
+	certPEMBlock, err := os.ReadFile("testdata/certs.pem")
 	require.NoError(t, err)
 	certs, err := ParseCertificates(certPEMBlock)
 	require.NoError(t, err)
@@ -545,7 +545,7 @@ func TestParsePrivateKey(t *testing.T) {
 	for _, file := range [...]string{
 		"pkcs1.key", "pkcs8.key", "ecp.key",
 	} {
-		keyPEMBlock, err := ioutil.ReadFile("testdata/" + file)
+		keyPEMBlock, err := os.ReadFile("testdata/" + file)
 		require.NoError(t, err)
 		_, err = ParsePrivateKey(keyPEMBlock)
 		require.NoError(t, err)
@@ -565,7 +565,7 @@ func TestParsePrivateKey(t *testing.T) {
 }
 
 func TestParsePrivateKeys(t *testing.T) {
-	keyPEMBlock, err := ioutil.ReadFile("testdata/keys.pem")
+	keyPEMBlock, err := os.ReadFile("testdata/keys.pem")
 	require.NoError(t, err)
 	keys, err := ParsePrivateKeys(keyPEMBlock)
 	require.NoError(t, err)
@@ -592,18 +592,18 @@ func TestMatch(t *testing.T) {
 			pri, err := rsa.GenerateKey(rand.Reader, 2048)
 			require.NoError(t, err)
 			cert.PublicKey = &pri.PublicKey
-			require.True(t, Match(cert, pri))
+			require.True(t, IsMatchPrivateKey(cert, pri))
 		})
 
 		t.Run("mismatch", func(t *testing.T) {
 			pri, err := rsa.GenerateKey(rand.Reader, 2048)
 			require.NoError(t, err)
 			cert.PublicKey = &pri.PublicKey
-			require.False(t, Match(cert, nil))
+			require.False(t, IsMatchPrivateKey(cert, nil))
 
 			pri2, err := rsa.GenerateKey(rand.Reader, 2048)
 			require.NoError(t, err)
-			require.False(t, Match(cert, pri2))
+			require.False(t, IsMatchPrivateKey(cert, pri2))
 		})
 	})
 
@@ -612,18 +612,18 @@ func TestMatch(t *testing.T) {
 			pri, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			require.NoError(t, err)
 			cert.PublicKey = &pri.PublicKey
-			require.True(t, Match(cert, pri))
+			require.True(t, IsMatchPrivateKey(cert, pri))
 		})
 
 		t.Run("mismatch", func(t *testing.T) {
 			pri, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			require.NoError(t, err)
 			cert.PublicKey = &pri.PublicKey
-			require.False(t, Match(cert, nil))
+			require.False(t, IsMatchPrivateKey(cert, nil))
 
 			pri2, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			require.NoError(t, err)
-			require.False(t, Match(cert, pri2))
+			require.False(t, IsMatchPrivateKey(cert, pri2))
 		})
 	})
 
@@ -632,29 +632,29 @@ func TestMatch(t *testing.T) {
 			pub, pri, err := ed25519.GenerateKey(rand.Reader)
 			require.NoError(t, err)
 			cert.PublicKey = pub
-			require.True(t, Match(cert, pri))
+			require.True(t, IsMatchPrivateKey(cert, pri))
 		})
 
 		t.Run("mismatched", func(t *testing.T) {
 			pub, _, err := ed25519.GenerateKey(rand.Reader)
 			require.NoError(t, err)
 			cert.PublicKey = pub
-			require.False(t, Match(cert, nil))
+			require.False(t, IsMatchPrivateKey(cert, nil))
 
 			_, pri, err := ed25519.GenerateKey(rand.Reader)
 			require.NoError(t, err)
-			require.False(t, Match(cert, pri))
+			require.False(t, IsMatchPrivateKey(cert, pri))
 		})
 	})
 
 	t.Run("unknown", func(t *testing.T) {
 		cert.PublicKey = []byte{}
-		require.False(t, Match(cert, nil))
+		require.False(t, IsMatchPrivateKey(cert, nil))
 	})
 }
 
 func TestOptions(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/options.toml")
+	data, err := os.ReadFile("testdata/options.toml")
 	require.NoError(t, err)
 
 	// check unnecessary field

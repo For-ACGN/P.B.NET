@@ -15,11 +15,13 @@ import (
 	"math/big"
 	"net"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"project/internal/convert"
 	"project/internal/crypto/rand"
 	"project/internal/namer"
 	"project/internal/random"
@@ -28,16 +30,29 @@ import (
 
 // Options contains options about generate certificate.
 type Options struct {
-	Algorithm      string         `toml:"algorithm"` // "rsa|2048", "ecdsa|p256", "ed25519"
-	DNSNames       []string       `toml:"dns_names"`
-	IPAddresses    []string       `toml:"ip_addresses"` // IP SANs
-	EmailAddresses []string       `toml:"email_addresses"`
-	URLs           []string       `toml:"urls"`
-	NotBefore      time.Time      `toml:"not_before"`
-	NotAfter       time.Time      `toml:"not_after"`
-	Subject        Subject        `toml:"subject"`
-	NamerOpts      *namer.Options `toml:"namer_opts"`
-	Namer          namer.Namer    `toml:"-" msgpack:"-"`
+	// Algorithm is the certificate signer algorithm
+	// like "rsa|2048", "ecdsa|p256", "ed25519"
+	Algorithm string `toml:"algorithm"`
+
+	// These values may not be valid if invalid values
+	// were contained within a parsed certificate. For
+	// example, an element of DNSNames may not be a valid
+	// DNS domain name. IPAddresses is used to IP SANs.
+	DNSNames       []string `toml:"dns_names"`
+	IPAddresses    []string `toml:"ip_addresses"`
+	EmailAddresses []string `toml:"email_addresses"`
+	URLs           []string `toml:"urls"`
+
+	// Valid time range of certificate.
+	NotBefore time.Time `toml:"not_before"`
+	NotAfter  time.Time `toml:"not_after"`
+
+	// subject information.
+	Subject Subject `toml:"subject"`
+
+	// for generate random name like Subject.CommonName.
+	NamerOpts *namer.Options `toml:"namer"`
+	Namer     namer.Namer    `toml:"-" msgpack:"-"`
 }
 
 // Subject contains certificate subject information.
@@ -128,8 +143,7 @@ func GenerateCA(opts *Options) (*Pair, error) {
 	return &Pair{Certificate: ca, PrivateKey: privateKey}, nil
 }
 
-// Generate is used to generate a signed certificate by CA or self-signed
-// certificate from options.
+// Generate is used to generate a signed certificate by CA or self-signed certificate.
 func Generate(parent *x509.Certificate, pri interface{}, opts *Options) (*Pair, error) {
 	if opts == nil {
 		opts = new(Options)
@@ -160,7 +174,7 @@ func Generate(parent *x509.Certificate, pri interface{}, opts *Options) (*Pair, 
 func generateCertificate(opts *Options) (*x509.Certificate, error) {
 	r := random.NewRand()
 	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(r.Int64()),
+		SerialNumber: big.NewInt(r.Int63()),
 		SubjectKeyId: r.Bytes(4),
 	}
 	err := setCertCommonName(r, cert, opts)
@@ -230,7 +244,7 @@ func setCertCommonName(r *random.Rand, cert *x509.Certificate, opts *Options) er
 	}
 	// generate random common name
 	if opts.Namer == nil {
-		cert.Subject.CommonName = r.String(6 + r.Int(8))
+		cert.Subject.CommonName = r.String(6 + r.Intn(8))
 		return nil
 	}
 	name, err := opts.Namer.Generate(opts.NamerOpts)
@@ -249,7 +263,7 @@ func setCertOrganization(r *random.Rand, cert *x509.Certificate, opts *Options) 
 	}
 	// generate random organization
 	if opts.Namer == nil {
-		cert.Subject.Organization = []string{r.String(6 + r.Int(8))}
+		cert.Subject.Organization = []string{r.String(6 + r.Intn(8))}
 		return nil
 	}
 	name, err := opts.Namer.Generate(opts.NamerOpts)
@@ -263,17 +277,17 @@ func setCertOrganization(r *random.Rand, cert *x509.Certificate, opts *Options) 
 func setCertTime(r *random.Rand, cert *x509.Certificate, opts *Options) {
 	now := time.Date(2018, 11, 27, 0, 0, 0, 0, time.UTC)
 	if opts.NotBefore.IsZero() {
-		years := r.Int(10)
-		months := r.Int(12)
-		days := r.Int(31)
+		years := r.Intn(10)
+		months := r.Intn(12)
+		days := r.Intn(31)
 		cert.NotBefore = now.AddDate(-years, -months, -days)
 	} else {
 		cert.NotBefore = opts.NotBefore
 	}
 	if opts.NotAfter.IsZero() {
-		years := 10 + r.Int(10)
-		months := r.Int(12)
-		days := r.Int(31)
+		years := 10 + r.Intn(10)
+		months := r.Intn(12)
+		days := r.Intn(31)
 		cert.NotAfter = now.AddDate(years, months, days)
 	} else {
 		cert.NotAfter = opts.NotAfter
@@ -347,7 +361,7 @@ func generatePrivateKey(algorithm string) (interface{}, interface{}, error) {
 	case "":
 		return generateRSA("2048")
 	case "ed25519":
-		return generateED25519()
+		return generateEd25519()
 	}
 	configs := strings.Split(alg, "|")
 	if len(configs) != 2 {
@@ -400,7 +414,7 @@ func generateECDSA(curve string) (interface{}, interface{}, error) {
 	return privateKey, &privateKey.PublicKey, nil
 }
 
-func generateED25519() (interface{}, interface{}, error) {
+func generateEd25519() (interface{}, interface{}, error) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, err
@@ -408,54 +422,101 @@ func generateED25519() (interface{}, interface{}, error) {
 	return privateKey, publicKey, nil
 }
 
-const timeLayout = "2006-01-02 15:04:05"
+const timeLayout = "2006-01-02 15:04:05 Z07:00"
 
-// Fprint is used to print certificate information to io.Writer.
-func Fprint(w io.Writer, cert *x509.Certificate) {
-	const format = `subject
-  common name:  %s
-  organization: %s
-issuer
-  common name:  %s
-  organization: %s
-public key algorithm: %s
-signature algorithm:  %s
-not before: %s
-not after:  %s`
-	_, _ = fmt.Fprintf(w, format,
+// Dump is used to dump certificate information to os.Stdout.
+func Dump(cert *x509.Certificate) {
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
+	_, _ = Fdump(buf, cert)
+	buf.WriteString("\n")
+	_, _ = buf.WriteTo(os.Stdout)
+}
+
+// Sdump is used to dump certificate information to a string.
+func Sdump(cert *x509.Certificate) string {
+	builder := strings.Builder{}
+	builder.Grow(512)
+	_, _ = Fdump(&builder, cert)
+	return builder.String()
+}
+
+// Fdump is used to dump certificate information to a io.Writer.
+func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
+	const format = `
+Version: %d
+Serial number: [%s]
+
+[Subject]
+  Common name:  %s
+  Organization: %s
+
+[Issuer]
+  Common name:  %s
+  Organization: %s
+
+Public key algorithm: %s
+Public key: [%s]
+
+Signature algorithm: %s
+Signature: [%s]
+
+Not before: %s
+Not after:  %s
+`
+	var num int
+	n, err := fmt.Fprintf(w, format[1:],
+		cert.Version,
+		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "", 16), ","),
 		cert.Subject.CommonName, strings.Join(cert.Subject.Organization, ", "),
 		cert.Issuer.CommonName, strings.Join(cert.Issuer.Organization, ", "),
-		cert.PublicKeyAlgorithm, cert.SignatureAlgorithm,
+		cert.PublicKeyAlgorithm,
+		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
+		cert.SignatureAlgorithm,
+		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
 		cert.NotBefore.Local().Format(timeLayout),
 		cert.NotAfter.Local().Format(timeLayout),
 	)
+	num += n
+	if err != nil {
+		return num, err
+	}
 	if len(cert.DNSNames) != 0 {
-		_, _ = fmt.Fprintf(w, "\ndns name: %s", strings.Join(cert.DNSNames, ", "))
+		n, err = fmt.Fprintf(w, "\nDNS names: [%s]", strings.Join(cert.DNSNames, ", "))
+		num += n
+		if err != nil {
+			return num, err
+		}
 	}
 	if len(cert.IPAddresses) != 0 {
 		ip := make([]string, len(cert.IPAddresses))
 		for i := 0; i < len(cert.IPAddresses); i++ {
 			ip[i] = cert.IPAddresses[i].String()
 		}
-		_, _ = fmt.Fprintf(w, "\nip address: %s", strings.Join(ip, ", "))
+		n, err = fmt.Fprintf(w, "\nIP addresses: [%s]", strings.Join(ip, ", "))
+		num += n
+		if err != nil {
+			return num, err
+		}
 	}
 	if len(cert.EmailAddresses) != 0 {
-		_, _ = fmt.Fprintf(w, "\nemail address: %s", strings.Join(cert.EmailAddresses, ", "))
+		n, err = fmt.Fprintf(w, "\nEmail addresses: [%s]", strings.Join(cert.EmailAddresses, ", "))
+		num += n
+		if err != nil {
+			return num, err
+		}
 	}
 	if len(cert.URIs) != 0 {
 		urls := make([]string, len(cert.URIs))
 		for i := 0; i < len(cert.URIs); i++ {
 			urls[i] = cert.URIs[i].String()
 		}
-		_, _ = fmt.Fprintf(w, "\nurl: %s", strings.Join(urls, ", "))
+		n, err = fmt.Fprintf(w, "\nURLs: [%s]", strings.Join(urls, ", "))
+		num += n
+		if err != nil {
+			return num, err
+		}
 	}
-}
-
-// Print is used to print certificate information.
-func Print(cert *x509.Certificate) *bytes.Buffer {
-	output := new(bytes.Buffer)
-	Fprint(output, cert)
-	return output
+	return num, nil
 }
 
 // ErrInvalidPEMBlock is the error about the PEM block.
@@ -500,7 +561,6 @@ func ParseCertificates(pemBlock []byte) ([]*x509.Certificate, error) {
 }
 
 // ParsePrivateKey is used to parse private key from PEM.
-// It support RSA ECDSA and ED25519.
 func ParsePrivateKey(pemBlock []byte) (interface{}, error) {
 	block, _ := pem.Decode(pemBlock)
 	if block == nil {
@@ -510,7 +570,6 @@ func ParsePrivateKey(pemBlock []byte) (interface{}, error) {
 }
 
 // ParsePrivateKeys is used to parse private keys from PEM.
-// It support RSA ECDSA and ED25519.
 func ParsePrivateKeys(pemBlock []byte) ([]interface{}, error) {
 	var (
 		keys  []interface{}
@@ -534,7 +593,6 @@ func ParsePrivateKeys(pemBlock []byte) ([]interface{}, error) {
 }
 
 // ParsePrivateKeyBytes is used to parse private key from bytes.
-// It support RSA ECDSA and ED25519.
 func ParsePrivateKeyBytes(bytes []byte) (interface{}, error) {
 	if key, err := x509.ParsePKCS1PrivateKey(bytes); err == nil {
 		return key, nil
@@ -548,8 +606,8 @@ func ParsePrivateKeyBytes(bytes []byte) (interface{}, error) {
 	return nil, errors.New("failed to parse private key")
 }
 
-// Match is used to check the private key is match the public key in the certificate.
-func Match(cert *x509.Certificate, pri interface{}) bool {
+// IsMatchPrivateKey is used to check the private key is match the public key in the certificate.
+func IsMatchPrivateKey(cert *x509.Certificate, pri interface{}) bool {
 	switch pub := cert.PublicKey.(type) {
 	case *rsa.PublicKey:
 		pri, ok := pri.(*rsa.PrivateKey)

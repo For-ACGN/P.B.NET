@@ -90,8 +90,8 @@ func loadPair(cert, pri []byte) (*pair, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !Match(certCp, privateKey) {
-		return nil, errors.New("private key in certificate is mismatched")
+	if !IsMatchPrivateKey(certCp, privateKey) {
+		return nil, errors.New("private key in certificate is not matched")
 	}
 	priBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
