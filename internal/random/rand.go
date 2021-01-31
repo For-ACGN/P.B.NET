@@ -221,6 +221,27 @@ func (r *Rand) Int63() int64 {
 	return r.rand.Int63()
 }
 
+// Uint returns a pseudo-random value as a uint.
+func (r *Rand) Uint() uint {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return uint(r.rand.Uint64())
+}
+
+// Uint8 returns a pseudo-random 8-bit value as a uint8.
+func (r *Rand) Uint8() uint8 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return uint8(r.Int63() >> 55)
+}
+
+// Uint16 returns a pseudo-random 16-bit value as a uint16.
+func (r *Rand) Uint16() uint16 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return uint16(r.Int63() >> 47)
+}
+
 // Uint32 returns a pseudo-random 32-bit value as a uint32.
 func (r *Rand) Uint32() uint32 {
 	r.mu.Lock()
@@ -364,6 +385,21 @@ func Int31() int32 {
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
 func Int63() int64 {
 	return gRand.Int63()
+}
+
+// Uint returns a pseudo-random value as a uint.
+func Uint() uint {
+	return gRand.Uint()
+}
+
+// Uint8 returns a pseudo-random 8-bit value as a uint8.
+func Uint8() uint8 {
+	return gRand.Uint8()
+}
+
+// Uint16 returns a pseudo-random 16-bit value as a uint16.
+func Uint16() uint16 {
+	return gRand.Uint16()
 }
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32.

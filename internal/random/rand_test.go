@@ -117,19 +117,69 @@ func TestRand_Int63n(t *testing.T) {
 	require.True(t, Int63n(-1) == 0)
 }
 
-func TestRand_Number(t *testing.T) {
-	t.Log(Int())
-	t.Log(Int31())
-	t.Log(Int63())
+func TestRand_Int(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Int()
+		require.True(t, v >= 0)
+	}
+}
 
-	t.Log(Uint32())
-	t.Log(Uint64())
+func TestRand_Int7(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Int7()
+		require.True(t, v >= 0, v)
+	}
+}
 
-	t.Log(Float32())
-	t.Log(Float64())
+func TestRand_Int15(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Int15()
+		require.True(t, v >= 0, v)
+	}
+}
 
-	t.Log(NormFloat64())
-	t.Log(ExpFloat64())
+func TestRand_Int31(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Int31()
+		require.True(t, v >= 0, v)
+	}
+}
+
+func TestRand_Int63(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Int63()
+		require.True(t, v >= 0, v)
+	}
+}
+
+func TestRand_Uint(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		Uint()
+	}
+}
+
+func TestRand_Unt8(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		Uint8()
+	}
+}
+
+func TestRand_Uint16(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		Uint16()
+	}
+}
+
+func TestRand_Uint32(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		Uint32()
+	}
+}
+
+func TestRand_Uint64(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		Uint64()
+	}
 }
 
 func TestRand_Perm(t *testing.T) {
