@@ -174,58 +174,98 @@ func TestRand_Int63n(t *testing.T) {
 
 func TestRand_Uintn(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		v := Intn(1<<63 - 1)
-		require.True(t, v >= 0 && v < 1<<63-1)
+		v := Uintn(1<<63 - 1)
+		require.True(t, v < 1<<63-1)
 
-		v = Intn(1<<33 - 1)
-		require.True(t, v >= 0 && v < 1<<33-1)
+		v = Uintn(1<<33 - 1)
+		require.True(t, v < 1<<33-1)
+
+		v = Uintn(1<<64 - 1)
+		require.True(t, v < 1<<64-1)
 	}
 
-	require.True(t, Intn(-1) == 0)
-
-	m := make(map[int]bool, 10)
+	m := make(map[uint]bool, 10)
 	for i := 0; i < 10000; i++ {
-		m[Intn(10)] = true
+		m[Uintn(10)] = true
 	}
-	for i := 0; i < 10; i++ {
+	for i := uint(0); i < 10; i++ {
 		require.True(t, m[i])
 	}
 }
 
 func TestRand_Uint8n(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		v := Intn(10)
-		require.True(t, v >= 0 && v < 10)
+		v := Uint8n(1<<8 - 1)
+		require.True(t, v < 1<<8-1)
+
+		v = Uint8n(1<<4 - 1)
+		require.True(t, v < 1<<4-1)
 	}
 
-	require.True(t, Intn(-1) == 0)
+	m := make(map[uint8]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Uint8n(10)] = true
+	}
+	for i := uint8(0); i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Uint16n(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		v := Intn(10)
-		require.True(t, v >= 0 && v < 10)
+		v := Uint16n(1<<16 - 1)
+		require.True(t, v < 1<<16-1)
+
+		v = Uint16n(1<<8 - 1)
+		require.True(t, v < 1<<8-1)
 	}
 
-	require.True(t, Intn(-1) == 0)
+	m := make(map[uint16]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Uint16n(10)] = true
+	}
+	for i := uint16(0); i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Uint32n(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		v := Intn(10)
-		require.True(t, v >= 0 && v < 10)
+		v := Uint32n(1<<32 - 1)
+		require.True(t, v < 1<<32-1)
+
+		v = Uint32n(1<<16 - 1)
+		require.True(t, v < 1<<16-1)
 	}
 
-	require.True(t, Intn(-1) == 0)
+	m := make(map[uint32]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Uint32n(10)] = true
+	}
+	for i := uint32(0); i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Uint64n(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		v := Intn(10)
-		require.True(t, v >= 0 && v < 10)
+		v := Uint64n(1<<63 - 1)
+		require.True(t, v < 1<<63-1)
+
+		v = Uint64n(1<<33 - 1)
+		require.True(t, v < 1<<33-1)
+
+		v = Uint64n(1<<64 - 1)
+		require.True(t, v < 1<<64-1)
 	}
 
-	require.True(t, Intn(-1) == 0)
+	m := make(map[uint64]bool, 10)
+	for i := uint64(0); i < 10000; i++ {
+		m[Uint64n(10)] = true
+	}
+	for i := uint64(0); i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Int(t *testing.T) {

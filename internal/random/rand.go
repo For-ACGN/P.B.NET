@@ -188,12 +188,11 @@ func (r *Rand) Int63n(n int64) int64 {
 func (r *Rand) Uintn(n uint) uint {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	v := int64(n)
-	if n <= 1<<63-2 {
-		return uint(r.rand.Int63n(v))
+	if n <= 1<<63-1 {
+		return uint(r.rand.Int63n(int64(n)))
 	}
-	front := uint(r.rand.Int63n(v))
-	end := uint(r.rand.Int63n(int64(n - 1<<63 - 2 + 1)))
+	front := uint(r.rand.Int63n(1<<63 - 1))
+	end := uint(r.rand.Int63n(int64(n - (1<<63 - 1) - 1)))
 	return front + end
 }
 
@@ -223,11 +222,11 @@ func (r *Rand) Uint64n(n uint64) uint64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	v := int64(n)
-	if n <= 1<<63-2 {
+	if n <= 1<<63-1 {
 		return uint64(r.rand.Int63n(v))
 	}
-	front := uint64(r.rand.Int63n(v))
-	end := uint64(r.rand.Int63n(int64(n - 1<<63 - 2 + 1)))
+	front := uint64(r.rand.Int63n(1<<63 - 1))
+	end := uint64(r.rand.Int63n(int64(n - (1<<63 - 1) - 1)))
 	return front + end
 }
 
