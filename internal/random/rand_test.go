@@ -74,8 +74,11 @@ func TestRand_Bool(t *testing.T) {
 
 func TestRand_Intn(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		v := Intn(10)
-		require.True(t, v >= 0 && v < 10)
+		v := Intn(1<<63 - 1)
+		require.True(t, v >= 0 && v < 1<<63-1)
+
+		v = Intn(1<<33 - 1)
+		require.True(t, v >= 0 && v < 1<<33-1)
 	}
 
 	require.True(t, Intn(-1) == 0)
@@ -83,8 +86,11 @@ func TestRand_Intn(t *testing.T) {
 
 func TestRand_Int7n(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		v := Int7n(127)
-		require.True(t, v >= 0 && v < 127, v)
+		v := Int7n(1<<7 - 1)
+		require.True(t, v >= 0 && v < 1<<7-1, v)
+
+		v = Int7n(1<<4 - 1)
+		require.True(t, v >= 0 && v < 1<<7-1, v)
 	}
 
 	require.True(t, Intn(-1) == 0)
@@ -93,7 +99,10 @@ func TestRand_Int7n(t *testing.T) {
 func TestRand_Int15n(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		v := Int15n(1<<15 - 1)
-		require.True(t, v >= 0 && v < 32767, v)
+		require.True(t, v >= 0 && v < 1<<15-1, v)
+
+		v = Int15n(1<<8 - 1)
+		require.True(t, v >= 0 && v < 1<<8-1, v)
 	}
 
 	require.True(t, Intn(-1) == 0)
@@ -103,6 +112,9 @@ func TestRand_Int31n(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		v := Int31n(1<<31 - 1)
 		require.True(t, v >= 0 && v < 1<<31-1, v)
+
+		v = Int31n(1<<17 - 1)
+		require.True(t, v >= 0 && v < 1<<17-1, v)
 	}
 
 	require.True(t, Int31n(-1) == 0)
@@ -112,9 +124,58 @@ func TestRand_Int63n(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		v := Int63n(1<<63 - 1)
 		require.True(t, v >= 0 && v < 1<<63-1, v)
+
+		v = Int63n(1<<33 - 1)
+		require.True(t, v >= 0 && v < 1<<33-1, v)
 	}
 
 	require.True(t, Int63n(-1) == 0)
+}
+
+func TestRand_Uintn(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Uintn(1<<64 - 1)
+		if v > 1<<48 {
+			return
+		}
+	}
+	t.Error("invalid range")
+}
+
+func TestRand_Uint8n(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Intn(10)
+		require.True(t, v >= 0 && v < 10)
+	}
+
+	require.True(t, Intn(-1) == 0)
+}
+
+func TestRand_Uint16n(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Intn(10)
+		require.True(t, v >= 0 && v < 10)
+	}
+
+	require.True(t, Intn(-1) == 0)
+}
+
+func TestRand_Uint32n(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Intn(10)
+		require.True(t, v >= 0 && v < 10)
+	}
+
+	require.True(t, Intn(-1) == 0)
+}
+
+func TestRand_Uint64n(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Intn(10)
+		require.True(t, v >= 0 && v < 10)
+	}
+
+	require.True(t, Intn(-1) == 0)
 }
 
 func TestRand_Int(t *testing.T) {

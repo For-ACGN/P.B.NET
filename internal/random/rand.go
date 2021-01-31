@@ -132,7 +132,7 @@ func (r *Rand) Bool() bool {
 	return r.Int63()%2 == 0
 }
 
-// Intn returns, as an int, a non-negative pseudo-random number in [0,n).
+// Intn returns, as an int, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Intn(n int) int {
 	if n < 1 {
 		return 0
@@ -142,7 +142,7 @@ func (r *Rand) Intn(n int) int {
 	return r.rand.Intn(n)
 }
 
-// Int7n returns, as an int8, a non-negative pseudo-random number in [0,n).
+// Int7n returns, as an int8, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Int7n(n int8) int8 {
 	if n < 1 {
 		return 0
@@ -153,7 +153,7 @@ func (r *Rand) Int7n(n int8) int8 {
 	return int8(v << 1 >> 1)
 }
 
-// Int15n returns, as an int16, a non-negative pseudo-random number in [0,n).
+// Int15n returns, as an int16, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Int15n(n int16) int16 {
 	if n < 1 {
 		return 0
@@ -164,7 +164,7 @@ func (r *Rand) Int15n(n int16) int16 {
 	return int16(v << 1 >> 1)
 }
 
-// Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+// Int31n returns, as an int32, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Int31n(n int32) int32 {
 	if n < 1 {
 		return 0
@@ -174,7 +174,7 @@ func (r *Rand) Int31n(n int32) int32 {
 	return r.rand.Int31n(n)
 }
 
-// Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
+// Int63n returns, as an int64, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Int63n(n int64) int64 {
 	if n < 1 {
 		return 0
@@ -182,6 +182,31 @@ func (r *Rand) Int63n(n int64) int64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.rand.Int63n(n)
+}
+
+// Uintn returns, as an uint, a non-negative pseudo-random number in [0, n].
+func (r *Rand) Uintn(n uint) uint {
+	return 0
+}
+
+// Uint8n returns, as an uint8, a non-negative pseudo-random number in [0, n].
+func (r *Rand) Uint8n(n uint8) uint8 {
+	return 0
+}
+
+// Uint16n returns, as an uint16, a non-negative pseudo-random number in [0, n].
+func (r *Rand) Uint16n(n uint16) uint16 {
+	return 0
+}
+
+// Uint32n returns, as an uint32, a non-negative pseudo-random number in [0, n].
+func (r *Rand) Uint32n(n uint32) uint32 {
+	return 0
+}
+
+// Uint64n returns, as an uint64, a non-negative pseudo-random number in [0, n].
+func (r *Rand) Uint64n(n uint64) uint64 {
+	return 0
 }
 
 // Int returns a non-negative pseudo-random int.
@@ -232,14 +257,14 @@ func (r *Rand) Uint() uint {
 func (r *Rand) Uint8() uint8 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return uint8(r.Int63() >> 55)
+	return uint8(r.rand.Int63() >> 55)
 }
 
 // Uint16 returns a pseudo-random 16-bit value as a uint16.
 func (r *Rand) Uint16() uint16 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return uint16(r.Int63() >> 47)
+	return uint16(r.rand.Int63() >> 47)
 }
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32.
@@ -256,14 +281,14 @@ func (r *Rand) Uint64() uint64 {
 	return r.rand.Uint64()
 }
 
-// Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
+// Float32 returns, as a float32, a pseudo-random number in [0.0, 1.0).
 func (r *Rand) Float32() float32 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.rand.Float32()
 }
 
-// Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
+// Float64 returns, as a float64, a pseudo-random number in [0.0, 1.0).
 func (r *Rand) Float64() float64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -298,7 +323,7 @@ func (r *Rand) ExpFloat64() float64 {
 	return r.rand.ExpFloat64()
 }
 
-// Perm returns, as a slice of n int, a pseudo-random permutation of the integers [0,n).
+// Perm returns, as a slice of n int, a pseudo-random permutation of the integers [0, n).
 func (r *Rand) Perm(n int) []int {
 	if n < 1 {
 		return nil
@@ -337,29 +362,54 @@ func Bool() bool {
 	return gRand.Bool()
 }
 
-// Intn returns, as an int, a non-negative pseudo-random number in [0,n).
+// Intn returns, as an int, a non-negative pseudo-random number in [0, n).
 func Intn(n int) int {
 	return gRand.Intn(n)
 }
 
-// Int7n returns, as an int8, a non-negative pseudo-random number in [0,n).
+// Int7n returns, as an int8, a non-negative pseudo-random number in [0, n).
 func Int7n(n int8) int8 {
 	return gRand.Int7n(n)
 }
 
-// Int15n returns, as an int16, a non-negative pseudo-random number in [0,n).
+// Int15n returns, as an int16, a non-negative pseudo-random number in [0, n).
 func Int15n(n int16) int16 {
 	return gRand.Int15n(n)
 }
 
-// Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
+// Int31n returns, as an int32, a non-negative pseudo-random number in [0, n).
 func Int31n(n int32) int32 {
 	return gRand.Int31n(n)
 }
 
-// Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
+// Int63n returns, as an int64, a non-negative pseudo-random number in [0, n).
 func Int63n(n int64) int64 {
 	return gRand.Int63n(n)
+}
+
+// Uintn returns, as an uint, a non-negative pseudo-random number in [0, n].
+func Uintn(n uint) uint {
+	return gRand.Uintn(n)
+}
+
+// Uint8n returns, as an uint8, a non-negative pseudo-random number in [0, n].
+func Uint8n(n uint8) uint8 {
+	return gRand.Uint8n(n)
+}
+
+// Uint16n returns, as an uint16, a non-negative pseudo-random number in [0, n].
+func Uint16n(n uint16) uint16 {
+	return gRand.Uint16n(n)
+}
+
+// Uint32n returns, as an uint32, a non-negative pseudo-random number in [0, n].
+func Uint32n(n uint32) uint32 {
+	return gRand.Uint32n(n)
+}
+
+// Uint64n returns, as an uint64, a non-negative pseudo-random number in [0, n].
+func Uint64n(n uint64) uint64 {
+	return gRand.Uint64n(n)
 }
 
 // Int returns a non-negative pseudo-random int.
@@ -412,12 +462,12 @@ func Uint64() uint64 {
 	return gRand.Uint64()
 }
 
-// Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
+// Float32 returns, as a float32, a pseudo-random number in [0.0, 1.0).
 func Float32() float32 {
 	return gRand.Float32()
 }
 
-// Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
+// Float64 returns, as a float64, a pseudo-random number in [0.0, 1.0).
 func Float64() float64 {
 	return gRand.Float64()
 }
@@ -446,7 +496,7 @@ func ExpFloat64() float64 {
 	return gRand.ExpFloat64()
 }
 
-// Perm returns, as a slice of n int, a pseudo-random permutation of the integers [0,n).
+// Perm returns, as a slice of n int, a pseudo-random permutation of the integers [0, n).
 func Perm(n int) []int {
 	return gRand.Perm(n)
 }
