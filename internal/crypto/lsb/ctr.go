@@ -254,7 +254,7 @@ func (cd *CTRDecrypter) Read(b []byte) (int, error) {
 	}
 	// calculate remaining
 	r := cd.size - cd.read
-	if r <= 0 {
+	if r < 1 {
 		return 0, io.EOF
 	}
 	if r < l {

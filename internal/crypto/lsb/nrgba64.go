@@ -29,15 +29,15 @@ func copyNRGBA64(src image.Image) *image.NRGBA64 {
 			// confuse alpha channel
 			switch {
 			case rgba.A <= 256:
-				if rand.Intn(100) > 49 {
+				if rand.Bool() {
 					rgba.A += uint16(rand.Intn(256))
 				}
 			case rgba.A >= 65535-256:
-				if rand.Intn(100) > 49 {
+				if rand.Bool() {
 					rgba.A -= uint16(rand.Intn(256))
 				}
 			default:
-				if rand.Intn(100) > 49 {
+				if rand.Bool() {
 					rgba.A += uint16(rand.Intn(256))
 				} else {
 					rgba.A -= uint16(rand.Intn(256))

@@ -195,7 +195,7 @@ func (pr *PNGReader) Read(b []byte) (int, error) {
 	}
 	// calculate remaining
 	r := pr.capacity - pr.i
-	if r <= 0 {
+	if r < 1 {
 		return 0, io.EOF
 	}
 	ll := int64(l)
