@@ -2,6 +2,7 @@ package random
 
 import (
 	"crypto/sha256"
+	"math"
 	"math/rand"
 	"sync"
 	"testing"
@@ -184,6 +185,8 @@ func TestRand_Uintn(t *testing.T) {
 		require.True(t, v < 1<<64-1)
 	}
 
+	require.True(t, Uintn(0) == 0)
+
 	m := make(map[uint]bool, 10)
 	for i := 0; i < 10000; i++ {
 		m[Uintn(10)] = true
@@ -201,6 +204,8 @@ func TestRand_Uint8n(t *testing.T) {
 		v = Uint8n(1<<4 - 1)
 		require.True(t, v < 1<<4-1)
 	}
+
+	require.True(t, Uint8n(0) == 0)
 
 	m := make(map[uint8]bool, 10)
 	for i := 0; i < 10000; i++ {
@@ -220,6 +225,8 @@ func TestRand_Uint16n(t *testing.T) {
 		require.True(t, v < 1<<8-1)
 	}
 
+	require.True(t, Uint16n(0) == 0)
+
 	m := make(map[uint16]bool, 10)
 	for i := 0; i < 10000; i++ {
 		m[Uint16n(10)] = true
@@ -237,6 +244,8 @@ func TestRand_Uint32n(t *testing.T) {
 		v = Uint32n(1<<16 - 1)
 		require.True(t, v < 1<<16-1)
 	}
+
+	require.True(t, Uint32n(0) == 0)
 
 	m := make(map[uint32]bool, 10)
 	for i := 0; i < 10000; i++ {
@@ -258,6 +267,8 @@ func TestRand_Uint64n(t *testing.T) {
 		v = Uint64n(1<<64 - 1)
 		require.True(t, v < 1<<64-1)
 	}
+
+	require.True(t, Uint64n(0) == 0)
 
 	m := make(map[uint64]bool, 10)
 	for i := uint64(0); i < 10000; i++ {
@@ -333,6 +344,34 @@ func TestRand_Uint64(t *testing.T) {
 	}
 }
 
+func TestRand_Float32(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Float32()
+		require.True(t, v >= 0 && v <= 1)
+	}
+}
+
+func TestRand_Float64(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Float64()
+		require.True(t, v >= 0 && v <= 1)
+	}
+}
+
+func TestRand_NormFloat64(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := NormFloat64()
+		require.True(t, v >= -math.MaxFloat64 && v <= math.MaxFloat64)
+	}
+}
+
+func TestRand_ExpFloat64(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := ExpFloat64()
+		require.True(t, v >= 0 && v <= math.MaxFloat64)
+	}
+}
+
 func TestRand_Perm(t *testing.T) {
 	n := Perm(16)
 	for i := 0; i < len(n); i++ {
@@ -378,11 +417,23 @@ func TestRand_Parallel(t *testing.T) {
 		func() { t.Log(r.String(16)) },
 		func() { t.Log(r.Bool()) },
 		func() { t.Log(r.Intn(16)) },
+		func() { t.Log(r.Int7n(16)) },
+		func() { t.Log(r.Int15n(16)) },
 		func() { t.Log(r.Int31n(16)) },
 		func() { t.Log(r.Int63n(16)) },
+		func() { t.Log(r.Uintn(16)) },
+		func() { t.Log(r.Uint8n(16)) },
+		func() { t.Log(r.Uint16n(16)) },
+		func() { t.Log(r.Uint32n(16)) },
+		func() { t.Log(r.Uint64n(16)) },
 		func() { t.Log(r.Int()) },
+		func() { t.Log(r.Int7()) },
+		func() { t.Log(r.Int15()) },
 		func() { t.Log(r.Int31()) },
 		func() { t.Log(r.Int63()) },
+		func() { t.Log(r.Uint()) },
+		func() { t.Log(r.Uint8()) },
+		func() { t.Log(r.Uint16()) },
 		func() { t.Log(r.Uint32()) },
 		func() { t.Log(r.Uint64()) },
 		func() { t.Log(r.Float32()) },

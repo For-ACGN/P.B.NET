@@ -186,6 +186,9 @@ func (r *Rand) Int63n(n int64) int64 {
 
 // Uintn returns, as an uint, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uintn(n uint) uint {
+	if n < 1 {
+		return 0
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if n <= 1<<63-1 {
@@ -198,6 +201,9 @@ func (r *Rand) Uintn(n uint) uint {
 
 // Uint8n returns, as an uint8, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uint8n(n uint8) uint8 {
+	if n < 1 {
+		return 0
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return uint8(r.rand.Int63n(int64(n)))
@@ -205,6 +211,9 @@ func (r *Rand) Uint8n(n uint8) uint8 {
 
 // Uint16n returns, as an uint16, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uint16n(n uint16) uint16 {
+	if n < 1 {
+		return 0
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return uint16(r.rand.Int63n(int64(n)))
@@ -212,6 +221,9 @@ func (r *Rand) Uint16n(n uint16) uint16 {
 
 // Uint32n returns, as an uint32, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uint32n(n uint32) uint32 {
+	if n < 1 {
+		return 0
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return uint32(r.rand.Int63n(int64(n)))
@@ -219,6 +231,9 @@ func (r *Rand) Uint32n(n uint32) uint32 {
 
 // Uint64n returns, as an uint64, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uint64n(n uint64) uint64 {
+	if n < 1 {
+		return 0
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	v := int64(n)
@@ -321,9 +336,7 @@ func (r *Rand) Float64() float64 {
 // with standard normal distribution (mean = 0, std dev = 1).
 // To produce a different normal distribution, callers can
 // adjust the output using:
-//
-//  sample = NormFloat64() * desiredStdDev + desiredMean
-//
+// sample = NormFloat64() * desiredStdDev + desiredMean
 func (r *Rand) NormFloat64() float64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -335,9 +348,7 @@ func (r *Rand) NormFloat64() float64 {
 // (lambda) is 1 and whose mean is 1/lambda (1).
 // To produce a distribution with a different rate parameter,
 // callers can adjust the output using:
-//
-//  sample = ExpFloat64() / desiredRateParameter
-//
+// sample = ExpFloat64() / desiredRateParameter
 func (r *Rand) ExpFloat64() float64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -498,9 +509,7 @@ func Float64() float64 {
 // with standard normal distribution (mean = 0, std dev = 1).
 // To produce a different normal distribution, callers can
 // adjust the output using:
-//
-//  sample = NormFloat64() * desiredStdDev + desiredMean
-//
+// sample = NormFloat64() * desiredStdDev + desiredMean
 func NormFloat64() float64 {
 	return gRand.NormFloat64()
 }
@@ -510,9 +519,7 @@ func NormFloat64() float64 {
 // (lambda) is 1 and whose mean is 1/lambda (1).
 // To produce a distribution with a different rate parameter,
 // callers can adjust the output using:
-//
-//  sample = ExpFloat64() / desiredRateParameter
-//
+// sample = ExpFloat64() / desiredRateParameter
 func ExpFloat64() float64 {
 	return gRand.ExpFloat64()
 }
