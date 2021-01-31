@@ -142,6 +142,28 @@ func (r *Rand) Intn(n int) int {
 	return r.rand.Intn(n)
 }
 
+// Int7n returns, as an int8, a non-negative pseudo-random number in [0,n).
+func (r *Rand) Int7n(n int8) int8 {
+	if n < 1 {
+		return 0
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	v := uint8(r.rand.Int63n(int64(n)))
+	return int8(v << 1 >> 1)
+}
+
+// Int15n returns, as an int16, a non-negative pseudo-random number in [0,n).
+func (r *Rand) Int15n(n int16) int16 {
+	if n < 1 {
+		return 0
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	v := uint16(r.rand.Int63n(int64(n)))
+	return int16(v << 1 >> 1)
+}
+
 // Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
 func (r *Rand) Int31n(n int32) int32 {
 	if n < 1 {
@@ -167,6 +189,22 @@ func (r *Rand) Int() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.rand.Int()
+}
+
+// Int7 returns a non-negative pseudo-random 7-bit integer as an int32.
+func (r *Rand) Int7() int8 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	v := uint8(r.rand.Int63())
+	return int8(v << 1 >> 1)
+}
+
+// Int15 returns a non-negative pseudo-random 15-bit integer as an int32.
+func (r *Rand) Int15() int16 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	v := uint16(r.rand.Int63())
+	return int16(v << 1 >> 1)
 }
 
 // Int31 returns a non-negative pseudo-random 31-bit integer as an int32.
@@ -283,6 +321,16 @@ func Intn(n int) int {
 	return gRand.Intn(n)
 }
 
+// Int7n returns, as an int8, a non-negative pseudo-random number in [0,n).
+func Int7n(n int8) int8 {
+	return gRand.Int7n(n)
+}
+
+// Int15n returns, as an int16, a non-negative pseudo-random number in [0,n).
+func Int15n(n int16) int16 {
+	return gRand.Int15n(n)
+}
+
 // Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
 func Int31n(n int32) int32 {
 	return gRand.Int31n(n)
@@ -296,6 +344,16 @@ func Int63n(n int64) int64 {
 // Int returns a non-negative pseudo-random int.
 func Int() int {
 	return gRand.Int()
+}
+
+// Int7 returns a non-negative pseudo-random 7-bit integer as an int8.
+func Int7() int8 {
+	return gRand.Int7()
+}
+
+// Int15 returns a non-negative pseudo-random 15-bit integer as an int16.
+func Int15() int16 {
+	return gRand.Int15()
 }
 
 // Int31 returns a non-negative pseudo-random 31-bit integer as an int32.

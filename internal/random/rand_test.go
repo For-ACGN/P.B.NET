@@ -2,7 +2,6 @@ package random
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -64,29 +63,56 @@ func TestRand_String(t *testing.T) {
 }
 
 func TestRand_Bool(t *testing.T) {
-	fmt.Println(Bool())
+	m := make(map[bool]bool, 2)
+	for i := 0; i < 1000; i++ {
+		m[Bool()] = true
+	}
+
+	require.True(t, m[true])
+	require.True(t, m[false])
 }
 
 func TestRand_Intn(t *testing.T) {
-	i := Intn(10)
-	t.Log(i)
-	require.True(t, i >= 0 && i < 10)
+	for i := 0; i < 1000; i++ {
+		v := Intn(10)
+		require.True(t, v >= 0 && v < 10)
+	}
+
+	require.True(t, Intn(-1) == 0)
+}
+
+func TestRand_Int7n(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Int7n(127)
+		require.True(t, v >= 0 && v < 127, v)
+	}
+
+	require.True(t, Intn(-1) == 0)
+}
+
+func TestRand_Int15n(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		v := Int15n(1<<15 - 1)
+		require.True(t, v >= 0 && v < 32767, v)
+	}
 
 	require.True(t, Intn(-1) == 0)
 }
 
 func TestRand_Int31n(t *testing.T) {
-	i := Int31n(10)
-	t.Log(i)
-	require.True(t, i >= 0 && i < 10)
+	for i := 0; i < 1000; i++ {
+		v := Int31n(1<<31 - 1)
+		require.True(t, v >= 0 && v < 1<<31-1, v)
+	}
 
 	require.True(t, Int31n(-1) == 0)
 }
 
 func TestRand_Int63n(t *testing.T) {
-	i := Int63n(10)
-	t.Log(i)
-	require.True(t, i >= 0 && i < 10)
+	for i := 0; i < 1000; i++ {
+		v := Int63n(1<<63 - 1)
+		require.True(t, v >= 0 && v < 1<<63-1, v)
+	}
 
 	require.True(t, Int63n(-1) == 0)
 }
