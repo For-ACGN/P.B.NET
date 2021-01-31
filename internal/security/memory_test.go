@@ -190,6 +190,8 @@ func benchmarkBytes(b *testing.B, n int) {
 		data := sb.Get()
 		sb.Put(data)
 	}
+
+	b.StopTimer()
 }
 
 func BenchmarkString(b *testing.B) {
@@ -216,4 +218,6 @@ func benchmarkString(b *testing.B, n int) {
 		data := ss.Get()
 		CoverString(data)
 	}
+
+	b.StopTimer()
 }

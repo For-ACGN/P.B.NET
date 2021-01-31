@@ -470,6 +470,8 @@ func BenchmarkNewRand(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		NewRand()
 	}
+
+	b.StopTimer()
 }
 
 func BenchmarkRand_Int63(b *testing.B) {
@@ -481,6 +483,8 @@ func BenchmarkRand_Int63(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		r.Int63()
 	}
+
+	b.StopTimer()
 }
 
 func BenchmarkRand_Bytes(b *testing.B) {
@@ -492,4 +496,6 @@ func BenchmarkRand_Bytes(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		r.Bytes(16)
 	}
+
+	b.StopTimer()
 }

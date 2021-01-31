@@ -328,6 +328,8 @@ func BenchmarkGUID_IsZero(b *testing.B) {
 			b.Fatal("guid is not zero")
 		}
 	}
+
+	b.StopTimer()
 }
 
 func BenchmarkGenerator_Get_WithoutCache(b *testing.B) {
@@ -388,4 +390,6 @@ func BenchmarkGUIDForMapKey(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		m[key[i]] = i
 	}
+
+	b.StopTimer()
 }
