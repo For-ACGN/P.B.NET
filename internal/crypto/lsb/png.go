@@ -24,11 +24,11 @@ type pngCommon struct {
 	y *int
 }
 
-func newPNGCommon(img image.Image) *pngCommon {
+func newPNGCommon(img image.Image) pngCommon {
 	rect := img.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()
-	return &pngCommon{
+	return pngCommon{
 		origin:   img,
 		capacity: int64(width * height),
 		x:        new(int),
@@ -91,7 +91,7 @@ var _ Writer = new(PNGWriter)
 
 // PNGWriter implemented lsb Writer interface.
 type PNGWriter struct {
-	*pngCommon
+	pngCommon
 }
 
 // NewPNGWriter is used to create a png lsb writer.
@@ -162,7 +162,7 @@ var _ Reader = new(PNGReader)
 
 // PNGReader implemented lsb Reader interface.
 type PNGReader struct {
-	*pngCommon
+	pngCommon
 }
 
 // NewPNGReader is used to create a png lsb reader.

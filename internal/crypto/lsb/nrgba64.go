@@ -50,6 +50,9 @@ func copyNRGBA64(src image.Image) *image.NRGBA64 {
 }
 
 func writeNRGBA64(origin image.Image, img *image.NRGBA64, x, y *int, data []byte) {
+	xx := *x
+	yy := *y
+
 	rect := origin.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()
@@ -62,12 +65,12 @@ func writeNRGBA64(origin image.Image, img *image.NRGBA64, x, y *int, data []byte
 	)
 
 	for i := 0; i < len(data); i++ {
-		if *x >= width {
+		if xx >= width {
 			panic("lsb: out of bounds")
 		}
 
 		// write 8 bit to the last bit about 4(RGBA) * 2(front and end) byte
-		rgba = color.NRGBA64Model.Convert(origin.At(*x, *y)).(color.NRGBA64)
+		rgba = color.NRGBA64Model.Convert(origin.At(xx, yy)).(color.NRGBA64)
 		block[0] = uint8(rgba.R >> 8) // front 8 bit
 		block[1] = uint8(rgba.R)      // end 8 bit
 		block[2] = uint8(rgba.G >> 8) // front 8 bit
@@ -98,18 +101,24 @@ func writeNRGBA64(origin image.Image, img *image.NRGBA64, x, y *int, data []byte
 		rgba.G = uint16(block[2])<<8 + uint16(block[3])
 		rgba.B = uint16(block[4])<<8 + uint16(block[5])
 		rgba.A = uint16(block[6])<<8 + uint16(block[7])
-		img.SetNRGBA64(*x, *y, rgba)
+		img.SetNRGBA64(xx, yy, rgba)
 
 		// check if need go to the next pixel column.
-		*y++
-		if *y >= height {
-			*y = 0
-			*x++
+		yy++
+		if yy >= height {
+			yy = 0
+			xx++
 		}
 	}
+
+	*x = xx
+	*y = yy
 }
 
 func readNRGBA64(img *image.NRGBA64, x, y *int, b []byte) {
+	xx := *x
+	yy := *y
+
 	rect := img.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()
@@ -121,12 +130,12 @@ func readNRGBA64(img *image.NRGBA64, x, y *int, b []byte) {
 	)
 
 	for i := 0; i < len(b); i++ {
-		if *x >= width {
+		if xx >= width {
 			panic("lsb: out of bounds")
 		}
 
 		// read 8 bit to from last bit about 4(RGBA) * 2(front and end) byte
-		rgba = img.NRGBA64At(*x, *y)
+		rgba = img.NRGBA64At(xx, yy)
 		block[0] = uint8(rgba.R >> 8) // front 8 bit
 		block[1] = uint8(rgba.R)      // end 8 bit
 		block[2] = uint8(rgba.G >> 8) // front 8 bit
@@ -147,10 +156,13 @@ func readNRGBA64(img *image.NRGBA64, x, y *int, b []byte) {
 		byt = 0
 
 		// check if need go to the next pixel column.
-		*y++
-		if *y >= height {
-			*y = 0
-			*x++
+		yy++
+		if yy >= height {
+			yy = 0
+			xx++
 		}
 	}
+
+	*x = xx
+	*y = yy
 }

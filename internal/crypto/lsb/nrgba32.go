@@ -50,6 +50,9 @@ func copyNRGBA32(src image.Image) *image.NRGBA {
 }
 
 func writeNRGBA32(origin image.Image, img *image.NRGBA, x, y *int, data []byte) {
+	xx := *x
+	yy := *y
+
 	rect := origin.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()
@@ -62,12 +65,12 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, x, y *int, data []byte) 
 	)
 
 	for i := 0; i < len(data); i++ {
-		if *x >= width {
+		if xx >= width {
 			panic("lsb: out of bounds")
 		}
 
 		// write 8 bit to the last two and last one bit in each color channel
-		rgba = color.NRGBAModel.Convert(origin.At(*x, *y)).(color.NRGBA)
+		rgba = color.NRGBAModel.Convert(origin.At(xx, yy)).(color.NRGBA)
 		block[0] = rgba.R >> 1 // the second to last bit
 		block[1] = rgba.R      // the last one bit
 		block[2] = rgba.G >> 1 // the second to last bit
@@ -98,18 +101,24 @@ func writeNRGBA32(origin image.Image, img *image.NRGBA, x, y *int, data []byte) 
 		rgba.G = block[2]<<1 + block[3]&1
 		rgba.B = block[4]<<1 + block[5]&1
 		rgba.A = block[6]<<1 + block[7]&1
-		img.SetNRGBA(*x, *y, rgba)
+		img.SetNRGBA(xx, yy, rgba)
 
 		// check if need go to the next pixel column.
-		*y++
-		if *y >= height {
-			*y = 0
-			*x++
+		yy++
+		if yy >= height {
+			yy = 0
+			xx++
 		}
 	}
+
+	*x = xx
+	*y = yy
 }
 
 func readNRGBA32(img *image.NRGBA, x, y *int, b []byte) {
+	xx := *x
+	yy := *y
+
 	rect := img.Bounds()
 	width := rect.Dx()
 	height := rect.Dy()
@@ -121,12 +130,12 @@ func readNRGBA32(img *image.NRGBA, x, y *int, b []byte) {
 	)
 
 	for i := 0; i < len(b); i++ {
-		if *x >= width {
+		if xx >= width {
 			panic("lsb: out of bounds")
 		}
 
 		// read 8 bit from the last two and last one bit in each color channel
-		rgba = img.NRGBAAt(*x, *y)
+		rgba = img.NRGBAAt(xx, yy)
 		block[0] = rgba.R >> 1 // the second to last bit
 		block[1] = rgba.R      // the last one bit
 		block[2] = rgba.G >> 1 // the second to last bit
@@ -147,10 +156,13 @@ func readNRGBA32(img *image.NRGBA, x, y *int, b []byte) {
 		byt = 0
 
 		// check if need go to the next pixel column.
-		*y++
-		if *y >= height {
-			*y = 0
-			*x++
+		yy++
+		if yy >= height {
+			yy = 0
+			xx++
 		}
 	}
+
+	*x = xx
+	*y = yy
 }

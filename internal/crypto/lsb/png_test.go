@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/png"
+	"io"
 	"os"
 	"testing"
 
@@ -85,4 +86,94 @@ func TestPNGReaderWithInvalidMode(t *testing.T) {
 	})
 
 	testsuite.IsDestroyed(t, reader)
+}
+
+func BenchmarkNewPNGWriter(b *testing.B) {
+	img := testGeneratePNG(1920, 1080)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err := NewPNGWriter(img, PNGWithNRGBA32)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.StopTimer()
+}
+
+func BenchmarkPNGWriter_Write(b *testing.B) {
+	img := testGeneratePNG(1920, 1080)
+	writer, err := NewPNGWriter(img, PNGWithNRGBA32)
+	require.NoError(b, err)
+
+	data := make([]byte, 2048)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = writer.Write(data)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// not use b.StopTimer
+		writer.pngCommon.Reset()
+	}
+
+	b.StopTimer()
+}
+
+func BenchmarkNewPNGReader(b *testing.B) {
+	img := testGeneratePNG(1920, 1080)
+	buf := bytes.NewBuffer(make([]byte, 0, 1920*1080/2))
+	err := png.Encode(buf, img)
+	require.NoError(b, err)
+	reader := bytes.NewReader(buf.Bytes())
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = NewPNGReader(reader)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		_, err = reader.Seek(0, io.SeekStart)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.StopTimer()
+}
+
+func BenchmarkPNGReader_Read(b *testing.B) {
+	img := testGeneratePNG(1920, 1080)
+	buf := bytes.NewBuffer(make([]byte, 0, 1920*1080/2))
+	err := png.Encode(buf, img)
+	require.NoError(b, err)
+	reader, err := NewPNGReader(buf)
+	require.NoError(b, err)
+
+	buffer := make([]byte, 2048)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err = reader.Read(buffer)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// not use b.StopTimer
+		reader.pngCommon.Reset()
+	}
+
+	b.StopTimer()
 }
