@@ -127,6 +127,11 @@ func (r *Rand) String(n int) string {
 	return string(result)
 }
 
+// Bool returns a pseudo-random bool in [false, true].
+func (r *Rand) Bool() bool {
+	return r.Int63()%2 == 0
+}
+
 // Intn returns, as an int, a non-negative pseudo-random number in [0,n).
 func (r *Rand) Intn(n int) int {
 	if n < 1 {
@@ -266,6 +271,11 @@ func Bytes(n int) []byte {
 // String returns a string that only include 0-9, A-Z and a-z.
 func String(n int) string {
 	return gRand.String(n)
+}
+
+// Bool returns a pseudo-random bool in [false, true].
+func Bool() bool {
+	return gRand.Bool()
 }
 
 // Intn returns, as an int, a non-negative pseudo-random number in [0,n).

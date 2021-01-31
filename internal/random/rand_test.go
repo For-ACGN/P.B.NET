@@ -2,6 +2,7 @@ package random
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -60,6 +61,10 @@ func TestRand_String(t *testing.T) {
 
 	str = String(-1)
 	require.Len(t, str, 0)
+}
+
+func TestRand_Bool(t *testing.T) {
+	fmt.Println(Bool())
 }
 
 func TestRand_Intn(t *testing.T) {
@@ -144,6 +149,7 @@ func TestRand_Parallel(t *testing.T) {
 	for _, fn := range []func(){
 		func() { t.Log(r.Bytes(16)) },
 		func() { t.Log(r.String(16)) },
+		func() { t.Log(r.Bool()) },
 		func() { t.Log(r.Intn(16)) },
 		func() { t.Log(r.Int31n(16)) },
 		func() { t.Log(r.Int63n(16)) },
@@ -185,6 +191,17 @@ func BenchmarkNewRand(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		NewRand()
+	}
+}
+
+func BenchmarkRand_Int63(b *testing.B) {
+	r := NewRand()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		r.Int63()
 	}
 }
 
