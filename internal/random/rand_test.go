@@ -82,6 +82,14 @@ func TestRand_Intn(t *testing.T) {
 	}
 
 	require.True(t, Intn(-1) == 0)
+
+	m := make(map[int]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Intn(10)] = true
+	}
+	for i := 0; i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Int7n(t *testing.T) {
@@ -93,7 +101,15 @@ func TestRand_Int7n(t *testing.T) {
 		require.True(t, v >= 0 && v < 1<<7-1, v)
 	}
 
-	require.True(t, Intn(-1) == 0)
+	require.True(t, Int7n(-1) == 0)
+
+	m := make(map[int8]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Int7n(10)] = true
+	}
+	for i := int8(0); i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Int15n(t *testing.T) {
@@ -105,7 +121,15 @@ func TestRand_Int15n(t *testing.T) {
 		require.True(t, v >= 0 && v < 1<<8-1, v)
 	}
 
-	require.True(t, Intn(-1) == 0)
+	require.True(t, Int15n(-1) == 0)
+
+	m := make(map[int16]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Int15n(10)] = true
+	}
+	for i := int16(0); i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Int31n(t *testing.T) {
@@ -118,6 +142,14 @@ func TestRand_Int31n(t *testing.T) {
 	}
 
 	require.True(t, Int31n(-1) == 0)
+
+	m := make(map[int32]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Int31n(10)] = true
+	}
+	for i := int32(0); i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Int63n(t *testing.T) {
@@ -130,16 +162,34 @@ func TestRand_Int63n(t *testing.T) {
 	}
 
 	require.True(t, Int63n(-1) == 0)
+
+	m := make(map[int64]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Int63n(10)] = true
+	}
+	for i := int64(0); i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Uintn(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		v := Uintn(1<<64 - 1)
-		if v > 1<<48 {
-			return
-		}
+		v := Intn(1<<63 - 1)
+		require.True(t, v >= 0 && v < 1<<63-1)
+
+		v = Intn(1<<33 - 1)
+		require.True(t, v >= 0 && v < 1<<33-1)
 	}
-	t.Error("invalid range")
+
+	require.True(t, Intn(-1) == 0)
+
+	m := make(map[int]bool, 10)
+	for i := 0; i < 10000; i++ {
+		m[Intn(10)] = true
+	}
+	for i := 0; i < 10; i++ {
+		require.True(t, m[i])
+	}
 }
 
 func TestRand_Uint8n(t *testing.T) {

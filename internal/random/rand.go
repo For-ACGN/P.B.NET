@@ -184,29 +184,51 @@ func (r *Rand) Int63n(n int64) int64 {
 	return r.rand.Int63n(n)
 }
 
-// Uintn returns, as an uint, a non-negative pseudo-random number in [0, n].
+// Uintn returns, as an uint, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uintn(n uint) uint {
-	return 0
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	v := int64(n)
+	if n <= 1<<63-2 {
+		return uint(r.rand.Int63n(v))
+	}
+	front := uint(r.rand.Int63n(v))
+	end := uint(r.rand.Int63n(int64(n - 1<<63 - 2 + 1)))
+	return front + end
 }
 
-// Uint8n returns, as an uint8, a non-negative pseudo-random number in [0, n].
+// Uint8n returns, as an uint8, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uint8n(n uint8) uint8 {
-	return 0
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return uint8(r.rand.Int63n(int64(n)))
 }
 
-// Uint16n returns, as an uint16, a non-negative pseudo-random number in [0, n].
+// Uint16n returns, as an uint16, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uint16n(n uint16) uint16 {
-	return 0
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return uint16(r.rand.Int63n(int64(n)))
 }
 
-// Uint32n returns, as an uint32, a non-negative pseudo-random number in [0, n].
+// Uint32n returns, as an uint32, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uint32n(n uint32) uint32 {
-	return 0
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return uint32(r.rand.Int63n(int64(n)))
 }
 
-// Uint64n returns, as an uint64, a non-negative pseudo-random number in [0, n].
+// Uint64n returns, as an uint64, a non-negative pseudo-random number in [0, n).
 func (r *Rand) Uint64n(n uint64) uint64 {
-	return 0
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	v := int64(n)
+	if n <= 1<<63-2 {
+		return uint64(r.rand.Int63n(v))
+	}
+	front := uint64(r.rand.Int63n(v))
+	end := uint64(r.rand.Int63n(int64(n - 1<<63 - 2 + 1)))
+	return front + end
 }
 
 // Int returns a non-negative pseudo-random int.
