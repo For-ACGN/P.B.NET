@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"project/internal/cert"
-	"project/internal/security"
 
+	"project/internal/cert"
 	"project/internal/patch/monkey"
+	"project/internal/security"
 	"project/internal/testsuite"
 )
 

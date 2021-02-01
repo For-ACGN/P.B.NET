@@ -59,6 +59,7 @@ Not after:  %s
 `
 	publicKey, err := dumpPublicKey(cert.PublicKey)
 	if err != nil {
+		_, _ = w.Write([]byte("[error]: " + err.Error()))
 		return 0, err
 	}
 	var num int
@@ -121,6 +122,7 @@ Not after:  %s
 	return num, nil
 }
 
+// dumpPublicKey is used to dump a part information about public key.
 func dumpPublicKey(publicKey interface{}) ([]byte, error) {
 	switch pub := publicKey.(type) {
 	case *rsa.PublicKey:
