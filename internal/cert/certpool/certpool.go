@@ -82,11 +82,11 @@ func loadPair(crt, pri []byte) (*pair, error) {
 	}
 	raw := make([]byte, len(crt))
 	copy(raw, crt)
-	certCp, err := x509.ParseCertificate(raw)
+	certCp, err := cert.ParseCertificateDER(raw)
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := cert.ParsePrivateKeyBytes(pri)
+	privateKey, err := cert.ParsePrivateKeyDER(pri)
 	if err != nil {
 		return nil, err
 	}

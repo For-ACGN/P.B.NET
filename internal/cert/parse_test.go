@@ -1,108 +1,138 @@
 package cert
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseCertificate(t *testing.T) {
-	certPEMBlock, err := os.ReadFile("testdata/certs.pem")
-	require.NoError(t, err)
-	cert, err := ParseCertificate(certPEMBlock)
-	require.NoError(t, err)
-	t.Log(cert.Issuer)
+func TestParseCertificatePEM(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
+		pb, err := os.ReadFile("testdata/certs.pem")
+		require.NoError(t, err)
+		cert, err := ParseCertificatePEM(pb)
+		require.NoError(t, err)
+		t.Log(cert.Issuer)
+	})
 
-	// parse invalid PEM data
-	_, err = ParseCertificate([]byte{0, 1, 2, 3})
-	require.Equal(t, ErrInvalidPEMBlock, err)
+	t.Run("invalid PEM data", func(t *testing.T) {
+		cert, err := ParseCertificatePEM([]byte{0, 1, 2, 3})
+		require.Equal(t, ErrInvalidPEMBlock, err)
+		require.Nil(t, cert)
+	})
 
-	// invalid Type
-	certPEMBlock = []byte(`
+	t.Run("invalid type", func(t *testing.T) {
+		pb := []byte(`
 -----BEGIN INVALID TYPE-----
 -----END INVALID TYPE-----
 `)
-	_, err = ParseCertificate(certPEMBlock)
-	require.EqualError(t, err, "invalid PEM block type: INVALID TYPE")
+		cert, err := ParseCertificatePEM(pb)
+		require.EqualError(t, err, "invalid PEM block type: INVALID TYPE")
+		require.Nil(t, cert)
+	})
 
-	// invalid certificate data
-	certPEMBlock = []byte(`
+	t.Run("invalid certificate data", func(t *testing.T) {
+		pb := []byte(`
 -----BEGIN CERTIFICATE-----
 -----END CERTIFICATE-----
 `)
-	_, err = ParseCertificate(certPEMBlock)
-	require.Error(t, err)
+		cert, err := ParseCertificatePEM(pb)
+		require.Error(t, err)
+		require.Nil(t, cert)
+	})
 }
 
-func TestParseCertificates(t *testing.T) {
-	certPEMBlock, err := os.ReadFile("testdata/certs.pem")
-	require.NoError(t, err)
-	certs, err := ParseCertificates(certPEMBlock)
-	require.NoError(t, err)
-	t.Log(certs[0].Issuer)
-	t.Log(certs[1].Issuer)
+func TestParseCertificatesPEM(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
+		pb, err := os.ReadFile("testdata/certs.pem")
+		require.NoError(t, err)
+		certs, err := ParseCertificatesPEM(pb)
+		require.NoError(t, err)
+		t.Log(certs[0].Issuer)
+		t.Log(certs[1].Issuer)
+	})
 
-	// parse invalid PEM data
-	_, err = ParseCertificates([]byte{0, 1, 2, 3})
-	require.Equal(t, ErrInvalidPEMBlock, err)
+	t.Run("invalid PEM data", func(t *testing.T) {
+		certs, err := ParseCertificatesPEM([]byte{0, 1, 2, 3})
+		require.Equal(t, ErrInvalidPEMBlock, err)
+		require.Nil(t, certs)
+	})
 
-	// invalid Type
-	certPEMBlock = []byte(`
+	t.Run("invalid type", func(t *testing.T) {
+		pb := []byte(`
 -----BEGIN INVALID TYPE-----
 -----END INVALID TYPE-----
 `)
-	_, err = ParseCertificates(certPEMBlock)
-	require.EqualError(t, err, "invalid PEM block type: INVALID TYPE")
+		certs, err := ParseCertificatesPEM(pb)
+		require.EqualError(t, err, "invalid PEM block type: INVALID TYPE")
+		require.Nil(t, certs)
+	})
 
-	// invalid certificate data
-	certPEMBlock = []byte(`
+	t.Run("invalid certificate data", func(t *testing.T) {
+		pb := []byte(`
 -----BEGIN CERTIFICATE-----
 -----END CERTIFICATE-----
 `)
-	_, err = ParseCertificates(certPEMBlock)
-	require.Error(t, err)
+		certs, err := ParseCertificatesPEM(pb)
+		require.Error(t, err)
+		require.Nil(t, certs)
+	})
 }
 
-func TestParsePrivateKey(t *testing.T) {
+func TestParsePrivateKeyPEM(t *testing.T) {
 	for _, file := range [...]string{
-		"pkcs1.key", "pkcs8.key", "ecp.key",
+		"pkcs1", "pkcs8", "ecp",
 	} {
-		keyPEMBlock, err := os.ReadFile("testdata/" + file)
-		require.NoError(t, err)
-		_, err = ParsePrivateKey(keyPEMBlock)
-		require.NoError(t, err)
+		t.Run(file, func(t *testing.T) {
+			der, err := os.ReadFile(fmt.Sprintf("testdata/%s.key", file))
+			require.NoError(t, err)
+			key, err := ParsePrivateKeyPEM(der)
+			require.NoError(t, err)
+			require.NotNil(t, key)
+		})
 	}
 
-	// parse invalid PEM data
-	_, err := ParsePrivateKey([]byte{0, 1, 2, 3})
-	require.Equal(t, ErrInvalidPEMBlock, err)
+	t.Run("invalid PEM data", func(t *testing.T) {
+		key, err := ParsePrivateKeyPEM([]byte{0, 1, 2, 3})
+		require.Equal(t, ErrInvalidPEMBlock, err)
+		require.Nil(t, key)
+	})
 
-	// invalid certificate data
-	keyPEMBlock := []byte(`
+	t.Run("invalid private key data", func(t *testing.T) {
+		pb := []byte(`
 -----BEGIN PRIVATE KEY-----
 -----END PRIVATE KEY-----
 `)
-	_, err = ParsePrivateKey(keyPEMBlock)
-	require.Error(t, err)
+		key, err := ParsePrivateKeyPEM(pb)
+		require.Error(t, err)
+		require.Nil(t, key)
+	})
 }
 
-func TestParsePrivateKeys(t *testing.T) {
-	keyPEMBlock, err := os.ReadFile("testdata/keys.pem")
-	require.NoError(t, err)
-	keys, err := ParsePrivateKeys(keyPEMBlock)
-	require.NoError(t, err)
-	require.Len(t, keys, 2)
+func TestParsePrivateKeysPEM(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
+		pb, err := os.ReadFile("testdata/keys.pem")
+		require.NoError(t, err)
+		keys, err := ParsePrivateKeysPEM(pb)
+		require.NoError(t, err)
+		require.Len(t, keys, 2)
+	})
 
-	// parse invalid PEM data
-	_, err = ParsePrivateKeys([]byte{0, 1, 2, 3})
-	require.Equal(t, ErrInvalidPEMBlock, err)
+	t.Run("invalid PEM data", func(t *testing.T) {
+		keys, err := ParsePrivateKeysPEM([]byte{0, 1, 2, 3})
+		require.Equal(t, ErrInvalidPEMBlock, err)
+		require.Nil(t, keys)
+	})
 
-	// invalid certificate data
-	keyPEMBlock = []byte(`
+	t.Run("invalid private key data", func(t *testing.T) {
+		pb := []byte(`
 -----BEGIN CERTIFICATE-----
 -----END CERTIFICATE-----
 `)
-	_, err = ParsePrivateKeys(keyPEMBlock)
-	require.Error(t, err)
+		keys, err := ParsePrivateKeysPEM(pb)
+		require.Error(t, err)
+		require.Nil(t, keys)
+	})
 }
