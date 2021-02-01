@@ -2,11 +2,16 @@ package cert
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"project/internal/convert"
 )
@@ -31,7 +36,7 @@ func Sdump(cert *x509.Certificate) string {
 
 // Fdump is used to dump certificate information to a io.Writer.
 func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
-	const format = `
+	const template = `
 Version: %d
 Serial number: [%s]
 
@@ -52,14 +57,18 @@ Signature: [%s]
 Not before: %s
 Not after:  %s
 `
+	publicKey, err := dumpPublicKey(cert.PublicKey)
+	if err != nil {
+		return 0, err
+	}
 	var num int
-	n, err := fmt.Fprintf(w, format[1:],
+	n, err := fmt.Fprintf(w, template[1:],
 		cert.Version,
 		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "", 16), ","),
 		cert.Subject.CommonName, strings.Join(cert.Subject.Organization, ", "),
 		cert.Issuer.CommonName, strings.Join(cert.Issuer.Organization, ", "),
-		cert.PublicKeyAlgorithm, // TODO print public key
-		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
+		cert.PublicKeyAlgorithm,
+		strings.TrimSuffix(convert.SdumpBytesWithPL(publicKey[:8], "", 8), ","),
 		cert.SignatureAlgorithm,
 		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
 		cert.NotBefore.Local().Format(timeLayout),
@@ -110,4 +119,17 @@ Not after:  %s
 		}
 	}
 	return num, nil
+}
+
+func dumpPublicKey(publicKey interface{}) ([]byte, error) {
+	switch pub := publicKey.(type) {
+	case *rsa.PublicKey:
+		return pub.N.Bytes(), nil
+	case *ecdsa.PublicKey:
+		return pub.X.Bytes(), nil
+	case ed25519.PublicKey:
+		return pub, nil
+	default:
+		return nil, errors.Errorf("unsupported public key: %T", pub)
+	}
 }
