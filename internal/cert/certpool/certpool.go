@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -12,23 +11,6 @@ import (
 	"project/internal/cert"
 	"project/internal/security"
 )
-
-// pair is used to protect private key about certificate.
-type pair struct {
-	Certificate *x509.Certificate
-	PrivateKey  *security.Bytes // PKCS8
-}
-
-// toPair is used to convert *pair to *Pair.
-func (p *pair) toPair() *cert.Pair {
-	pkcs8 := p.PrivateKey.Get()
-	defer p.PrivateKey.Put(pkcs8)
-	pri, err := x509.ParsePKCS8PrivateKey(pkcs8)
-	if err != nil {
-		panic(fmt.Sprintf("cert: internal error: %s", err))
-	}
-	return &cert.Pair{Certificate: p.Certificate, PrivateKey: pri}
-}
 
 // Pool include all certificates from public and private place.
 type Pool struct {
@@ -53,67 +35,6 @@ func NewPool() *Pool {
 	memory := security.NewMemory()
 	defer memory.Flush()
 	return new(Pool)
-}
-
-func isCertExist(certs []*x509.Certificate, cert *x509.Certificate) bool {
-	for i := 0; i < len(certs); i++ {
-		if bytes.Equal(certs[i].Raw, cert.Raw) {
-			return true
-		}
-	}
-	return false
-}
-
-func isPairExist(pairs []*pair, pair *pair) bool {
-	for i := 0; i < len(pairs); i++ {
-		if bytes.Equal(pairs[i].Certificate.Raw, pair.Certificate.Raw) {
-			return true
-		}
-	}
-	return false
-}
-
-func loadPair(crt, pri []byte) (*pair, error) {
-	if len(crt) == 0 {
-		return nil, errors.New("empty certificate data")
-	}
-	if len(pri) == 0 {
-		return nil, errors.New("empty private key data")
-	}
-	raw := make([]byte, len(crt))
-	copy(raw, crt)
-	certCp, err := cert.ParseCertificateDER(raw)
-	if err != nil {
-		return nil, err
-	}
-	privateKey, err := cert.ParsePrivateKeyDER(pri)
-	if err != nil {
-		return nil, err
-	}
-	if !cert.IsMatchPrivateKey(certCp, privateKey) {
-		return nil, errors.New("private key in certificate is not matched")
-	}
-	priBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
-	if err != nil {
-		return nil, err
-	}
-	return &pair{
-		Certificate: certCp,
-		PrivateKey:  security.NewBytes(priBytes),
-	}, nil
-}
-
-func loadCertToPair(cert []byte) (*pair, error) {
-	if len(cert) == 0 {
-		return nil, errors.New("empty certificate data")
-	}
-	raw := make([]byte, len(cert))
-	copy(raw, cert)
-	certCopy, err := x509.ParseCertificate(raw)
-	if err != nil {
-		return nil, err
-	}
-	return &pair{Certificate: certCopy}, nil
 }
 
 // AddPublicRootCACert is used to add public root CA certificate.
@@ -333,7 +254,7 @@ func (p *Pool) GetPublicClientPairs() []*cert.Pair {
 	l := len(p.pubClientCerts)
 	pairs := make([]*cert.Pair, l)
 	for i := 0; i < l; i++ {
-		pairs[i] = p.pubClientCerts[i].toPair()
+		pairs[i] = p.pubClientCerts[i].ToCertPair()
 	}
 	return pairs
 }
@@ -345,7 +266,7 @@ func (p *Pool) GetPrivateRootCAPairs() []*cert.Pair {
 	l := len(p.priRootCACerts)
 	pairs := make([]*cert.Pair, l)
 	for i := 0; i < l; i++ {
-		pairs[i] = p.priRootCACerts[i].toPair()
+		pairs[i] = p.priRootCACerts[i].ToCertPair()
 	}
 	return pairs
 }
@@ -369,7 +290,7 @@ func (p *Pool) GetPrivateClientCAPairs() []*cert.Pair {
 	l := len(p.priClientCACerts)
 	pairs := make([]*cert.Pair, l)
 	for i := 0; i < l; i++ {
-		pairs[i] = p.priClientCACerts[i].toPair()
+		pairs[i] = p.priClientCACerts[i].ToCertPair()
 	}
 	return pairs
 }
@@ -393,7 +314,7 @@ func (p *Pool) GetPrivateClientPairs() []*cert.Pair {
 	l := len(p.priClientCerts)
 	pairs := make([]*cert.Pair, l)
 	for i := 0; i < l; i++ {
-		pairs[i] = p.priClientCerts[i].toPair()
+		pairs[i] = p.priClientCerts[i].ToCertPair()
 	}
 	return pairs
 }
@@ -433,7 +354,7 @@ func (p *Pool) ExportPublicClientPair(i int) ([]byte, []byte, error) {
 	if i < 0 || i > len(p.pubClientCerts)-1 {
 		return nil, nil, errors.Errorf("invalid id: %d", i)
 	}
-	crt, key := p.pubClientCerts[i].toPair().EncodeToPEM()
+	crt, key := p.pubClientCerts[i].ToCertPair().EncodeToPEM()
 	return crt, key, nil
 }
 
@@ -444,7 +365,7 @@ func (p *Pool) ExportPrivateRootCAPair(i int) ([]byte, []byte, error) {
 	if i < 0 || i > len(p.priRootCACerts)-1 {
 		return nil, nil, errors.Errorf("invalid id: %d", i)
 	}
-	crt, key := p.priRootCACerts[i].toPair().EncodeToPEM()
+	crt, key := p.priRootCACerts[i].ToCertPair().EncodeToPEM()
 	return crt, key, nil
 }
 
@@ -455,7 +376,7 @@ func (p *Pool) ExportPrivateClientCAPair(i int) ([]byte, []byte, error) {
 	if i < 0 || i > len(p.priClientCACerts)-1 {
 		return nil, nil, errors.Errorf("invalid id: %d", i)
 	}
-	crt, key := p.priClientCACerts[i].toPair().EncodeToPEM()
+	crt, key := p.priClientCACerts[i].ToCertPair().EncodeToPEM()
 	return crt, key, nil
 }
 
@@ -466,18 +387,36 @@ func (p *Pool) ExportPrivateClientPair(i int) ([]byte, []byte, error) {
 	if i < 0 || i > len(p.priClientCerts)-1 {
 		return nil, nil, errors.Errorf("invalid id: %d", i)
 	}
-	crt, key := p.priClientCerts[i].toPair().EncodeToPEM()
+	crt, key := p.priClientCerts[i].ToCertPair().EncodeToPEM()
 	return crt, key, nil
 }
 
-// NewPoolWithSystemCerts is used to create a certificate pool with system certificate.
-func NewPoolWithSystemCerts() (*Pool, error) {
-	systemCertPool, err := System()
+func isCertExist(certs []*x509.Certificate, cert *x509.Certificate) bool {
+	for i := 0; i < len(certs); i++ {
+		if bytes.Equal(certs[i].Raw, cert.Raw) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPairExist(pairs []*pair, pair *pair) bool {
+	for i := 0; i < len(pairs); i++ {
+		if bytes.Equal(pairs[i].Certificate.Raw, pair.Certificate.Raw) {
+			return true
+		}
+	}
+	return false
+}
+
+// NewPoolWithSystem is used to create a certificate pool with system certificates.
+func NewPoolWithSystem() (*Pool, error) {
+	certPool, err := System()
 	if err != nil {
 		return nil, err
 	}
 	pool := NewPool()
-	certs := systemCertPool.Certs()
+	certs := certPool.Certs()
 	for i := 0; i < len(certs); i++ {
 		err = pool.AddPublicRootCACert(certs[i].Raw)
 		if err != nil {
