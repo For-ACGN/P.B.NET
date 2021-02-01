@@ -127,6 +127,28 @@ func BenchmarkPNGWriter_Write(b *testing.B) {
 	b.StopTimer()
 }
 
+func BenchmarkPNGWriter_Encode(b *testing.B) {
+	img := testGeneratePNG(1920, 1080)
+	writer, err := NewPNGWriter(img, PNGWithNRGBA32)
+	require.NoError(b, err)
+	buf := bytes.NewBuffer(make([]byte, 4*1024*1024))
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err = writer.Encode(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// not use b.StopTimer
+		buf.Reset()
+	}
+
+	b.StopTimer()
+}
+
 func BenchmarkNewPNGReader(b *testing.B) {
 	img := testGeneratePNG(1920, 1080)
 	buf := bytes.NewBuffer(make([]byte, 0, 1920*1080/2))
