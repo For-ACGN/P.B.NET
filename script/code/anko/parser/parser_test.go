@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -29,7 +28,7 @@ func TestGenerateParser(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, code, output)
 	// add directive comment about development tools.
-	parser, err := ioutil.ReadFile("parser.go")
+	parser, err := os.ReadFile("parser.go")
 	require.NoError(t, err)
 	// replace code
 	str := string(parser)
@@ -49,6 +48,6 @@ func TestGenerateParser(t *testing.T) {
 		str = strings.ReplaceAll(str, item.target, item.replacement)
 	}
 	// save code
-	err = ioutil.WriteFile("parser.go", []byte(str), 0600)
+	err = os.WriteFile("parser.go", []byte(str), 0600)
 	require.NoError(t, err)
 }

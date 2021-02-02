@@ -468,19 +468,19 @@ func TestPool_Export<f1>Cert_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, err := pool.Export<f1>Cert(0)
+			crt, err := pool.Export<f1>Cert(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1, cert)
+			require.Equal(t, cert1, crt)
 		}
 		export2 := func() {
-			cert, err := pool.Export<f1>Cert(1)
+			crt, err := pool.Export<f1>Cert(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2, cert)
+			require.Equal(t, cert2, crt)
 		}
 		export3 := func() {
-			cert, err := pool.Export<f1>Cert(2)
+			crt, err := pool.Export<f1>Cert(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 		}
 		cleanup := func() {
 			certs := pool.Get<f1>Certs()
@@ -511,19 +511,19 @@ func TestPool_Export<f1>Cert_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, err := pool.Export<f1>Cert(0)
+			crt, err := pool.Export<f1>Cert(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1, cert)
+			require.Equal(t, cert1, crt)
 		}
 		export2 := func() {
-			cert, err := pool.Export<f1>Cert(1)
+			crt, err := pool.Export<f1>Cert(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2, cert)
+			require.Equal(t, cert2, crt)
 		}
 		export3 := func() {
-			cert, err := pool.Export<f1>Cert(2)
+			crt, err := pool.Export<f1>Cert(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 		}
 		cleanup := func() {
 			certs := pool.Get<f1>Certs()
@@ -565,21 +565,21 @@ func TestPool_Export<f1>Pair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.Export<f1>Pair(0)
+			crt, key, err := pool.Export<f1>Pair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.Export<f1>Pair(1)
+			crt, key, err := pool.Export<f1>Pair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.Export<f1>Pair(2)
+			crt, key, err := pool.Export<f1>Pair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -611,21 +611,21 @@ func TestPool_Export<f1>Pair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.Export<f1>Pair(0)
+			crt, key, err := pool.Export<f1>Pair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.Export<f1>Pair(1)
+			crt, key, err := pool.Export<f1>Pair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.Export<f1>Pair(2)
+			crt, key, err := pool.Export<f1>Pair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
