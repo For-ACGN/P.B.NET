@@ -642,11 +642,11 @@ func TestPool_ExportPublicRootCACert(t *testing.T) {
 		err := pool.AddPublicRootCACert(pair.Certificate.Raw)
 		require.NoError(t, err)
 
-		cert, err := pool.ExportPublicRootCACert(0)
+		crt, err := pool.ExportPublicRootCACert(0)
 		require.NoError(t, err)
 
 		c, _ := pair.EncodeToPEM()
-		require.Equal(t, c, cert)
+		require.Equal(t, c, crt)
 
 		testsuite.IsDestroyed(t, pool)
 	})
@@ -657,9 +657,9 @@ func TestPool_ExportPublicRootCACert(t *testing.T) {
 		for _, id := range [...]int{
 			-1, 0, 1,
 		} {
-			cert, err := pool.ExportPublicRootCACert(id)
+			crt, err := pool.ExportPublicRootCACert(id)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			t.Log(err)
 		}
 
@@ -674,11 +674,11 @@ func TestPool_ExportPublicClientCACert(t *testing.T) {
 		err := pool.AddPublicClientCACert(pair.Certificate.Raw)
 		require.NoError(t, err)
 
-		cert, err := pool.ExportPublicClientCACert(0)
+		crt, err := pool.ExportPublicClientCACert(0)
 		require.NoError(t, err)
 
 		c, _ := pair.EncodeToPEM()
-		require.Equal(t, c, cert)
+		require.Equal(t, c, crt)
 
 		testsuite.IsDestroyed(t, pool)
 	})
@@ -689,9 +689,9 @@ func TestPool_ExportPublicClientCACert(t *testing.T) {
 		for _, id := range [...]int{
 			-1, 0, 1,
 		} {
-			cert, err := pool.ExportPublicClientCACert(id)
+			crt, err := pool.ExportPublicClientCACert(id)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			t.Log(err)
 		}
 
@@ -706,11 +706,11 @@ func TestPool_ExportPublicClientCert(t *testing.T) {
 		err := pool.AddPublicClientPair(pair.Encode())
 		require.NoError(t, err)
 
-		cert, key, err := pool.ExportPublicClientPair(0)
+		crt, key, err := pool.ExportPublicClientPair(0)
 		require.NoError(t, err)
 
 		c, k := pair.EncodeToPEM()
-		require.Equal(t, c, cert)
+		require.Equal(t, c, crt)
 		require.Equal(t, k, key)
 
 		testsuite.IsDestroyed(t, pool)
@@ -722,9 +722,9 @@ func TestPool_ExportPublicClientCert(t *testing.T) {
 		for _, id := range [...]int{
 			-1, 0, 1,
 		} {
-			cert, key, err := pool.ExportPublicClientPair(id)
+			crt, key, err := pool.ExportPublicClientPair(id)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 			t.Log(err)
 		}
@@ -740,11 +740,11 @@ func TestPool_ExportPrivateRootCACert(t *testing.T) {
 		err := pool.AddPrivateRootCAPair(pair.Encode())
 		require.NoError(t, err)
 
-		cert, key, err := pool.ExportPrivateRootCAPair(0)
+		crt, key, err := pool.ExportPrivateRootCAPair(0)
 		require.NoError(t, err)
 
 		c, k := pair.EncodeToPEM()
-		require.Equal(t, c, cert)
+		require.Equal(t, c, crt)
 		require.Equal(t, k, key)
 
 		testsuite.IsDestroyed(t, pool)
@@ -756,9 +756,9 @@ func TestPool_ExportPrivateRootCACert(t *testing.T) {
 		for _, id := range [...]int{
 			-1, 0, 1,
 		} {
-			cert, key, err := pool.ExportPrivateRootCAPair(id)
+			crt, key, err := pool.ExportPrivateRootCAPair(id)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 			t.Log(err)
 		}
@@ -774,11 +774,11 @@ func TestPool_ExportPrivateClientCACert(t *testing.T) {
 		err := pool.AddPrivateClientCAPair(pair.Encode())
 		require.NoError(t, err)
 
-		cert, key, err := pool.ExportPrivateClientCAPair(0)
+		crt, key, err := pool.ExportPrivateClientCAPair(0)
 		require.NoError(t, err)
 
 		c, k := pair.EncodeToPEM()
-		require.Equal(t, c, cert)
+		require.Equal(t, c, crt)
 		require.Equal(t, k, key)
 
 		testsuite.IsDestroyed(t, pool)
@@ -790,9 +790,9 @@ func TestPool_ExportPrivateClientCACert(t *testing.T) {
 		for _, id := range [...]int{
 			-1, 0, 1,
 		} {
-			cert, key, err := pool.ExportPrivateClientCAPair(id)
+			crt, key, err := pool.ExportPrivateClientCAPair(id)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 			t.Log(err)
 		}
@@ -808,11 +808,11 @@ func TestPool_ExportPrivateClientPair(t *testing.T) {
 		err := pool.AddPrivateClientPair(pair.Encode())
 		require.NoError(t, err)
 
-		cert, key, err := pool.ExportPrivateClientPair(0)
+		crt, key, err := pool.ExportPrivateClientPair(0)
 		require.NoError(t, err)
 
 		c, k := pair.EncodeToPEM()
-		require.Equal(t, c, cert)
+		require.Equal(t, c, crt)
 		require.Equal(t, k, key)
 
 		testsuite.IsDestroyed(t, pool)
@@ -824,9 +824,9 @@ func TestPool_ExportPrivateClientPair(t *testing.T) {
 		for _, id := range [...]int{
 			-1, 0, 1,
 		} {
-			cert, key, err := pool.ExportPrivateClientPair(id)
+			crt, key, err := pool.ExportPrivateClientPair(id)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 			t.Log(err)
 		}
@@ -2332,19 +2332,19 @@ func TestPool_ExportPublicRootCACert_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, err := pool.ExportPublicRootCACert(0)
+			crt, err := pool.ExportPublicRootCACert(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1, cert)
+			require.Equal(t, cert1, crt)
 		}
 		export2 := func() {
-			cert, err := pool.ExportPublicRootCACert(1)
+			crt, err := pool.ExportPublicRootCACert(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2, cert)
+			require.Equal(t, cert2, crt)
 		}
 		export3 := func() {
-			cert, err := pool.ExportPublicRootCACert(2)
+			crt, err := pool.ExportPublicRootCACert(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 		}
 		cleanup := func() {
 			certs := pool.GetPublicRootCACerts()
@@ -2375,19 +2375,19 @@ func TestPool_ExportPublicRootCACert_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, err := pool.ExportPublicRootCACert(0)
+			crt, err := pool.ExportPublicRootCACert(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1, cert)
+			require.Equal(t, cert1, crt)
 		}
 		export2 := func() {
-			cert, err := pool.ExportPublicRootCACert(1)
+			crt, err := pool.ExportPublicRootCACert(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2, cert)
+			require.Equal(t, cert2, crt)
 		}
 		export3 := func() {
-			cert, err := pool.ExportPublicRootCACert(2)
+			crt, err := pool.ExportPublicRootCACert(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 		}
 		cleanup := func() {
 			certs := pool.GetPublicRootCACerts()
@@ -2421,19 +2421,19 @@ func TestPool_ExportPublicClientCACert_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, err := pool.ExportPublicClientCACert(0)
+			crt, err := pool.ExportPublicClientCACert(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1, cert)
+			require.Equal(t, cert1, crt)
 		}
 		export2 := func() {
-			cert, err := pool.ExportPublicClientCACert(1)
+			crt, err := pool.ExportPublicClientCACert(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2, cert)
+			require.Equal(t, cert2, crt)
 		}
 		export3 := func() {
-			cert, err := pool.ExportPublicClientCACert(2)
+			crt, err := pool.ExportPublicClientCACert(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 		}
 		cleanup := func() {
 			certs := pool.GetPublicClientCACerts()
@@ -2464,19 +2464,19 @@ func TestPool_ExportPublicClientCACert_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, err := pool.ExportPublicClientCACert(0)
+			crt, err := pool.ExportPublicClientCACert(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1, cert)
+			require.Equal(t, cert1, crt)
 		}
 		export2 := func() {
-			cert, err := pool.ExportPublicClientCACert(1)
+			crt, err := pool.ExportPublicClientCACert(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2, cert)
+			require.Equal(t, cert2, crt)
 		}
 		export3 := func() {
-			cert, err := pool.ExportPublicClientCACert(2)
+			crt, err := pool.ExportPublicClientCACert(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 		}
 		cleanup := func() {
 			certs := pool.GetPublicClientCACerts()
@@ -2512,21 +2512,21 @@ func TestPool_ExportPublicClientPair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.ExportPublicClientPair(0)
+			crt, key, err := pool.ExportPublicClientPair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.ExportPublicClientPair(1)
+			crt, key, err := pool.ExportPublicClientPair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.ExportPublicClientPair(2)
+			crt, key, err := pool.ExportPublicClientPair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -2558,21 +2558,21 @@ func TestPool_ExportPublicClientPair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.ExportPublicClientPair(0)
+			crt, key, err := pool.ExportPublicClientPair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.ExportPublicClientPair(1)
+			crt, key, err := pool.ExportPublicClientPair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.ExportPublicClientPair(2)
+			crt, key, err := pool.ExportPublicClientPair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -2609,21 +2609,21 @@ func TestPool_ExportPrivateRootCAPair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.ExportPrivateRootCAPair(0)
+			crt, key, err := pool.ExportPrivateRootCAPair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.ExportPrivateRootCAPair(1)
+			crt, key, err := pool.ExportPrivateRootCAPair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.ExportPrivateRootCAPair(2)
+			crt, key, err := pool.ExportPrivateRootCAPair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -2655,21 +2655,21 @@ func TestPool_ExportPrivateRootCAPair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.ExportPrivateRootCAPair(0)
+			crt, key, err := pool.ExportPrivateRootCAPair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.ExportPrivateRootCAPair(1)
+			crt, key, err := pool.ExportPrivateRootCAPair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.ExportPrivateRootCAPair(2)
+			crt, key, err := pool.ExportPrivateRootCAPair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -2706,21 +2706,21 @@ func TestPool_ExportPrivateClientCAPair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.ExportPrivateClientCAPair(0)
+			crt, key, err := pool.ExportPrivateClientCAPair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.ExportPrivateClientCAPair(1)
+			crt, key, err := pool.ExportPrivateClientCAPair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.ExportPrivateClientCAPair(2)
+			crt, key, err := pool.ExportPrivateClientCAPair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -2752,21 +2752,21 @@ func TestPool_ExportPrivateClientCAPair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.ExportPrivateClientCAPair(0)
+			crt, key, err := pool.ExportPrivateClientCAPair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.ExportPrivateClientCAPair(1)
+			crt, key, err := pool.ExportPrivateClientCAPair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.ExportPrivateClientCAPair(2)
+			crt, key, err := pool.ExportPrivateClientCAPair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -2803,21 +2803,21 @@ func TestPool_ExportPrivateClientPair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.ExportPrivateClientPair(0)
+			crt, key, err := pool.ExportPrivateClientPair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.ExportPrivateClientPair(1)
+			crt, key, err := pool.ExportPrivateClientPair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.ExportPrivateClientPair(2)
+			crt, key, err := pool.ExportPrivateClientPair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -2849,21 +2849,21 @@ func TestPool_ExportPrivateClientPair_Parallel(t *testing.T) {
 			require.NoError(t, err)
 		}
 		export1 := func() {
-			cert, key, err := pool.ExportPrivateClientPair(0)
+			crt, key, err := pool.ExportPrivateClientPair(0)
 			require.NoError(t, err)
-			require.Equal(t, cert1PEM, cert)
+			require.Equal(t, cert1PEM, crt)
 			require.Equal(t, key1PEM, key)
 		}
 		export2 := func() {
-			cert, key, err := pool.ExportPrivateClientPair(1)
+			crt, key, err := pool.ExportPrivateClientPair(1)
 			require.NoError(t, err)
-			require.Equal(t, cert2PEM, cert)
+			require.Equal(t, cert2PEM, crt)
 			require.Equal(t, key2PEM, key)
 		}
 		export3 := func() {
-			cert, key, err := pool.ExportPrivateClientPair(2)
+			crt, key, err := pool.ExportPrivateClientPair(2)
 			require.Error(t, err)
-			require.Nil(t, cert)
+			require.Nil(t, crt)
 			require.Nil(t, key)
 		}
 		cleanup := func() {
@@ -3136,7 +3136,7 @@ func TestNewPoolWithSystem(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("failed to call SystemCertPool", func(t *testing.T) {
+	t.Run("failed to call System", func(t *testing.T) {
 		patch := func() (*x509.CertPool, error) {
 			return nil, monkey.Error
 		}
