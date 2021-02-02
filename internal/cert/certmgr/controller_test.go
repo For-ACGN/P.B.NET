@@ -1,8 +1,8 @@
 package certmgr
 
 import (
-	"bytes"
 	"compress/flate"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"testing"
@@ -12,11 +12,12 @@ import (
 	"project/internal/cert"
 	"project/internal/cert/certpool"
 	"project/internal/crypto/aes"
+	"project/internal/crypto/hmac"
 	"project/internal/patch/monkey"
 	"project/internal/patch/msgpack"
 )
 
-func TestCtrlCertPool_Dump(t *testing.T) {
+func TestCtrlCertMgr_Dump(t *testing.T) {
 	invalidCert := []byte("foo")
 	invalidPair := struct {
 		Cert []byte `msgpack:"a"`
@@ -206,40 +207,55 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		fmt.Println(len(pool.GetPrivateClientPairs()))
 	})
 
-	pool := certpool.NewPool()
-
 	t.Run("invalid cert pool file size", func(t *testing.T) {
+		pool := certpool.NewPool()
+
 		err := LoadCtrlCertPool(pool, nil, testPassword)
 		require.Error(t, err)
 	})
 
-	t.Run("invalid hmac", func(t *testing.T) {
+	t.Run("invalid mac", func(t *testing.T) {
+		pool := certpool.NewPool()
+
 		data := make([]byte, 4096)
 
 		err := LoadCtrlCertPool(pool, data, testPassword)
 		require.Error(t, err)
 	})
 
-	t.Run("invalid cert pool data", func(t *testing.T) {
-		pool = testGenerateCertPool(t)
-		data, err := SaveCtrlCertPool(pool, testPassword)
-		require.NoError(t, err)
+	t.Run("invalid cipher data", func(t *testing.T) {
+		patch := func([]byte, []byte) ([]byte, error) {
+			return nil, monkey.Error
+		}
+		pg := monkey.Patch(aes.CTRDecrypt, patch)
+		defer pg.Unpatch()
 
-		err = LoadCtrlCertPool(pool, data, testPassword)
-		require.Error(t, err)
+		pool := certpool.NewPool()
+
+		data := make([]byte, sha256.Size+aes.IVSize+8)
+		aesKey := calculateAESKey(testPassword)
+		hash := hmac.New(sha256.New, aesKey)
+		hash.Write(data[sha256.Size:])
+		copy(data, hash.Sum(nil))
+
+		err := LoadCtrlCertPool(pool, data, testPassword)
+		monkey.IsExistMonkeyError(t, err)
 	})
 
 	t.Run("invalid compressed data", func(t *testing.T) {
-		aesKey := calculateAESKey(testPassword)
-		data := bytes.Repeat([]byte{16}, 128)
-		certPool, err := aes.CBCEncrypt(data, aesKey)
-		require.NoError(t, err)
+		pool := certpool.NewPool()
 
-		err = LoadCtrlCertPool(pool, certPool, testPassword)
+		data := make([]byte, sha256.Size+aes.IVSize+8)
+		aesKey := calculateAESKey(testPassword)
+		hash := hmac.New(sha256.New, aesKey)
+		hash.Write(data[sha256.Size:])
+		copy(data, hash.Sum(nil))
+
+		err := LoadCtrlCertPool(pool, data, testPassword)
 		require.Error(t, err)
 	})
 
-	pool = testGenerateCertPool(t)
+	pool := testGenerateCertPool(t)
 	cpData, err := SaveCtrlCertPool(pool, testPassword)
 	require.NoError(t, err)
 
