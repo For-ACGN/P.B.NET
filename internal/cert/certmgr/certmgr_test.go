@@ -3,7 +3,6 @@ package certmgr
 import (
 	"bytes"
 	"compress/flate"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"project/internal/cert"
+	"project/internal/cert/certpool"
 	"project/internal/crypto/aes"
 	"project/internal/patch/monkey"
 	"project/internal/patch/msgpack"
@@ -18,9 +18,9 @@ import (
 
 var testPassword = []byte("admin")
 
-func testGenerateCertPool(t *testing.T) *cert.Pool {
+func testGenerateCertPool(t *testing.T) *certpool.Pool {
 	// load system certificates
-	pool, err := cert.NewPoolWithSystemCerts()
+	pool, err := certpool.NewPoolWithSystem()
 	require.NoError(t, err)
 
 	// create Root CA certificate
@@ -108,7 +108,7 @@ func TestSaveCtrlCertPool(t *testing.T) {
 	})
 
 	t.Run("failed to encrypt data", func(t *testing.T) {
-		patch := func([]byte, []byte, []byte) ([]byte, error) {
+		patch := func([]byte, []byte) ([]byte, error) {
 			return nil, monkey.Error
 		}
 		pg := monkey.Patch(aes.CTREncrypt, patch)
@@ -126,7 +126,7 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		data, err := SaveCtrlCertPool(pool, testPassword)
 		require.NoError(t, err)
 
-		pool = cert.NewPool()
+		pool = certpool.NewPool()
 		err = LoadCtrlCertPool(pool, data, testPassword)
 		require.NoError(t, err)
 
@@ -138,7 +138,7 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		fmt.Println(len(pool.GetPrivateClientPairs()))
 	})
 
-	pool := cert.NewPool()
+	pool := certpool.NewPool()
 
 	t.Run("invalid cert pool file size", func(t *testing.T) {
 		err := LoadCtrlCertPool(pool, nil, testPassword)
@@ -157,12 +157,12 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		data, err := SaveCtrlCertPool(pool, testPassword)
 		require.NoError(t, err)
 
-		err := LoadCtrlCertPool(pool, data, testPassword)
+		err = LoadCtrlCertPool(pool, data, testPassword)
 		require.Error(t, err)
 	})
 
 	t.Run("invalid compressed data", func(t *testing.T) {
-		aesKey, _ := calculateAESKeyFromPassword(testPassword)
+		aesKey := calculateAESKey(testPassword)
 		data := bytes.Repeat([]byte{16}, 128)
 		certPool, err := aes.CBCEncrypt(data, aesKey)
 		require.NoError(t, err)
@@ -170,6 +170,10 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		err = LoadCtrlCertPool(pool, certPool, testPassword)
 		require.Error(t, err)
 	})
+
+	pool = testGenerateCertPool(t)
+	certPool, err := SaveCtrlCertPool(pool, testPassword)
+	require.NoError(t, err)
 
 	t.Run("failed to close deflate reader", func(t *testing.T) {
 		reader := flate.NewReader(nil)
@@ -205,16 +209,16 @@ func TestAddCertsToPool(t *testing.T) {
 		Key:  []byte("bar"),
 	}
 
-	pool := cert.NewPool()
+	pool := certpool.NewPool()
 	cp := new(ctrlCertPool)
 
 	cp.PublicRootCACerts = [][]byte{invalidCert}
-	err := addCertsToPool(pool, cp)
+	err := cp.Dump(pool)
 	require.Error(t, err)
 	cp.PublicRootCACerts = nil
 
 	cp.PublicClientCACerts = [][]byte{invalidCert}
-	err = addCertsToPool(pool, cp)
+	err = cp.Dump(pool)
 	require.Error(t, err)
 	cp.PublicClientCACerts = nil
 
@@ -222,7 +226,7 @@ func TestAddCertsToPool(t *testing.T) {
 		Cert []byte `msgpack:"a"`
 		Key  []byte `msgpack:"b"`
 	}{invalidPair}
-	err = addCertsToPool(pool, cp)
+	err = cp.Dump(pool)
 	require.Error(t, err)
 	cp.PublicClientPairs = nil
 
@@ -230,7 +234,7 @@ func TestAddCertsToPool(t *testing.T) {
 		Cert []byte `msgpack:"a"`
 		Key  []byte `msgpack:"b"`
 	}{invalidPair}
-	err = addCertsToPool(pool, cp)
+	err = cp.Dump(pool)
 	require.Error(t, err)
 	cp.PrivateRootCAPairs = nil
 
@@ -238,7 +242,7 @@ func TestAddCertsToPool(t *testing.T) {
 		Cert []byte `msgpack:"a"`
 		Key  []byte `msgpack:"b"`
 	}{invalidPair}
-	err = addCertsToPool(pool, cp)
+	err = cp.Dump(pool)
 	require.Error(t, err)
 	cp.PrivateClientCAPairs = nil
 
@@ -246,7 +250,7 @@ func TestAddCertsToPool(t *testing.T) {
 		Cert []byte `msgpack:"a"`
 		Key  []byte `msgpack:"b"`
 	}{invalidPair}
-	err = addCertsToPool(pool, cp)
+	err = cp.Dump(pool)
 	require.Error(t, err)
 	cp.PrivateClientPairs = nil
 }
@@ -261,7 +265,7 @@ func TestNBCertPool_GetCertsFromPool(t *testing.T) {
 	pair := testGenerateCert(t)
 	c, k := pair.Encode()
 
-	pool := cert.NewPool()
+	pool := certpool.NewPool()
 
 	err := pool.AddPublicRootCACert(c)
 	require.NoError(t, err)

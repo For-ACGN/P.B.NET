@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/pbkdf2"
 
-	"project/internal/cert"
+	"project/internal/cert/certpool"
 	"project/internal/convert"
 	"project/internal/crypto/aes"
 	"project/internal/crypto/hmac"
@@ -59,7 +59,7 @@ type ctrlCertPool struct {
 }
 
 // Load is used to load certificates from certificate pool.
-func (cp *ctrlCertPool) Load(pool *cert.Pool) {
+func (cp *ctrlCertPool) Load(pool *certpool.Pool) {
 	pubRootCACerts := pool.GetPublicRootCACerts()
 	for i := 0; i < len(pubRootCACerts); i++ {
 		cp.PublicRootCACerts = append(cp.PublicRootCACerts, pubRootCACerts[i].Raw)
@@ -103,7 +103,7 @@ func (cp *ctrlCertPool) Load(pool *cert.Pool) {
 }
 
 // Dump is used to dump certificates to the certificate pool.
-func (cp *ctrlCertPool) Dump(pool *cert.Pool) error {
+func (cp *ctrlCertPool) Dump(pool *certpool.Pool) error {
 	memory := security.NewMemory()
 	defer memory.Flush()
 
@@ -187,17 +187,8 @@ func (cp *ctrlCertPool) Clean() {
 	}
 }
 
-// calculateAESKey is used to generate aes key for encrypt certificate pool.
-func calculateAESKey(password []byte) []byte {
-	hash := sha256.New()
-	hash.Write(password)
-	hash.Write([]byte{0x20, 0x17, 0x04, 0x17})
-	digest := hash.Sum(nil)
-	return pbkdf2.Key(digest, digest[:16], 8192, aes.Key256Bit, sha256.New)
-}
-
 // SaveCtrlCertPool is used to compress and encrypt certificate pool.
-func SaveCtrlCertPool(pool *cert.Pool, password []byte) ([]byte, error) {
+func SaveCtrlCertPool(pool *certpool.Pool, password []byte) ([]byte, error) {
 	certPool := ctrlCertPool{}
 	certPool.Load(pool)
 	defer certPool.Clean()
@@ -250,7 +241,7 @@ func SaveCtrlCertPool(pool *cert.Pool, password []byte) ([]byte, error) {
 }
 
 // LoadCtrlCertPool is used to decrypt and decompress certificate pool.
-func LoadCtrlCertPool(pool *cert.Pool, data, password []byte) error {
+func LoadCtrlCertPool(pool *certpool.Pool, data, password []byte) error {
 	if len(data) < sha256.Size+aes.IVSize {
 		return errors.New("invalid certificate pool file size")
 	}
@@ -301,6 +292,15 @@ func LoadCtrlCertPool(pool *cert.Pool, data, password []byte) error {
 	return cp.Dump(pool)
 }
 
+// calculateAESKey is used to generate aes key for encrypt certificate pool.
+func calculateAESKey(password []byte) []byte {
+	hash := sha256.New()
+	hash.Write(password)
+	hash.Write([]byte{0x20, 0x17, 0x04, 0x17})
+	digest := hash.Sum(nil)
+	return pbkdf2.Key(digest, digest[:16], 8192, aes.Key256Bit, sha256.New)
+}
+
 // CertPool contains raw certificates, it used for Node and Beacon configuration.
 type CertPool struct {
 	PublicRootCACerts   [][]byte `msgpack:"a"`
@@ -319,7 +319,7 @@ type CertPool struct {
 
 // Load is used to load certificates from certificate pool or other pool,
 // Controller or tests will add certificates to CertPool.
-func (cp *CertPool) Load(pool *cert.Pool) {
+func (cp *CertPool) Load(pool *certpool.Pool) {
 	pubRootCACerts := pool.GetPublicRootCACerts()
 	for i := 0; i < len(pubRootCACerts); i++ {
 		cp.PublicRootCACerts = append(cp.PublicRootCACerts, pubRootCACerts[i].Raw)
@@ -355,11 +355,11 @@ func (cp *CertPool) Load(pool *cert.Pool) {
 }
 
 // ToPool is used to create a certificate pool. Call Clean to cover bytes in pool.
-func (cp *CertPool) ToPool() (*cert.Pool, error) {
+func (cp *CertPool) ToPool() (*certpool.Pool, error) {
 	memory := security.NewMemory()
 	defer memory.Flush()
 
-	pool := cert.NewPool()
+	pool := certpool.NewPool()
 	for i := 0; i < len(cp.PublicRootCACerts); i++ {
 		memory.Padding()
 		err := pool.AddPublicRootCACert(cp.PublicRootCACerts[i])
