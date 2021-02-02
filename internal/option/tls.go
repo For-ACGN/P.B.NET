@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"project/internal/cert"
+	"project/internal/cert/certpool"
 	"project/internal/crypto/rand"
 	"project/internal/security"
 )
@@ -72,7 +73,7 @@ type TLSConfig struct {
 	} `toml:"cert_pool"`
 
 	// CertPool is the certificate pool.
-	CertPool *cert.Pool `toml:"-" msgpack:"-" testsuite:"-"`
+	CertPool *certpool.Pool `toml:"-" msgpack:"-" testsuite:"-"`
 
 	// ServerSide is used to mark this configuration for server side, like
 	// listeners or http server need set it true for GetCertificates().
@@ -167,7 +168,7 @@ func (tc *TLSConfig) GetClientCAs() ([]*x509.Certificate, error) {
 func (tc *TLSConfig) parseCertificates(pem []string) ([]*x509.Certificate, error) {
 	var certs []*x509.Certificate
 	for _, p := range pem {
-		crt, err := cert.ParseCertificates([]byte(p))
+		crt, err := cert.ParseCertificatesPEM([]byte(p))
 		if err != nil {
 			return nil, err
 		}
