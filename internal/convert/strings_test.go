@@ -113,3 +113,12 @@ func TestFdumpStringWithPL(t *testing.T) {
 		require.Equal(t, "  1234", output)
 	})
 }
+
+func TestRemoveFirstSpacePrefix(t *testing.T) {
+	output := SdumpStringWithPL("abc abc abc", "  ", 8)
+	fmt.Println(output)
+
+	output = RemoveFirstSpacePrefix(output, 2)
+	except := "abc abc \n  abc"
+	require.Equal(t, except, output)
+}

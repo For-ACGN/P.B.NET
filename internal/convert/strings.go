@@ -116,3 +116,13 @@ func FdumpStringWithPL(w io.Writer, str, prefix string, lineLen int) (int, error
 	}
 	return num, nil
 }
+
+// RemoveFirstSpacePrefix is used to remove first space prefix like DumpBytes or DumpString.
+func RemoveFirstSpacePrefix(s string, n int) string {
+	return RemoveFirstPrefix(s, strings.Repeat(" ", n))
+}
+
+// RemoveFirstPrefix is used to remove first prefix like DumpBytes or DumpString.
+func RemoveFirstPrefix(s, prefix string) string {
+	return strings.Replace(s, prefix, "", 1)
+}
