@@ -45,6 +45,13 @@ func TestManager_Load(t *testing.T) {
 	require.Len(t, mgr.PrivateClientPairs, 1)
 
 	mgr.Clean()
+
+	require.Nil(t, mgr.PublicRootCACerts)
+	require.Nil(t, mgr.PublicClientCACerts)
+	require.Nil(t, mgr.PublicClientPairs)
+	require.Nil(t, mgr.PrivateRootCACerts)
+	require.Nil(t, mgr.PrivateClientCACerts)
+	require.Nil(t, mgr.PrivateClientPairs)
 }
 
 func TestManager_ToCertPool(t *testing.T) {

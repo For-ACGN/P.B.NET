@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"crypto/sha256"
+	"runtime"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/pbkdf2"
@@ -59,19 +60,19 @@ type ctrlCertMgr struct {
 }
 
 // Load is used to load certificates from certificate pool.
-func (cp *ctrlCertMgr) Load(pool *certpool.Pool) {
+func (mgr *ctrlCertMgr) Load(pool *certpool.Pool) {
 	pubRootCACerts := pool.GetPublicRootCACerts()
 	for i := 0; i < len(pubRootCACerts); i++ {
-		cp.PublicRootCACerts = append(cp.PublicRootCACerts, pubRootCACerts[i].Raw)
+		mgr.PublicRootCACerts = append(mgr.PublicRootCACerts, pubRootCACerts[i].Raw)
 	}
 	pubClientCACerts := pool.GetPublicClientCACerts()
 	for i := 0; i < len(pubClientCACerts); i++ {
-		cp.PublicClientCACerts = append(cp.PublicClientCACerts, pubClientCACerts[i].Raw)
+		mgr.PublicClientCACerts = append(mgr.PublicClientCACerts, pubClientCACerts[i].Raw)
 	}
 	pubClientPairs := pool.GetPublicClientPairs()
 	for i := 0; i < len(pubClientPairs); i++ {
 		c, k := pubClientPairs[i].Encode()
-		cp.PublicClientPairs = append(cp.PublicClientPairs, struct {
+		mgr.PublicClientPairs = append(mgr.PublicClientPairs, struct {
 			Cert []byte `msgpack:"a"`
 			Key  []byte `msgpack:"b"`
 		}{Cert: c, Key: k})
@@ -79,7 +80,7 @@ func (cp *ctrlCertMgr) Load(pool *certpool.Pool) {
 	priRootCAPairs := pool.GetPrivateRootCAPairs()
 	for i := 0; i < len(priRootCAPairs); i++ {
 		c, k := priRootCAPairs[i].Encode()
-		cp.PrivateRootCAPairs = append(cp.PrivateRootCAPairs, struct {
+		mgr.PrivateRootCAPairs = append(mgr.PrivateRootCAPairs, struct {
 			Cert []byte `msgpack:"a"`
 			Key  []byte `msgpack:"b"`
 		}{Cert: c, Key: k})
@@ -87,7 +88,7 @@ func (cp *ctrlCertMgr) Load(pool *certpool.Pool) {
 	priClientCAPairs := pool.GetPrivateClientCAPairs()
 	for i := 0; i < len(priClientCAPairs); i++ {
 		c, k := priClientCAPairs[i].Encode()
-		cp.PrivateClientCAPairs = append(cp.PrivateClientCAPairs, struct {
+		mgr.PrivateClientCAPairs = append(mgr.PrivateClientCAPairs, struct {
 			Cert []byte `msgpack:"a"`
 			Key  []byte `msgpack:"b"`
 		}{Cert: c, Key: k})
@@ -95,7 +96,7 @@ func (cp *ctrlCertMgr) Load(pool *certpool.Pool) {
 	priClientPairs := pool.GetPrivateClientPairs()
 	for i := 0; i < len(priClientPairs); i++ {
 		c, k := priClientPairs[i].Encode()
-		cp.PrivateClientPairs = append(cp.PrivateClientPairs, struct {
+		mgr.PrivateClientPairs = append(mgr.PrivateClientPairs, struct {
 			Cert []byte `msgpack:"a"`
 			Key  []byte `msgpack:"b"`
 		}{Cert: c, Key: k})
@@ -103,52 +104,52 @@ func (cp *ctrlCertMgr) Load(pool *certpool.Pool) {
 }
 
 // Dump is used to dump certificates to the certificate pool.
-func (cp *ctrlCertMgr) Dump(pool *certpool.Pool) error {
+func (mgr *ctrlCertMgr) Dump(pool *certpool.Pool) error {
 	memory := security.NewMemory()
 	defer memory.Flush()
 
 	var err error
-	for i := 0; i < len(cp.PublicRootCACerts); i++ {
+	for i := 0; i < len(mgr.PublicRootCACerts); i++ {
 		memory.Padding()
-		err = pool.AddPublicRootCACert(cp.PublicRootCACerts[i])
+		err = pool.AddPublicRootCACert(mgr.PublicRootCACerts[i])
 		if err != nil {
 			return err
 		}
 	}
-	for i := 0; i < len(cp.PublicClientCACerts); i++ {
+	for i := 0; i < len(mgr.PublicClientCACerts); i++ {
 		memory.Padding()
-		err = pool.AddPublicClientCACert(cp.PublicClientCACerts[i])
+		err = pool.AddPublicClientCACert(mgr.PublicClientCACerts[i])
 		if err != nil {
 			return err
 		}
 	}
-	for i := 0; i < len(cp.PublicClientPairs); i++ {
+	for i := 0; i < len(mgr.PublicClientPairs); i++ {
 		memory.Padding()
-		pair := cp.PublicClientPairs[i]
+		pair := mgr.PublicClientPairs[i]
 		err = pool.AddPublicClientPair(pair.Cert, pair.Key)
 		if err != nil {
 			return err
 		}
 	}
-	for i := 0; i < len(cp.PrivateRootCAPairs); i++ {
+	for i := 0; i < len(mgr.PrivateRootCAPairs); i++ {
 		memory.Padding()
-		pair := cp.PrivateRootCAPairs[i]
+		pair := mgr.PrivateRootCAPairs[i]
 		err = pool.AddPrivateRootCAPair(pair.Cert, pair.Key)
 		if err != nil {
 			return err
 		}
 	}
-	for i := 0; i < len(cp.PrivateClientCAPairs); i++ {
+	for i := 0; i < len(mgr.PrivateClientCAPairs); i++ {
 		memory.Padding()
-		pair := cp.PrivateClientCAPairs[i]
+		pair := mgr.PrivateClientCAPairs[i]
 		err = pool.AddPrivateClientCAPair(pair.Cert, pair.Key)
 		if err != nil {
 			return err
 		}
 	}
-	for i := 0; i < len(cp.PrivateClientPairs); i++ {
+	for i := 0; i < len(mgr.PrivateClientPairs); i++ {
 		memory.Padding()
-		pair := cp.PrivateClientPairs[i]
+		pair := mgr.PrivateClientPairs[i]
 		err = pool.AddPrivateClientPair(pair.Cert, pair.Key)
 		if err != nil {
 			return err
@@ -158,47 +159,62 @@ func (cp *ctrlCertMgr) Dump(pool *certpool.Pool) error {
 }
 
 // Clean is used to clean all data in this certificate pool.
-func (cp *ctrlCertMgr) Clean() {
-	for i := 0; i < len(cp.PublicRootCACerts); i++ {
-		security.CoverBytes(cp.PublicRootCACerts[i])
+func (mgr *ctrlCertMgr) Clean() {
+	memory := security.NewMemory()
+	defer memory.Flush()
+
+	for i := 0; i < len(mgr.PublicRootCACerts); i++ {
+		security.CoverBytes(mgr.PublicRootCACerts[i])
 	}
-	for i := 0; i < len(cp.PublicClientCACerts); i++ {
-		security.CoverBytes(cp.PublicClientCACerts[i])
+	for i := 0; i < len(mgr.PublicClientCACerts); i++ {
+		security.CoverBytes(mgr.PublicClientCACerts[i])
 	}
-	for i := 0; i < len(cp.PublicClientPairs); i++ {
-		pair := cp.PublicClientPairs[i]
+	for i := 0; i < len(mgr.PublicClientPairs); i++ {
+		pair := mgr.PublicClientPairs[i]
 		security.CoverBytes(pair.Cert)
 		security.CoverBytes(pair.Key)
 	}
-	for i := 0; i < len(cp.PrivateRootCAPairs); i++ {
-		pair := cp.PrivateRootCAPairs[i]
+	for i := 0; i < len(mgr.PrivateRootCAPairs); i++ {
+		pair := mgr.PrivateRootCAPairs[i]
 		security.CoverBytes(pair.Cert)
 		security.CoverBytes(pair.Key)
 	}
-	for i := 0; i < len(cp.PrivateClientCAPairs); i++ {
-		pair := cp.PrivateClientCAPairs[i]
+	for i := 0; i < len(mgr.PrivateClientCAPairs); i++ {
+		pair := mgr.PrivateClientCAPairs[i]
 		security.CoverBytes(pair.Cert)
 		security.CoverBytes(pair.Key)
 	}
-	for i := 0; i < len(cp.PrivateClientPairs); i++ {
-		pair := cp.PrivateClientPairs[i]
+	for i := 0; i < len(mgr.PrivateClientPairs); i++ {
+		pair := mgr.PrivateClientPairs[i]
 		security.CoverBytes(pair.Cert)
 		security.CoverBytes(pair.Key)
 	}
+
+	memory.Padding()
+	mgr.PublicRootCACerts = nil
+	mgr.PublicClientCACerts = nil
+	mgr.PublicClientPairs = nil
+	mgr.PrivateRootCAPairs = nil
+	mgr.PrivateClientCAPairs = nil
+	mgr.PrivateClientPairs = nil
+	memory.Padding()
+
+	runtime.GC()
+	memory.Padding()
 }
 
 // SaveCtrlCertPool is used to compress and encrypt certificate pool.
 func SaveCtrlCertPool(pool *certpool.Pool, password []byte) ([]byte, error) {
-	certPool := ctrlCertMgr{}
-	certPool.Load(pool)
-	defer certPool.Clean()
+	certMgr := ctrlCertMgr{}
+	certMgr.Load(pool)
+	defer certMgr.Clean()
 	// marshal certificate pool data
-	certPoolData, err := msgpack.Marshal(certPool)
+	certPoolData, err := msgpack.Marshal(certMgr)
 	if err != nil {
 		return nil, err
 	}
 	defer security.CoverBytes(certPoolData)
-	certPool.Clean()
+	certMgr.Clean()
 	// make certificate pool file
 	certPoolDataLen := len(certPoolData)
 	bufSize := random2018 + convert.Uint32Size + certPoolDataLen + random1127
@@ -282,14 +298,14 @@ func LoadCtrlCertPool(pool *certpool.Pool, data, password []byte) error {
 	certPoolData := buf.Next(size)
 	defer security.CoverBytes(certPoolData)
 	// unmarshal
-	cp := ctrlCertMgr{}
-	err = msgpack.Unmarshal(certPoolData, &cp)
+	certMgr := ctrlCertMgr{}
+	err = msgpack.Unmarshal(certPoolData, &certMgr)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal certificate pool")
 	}
-	defer cp.Clean()
+	defer certMgr.Clean()
 	memory.Padding()
-	return cp.Dump(pool)
+	return certMgr.Dump(pool)
 }
 
 // calculateAESKey is used to generate aes key for encrypt certificate pool.

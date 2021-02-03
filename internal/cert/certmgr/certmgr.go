@@ -1,6 +1,8 @@
 package certmgr
 
 import (
+	"runtime"
+
 	"project/internal/cert/certpool"
 	"project/internal/security"
 )
@@ -114,6 +116,9 @@ func (mgr *Manager) ToCertPool() (*certpool.Pool, error) {
 // Clean is used to clean all data in this certificate manager.
 // Usually it will be called after call Manager.ToCertPool.
 func (mgr *Manager) Clean() {
+	memory := security.NewMemory()
+	defer memory.Flush()
+
 	for i := 0; i < len(mgr.PublicRootCACerts); i++ {
 		security.CoverBytes(mgr.PublicRootCACerts[i])
 	}
@@ -136,4 +141,16 @@ func (mgr *Manager) Clean() {
 		security.CoverBytes(pair.Cert)
 		security.CoverBytes(pair.Key)
 	}
+
+	memory.Padding()
+	mgr.PublicRootCACerts = nil
+	mgr.PublicClientCACerts = nil
+	mgr.PublicClientPairs = nil
+	mgr.PrivateRootCACerts = nil
+	mgr.PrivateClientCACerts = nil
+	mgr.PrivateClientPairs = nil
+	memory.Padding()
+
+	runtime.GC()
+	memory.Padding()
 }
