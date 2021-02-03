@@ -38,7 +38,7 @@ func Sdump(cert *x509.Certificate) string {
 func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 	const template = `
 Version: %d
-Serial number: [%s]
+Serial number:  %s
 
 [Subject]
   Common name:  %s
@@ -52,26 +52,32 @@ Public key algorithm: %s
 Public key: [%s]
 
 Signature algorithm: %s
-Signature: [%s]
+Signature:  [%s]
 
 Not before: %s
 Not after:  %s
 `
-	publicKey, err := dumpPublicKey(cert.PublicKey)
+	publicKeyBytes, err := dumpPublicKey(cert.PublicKey)
 	if err != nil {
 		_, _ = w.Write([]byte("[error]: " + err.Error()))
 		return 0, err
 	}
+	snPrefix := strings.Repeat(" ", len("Serial number:  "))
+	serialNum := convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), snPrefix, 8)
+	serialNum = strings.TrimSuffix(convert.RemoveFirstPrefix(serialNum, snPrefix), ",")
+	subjectOrg := strings.Join(cert.Subject.Organization, ", ")
+	issuerOrg := strings.Join(cert.Issuer.Organization, ", ")
+	publicKey := convert.SdumpBytesWithPL(publicKeyBytes[:8], "", 8)
+	publicKey = strings.TrimSuffix(publicKey, ",")
+	signature := convert.SdumpBytesWithPL(cert.Signature[:8], "", 8)
+	signature = strings.TrimSuffix(signature, ",")
 	var num int
 	n, err := fmt.Fprintf(w, template[1:],
-		cert.Version,
-		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "", 16), ","),
-		cert.Subject.CommonName, strings.Join(cert.Subject.Organization, ", "),
-		cert.Issuer.CommonName, strings.Join(cert.Issuer.Organization, ", "),
-		cert.PublicKeyAlgorithm,
-		strings.TrimSuffix(convert.SdumpBytesWithPL(publicKey[:8], "", 8), ","),
-		cert.SignatureAlgorithm,
-		strings.TrimSuffix(convert.SdumpBytesWithPL(cert.Signature[:8], "", 8), ","),
+		cert.Version, serialNum,
+		cert.Subject.CommonName, subjectOrg,
+		cert.Issuer.CommonName, issuerOrg,
+		cert.PublicKeyAlgorithm, publicKey,
+		cert.SignatureAlgorithm, signature,
 		cert.NotBefore.Local().Format(timeLayout),
 		cert.NotAfter.Local().Format(timeLayout),
 	)
