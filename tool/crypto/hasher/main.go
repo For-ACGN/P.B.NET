@@ -163,15 +163,16 @@ func printAlgorithmAndDigest(alg string, digest []byte) {
 	bytesStr := convert.SdumpBytesWithPL(digest, prefix, 8)
 
 	fmt.Println("algorithm:", alg)
-	fmt.Printf("  hex-low: %s\n", strings.Replace(hexLow, prefix, "", 1))
-	fmt.Printf("  hex-up:  %s\n", strings.Replace(hexUp, prefix, "", 1))
-	fmt.Printf("  base64:  %s\n", strings.Replace(base64St, prefix, "", 1))
-	fmt.Printf("  bytes:   %s\n", strings.Replace(bytesStr, prefix, "", 1))
+	fmt.Printf("  hex-low: %s\n\n", convert.RemoveFirstPrefix(hexLow, prefix))
+	fmt.Printf("  hex-up:  %s\n\n", convert.RemoveFirstPrefix(hexUp, prefix))
+	fmt.Printf("  base64:  %s\n\n", convert.RemoveFirstPrefix(base64St, prefix))
+	fmt.Printf("  bytes:   %s\n\n", convert.RemoveFirstPrefix(bytesStr, prefix))
+
 	if strings.Contains(alg, "md5") {
 		fmt.Println("  ------------------------------------------------")
 		fmt.Println("  hex-low 16:", hexStr[8:24])
 		fmt.Println("  hex-up  16:", hexStrUp[8:24])
 		fmt.Println("  ------------------------------------------------")
+		fmt.Println()
 	}
-	fmt.Println()
 }
