@@ -85,41 +85,49 @@ Not after:  %s
 	if err != nil {
 		return num, err
 	}
-	if len(cert.DNSNames) != 0 {
-		const format = "\nDNS names: [%s]"
-		n, err = fmt.Fprintf(w, format, strings.Join(cert.DNSNames, ", "))
+	maxPaddingLen := calcMaxPaddingLen(cert)
+	if maxPaddingLen == 0 {
+		return num, nil
+	}
+	if len(cert.DNSNames) > 0 {
+		const format = "\nDNS names: %s[%s]"
+		padding := strings.Repeat(" ", maxPaddingLen-len("DNS names"))
+		n, err = fmt.Fprintf(w, format, padding, strings.Join(cert.DNSNames, ", "))
 		num += n
 		if err != nil {
 			return num, err
 		}
 	}
-	if len(cert.IPAddresses) != 0 {
-		const format = "\nIP addresses: [%s]"
+	if len(cert.IPAddresses) > 0 {
+		const format = "\nIP addresses: %s[%s]"
+		padding := strings.Repeat(" ", maxPaddingLen-len("IP addresses"))
 		ip := make([]string, len(cert.IPAddresses))
 		for i := 0; i < len(cert.IPAddresses); i++ {
 			ip[i] = cert.IPAddresses[i].String()
 		}
-		n, err = fmt.Fprintf(w, format, strings.Join(ip, ", "))
+		n, err = fmt.Fprintf(w, format, padding, strings.Join(ip, ", "))
 		num += n
 		if err != nil {
 			return num, err
 		}
 	}
-	if len(cert.EmailAddresses) != 0 {
-		const format = "\nEmail addresses: [%s]"
-		n, err = fmt.Fprintf(w, format, strings.Join(cert.EmailAddresses, ", "))
+	if len(cert.EmailAddresses) > 0 {
+		const format = "\nEmail addresses: %s[%s]"
+		padding := strings.Repeat(" ", maxPaddingLen-len("Email addresses"))
+		n, err = fmt.Fprintf(w, format, padding, strings.Join(cert.EmailAddresses, ", "))
 		num += n
 		if err != nil {
 			return num, err
 		}
 	}
-	if len(cert.URIs) != 0 {
-		const format = "\nURLs: [%s]"
+	if len(cert.URIs) > 0 {
+		const format = "\nURIs: %s[%s]"
+		padding := strings.Repeat(" ", maxPaddingLen-len("URIs"))
 		urls := make([]string, len(cert.URIs))
 		for i := 0; i < len(cert.URIs); i++ {
 			urls[i] = cert.URIs[i].String()
 		}
-		n, err = fmt.Fprintf(w, format, strings.Join(urls, ", "))
+		n, err = fmt.Fprintf(w, format, padding, strings.Join(urls, ", "))
 		num += n
 		if err != nil {
 			return num, err
@@ -140,4 +148,30 @@ func dumpPublicKey(publicKey interface{}) ([]byte, error) {
 	default:
 		return nil, errors.Errorf("unsupported public key: %T", pub)
 	}
+}
+
+func calcMaxPaddingLen(cert *x509.Certificate) int {
+	var max int
+	if len(cert.DNSNames) > 0 {
+		max = len("DNS names")
+	}
+	if len(cert.IPAddresses) > 0 {
+		l := len("IP addresses")
+		if l > max {
+			max = l
+		}
+	}
+	if len(cert.EmailAddresses) > 0 {
+		l := len("Email addresses")
+		if l > max {
+			max = l
+		}
+	}
+	if len(cert.URIs) > 0 {
+		l := len("URIs")
+		if l > max {
+			max = l
+		}
+	}
+	return max
 }
