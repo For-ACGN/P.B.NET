@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/pem"
-	"io/ioutil"
-	"log"
+	"fmt"
+	"os"
 
 	"project/internal/cert"
 	"project/internal/cert/certpool"
@@ -14,9 +14,16 @@ import (
 func main() {
 	// load certificates
 	pool, err := certpool.System()
-	checkError(err)
+	system.CheckError(err)
 	certs := pool.Certs()
 	l := len(certs)
+	// print certificate information
+	for i := 0; i < l; i++ {
+		cert.Dump(certs[i])
+		fmt.Println("================================================")
+	}
+	// encode certificates to pem
+	fmt.Println("------------------------------------------------")
 	buf := new(bytes.Buffer)
 	for i := 0; i < l; i++ {
 		block := pem.Block{
@@ -24,40 +31,34 @@ func main() {
 			Bytes: certs[i].Raw,
 		}
 		err = pem.Encode(buf, &block)
-		checkError(err)
-		// print certificate information
-		c := certs[i]
+		system.CheckError(err)
+		// print certificate version and subject
+		crt := certs[i]
 		const format = "V%d %s\n"
 		switch {
-		case c.Subject.CommonName != "":
-			log.Printf(format, c.Version, c.Subject.CommonName)
-		case len(c.Subject.Organization) != 0:
-			log.Printf(format, c.Version, c.Subject.Organization[0])
+		case crt.Subject.CommonName != "":
+			fmt.Printf(format, crt.Version, crt.Subject.CommonName)
+		case len(crt.Subject.Organization) != 0:
+			fmt.Printf(format, crt.Version, crt.Subject.Organization[0])
 		default:
-			log.Printf(format, c.Version, c.Subject)
+			fmt.Printf(format, crt.Version, crt.Subject)
 		}
 	}
-	log.Println("------------------------------------------------")
-	log.Println("the number of the system CA certificates:", l)
+	fmt.Println("------------------------------------------------")
+	fmt.Println("the number of the system CA certificates:", l)
 	// write pem
 	err = system.WriteFile("system.pem", buf.Bytes())
-	checkError(err)
+	system.CheckError(err)
 	// test certificates
-	pemData, err := ioutil.ReadFile("system.pem")
-	checkError(err)
-	certs, err = cert.ParseCertificates(pemData)
-	checkError(err)
+	pemData, err := os.ReadFile("system.pem")
+	system.CheckError(err)
+	certs, err = cert.ParseCertificatesPEM(pemData)
+	system.CheckError(err)
 	// compare
 	loadNum := len(certs)
 	if loadNum == l {
-		log.Println("export System CA certificates successfully")
+		fmt.Println("export System CA certificates successfully")
 	} else {
-		log.Printf("warning: system: %d, test load: %d\n", l, loadNum)
-	}
-}
-
-func checkError(err error) {
-	if err != nil {
-		log.Fatalln(err)
+		fmt.Printf("warning: system: %d, test load: %d\n", l, loadNum)
 	}
 }
