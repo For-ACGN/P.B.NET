@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strconv"
@@ -17,11 +16,10 @@ import (
 
 	"project/internal/cert"
 	"project/internal/cert/certmgr"
+	"project/internal/cert/certpool"
 	"project/internal/security"
 	"project/internal/system"
 )
-
-const backupFilePath = certmgr.CertPoolFilePath + ".bak"
 
 var stdinFD = int(syscall.Stdin)
 
@@ -29,28 +27,29 @@ func main() {
 	var (
 		init  bool
 		reset bool
+		path  string
 	)
 	flag.BoolVar(&init, "init", false, "initialize certificate manager")
 	flag.BoolVar(&reset, "reset", false, "reset certificate manager password")
+	flag.StringVar(&path, "path", "key/certpool.bin", "certificate pool file")
 	flag.Parse()
 	switch {
 	case init:
-		initialize()
+		initialize(path)
 	case reset:
-		resetPassword()
+		resetPassword(path)
 	default:
-		manage()
+		manage(path)
 	}
 }
 
-func initialize() {
+func initialize(path string) {
 	// check data file is exists
-	exist, err := system.IsExist(certmgr.CertPoolFilePath)
+	exist, err := system.IsExist(path)
 	checkError(err, true)
 	if exist {
 		const format = "certificate pool file \"%s\" is already exists\n"
-		fmt.Printf(format, certmgr.CertPoolFilePath)
-		os.Exit(1)
+		system.PrintErrorf(format, path)
 	}
 	// input password
 	fmt.Print("password: ")
@@ -68,30 +67,17 @@ func initialize() {
 		}
 	}
 	// load system certificates
-	pool, err := cert.NewPoolWithSystemCerts()
-	checkError(err, true)
-	// create Root CA certificate
-	rootCA, err := cert.GenerateCA(nil)
-	checkError(err, true)
-	err = pool.AddPrivateRootCAPair(rootCA.Encode())
-	checkError(err, true)
-	// create Client CA certificate
-	clientCA, err := cert.GenerateCA(nil)
-	checkError(err, true)
-	err = pool.AddPrivateClientCAPair(clientCA.Encode())
-	checkError(err, true)
-	// generate a client certificate and use client CA sign it
-	clientCert, err := cert.Generate(clientCA.Certificate, clientCA.PrivateKey, nil)
-	checkError(err, true)
-	err = pool.AddPrivateClientPair(clientCert.Encode())
+	pool, err := certpool.NewPoolWithSystem()
 	checkError(err, true)
 	// save certificate pool
-	err = certmgr.SaveCtrlCertPool(pool, password)
+	data, err := certmgr.SaveCtrlCertPool(pool, password)
+	checkError(err, true)
+	err = system.WriteFile(path, data)
 	checkError(err, true)
 	fmt.Println("initialize certificate manager successfully")
 }
 
-func resetPassword() {
+func resetPassword(path string) {
 	// input old password
 	fmt.Print("input old password: ")
 	oldPwd, err := term.ReadPassword(stdinFD)
@@ -100,101 +86,54 @@ func resetPassword() {
 	defer security.CoverBytes(oldPwd)
 	// input new password
 	fmt.Print("input new password: ")
-	newPwd1, err := term.ReadPassword(stdinFD)
+	newPwd, err := term.ReadPassword(stdinFD)
 	checkError(err, true)
 	fmt.Println()
-	defer security.CoverBytes(newPwd1)
+	defer security.CoverBytes(newPwd)
 	fmt.Print("retype: ")
-	newPwd2, err := term.ReadPassword(stdinFD)
+	rePwd, err := term.ReadPassword(stdinFD)
 	checkError(err, true)
 	fmt.Println()
-	defer security.CoverBytes(newPwd2)
-	if !bytes.Equal(newPwd1, newPwd2) {
+	defer security.CoverBytes(rePwd)
+	if !bytes.Equal(newPwd, rePwd) {
 		fmt.Println("different password")
 		os.Exit(1)
 	}
 	// load certificate pool
-	certPool, err := ioutil.ReadFile(certmgr.CertPoolFilePath)
+	data, err := os.ReadFile(path)
 	checkError(err, true)
-	pool := cert.NewPool()
-	err = certmgr.LoadCtrlCertPool(pool, certPool, oldPwd)
+	pool := certpool.NewPool()
+	err = certmgr.LoadCtrlCertPool(pool, data, oldPwd)
 	checkError(err, true)
 	// save certificate pool
-	err = certmgr.SaveCtrlCertPool(pool, newPwd1)
+	data, err = certmgr.SaveCtrlCertPool(pool, newPwd)
+	checkError(err, true)
+	err = system.WriteFile(path, data)
 	checkError(err, true)
 	fmt.Println("reset certificate manager password successfully")
 }
 
-func manage() {
+func manage(path string) {
+	// check data file is exists
+	exist, err := system.IsExist(path)
+	checkError(err, true)
+	if !exist {
+		const format = "certificate pool file \"%s\" is not exist\n"
+		system.PrintErrorf(format, path)
+	}
 	// input password
 	fmt.Print("password: ")
 	password, err := term.ReadPassword(stdinFD)
 	checkError(err, true)
 	fmt.Println()
-	// backup
-	createBackup()
 	// start manage
 	mgr := manager{
+		dataPath: path,
+		bakPath:  path + ".bak",
 		password: security.NewBytes(password),
 	}
 	security.CoverBytes(password)
 	mgr.Manage()
-}
-
-func createBackup() {
-	data, err := ioutil.ReadFile(certmgr.CertPoolFilePath)
-	checkError(err, true)
-	err = system.WriteFile(backupFilePath, data)
-	checkError(err, true)
-}
-
-func deleteBackup() {
-	err := os.Remove(backupFilePath)
-	checkError(err, true)
-}
-
-func printCertificate(id int, c *x509.Certificate) {
-	fmt.Printf("ID: %d\n%s\n\n", id, cert.Print(c))
-}
-
-func loadPairs(certFile, keyFile string) ([]*x509.Certificate, []interface{}) {
-	certPEM, err := ioutil.ReadFile(certFile) // #nosec
-	if checkError(err, false) {
-		return nil, nil
-	}
-	keyPEM, err := ioutil.ReadFile(keyFile) // #nosec
-	if checkError(err, false) {
-		return nil, nil
-	}
-	certs, err := cert.ParseCertificates(certPEM)
-	if checkError(err, false) {
-		return nil, nil
-	}
-	keys, err := cert.ParsePrivateKeys(keyPEM)
-	if checkError(err, false) {
-		return nil, nil
-	}
-	certsNum := len(certs)
-	keysNum := len(keys)
-	if certsNum != keysNum {
-		const format = "%d certificates in %s and %d private keys in %s\n"
-		fmt.Printf(format, certsNum, certFile, keysNum, keyFile)
-		return nil, nil
-	}
-	return certs, keys
-}
-
-func checkError(err error, exit bool) bool {
-	if err != nil {
-		if err != io.EOF {
-			fmt.Println(err)
-		}
-		if exit {
-			os.Exit(1)
-		}
-		return true
-	}
-	return false
 }
 
 const (
@@ -242,13 +181,16 @@ help about manager/%s:
 `
 
 type manager struct {
+	dataPath string
+	bakPath  string
 	password *security.Bytes
-	pool     *cert.Pool
+	pool     *certpool.Pool
 	prefix   string
 	scanner  *bufio.Scanner
 }
 
 func (mgr *manager) Manage() {
+	mgr.createBackup()
 	// interrupt input
 	go func() {
 		signalCh := make(chan os.Signal, 1)
@@ -290,16 +232,28 @@ func (mgr *manager) Manage() {
 	}
 }
 
+func (mgr *manager) createBackup() {
+	data, err := os.ReadFile(mgr.dataPath)
+	checkError(err, true)
+	err = system.WriteFile(mgr.bakPath, data)
+	checkError(err, true)
+}
+
+func (mgr *manager) deleteBackup() {
+	err := os.Remove(mgr.bakPath)
+	checkError(err, true)
+}
+
 func (mgr *manager) reload() {
 	// read certificate pool file
-	certPool, err := ioutil.ReadFile(certmgr.CertPoolFilePath)
+	data, err := os.ReadFile(mgr.dataPath)
 	checkError(err, true)
 	// get password
 	password := mgr.password.Get()
 	defer mgr.password.Put(password)
 	// load certificate
-	pool := cert.NewPool()
-	err = certmgr.LoadCtrlCertPool(pool, certPool, password)
+	pool := certpool.NewPool()
+	err = certmgr.LoadCtrlCertPool(pool, data, password)
 	checkError(err, true)
 	mgr.pool = pool
 }
@@ -309,12 +263,14 @@ func (mgr *manager) save() {
 	password := mgr.password.Get()
 	defer mgr.password.Put(password)
 	// save certificate
-	err := certmgr.SaveCtrlCertPool(mgr.pool, password)
+	data, err := certmgr.SaveCtrlCertPool(mgr.pool, password)
+	checkError(err, false)
+	err = system.WriteFile(mgr.dataPath, data)
 	checkError(err, false)
 }
 
 func (mgr *manager) exit() {
-	deleteBackup()
+	mgr.deleteBackup()
 	fmt.Println("Bye!")
 	os.Exit(0)
 }
@@ -482,23 +438,23 @@ func (mgr *manager) publicRootCAList() {
 	fmt.Println()
 	certs := mgr.pool.GetPublicRootCACerts()
 	for i := 0; i < len(certs); i++ {
-		printCertificate(i, certs[i])
+		dumpCert(i, certs[i])
 	}
 }
 
 func (mgr *manager) publicRootCAAdd(certFile string) {
-	pemData, err := ioutil.ReadFile(certFile) // #nosec
+	pemData, err := os.ReadFile(certFile) // #nosec
 	if checkError(err, false) {
 		return
 	}
-	certs, err := cert.ParseCertificates(pemData)
+	certs, err := cert.ParseCertificatesPEM(pemData)
 	if checkError(err, false) {
 		return
 	}
 	for i := 0; i < len(certs); i++ {
 		err = mgr.pool.AddPublicRootCACert(certs[i].Raw)
 		checkError(err, false)
-		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
+		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
@@ -572,23 +528,23 @@ func (mgr *manager) publicClientCAList() {
 	fmt.Println()
 	certs := mgr.pool.GetPublicClientCACerts()
 	for i := 0; i < len(certs); i++ {
-		printCertificate(i, certs[i])
+		dumpCert(i, certs[i])
 	}
 }
 
 func (mgr *manager) publicClientCAAdd(certFile string) {
-	pemData, err := ioutil.ReadFile(certFile) // #nosec
+	pemData, err := os.ReadFile(certFile) // #nosec
 	if checkError(err, false) {
 		return
 	}
-	certs, err := cert.ParseCertificates(pemData)
+	certs, err := cert.ParseCertificatesPEM(pemData)
 	if checkError(err, false) {
 		return
 	}
 	for i := 0; i < len(certs); i++ {
 		err = mgr.pool.AddPublicClientCACert(certs[i].Raw)
 		checkError(err, false)
-		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
+		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
@@ -662,7 +618,7 @@ func (mgr *manager) publicClientList() {
 	fmt.Println()
 	certs := mgr.pool.GetPublicClientPairs()
 	for i := 0; i < len(certs); i++ {
-		printCertificate(i, certs[i].Certificate)
+		dumpCert(i, certs[i].Certificate)
 	}
 }
 
@@ -672,7 +628,7 @@ func (mgr *manager) publicClientAdd(certFile, keyFile string) {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
 		err := mgr.pool.AddPublicClientPair(certs[i].Raw, keyData)
 		checkError(err, false)
-		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
+		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
@@ -750,7 +706,7 @@ func (mgr *manager) privateRootCAList() {
 	fmt.Println()
 	certs := mgr.pool.GetPrivateRootCACerts()
 	for i := 0; i < len(certs); i++ {
-		printCertificate(i, certs[i])
+		dumpCert(i, certs[i])
 	}
 }
 
@@ -760,7 +716,7 @@ func (mgr *manager) privateRootCAAdd(certFile, keyFile string) {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
 		err := mgr.pool.AddPrivateRootCAPair(certs[i].Raw, keyData)
 		checkError(err, false)
-		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
+		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
@@ -838,7 +794,7 @@ func (mgr *manager) privateClientCAList() {
 	fmt.Println()
 	certs := mgr.pool.GetPrivateClientCACerts()
 	for i := 0; i < len(certs); i++ {
-		printCertificate(i, certs[i])
+		dumpCert(i, certs[i])
 	}
 }
 
@@ -848,7 +804,7 @@ func (mgr *manager) privateClientCAAdd(certFile, keyFile string) {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
 		err := mgr.pool.AddPrivateClientCAPair(certs[i].Raw, keyData)
 		checkError(err, false)
-		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
+		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
@@ -926,7 +882,7 @@ func (mgr *manager) privateClientList() {
 	fmt.Println()
 	certs := mgr.pool.GetPrivateClientPairs()
 	for i := 0; i < len(certs); i++ {
-		printCertificate(i, certs[i].Certificate)
+		dumpCert(i, certs[i].Certificate)
 	}
 }
 
@@ -936,7 +892,7 @@ func (mgr *manager) privateClientAdd(certFile, keyFile string) {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
 		err := mgr.pool.AddPrivateClientPair(certs[i].Raw, keyData)
 		checkError(err, false)
-		fmt.Printf("\n%s\n\n", cert.Print(certs[i]))
+		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
@@ -964,4 +920,48 @@ func (mgr *manager) privateClientExport(id, cert, key string) {
 	}
 	err = system.WriteFile(key, keyPEM)
 	checkError(err, false)
+}
+
+func loadPairs(certFile, keyFile string) ([]*x509.Certificate, []interface{}) {
+	certPEM, err := os.ReadFile(certFile) // #nosec
+	if checkError(err, false) {
+		return nil, nil
+	}
+	keyPEM, err := os.ReadFile(keyFile) // #nosec
+	if checkError(err, false) {
+		return nil, nil
+	}
+	certs, err := cert.ParseCertificatesPEM(certPEM)
+	if checkError(err, false) {
+		return nil, nil
+	}
+	keys, err := cert.ParsePrivateKeysPEM(keyPEM)
+	if checkError(err, false) {
+		return nil, nil
+	}
+	certsNum := len(certs)
+	keysNum := len(keys)
+	if certsNum != keysNum {
+		const format = "%d certificates in %s but %d private keys in %s\n"
+		fmt.Printf(format, certsNum, certFile, keysNum, keyFile)
+		return nil, nil
+	}
+	return certs, keys
+}
+
+func dumpCert(id int, crt *x509.Certificate) {
+	fmt.Printf("ID: %d\n%s\n\n", id, cert.Sdump(crt))
+}
+
+func checkError(err error, exit bool) bool {
+	if err != nil {
+		if err != io.EOF {
+			fmt.Println(err)
+		}
+		if exit {
+			os.Exit(1)
+		}
+		return true
+	}
+	return false
 }
