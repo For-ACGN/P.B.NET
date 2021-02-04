@@ -3,8 +3,7 @@ package main
 import (
 	"crypto/x509"
 	"flag"
-	"fmt"
-	"io/ioutil"
+	"os"
 
 	"project/internal/cert"
 	"project/internal/namer"
@@ -14,64 +13,66 @@ import (
 
 func main() {
 	var (
-		gc  bool
-		gs  bool
-		opt string
-		nt  string
-		np  string
+		gen  bool
+		sign bool
+		opt  string
+		nt   string
+		np   string
 	)
-	flag.BoolVar(&gc, "gc", false, "generate CA certificate")
-	flag.BoolVar(&gs, "gs", false, "generate certificate and sign it by CA")
+	flag.BoolVar(&gen, "gen", false, "generate CA certificate")
+	flag.BoolVar(&sign, "sign", false, "generate certificate and sign it by CA")
 	flag.StringVar(&opt, "opt", "options.toml", "options file path")
 	flag.StringVar(&nt, "nt", "english", "namer type")
 	flag.StringVar(&np, "np", "namer/english.zip", "namer resource path")
 	flag.Parse()
 	// load options
-	options, err := ioutil.ReadFile(opt) // #nosec
+	options, err := os.ReadFile(opt) // #nosec
 	system.CheckError(err)
 	opts := new(cert.Options)
 	err = toml.Unmarshal(options, opts)
 	system.CheckError(err)
 	// load namer
-	res, err := ioutil.ReadFile(np) // #nosec
+	res, err := os.ReadFile(np) // #nosec
 	system.CheckError(err)
 	opts.Namer, err = namer.Load(nt, res)
 	system.CheckError(err)
-	// generate certificate
-	var certificate *x509.Certificate
+	// generate or sign certificate
+	var crt *x509.Certificate
 	switch {
-	case gc:
+	case gen:
 		ca, err := cert.GenerateCA(opts)
 		system.CheckError(err)
 		caCert, caKey := ca.EncodeToPEM()
-		err = system.WriteFile("ca.crt", caCert)
+		// save pair
+		err = system.WriteFile("ca_cert.pem", caCert)
 		system.CheckError(err)
-		err = system.WriteFile("ca.key", caKey)
+		err = system.WriteFile("ca_key.pem", caKey)
 		system.CheckError(err)
-		certificate = ca.Certificate
-	case gs:
+		crt = ca.Certificate
+	case sign:
 		// load CA certificate
-		pemData, err := ioutil.ReadFile("ca.crt")
+		pemData, err := os.ReadFile("ca_cert.pem")
 		system.CheckError(err)
-		caCert, err := cert.ParseCertificate(pemData)
+		caCert, err := cert.ParseCertificatePEM(pemData)
 		system.CheckError(err)
 		// load CA private key
-		pemData, err = ioutil.ReadFile("ca.key")
+		pemData, err = os.ReadFile("ca_key.pem")
 		system.CheckError(err)
-		caKey, err := cert.ParsePrivateKey(pemData)
+		caKey, err := cert.ParsePrivateKeyPEM(pemData)
 		system.CheckError(err)
 		// generate certificate
-		kp, err := cert.Generate(caCert, caKey, opts)
+		child, err := cert.Generate(caCert, caKey, opts)
 		system.CheckError(err)
-		crt, key := kp.EncodeToPEM()
-		err = system.WriteFile("server.crt", crt)
+		childCert, childKey := child.EncodeToPEM()
+		// save pair
+		err = system.WriteFile("cert.pem", childCert)
 		system.CheckError(err)
-		err = system.WriteFile("server.key", key)
+		err = system.WriteFile("key.pem", childKey)
 		system.CheckError(err)
-		certificate = kp.Certificate
+		crt = child.Certificate
 	default:
 		flag.PrintDefaults()
 		return
 	}
-	fmt.Println(cert.Print(certificate))
+	cert.Dump(crt)
 }

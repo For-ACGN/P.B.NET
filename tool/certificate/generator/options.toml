@@ -17,7 +17,7 @@ ip_addresses = ["127.0.0.1","::1"]
   street_address      = []
   postal_code         = []
 
-[namer_opts]
+[namer]
   disable_prefix = false
   disable_stem   = false
   disable_suffix = false
