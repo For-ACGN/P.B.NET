@@ -200,6 +200,9 @@ func (mgr *manager) Manage() {
 	mgr.prefix = prefixManager
 	mgr.scanner = bufio.NewScanner(os.Stdin)
 	for {
+		if mgr.prefix == "[test] exit" {
+			return
+		}
 		fmt.Printf("%s> ", mgr.prefix)
 		if !mgr.scanner.Scan() {
 			mgr.scanner = bufio.NewScanner(os.Stdin)
@@ -271,6 +274,7 @@ func (mgr *manager) save() {
 
 func (mgr *manager) exit() {
 	mgr.deleteBackup()
+	mgr.prefix = "[test] exit"
 	fmt.Println("Bye!")
 	os.Exit(0)
 }
