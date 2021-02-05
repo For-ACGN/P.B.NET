@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -17,6 +18,35 @@ import (
 )
 
 const timeLayout = "2006-01-02 15:04:05 Z07:00"
+
+const dumpTemplate = `
+[Basic]
+  Version: %d
+  Is CA: %t
+  Serial number:  %s
+
+[Subject]
+  Common name:  %s
+  Organization: %s
+
+[Issuer]
+  Common name:  %s
+  Organization: %s
+
+[Public key]
+  algo: %s
+  size: %s bits
+  data: [%s]
+
+[Signature]
+  algo: %s
+  size: %d bits
+  data: [%s]
+
+[Valid time]
+  Not before: %s
+  Not after:  %s
+`
 
 // Dump is used to dump certificate information to os.Stdout.
 func Dump(cert *x509.Certificate) {
@@ -36,28 +66,7 @@ func Sdump(cert *x509.Certificate) string {
 
 // Fdump is used to dump certificate information to a io.Writer.
 func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
-	const template = `
-Version: %d
-Serial number:  %s
-
-[Subject]
-  Common name:  %s
-  Organization: %s
-
-[Issuer]
-  Common name:  %s
-  Organization: %s
-
-Public key algorithm: %s
-Public key: [%s]
-
-Signature algorithm: %s
-Signature:  [%s]
-
-Not before: %s
-Not after:  %s
-`
-	publicKeyBytes, err := dumpPublicKey(cert.PublicKey)
+	pubPart, pubSize, err := dumpPublicKey(cert.PublicKey)
 	if err != nil {
 		_, _ = w.Write([]byte("[error]: " + err.Error()))
 		return 0, err
@@ -67,17 +76,17 @@ Not after:  %s
 	serialNum = strings.TrimSuffix(convert.RemoveFirstPrefix(serialNum, snPrefix), ",")
 	subjectOrg := strings.Join(cert.Subject.Organization, ", ")
 	issuerOrg := strings.Join(cert.Issuer.Organization, ", ")
-	publicKey := convert.SdumpBytesWithPL(publicKeyBytes[:8], "", 8)
+	publicKey := convert.SdumpBytesWithPL(pubPart[:8], "", 8)
 	publicKey = strings.TrimSuffix(publicKey, ",")
 	signature := convert.SdumpBytesWithPL(cert.Signature[:8], "", 8)
 	signature = strings.TrimSuffix(signature, ",")
 	var num int
-	n, err := fmt.Fprintf(w, template[1:],
-		cert.Version, serialNum,
+	n, err := fmt.Fprintf(w, dumpTemplate[1:],
+		cert.Version, cert.IsCA, serialNum,
 		cert.Subject.CommonName, subjectOrg,
 		cert.Issuer.CommonName, issuerOrg,
-		cert.PublicKeyAlgorithm, publicKey,
-		cert.SignatureAlgorithm, signature,
+		cert.PublicKeyAlgorithm, pubSize, publicKey,
+		cert.SignatureAlgorithm, len(signature)*8, signature,
 		cert.NotBefore.Local().Format(timeLayout),
 		cert.NotAfter.Local().Format(timeLayout),
 	)
@@ -89,8 +98,13 @@ Not after:  %s
 	if maxPaddingLen == 0 {
 		return num, nil
 	}
+	n, err = fmt.Fprint(w, "\n[Alternate]")
+	num += n
+	if err != nil {
+		return num, err
+	}
 	if len(cert.DNSNames) > 0 {
-		const format = "\nDNS names: %s[%s]"
+		const format = "\n  DNS names: %s[%s]"
 		padding := strings.Repeat(" ", maxPaddingLen-len("DNS names"))
 		n, err = fmt.Fprintf(w, format, padding, strings.Join(cert.DNSNames, ", "))
 		num += n
@@ -99,7 +113,7 @@ Not after:  %s
 		}
 	}
 	if len(cert.IPAddresses) > 0 {
-		const format = "\nIP addresses: %s[%s]"
+		const format = "\n  IP addresses: %s[%s]"
 		padding := strings.Repeat(" ", maxPaddingLen-len("IP addresses"))
 		ip := make([]string, len(cert.IPAddresses))
 		for i := 0; i < len(cert.IPAddresses); i++ {
@@ -112,7 +126,7 @@ Not after:  %s
 		}
 	}
 	if len(cert.EmailAddresses) > 0 {
-		const format = "\nEmail addresses: %s[%s]"
+		const format = "\n  Email addresses: %s[%s]"
 		padding := strings.Repeat(" ", maxPaddingLen-len("Email addresses"))
 		n, err = fmt.Fprintf(w, format, padding, strings.Join(cert.EmailAddresses, ", "))
 		num += n
@@ -121,7 +135,7 @@ Not after:  %s
 		}
 	}
 	if len(cert.URIs) > 0 {
-		const format = "\nURIs: %s[%s]"
+		const format = "\n  URIs: %s[%s]"
 		padding := strings.Repeat(" ", maxPaddingLen-len("URIs"))
 		urls := make([]string, len(cert.URIs))
 		for i := 0; i < len(cert.URIs); i++ {
@@ -137,16 +151,18 @@ Not after:  %s
 }
 
 // dumpPublicKey is used to dump a part information about public key.
-func dumpPublicKey(publicKey interface{}) ([]byte, error) {
+func dumpPublicKey(publicKey interface{}) ([]byte, string, error) {
 	switch pub := publicKey.(type) {
 	case *rsa.PublicKey:
-		return pub.N.Bytes(), nil
+		size := pub.Size() * 8
+		return pub.N.Bytes(), strconv.Itoa(size), nil
 	case *ecdsa.PublicKey:
-		return pub.X.Bytes(), nil
+		size := pub.Curve.Params().BitSize
+		return pub.X.Bytes(), strconv.Itoa(size), nil
 	case ed25519.PublicKey:
-		return pub, nil
+		return pub, "256", nil
 	default:
-		return nil, errors.Errorf("unsupported public key: %T", pub)
+		return nil, "", errors.Errorf("unsupported public key: %T", pub)
 	}
 }
 

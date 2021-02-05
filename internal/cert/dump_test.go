@@ -129,6 +129,22 @@ func TestFdump(t *testing.T) {
 		fmt.Println(buf)
 	})
 
+	t.Run("failed to dump alternate", func(t *testing.T) {
+		var pg *monkey.PatchGuard
+		patch := func(io.Writer, ...interface{}) (int, error) {
+			return 0, monkey.Error
+		}
+		pg = monkey.Patch(fmt.Fprint, patch)
+		defer pg.Unpatch()
+
+		buf.Reset()
+
+		_, err = Fdump(buf, ca.Certificate)
+		monkey.IsMonkeyError(t, err)
+
+		fmt.Println(buf)
+	})
+
 	t.Run("failed to dump dns names", func(t *testing.T) {
 		var pg *monkey.PatchGuard
 		patch := func(w io.Writer, format string, a ...interface{}) (int, error) {
