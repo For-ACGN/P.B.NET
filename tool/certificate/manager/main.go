@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync/atomic"
 	"syscall"
 
 	"golang.org/x/term"
@@ -166,7 +167,7 @@ const certHelpTemplate = `
 help about manager/%s:
   
   list         list all %s certificates
-  add          add a certificate
+  add          add a certificate with private key
                 command: add "cert.pem" ["key.pem"]
   delete       delete a certificate with ID
                 command: delete 0
@@ -180,6 +181,11 @@ help about manager/%s:
 
 `
 
+var (
+	testMode     bool
+	testCertPool atomic.Value
+)
+
 type manager struct {
 	dataPath string
 	bakPath  string
@@ -187,27 +193,34 @@ type manager struct {
 	pool     *certpool.Pool
 	prefix   string
 	scanner  *bufio.Scanner
+	stopped  bool
 }
 
 func (mgr *manager) Manage() {
-	mgr.createBackup()
 	// interrupt input
 	go func() {
 		signalCh := make(chan os.Signal, 1)
 		signal.Notify(signalCh, os.Interrupt)
 	}()
+	mgr.createBackup()
 	mgr.reload()
 	mgr.prefix = prefixManager
 	mgr.scanner = bufio.NewScanner(os.Stdin)
 	for {
-		if mgr.prefix == "[test] exit" {
+		// for test mode
+		if mgr.stopped {
 			return
 		}
 		fmt.Printf("%s> ", mgr.prefix)
+		// handle CTRL+CS
 		if !mgr.scanner.Scan() {
 			mgr.scanner = bufio.NewScanner(os.Stdin)
 			fmt.Println()
 			continue
+		}
+		// print test input content
+		if testMode {
+			fmt.Println(mgr.scanner.Text())
 		}
 		switch mgr.prefix {
 		case prefixManager:
@@ -259,6 +272,10 @@ func (mgr *manager) reload() {
 	err = certmgr.LoadCtrlCertPool(pool, data, password)
 	checkError(err, true)
 	mgr.pool = pool
+	// for check certificate
+	if testMode {
+		testCertPool.Store(pool)
+	}
 }
 
 func (mgr *manager) save() {
@@ -274,7 +291,7 @@ func (mgr *manager) save() {
 
 func (mgr *manager) exit() {
 	mgr.deleteBackup()
-	mgr.prefix = "[test] exit"
+	mgr.stopped = true
 	fmt.Println("Bye!")
 	os.Exit(0)
 }
