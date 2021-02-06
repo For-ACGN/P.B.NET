@@ -99,31 +99,6 @@ func IPToHost(address string) string {
 	return "[" + address + "]"
 }
 
-// EncodeExternalAddress is used to encode connection external address.
-// If address is IP+Port, parse IP and return byte slice, ot return []byte(addr).
-func EncodeExternalAddress(address string) []byte {
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return []byte(address)
-	}
-	ip := net.ParseIP(host)
-	if ip != nil {
-		return ip
-	}
-	// for special remote address
-	return []byte(host)
-}
-
-// DecodeExternalAddress is used to decode connection external address.
-// If address is a IP, return it, or return string(address).
-func DecodeExternalAddress(address []byte) string {
-	ip := net.IP(address).String()
-	if strings.Contains(ip, ".") || strings.Contains(ip, ":") {
-		return ip
-	}
-	return string(address)
-}
-
 // IPEnabled is used to get system IP enabled status.
 func IPEnabled() (ipv4Enabled, ipv6Enabled bool) {
 	interfaces, err := net.Interfaces()

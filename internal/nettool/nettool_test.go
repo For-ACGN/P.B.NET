@@ -152,45 +152,6 @@ func TestIPToHost(t *testing.T) {
 	})
 }
 
-func TestEncodeExternalAddress(t *testing.T) {
-	t.Run("IPv4", func(t *testing.T) {
-		ip := EncodeExternalAddress("1.2.3.4:80")
-		require.Equal(t, net.IPv4(1, 2, 3, 4), net.IP(ip))
-	})
-
-	t.Run("IPv6", func(t *testing.T) {
-		ip := EncodeExternalAddress("[::]:80")
-		require.Equal(t, []byte(net.IPv6zero), ip)
-	})
-
-	t.Run("domain", func(t *testing.T) {
-		host := EncodeExternalAddress("domain:80")
-		require.Equal(t, []byte("domain"), host)
-	})
-
-	t.Run("other", func(t *testing.T) {
-		host := EncodeExternalAddress("other")
-		require.Equal(t, []byte("other"), host)
-	})
-}
-
-func TestDecodeExternalAddress(t *testing.T) {
-	t.Run("IPv4", func(t *testing.T) {
-		ip := DecodeExternalAddress([]byte{1, 2, 3, 4})
-		require.Equal(t, "1.2.3.4", ip)
-	})
-
-	t.Run("IPv6", func(t *testing.T) {
-		ip := DecodeExternalAddress(net.IPv6zero)
-		require.Equal(t, "::", ip)
-	})
-
-	t.Run("domain", func(t *testing.T) {
-		host := DecodeExternalAddress([]byte("domain"))
-		require.Equal(t, "domain", host)
-	})
-}
-
 func TestIPEnabled(t *testing.T) {
 	t.Run("current", func(t *testing.T) {
 		ipv4, ipv6 := IPEnabled()
