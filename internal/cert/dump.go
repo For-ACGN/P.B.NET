@@ -23,7 +23,16 @@ const dumpTemplate = `
 [Basic]
   Version: %d
   Is CA: %t
-  Serial number:  %s
+  Key usage: %d
+
+[Subject key ID]
+%s
+  
+[Authority key ID]
+%s
+
+[Serial number]
+%s
 
 [Subject]
   Common name:  %s
@@ -36,12 +45,12 @@ const dumpTemplate = `
 [Public key]
   algo: %s
   size: %s bits
-  data: [%s]
+  data: %s
 
 [Signature]
   algo: %s
   size: %d bits
-  data: [%s]
+  data: %s
 
 [Valid time]
   Not before: %s
@@ -66,27 +75,40 @@ func Sdump(cert *x509.Certificate) string {
 
 // Fdump is used to dump certificate information to a io.Writer.
 func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
-	pubPart, pubSize, err := dumpPublicKey(cert.PublicKey)
+	pub, pubSize, err := dumpPublicKey(cert.PublicKey)
 	if err != nil {
 		_, _ = w.Write([]byte("[error]: " + err.Error()))
 		return 0, err
 	}
-	snPrefix := strings.Repeat(" ", len("Serial number:  "))
-	serialNum := convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), snPrefix, 8)
-	serialNum = strings.TrimSuffix(convert.RemoveFirstPrefix(serialNum, snPrefix), ",")
+	subjectKeyID := "  [nil]"
+	if len(cert.SubjectKeyId) > 0 {
+		subjectKeyID = convert.SdumpBytesWithPL(cert.SubjectKeyId, "  ", 8)
+		subjectKeyID = strings.TrimSuffix(subjectKeyID, ",")
+	}
+	authorityKeyID := "  [nil]"
+	if len(cert.AuthorityKeyId) > 0 {
+		authorityKeyID = convert.SdumpBytesWithPL(cert.AuthorityKeyId, "  ", 8)
+		authorityKeyID = strings.TrimSuffix(authorityKeyID, ",")
+	}
+	serialNum := convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "  ", 8)
+	serialNum = strings.TrimSuffix(serialNum, ",")
 	subjectOrg := strings.Join(cert.Subject.Organization, ", ")
 	issuerOrg := strings.Join(cert.Issuer.Organization, ", ")
-	publicKey := convert.SdumpBytesWithPL(pubPart[:8], "", 8)
+	prefix := strings.Repeat(" ", len("  data: "))
+	publicKey := convert.SdumpBytesWithPL(pub, prefix, 8)
+	publicKey = convert.RemoveFirstPrefix(publicKey, prefix)
 	publicKey = strings.TrimSuffix(publicKey, ",")
-	signature := convert.SdumpBytesWithPL(cert.Signature[:8], "", 8)
+	signature := convert.SdumpBytesWithPL(cert.Signature, prefix, 8)
+	signature = convert.RemoveFirstPrefix(signature, prefix)
 	signature = strings.TrimSuffix(signature, ",")
 	var num int
 	n, err := fmt.Fprintf(w, dumpTemplate[1:],
-		cert.Version, cert.IsCA, serialNum,
+		cert.Version, cert.IsCA, cert.KeyUsage,
+		subjectKeyID, authorityKeyID, serialNum,
 		cert.Subject.CommonName, subjectOrg,
 		cert.Issuer.CommonName, issuerOrg,
 		cert.PublicKeyAlgorithm, pubSize, publicKey,
-		cert.SignatureAlgorithm, len(signature)*8, signature,
+		cert.SignatureAlgorithm, len(cert.Signature)*8, signature,
 		cert.NotBefore.Local().Format(timeLayout),
 		cert.NotAfter.Local().Format(timeLayout),
 	)
@@ -94,11 +116,18 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 	if err != nil {
 		return num, err
 	}
+	n, err = dumpAlternate(w, cert)
+	num += n
+	return num, err
+}
+
+func dumpAlternate(w io.Writer, cert *x509.Certificate) (int, error) {
 	maxPaddingLen := calcMaxPaddingLen(cert)
 	if maxPaddingLen == 0 {
-		return num, nil
+		return 0, nil
 	}
-	n, err = fmt.Fprint(w, "\n[Alternate]")
+	var num int
+	n, err := fmt.Fprint(w, "\n[Alternate]")
 	num += n
 	if err != nil {
 		return num, err
@@ -147,7 +176,7 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 			return num, err
 		}
 	}
-	return num, nil
+	return num, err
 }
 
 // dumpPublicKey is used to dump a part information about public key.
