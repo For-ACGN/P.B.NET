@@ -21,8 +21,8 @@ func calcDumpBytesWithPLBufferSize(b []byte, prefix string, lineLen int) int {
 }
 
 func calcDumpBytesBufferSize(b []byte) int {
-	needNewLine := len(b) > defaultBytesLineLen
 	var prefix string
+	needNewLine := len(b) > defaultBytesLineLen
 	if needNewLine {
 		prefix = "\t"
 	}
@@ -60,7 +60,6 @@ func SdumpBytes(b []byte) string {
 
 // FdumpBytes is used to convert byte slice to go source and write it to a io.Writer.
 func FdumpBytes(w io.Writer, b []byte) (int, error) {
-	needNewLine := len(b) > defaultBytesLineLen
 	var (
 		num int
 		n   int
@@ -73,6 +72,7 @@ func FdumpBytes(w io.Writer, b []byte) (int, error) {
 		return num, err
 	}
 	var prefix string
+	needNewLine := len(b) > defaultBytesLineLen
 	if needNewLine {
 		prefix = "\t"
 		n, err = w.Write(newLine)
