@@ -22,35 +22,41 @@ import (
 	"project/internal/system"
 )
 
-var stdinFD = int(syscall.Stdin)
+var (
+	initMgr  bool
+	resetPwd bool
+	filePath string
+)
+
+func init() {
+	flag.CommandLine.SetOutput(os.Stdout)
+
+	flag.BoolVar(&initMgr, "init", false, "initialize certificate manager")
+	flag.BoolVar(&resetPwd, "reset", false, "reset certificate manager password")
+	flag.StringVar(&filePath, "file", "key/certpool.bin", "certificate pool file")
+	flag.Parse()
+}
 
 func main() {
-	var (
-		init  bool
-		reset bool
-		path  string
-	)
-	flag.BoolVar(&init, "init", false, "initialize certificate manager")
-	flag.BoolVar(&reset, "reset", false, "reset certificate manager password")
-	flag.StringVar(&path, "path", "key/certpool.bin", "certificate pool file")
-	flag.Parse()
 	switch {
-	case init:
-		initialize(path)
-	case reset:
-		resetPassword(path)
+	case initMgr:
+		initialize()
+	case resetPwd:
+		resetPassword()
 	default:
-		manage(path)
+		manage()
 	}
 }
 
-func initialize(path string) {
+var stdinFD = int(syscall.Stdin)
+
+func initialize() {
 	// check data file is exists
-	exist, err := system.IsExist(path)
+	exist, err := system.IsExist(filePath)
 	checkError(err, true)
 	if exist {
 		const format = "certificate pool file \"%s\" is already exists\n"
-		system.PrintErrorf(format, path)
+		system.PrintErrorf(format, filePath)
 	}
 	// input password
 	fmt.Print("password: ")
@@ -73,12 +79,12 @@ func initialize(path string) {
 	// save certificate pool
 	data, err := certmgr.SaveCtrlCertPool(pool, password)
 	checkError(err, true)
-	err = system.WriteFile(path, data)
+	err = system.WriteFile(filePath, data)
 	checkError(err, true)
 	fmt.Println("initialize certificate manager successfully")
 }
 
-func resetPassword(path string) {
+func resetPassword() {
 	// input old password
 	fmt.Print("input old password: ")
 	oldPwd, err := term.ReadPassword(stdinFD)
@@ -101,7 +107,7 @@ func resetPassword(path string) {
 		os.Exit(1)
 	}
 	// load certificate pool
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(filePath)
 	checkError(err, true)
 	pool := certpool.NewPool()
 	err = certmgr.LoadCtrlCertPool(pool, data, oldPwd)
@@ -109,18 +115,18 @@ func resetPassword(path string) {
 	// save certificate pool
 	data, err = certmgr.SaveCtrlCertPool(pool, newPwd)
 	checkError(err, true)
-	err = system.WriteFile(path, data)
+	err = system.WriteFile(filePath, data)
 	checkError(err, true)
 	fmt.Println("reset certificate manager password successfully")
 }
 
-func manage(path string) {
+func manage() {
 	// check data file is exists
-	exist, err := system.IsExist(path)
+	exist, err := system.IsExist(filePath)
 	checkError(err, true)
 	if !exist {
 		const format = "certificate pool file \"%s\" is not exist\n"
-		system.PrintErrorf(format, path)
+		system.PrintErrorf(format, filePath)
 	}
 	// input password
 	fmt.Print("password: ")
@@ -129,8 +135,8 @@ func manage(path string) {
 	fmt.Println()
 	// start manage
 	mgr := manager{
-		dataPath: path,
-		bakPath:  path + ".bak",
+		dataPath: filePath,
+		bakPath:  filePath + ".bak",
 		password: security.NewBytes(password),
 	}
 	security.CoverBytes(password)

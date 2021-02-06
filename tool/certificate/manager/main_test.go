@@ -14,10 +14,9 @@ import (
 	"project/internal/patch/monkey"
 )
 
-var testPath = "testdata/certpool.bin"
-
 func TestMain(m *testing.M) {
 	testClean()
+	filePath = "testdata/certpool.bin"
 	testMode = true
 
 	// hook os.Exit()
@@ -39,16 +38,22 @@ func testClean() {
 	testsuite.TestMainCheckError(err)
 }
 
-func testManager(t *testing.T, fn func(w *os.File)) {
+func TestInitialize(t *testing.T) {
 	patch := func(int) ([]byte, error) {
 		return []byte("test"), nil
 	}
 	pg := monkey.Patch(term.ReadPassword, patch)
 	defer pg.Unpatch()
 
+	initMgr = true
+	defer func() { initMgr = false }()
+
 	fmt.Println("================================================")
-	initialize(testPath)
+	fmt.Println(initMgr)
+	main()
 	fmt.Println("================================================")
+
+	initMgr = false
 
 	// simulate user input
 	r, w, err := os.Pipe()
@@ -67,22 +72,17 @@ func testManager(t *testing.T, fn func(w *os.File)) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		manage(testPath)
+		main()
 	}()
 
-	fn(w)
-
-	_, err = w.WriteString("exit\n")
-	require.NoError(t, err)
+	for _, cmd := range []string{
+		"help", "exit",
+	} {
+		_, err = w.WriteString(cmd + "\n")
+		require.NoError(t, err)
+	}
 
 	wg.Wait()
-}
-
-func TestInitialize(t *testing.T) {
-	testManager(t, func(w *os.File) {
-		_, err := w.WriteString("help\n")
-		require.NoError(t, err)
-	})
 }
 
 func TestResetPassword(t *testing.T) {
@@ -98,9 +98,9 @@ func TestResetPassword(t *testing.T) {
 	defer pg.Unpatch()
 
 	fmt.Println("================================================")
-	initialize(testPath)
+	initialize()
 	fmt.Println("================================================")
-	resetPassword(testPath)
+	resetPassword()
 	fmt.Println("================================================")
 
 	// simulate user input
@@ -120,7 +120,7 @@ func TestResetPassword(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		manage(testPath)
+		manage()
 	}()
 
 	for _, cmd := range []string{
@@ -129,6 +129,45 @@ func TestResetPassword(t *testing.T) {
 		_, err = w.WriteString(cmd + "\n")
 		require.NoError(t, err)
 	}
+
+	wg.Wait()
+}
+
+func testManager(t *testing.T, fn func(w *os.File)) {
+	patch := func(int) ([]byte, error) {
+		return []byte("test"), nil
+	}
+	pg := monkey.Patch(term.ReadPassword, patch)
+	defer pg.Unpatch()
+
+	fmt.Println("================================================")
+	main()
+	fmt.Println("================================================")
+
+	// simulate user input
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	defer func() {
+		err = r.Close()
+		require.NoError(t, err)
+		err = w.Close()
+		require.NoError(t, err)
+	}()
+	stdin := os.Stdin
+	defer func() { os.Stdin = stdin }()
+	os.Stdin = r
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		manage()
+	}()
+
+	fn(w)
+
+	_, err = w.WriteString("exit\n")
+	require.NoError(t, err)
 
 	wg.Wait()
 }
