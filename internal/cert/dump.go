@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"io"
 	"os"
@@ -23,7 +24,9 @@ const dumpTemplate = `
 [Basic]
   Version: %d
   Is CA: %t
-  Key usage: %d
+
+[Key usage]
+  %s
 
 [Subject key ID]
 %s
@@ -35,12 +38,10 @@ const dumpTemplate = `
 %s
 
 [Subject]
-  Common name:  %s
-  Organization: %s
+%s
 
 [Issuer]
-  Common name:  %s
-  Organization: %s
+%s
 
 [Public key]
   algo: %s
@@ -92,8 +93,6 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 	}
 	serialNum := convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "  ", 8)
 	serialNum = strings.TrimSuffix(serialNum, ",")
-	subjectOrg := strings.Join(cert.Subject.Organization, ", ")
-	issuerOrg := strings.Join(cert.Issuer.Organization, ", ")
 	prefix := strings.Repeat(" ", len("  data: "))
 	publicKey := convert.SdumpBytesWithPL(pub, prefix, 8)
 	publicKey = convert.RemoveFirstPrefix(publicKey, prefix)
@@ -103,10 +102,9 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 	signature = strings.TrimSuffix(signature, ",")
 	var num int
 	n, err := fmt.Fprintf(w, dumpTemplate[1:],
-		cert.Version, cert.IsCA, cert.KeyUsage,
+		cert.Version, cert.IsCA, dumpKeyUsage(cert.KeyUsage),
 		subjectKeyID, authorityKeyID, serialNum,
-		cert.Subject.CommonName, subjectOrg,
-		cert.Issuer.CommonName, issuerOrg,
+		dumpPKIXName(cert.Subject), dumpPKIXName(cert.Issuer),
 		cert.PublicKeyAlgorithm, pubSize, publicKey,
 		cert.SignatureAlgorithm, len(cert.Signature)*8, signature,
 		cert.NotBefore.Local().Format(timeLayout),
@@ -119,6 +117,55 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 	n, err = dumpAlternate(w, cert)
 	num += n
 	return num, err
+}
+
+var keyUsage = map[x509.KeyUsage]string{
+	x509.KeyUsageDigitalSignature:  "Digital Signature",
+	x509.KeyUsageContentCommitment: "Content Commitment",
+	x509.KeyUsageKeyEncipherment:   "Key Encipherment",
+	x509.KeyUsageDataEncipherment:  "Data Encipherment",
+	x509.KeyUsageKeyAgreement:      "Key Agreement",
+	x509.KeyUsageCertSign:          "Certificate Signing",
+	x509.KeyUsageCRLSign:           "CRL Signing",
+	x509.KeyUsageEncipherOnly:      "Encipher Only",
+	x509.KeyUsageDecipherOnly:      "Decipher Only",
+}
+
+func dumpKeyUsage(usage x509.KeyUsage) string {
+	var usages []string
+	for i := 0; i < len(keyUsage); i++ {
+		ku := x509.KeyUsage(1 << i)
+		if (usage & (ku)) != 0 {
+			usages = append(usages, keyUsage[ku])
+		}
+	}
+	return strings.Join(usages, "\n  ")
+}
+
+func dumpPKIXName(name pkix.Name) string {
+	const format = `
+  Common name:    %s
+  Organization:   %s
+  Unit:           %s
+  Country:        %s
+  Locality:       %s
+  Province:       %s
+  Street address: %s
+  Postal code:    %s
+  Serial number:  %s`
+	builder := strings.Builder{}
+	_, _ = fmt.Fprintf(&builder, format[1:],
+		name.CommonName,
+		strings.Join(name.Organization, ", "),
+		strings.Join(name.OrganizationalUnit, ", "),
+		strings.Join(name.Country, ", "),
+		strings.Join(name.Locality, ", "),
+		strings.Join(name.Province, ", "),
+		strings.Join(name.StreetAddress, ", "),
+		strings.Join(name.PostalCode, ", "),
+		name.SerialNumber,
+	)
+	return builder.String()
 }
 
 func dumpAlternate(w io.Writer, cert *x509.Certificate) (int, error) {
