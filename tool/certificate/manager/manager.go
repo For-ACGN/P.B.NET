@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"syscall"
 
 	"github.com/pkg/errors"
 	"golang.org/x/term"
@@ -20,8 +19,6 @@ import (
 	"project/internal/security"
 	"project/internal/system"
 )
-
-var stdinFD = int(syscall.Stdin)
 
 const (
 	prefixManager         = "manager"
@@ -92,15 +89,16 @@ type Manager struct {
 }
 
 // New is used to create a certificate manager.
-func New(path string) *Manager {
+func New(stdin io.Reader, path string) *Manager {
 	return &Manager{
+		stdin:    stdin,
 		dataPath: path,
 		bakPath:  path + ".bak",
 	}
 }
 
 // Initialize is used to initialize certificate manager.
-func (mgr *Manager) Initialize() error {
+func (mgr *Manager) Initialize(password []byte) error {
 	// check data file is exists
 	exist, err := system.IsExist(mgr.dataPath)
 	if err != nil {
@@ -109,26 +107,6 @@ func (mgr *Manager) Initialize() error {
 	if exist {
 		const format = "certificate pool file \"%s\" is already exists\n"
 		return errors.Errorf(format, mgr.dataPath)
-	}
-	// input password
-	fmt.Print("password: ")
-	password, err := term.ReadPassword(stdinFD)
-	if err != nil {
-		return err
-	}
-	// retype
-	for {
-		fmt.Print("\nretype: ")
-		retype, err := term.ReadPassword(stdinFD)
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(password, retype) {
-			fmt.Print("\ndifferent password")
-		} else {
-			fmt.Println()
-			break
-		}
 	}
 	// load system certificates
 	pool, err := certpool.NewPoolWithSystem()
@@ -140,6 +118,7 @@ func (mgr *Manager) Initialize() error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("add certificates from system")
 	err = system.WriteFile(mgr.dataPath, data)
 	if err != nil {
 		return err
@@ -149,66 +128,44 @@ func (mgr *Manager) Initialize() error {
 }
 
 // ResetPassword is used to reset certificate manager password.
-func (mgr *Manager) ResetPassword() {
-	// input old password
-	fmt.Print("input old password: ")
-	oldPwd, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	fmt.Println()
-	defer security.CoverBytes(oldPwd)
-	// input new password
-	fmt.Print("input new password: ")
-	newPwd, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	fmt.Println()
-	defer security.CoverBytes(newPwd)
-	fmt.Print("retype: ")
-	rePwd, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	fmt.Println()
-	defer security.CoverBytes(rePwd)
-	if !bytes.Equal(newPwd, rePwd) {
-		fmt.Println("different password")
-		os.Exit(1)
-	}
-	// load certificate pool
+func (mgr *Manager) ResetPassword(oldPwd, newPwd []byte) error {
+	// load certificate pool with old password
 	data, err := os.ReadFile(mgr.dataPath)
-	checkError(err, true)
+	if err != nil {
+		return err
+	}
 	pool := certpool.NewPool()
 	err = certmgr.LoadCtrlCertPool(pool, data, oldPwd)
-	checkError(err, true)
-	// save certificate pool
+	if err != nil {
+		return err
+	}
+	// save certificate pool with new password
 	data, err = certmgr.SaveCtrlCertPool(pool, newPwd)
-	checkError(err, true)
+	if err != nil {
+		return err
+	}
 	err = system.WriteFile(mgr.dataPath, data)
-	checkError(err, true)
+	if err != nil {
+		return err
+	}
 	fmt.Println("reset certificate manager password successfully")
+	return nil
 }
 
-func manage() {
+// Manage is used to manage certificate, it will cover password slice.
+func (mgr *Manager) Manage(password []byte) error {
+	defer security.CoverBytes(password)
 	// check data file is exists
 	exist, err := system.IsExist(mgr.dataPath)
-	checkError(err, true)
+	if err != nil {
+		return err
+	}
 	if !exist {
 		const format = "certificate pool file \"%s\" is not exist\n"
-		system.PrintErrorf(format, mgr.dataPath)
+		return errors.Errorf(format, mgr.dataPath)
 	}
-	// input password
-	fmt.Print("password: ")
-	password, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	fmt.Println()
-	// start manage
-	mgr := Manager{
-		dataPath: mgr.dataPath,
-		bakPath:  mgr.dataPath + ".bak",
-		password: security.NewBytes(password),
-	}
+	mgr.password = security.NewBytes(password)
 	security.CoverBytes(password)
-	mgr.Manage()
-}
-
-func (mgr *Manager) Manage() {
 	// interrupt input
 	go func() {
 		signalCh := make(chan os.Signal, 1)
