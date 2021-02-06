@@ -4,15 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/x509"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"strconv"
-	"sync/atomic"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"golang.org/x/term"
 
 	"project/internal/cert"
@@ -22,126 +21,7 @@ import (
 	"project/internal/system"
 )
 
-var (
-	initMgr  bool
-	resetPwd bool
-	filePath string
-)
-
-func init() {
-	flag.CommandLine.SetOutput(os.Stdout)
-
-	flag.BoolVar(&initMgr, "init", false, "initialize certificate manager")
-	flag.BoolVar(&resetPwd, "reset", false, "reset certificate manager password")
-	flag.StringVar(&filePath, "file", "key/certpool.bin", "certificate pool file")
-	flag.Parse()
-}
-
-func main() {
-	switch {
-	case initMgr:
-		initialize()
-	case resetPwd:
-		resetPassword()
-	default:
-		manage()
-	}
-}
-
 var stdinFD = int(syscall.Stdin)
-
-func initialize() {
-	// check data file is exists
-	exist, err := system.IsExist(filePath)
-	checkError(err, true)
-	if exist {
-		const format = "certificate pool file \"%s\" is already exists\n"
-		system.PrintErrorf(format, filePath)
-	}
-	// input password
-	fmt.Print("password: ")
-	password, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	for {
-		fmt.Print("\nretype: ")
-		retype, err := term.ReadPassword(stdinFD)
-		checkError(err, true)
-		if !bytes.Equal(password, retype) {
-			fmt.Print("\ndifferent password")
-		} else {
-			fmt.Println()
-			break
-		}
-	}
-	// load system certificates
-	pool, err := certpool.NewPoolWithSystem()
-	checkError(err, true)
-	// save certificate pool
-	data, err := certmgr.SaveCtrlCertPool(pool, password)
-	checkError(err, true)
-	err = system.WriteFile(filePath, data)
-	checkError(err, true)
-	fmt.Println("initialize certificate manager successfully")
-}
-
-func resetPassword() {
-	// input old password
-	fmt.Print("input old password: ")
-	oldPwd, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	fmt.Println()
-	defer security.CoverBytes(oldPwd)
-	// input new password
-	fmt.Print("input new password: ")
-	newPwd, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	fmt.Println()
-	defer security.CoverBytes(newPwd)
-	fmt.Print("retype: ")
-	rePwd, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	fmt.Println()
-	defer security.CoverBytes(rePwd)
-	if !bytes.Equal(newPwd, rePwd) {
-		fmt.Println("different password")
-		os.Exit(1)
-	}
-	// load certificate pool
-	data, err := os.ReadFile(filePath)
-	checkError(err, true)
-	pool := certpool.NewPool()
-	err = certmgr.LoadCtrlCertPool(pool, data, oldPwd)
-	checkError(err, true)
-	// save certificate pool
-	data, err = certmgr.SaveCtrlCertPool(pool, newPwd)
-	checkError(err, true)
-	err = system.WriteFile(filePath, data)
-	checkError(err, true)
-	fmt.Println("reset certificate manager password successfully")
-}
-
-func manage() {
-	// check data file is exists
-	exist, err := system.IsExist(filePath)
-	checkError(err, true)
-	if !exist {
-		const format = "certificate pool file \"%s\" is not exist\n"
-		system.PrintErrorf(format, filePath)
-	}
-	// input password
-	fmt.Print("password: ")
-	password, err := term.ReadPassword(stdinFD)
-	checkError(err, true)
-	fmt.Println()
-	// start manage
-	mgr := manager{
-		dataPath: filePath,
-		bakPath:  filePath + ".bak",
-		password: security.NewBytes(password),
-	}
-	security.CoverBytes(password)
-	mgr.Manage()
-}
 
 const (
 	prefixManager         = "manager"
@@ -154,6 +34,18 @@ const (
 	prefixPrivateClientCA = "manager/private/client-ca"
 	prefixPrivateClient   = "manager/private/client"
 )
+
+const managerHelp = `
+help about manager:
+  
+  public       switch to public mode
+  private      switch to private mode
+  help         print help
+  save         save certificate pool
+  reload       reload certificate pool
+  exit         close certificate manager
+  
+`
 
 const locationHelpTemplate = `
 help about manager/%s:
@@ -187,22 +79,136 @@ help about manager/%s:
 
 `
 
-var (
-	testMode     bool
-	testCertPool atomic.Value
-)
-
-type manager struct {
+// Manager is the certificate manager CUI program.
+type Manager struct {
+	stdin    io.Reader
 	dataPath string
 	bakPath  string
 	password *security.Bytes
 	pool     *certpool.Pool
 	prefix   string
 	scanner  *bufio.Scanner
-	stopped  bool
+	closed   bool
 }
 
-func (mgr *manager) Manage() {
+// New is used to create a certificate manager.
+func New(path string) *Manager {
+	return &Manager{
+		dataPath: path,
+		bakPath:  path + ".bak",
+	}
+}
+
+// Initialize is used to initialize certificate manager.
+func (mgr *Manager) Initialize() error {
+	// check data file is exists
+	exist, err := system.IsExist(mgr.dataPath)
+	if err != nil {
+		return err
+	}
+	if exist {
+		const format = "certificate pool file \"%s\" is already exists\n"
+		return errors.Errorf(format, mgr.dataPath)
+	}
+	// input password
+	fmt.Print("password: ")
+	password, err := term.ReadPassword(stdinFD)
+	if err != nil {
+		return err
+	}
+	// retype
+	for {
+		fmt.Print("\nretype: ")
+		retype, err := term.ReadPassword(stdinFD)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(password, retype) {
+			fmt.Print("\ndifferent password")
+		} else {
+			fmt.Println()
+			break
+		}
+	}
+	// load system certificates
+	pool, err := certpool.NewPoolWithSystem()
+	if err != nil {
+		return err
+	}
+	// save certificate pool
+	data, err := certmgr.SaveCtrlCertPool(pool, password)
+	if err != nil {
+		return err
+	}
+	err = system.WriteFile(mgr.dataPath, data)
+	if err != nil {
+		return err
+	}
+	fmt.Println("initialize certificate manager successfully")
+	return nil
+}
+
+// ResetPassword is used to reset certificate manager password.
+func (mgr *Manager) ResetPassword() {
+	// input old password
+	fmt.Print("input old password: ")
+	oldPwd, err := term.ReadPassword(stdinFD)
+	checkError(err, true)
+	fmt.Println()
+	defer security.CoverBytes(oldPwd)
+	// input new password
+	fmt.Print("input new password: ")
+	newPwd, err := term.ReadPassword(stdinFD)
+	checkError(err, true)
+	fmt.Println()
+	defer security.CoverBytes(newPwd)
+	fmt.Print("retype: ")
+	rePwd, err := term.ReadPassword(stdinFD)
+	checkError(err, true)
+	fmt.Println()
+	defer security.CoverBytes(rePwd)
+	if !bytes.Equal(newPwd, rePwd) {
+		fmt.Println("different password")
+		os.Exit(1)
+	}
+	// load certificate pool
+	data, err := os.ReadFile(mgr.dataPath)
+	checkError(err, true)
+	pool := certpool.NewPool()
+	err = certmgr.LoadCtrlCertPool(pool, data, oldPwd)
+	checkError(err, true)
+	// save certificate pool
+	data, err = certmgr.SaveCtrlCertPool(pool, newPwd)
+	checkError(err, true)
+	err = system.WriteFile(mgr.dataPath, data)
+	checkError(err, true)
+	fmt.Println("reset certificate manager password successfully")
+}
+
+func manage() {
+	// check data file is exists
+	exist, err := system.IsExist(mgr.dataPath)
+	checkError(err, true)
+	if !exist {
+		const format = "certificate pool file \"%s\" is not exist\n"
+		system.PrintErrorf(format, mgr.dataPath)
+	}
+	// input password
+	fmt.Print("password: ")
+	password, err := term.ReadPassword(stdinFD)
+	checkError(err, true)
+	fmt.Println()
+	// start manage
+	mgr := Manager{
+		dataPath: mgr.dataPath,
+		bakPath:  mgr.dataPath + ".bak",
+		password: security.NewBytes(password),
+	}
+	security.CoverBytes(password)
+	mgr.Manage()
+}
+
+func (mgr *Manager) Manage() {
 	// interrupt input
 	go func() {
 		signalCh := make(chan os.Signal, 1)
@@ -211,16 +217,16 @@ func (mgr *manager) Manage() {
 	mgr.createBackup()
 	mgr.reload()
 	mgr.prefix = prefixManager
-	mgr.scanner = bufio.NewScanner(os.Stdin)
+	mgr.scanner = bufio.NewScanner(mgr.stdin)
 	for {
 		// for test mode
-		if mgr.stopped {
+		if mgr.closed {
 			return
 		}
 		fmt.Printf("%s> ", mgr.prefix)
 		// handle CTRL+CS
 		if !mgr.scanner.Scan() {
-			mgr.scanner = bufio.NewScanner(os.Stdin)
+			mgr.scanner = bufio.NewScanner(mgr.stdin)
 			fmt.Println()
 			continue
 		}
@@ -254,19 +260,19 @@ func (mgr *manager) Manage() {
 	}
 }
 
-func (mgr *manager) createBackup() {
+func (mgr *Manager) createBackup() {
 	data, err := os.ReadFile(mgr.dataPath)
 	checkError(err, true)
 	err = system.WriteFile(mgr.bakPath, data)
 	checkError(err, true)
 }
 
-func (mgr *manager) deleteBackup() {
+func (mgr *Manager) deleteBackup() {
 	err := os.Remove(mgr.bakPath)
 	checkError(err, true)
 }
 
-func (mgr *manager) reload() {
+func (mgr *Manager) reload() {
 	// read certificate pool file
 	data, err := os.ReadFile(mgr.dataPath)
 	checkError(err, true)
@@ -284,7 +290,7 @@ func (mgr *manager) reload() {
 	}
 }
 
-func (mgr *manager) save() {
+func (mgr *Manager) save() {
 	// get password
 	password := mgr.password.Get()
 	defer mgr.password.Put(password)
@@ -295,14 +301,14 @@ func (mgr *manager) save() {
 	checkError(err, false)
 }
 
-func (mgr *manager) exit() {
+func (mgr *Manager) exit() {
 	mgr.deleteBackup()
-	mgr.stopped = true
+	mgr.closed = true
 	fmt.Println("Bye!")
 	os.Exit(0)
 }
 
-func (mgr *manager) manager() {
+func (mgr *Manager) manager() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -318,7 +324,7 @@ func (mgr *manager) manager() {
 	case "private":
 		mgr.prefix = prefixPrivate
 	case "help":
-		mgr.managerHelp()
+		fmt.Print(managerHelp)
 	case "save":
 		mgr.save()
 	case "reload":
@@ -330,22 +336,7 @@ func (mgr *manager) manager() {
 	}
 }
 
-func (mgr *manager) managerHelp() {
-	const help = `
-help about manager:
-  
-  public       switch to public mode
-  private      switch to private mode
-  help         print help
-  save         save certificate pool
-  reload       reload certificate pool
-  exit         close certificate manager
-  
-`
-	fmt.Print(help)
-}
-
-func (mgr *manager) public() {
+func (mgr *Manager) public() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -381,7 +372,7 @@ func (mgr *manager) public() {
 	}
 }
 
-func (mgr *manager) private() {
+func (mgr *Manager) private() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -419,7 +410,7 @@ func (mgr *manager) private() {
 
 // -----------------------------------------Public Root CA-----------------------------------------
 
-func (mgr *manager) publicRootCA() {
+func (mgr *Manager) publicRootCA() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -461,7 +452,7 @@ func (mgr *manager) publicRootCA() {
 	}
 }
 
-func (mgr *manager) publicRootCAList() {
+func (mgr *Manager) publicRootCAList() {
 	fmt.Println()
 	certs := mgr.pool.GetPublicRootCACerts()
 	for i := 0; i < len(certs); i++ {
@@ -469,7 +460,7 @@ func (mgr *manager) publicRootCAList() {
 	}
 }
 
-func (mgr *manager) publicRootCAAdd(certFile string) {
+func (mgr *Manager) publicRootCAAdd(certFile string) {
 	pemData, err := os.ReadFile(certFile) // #nosec
 	if checkError(err, false) {
 		return
@@ -485,7 +476,7 @@ func (mgr *manager) publicRootCAAdd(certFile string) {
 	}
 }
 
-func (mgr *manager) publicRootCADelete(id string) {
+func (mgr *Manager) publicRootCADelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -494,7 +485,7 @@ func (mgr *manager) publicRootCADelete(id string) {
 	checkError(err, false)
 }
 
-func (mgr *manager) publicRootCAExport(id, file string) {
+func (mgr *Manager) publicRootCAExport(id, file string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -509,7 +500,7 @@ func (mgr *manager) publicRootCAExport(id, file string) {
 
 // ----------------------------------------Public Client CA----------------------------------------
 
-func (mgr *manager) publicClientCA() {
+func (mgr *Manager) publicClientCA() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -551,7 +542,7 @@ func (mgr *manager) publicClientCA() {
 	}
 }
 
-func (mgr *manager) publicClientCAList() {
+func (mgr *Manager) publicClientCAList() {
 	fmt.Println()
 	certs := mgr.pool.GetPublicClientCACerts()
 	for i := 0; i < len(certs); i++ {
@@ -559,7 +550,7 @@ func (mgr *manager) publicClientCAList() {
 	}
 }
 
-func (mgr *manager) publicClientCAAdd(certFile string) {
+func (mgr *Manager) publicClientCAAdd(certFile string) {
 	pemData, err := os.ReadFile(certFile) // #nosec
 	if checkError(err, false) {
 		return
@@ -575,7 +566,7 @@ func (mgr *manager) publicClientCAAdd(certFile string) {
 	}
 }
 
-func (mgr *manager) publicClientCADelete(id string) {
+func (mgr *Manager) publicClientCADelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -584,7 +575,7 @@ func (mgr *manager) publicClientCADelete(id string) {
 	checkError(err, false)
 }
 
-func (mgr *manager) publicClientCAExport(id, file string) {
+func (mgr *Manager) publicClientCAExport(id, file string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -599,7 +590,7 @@ func (mgr *manager) publicClientCAExport(id, file string) {
 
 // -----------------------------------------Public Client------------------------------------------
 
-func (mgr *manager) publicClient() {
+func (mgr *Manager) publicClient() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -641,7 +632,7 @@ func (mgr *manager) publicClient() {
 	}
 }
 
-func (mgr *manager) publicClientList() {
+func (mgr *Manager) publicClientList() {
 	fmt.Println()
 	certs := mgr.pool.GetPublicClientPairs()
 	for i := 0; i < len(certs); i++ {
@@ -649,7 +640,7 @@ func (mgr *manager) publicClientList() {
 	}
 }
 
-func (mgr *manager) publicClientAdd(certFile, keyFile string) {
+func (mgr *Manager) publicClientAdd(certFile, keyFile string) {
 	certs, keys := loadPairs(certFile, keyFile)
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
@@ -659,7 +650,7 @@ func (mgr *manager) publicClientAdd(certFile, keyFile string) {
 	}
 }
 
-func (mgr *manager) publicClientDelete(id string) {
+func (mgr *Manager) publicClientDelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -668,7 +659,7 @@ func (mgr *manager) publicClientDelete(id string) {
 	checkError(err, false)
 }
 
-func (mgr *manager) publicClientExport(id, cert, key string) {
+func (mgr *Manager) publicClientExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -687,7 +678,7 @@ func (mgr *manager) publicClientExport(id, cert, key string) {
 
 // ----------------------------------------Private Root CA-----------------------------------------
 
-func (mgr *manager) privateRootCA() {
+func (mgr *Manager) privateRootCA() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -729,7 +720,7 @@ func (mgr *manager) privateRootCA() {
 	}
 }
 
-func (mgr *manager) privateRootCAList() {
+func (mgr *Manager) privateRootCAList() {
 	fmt.Println()
 	certs := mgr.pool.GetPrivateRootCACerts()
 	for i := 0; i < len(certs); i++ {
@@ -737,7 +728,7 @@ func (mgr *manager) privateRootCAList() {
 	}
 }
 
-func (mgr *manager) privateRootCAAdd(certFile, keyFile string) {
+func (mgr *Manager) privateRootCAAdd(certFile, keyFile string) {
 	certs, keys := loadPairs(certFile, keyFile)
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
@@ -747,7 +738,7 @@ func (mgr *manager) privateRootCAAdd(certFile, keyFile string) {
 	}
 }
 
-func (mgr *manager) privateRootCADelete(id string) {
+func (mgr *Manager) privateRootCADelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -756,7 +747,7 @@ func (mgr *manager) privateRootCADelete(id string) {
 	checkError(err, false)
 }
 
-func (mgr *manager) privateRootCAExport(id, cert, key string) {
+func (mgr *Manager) privateRootCAExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -775,7 +766,7 @@ func (mgr *manager) privateRootCAExport(id, cert, key string) {
 
 // ---------------------------------------Private Client CA----------------------------------------
 
-func (mgr *manager) privateClientCA() {
+func (mgr *Manager) privateClientCA() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -817,7 +808,7 @@ func (mgr *manager) privateClientCA() {
 	}
 }
 
-func (mgr *manager) privateClientCAList() {
+func (mgr *Manager) privateClientCAList() {
 	fmt.Println()
 	certs := mgr.pool.GetPrivateClientCACerts()
 	for i := 0; i < len(certs); i++ {
@@ -825,7 +816,7 @@ func (mgr *manager) privateClientCAList() {
 	}
 }
 
-func (mgr *manager) privateClientCAAdd(certFile, keyFile string) {
+func (mgr *Manager) privateClientCAAdd(certFile, keyFile string) {
 	certs, keys := loadPairs(certFile, keyFile)
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
@@ -835,7 +826,7 @@ func (mgr *manager) privateClientCAAdd(certFile, keyFile string) {
 	}
 }
 
-func (mgr *manager) privateClientCADelete(id string) {
+func (mgr *Manager) privateClientCADelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -844,7 +835,7 @@ func (mgr *manager) privateClientCADelete(id string) {
 	checkError(err, false)
 }
 
-func (mgr *manager) privateClientCAExport(id, cert, key string) {
+func (mgr *Manager) privateClientCAExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -863,7 +854,7 @@ func (mgr *manager) privateClientCAExport(id, cert, key string) {
 
 // ----------------------------------------Private Client------------------------------------------
 
-func (mgr *manager) privateClient() {
+func (mgr *Manager) privateClient() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -905,7 +896,7 @@ func (mgr *manager) privateClient() {
 	}
 }
 
-func (mgr *manager) privateClientList() {
+func (mgr *Manager) privateClientList() {
 	fmt.Println()
 	certs := mgr.pool.GetPrivateClientPairs()
 	for i := 0; i < len(certs); i++ {
@@ -913,7 +904,7 @@ func (mgr *manager) privateClientList() {
 	}
 }
 
-func (mgr *manager) privateClientAdd(certFile, keyFile string) {
+func (mgr *Manager) privateClientAdd(certFile, keyFile string) {
 	certs, keys := loadPairs(certFile, keyFile)
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
@@ -923,7 +914,7 @@ func (mgr *manager) privateClientAdd(certFile, keyFile string) {
 	}
 }
 
-func (mgr *manager) privateClientDelete(id string) {
+func (mgr *Manager) privateClientDelete(id string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
@@ -932,7 +923,7 @@ func (mgr *manager) privateClientDelete(id string) {
 	checkError(err, false)
 }
 
-func (mgr *manager) privateClientExport(id, cert, key string) {
+func (mgr *Manager) privateClientExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
 	if checkError(err, false) {
 		return
