@@ -22,7 +22,7 @@ import (
 const timeLayout = "2006-01-02 15:04:05 Z07:00"
 
 const dumpTemplate = `
-[basic]
+[Basic]
   Version: %d
   Is CA: %t
 

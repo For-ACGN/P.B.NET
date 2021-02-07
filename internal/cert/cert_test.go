@@ -92,6 +92,8 @@ func TestGenerate(t *testing.T) {
 			opts := Options{Algorithm: alg}
 			ca, err := GenerateCA(&opts)
 			require.NoError(t, err)
+			Dump(ca.Certificate)
+
 			testGenerate(t, ca)  // CA sign
 			testGenerate(t, nil) // self sign
 		})
@@ -121,9 +123,11 @@ func TestGenerate(t *testing.T) {
 
 func testGenerate(t *testing.T, ca *Pair) {
 	opts := &Options{
-		Algorithm:   "rsa|2048",
-		DNSNames:    []string{"localhost"},
-		IPAddresses: []string{"127.0.0.1", "::1"},
+		Algorithm:      "rsa|2048",
+		DNSNames:       []string{"localhost"},
+		IPAddresses:    []string{"127.0.0.1", "::1"},
+		EmailAddresses: []string{"admin@test.com", "user@test.com"},
+		URLs:           []string{"https://test.com/", "http://test.com/"},
 	}
 	var (
 		pair *Pair
@@ -136,9 +140,10 @@ func testGenerate(t *testing.T, ca *Pair) {
 		pair, err = Generate(nil, nil, opts)
 		require.NoError(t, err)
 	}
+	Dump(pair.Certificate)
 	require.Equal(t, pair.Certificate.Raw, pair.ASN1())
 
-	// handler
+	// set http server handler
 	respData := []byte("hello")
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -206,7 +211,7 @@ func TestGenerateCertificate(t *testing.T) {
 		opts := Options{
 			Namer: testnamer.Namer(),
 		}
-		cert, err := generateCertificate(&opts)
+		cert, err := generateCertificate(&opts, false)
 		require.NoError(t, err)
 		t.Log("common name:", cert.Subject.CommonName)
 		t.Log("organization:", cert.Subject.Organization[0])
@@ -216,7 +221,7 @@ func TestGenerateCertificate(t *testing.T) {
 		opts := Options{
 			Namer: testnamer.WithGenerateFailed(),
 		}
-		cert, err := generateCertificate(&opts)
+		cert, err := generateCertificate(&opts, false)
 		require.Error(t, err)
 		require.Nil(t, cert)
 	})
@@ -237,7 +242,7 @@ func TestGenerateCertificate(t *testing.T) {
 		opts := Options{
 			Namer: n,
 		}
-		cert, err := generateCertificate(&opts)
+		cert, err := generateCertificate(&opts, false)
 		monkey.IsExistMonkeyError(t, err)
 		require.Nil(t, cert)
 	})
@@ -246,7 +251,7 @@ func TestGenerateCertificate(t *testing.T) {
 		opts := Options{
 			DNSNames: []string{"foo domain name"},
 		}
-		cert, err := generateCertificate(&opts)
+		cert, err := generateCertificate(&opts, false)
 		require.Error(t, err)
 		require.Nil(t, cert)
 	})
@@ -255,7 +260,7 @@ func TestGenerateCertificate(t *testing.T) {
 		opts := Options{
 			IPAddresses: []string{"foo ip"},
 		}
-		cert, err := generateCertificate(&opts)
+		cert, err := generateCertificate(&opts, false)
 		require.Error(t, err)
 		require.Nil(t, cert)
 	})
@@ -264,7 +269,7 @@ func TestGenerateCertificate(t *testing.T) {
 		opts := Options{
 			EmailAddresses: []string{"foo email"},
 		}
-		cert, err := generateCertificate(&opts)
+		cert, err := generateCertificate(&opts, false)
 		require.Error(t, err)
 		require.Nil(t, cert)
 	})
@@ -273,7 +278,7 @@ func TestGenerateCertificate(t *testing.T) {
 		opts := Options{
 			URLs: []string{"foo url\n"},
 		}
-		cert, err := generateCertificate(&opts)
+		cert, err := generateCertificate(&opts, false)
 		require.Error(t, err)
 		require.Nil(t, cert)
 	})

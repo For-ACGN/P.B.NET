@@ -76,6 +76,9 @@ func TestSdump(t *testing.T) {
 }
 
 func TestFdump(t *testing.T) {
+	opts := testGenerateOptions()
+	ca, err := GenerateCA(opts)
+	require.NoError(t, err)
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
 
 	t.Run("empty info", func(t *testing.T) {
@@ -90,10 +93,6 @@ func TestFdump(t *testing.T) {
 
 		fmt.Println(buf)
 	})
-
-	opts := testGenerateOptions()
-	ca, err := GenerateCA(opts)
-	require.NoError(t, err)
 
 	t.Run("failed to dump public key", func(t *testing.T) {
 		publicKey := ca.Certificate.PublicKey

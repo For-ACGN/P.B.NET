@@ -67,11 +67,11 @@ func GenerateCA(opts *Options) (*Pair, error) {
 	if opts == nil {
 		opts = new(Options)
 	}
-	ca, err := generateCertificate(opts)
+	ca, err := generateCertificate(opts, true)
 	if err != nil {
 		return nil, err
 	}
-	ca.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
+	ca.KeyUsage = x509.KeyUsageCertSign
 	ca.BasicConstraintsValid = true
 	ca.IsCA = true
 	privateKey, publicKey, err := generatePrivateKey(opts.Algorithm)
@@ -91,7 +91,7 @@ func Generate(parent *x509.Certificate, pri interface{}, opts *Options) (*Pair, 
 	if opts == nil {
 		opts = new(Options)
 	}
-	cert, err := generateCertificate(opts)
+	cert, err := generateCertificate(opts, false)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +114,13 @@ func Generate(parent *x509.Certificate, pri interface{}, opts *Options) (*Pair, 
 	return &Pair{Certificate: cert, PrivateKey: privateKey}, nil
 }
 
-func generateCertificate(opts *Options) (*x509.Certificate, error) {
+func generateCertificate(opts *Options, isCA bool) (*x509.Certificate, error) {
 	r := random.NewRand()
 	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(r.Int63()),
-		SubjectKeyId: r.Bytes(4),
+		SerialNumber: new(big.Int).SetBytes(r.Bytes(16)),
+	}
+	if !isCA {
+		cert.SubjectKeyId = r.Bytes(20)
 	}
 	err := setCertCommonName(r, cert, opts)
 	if err != nil {
