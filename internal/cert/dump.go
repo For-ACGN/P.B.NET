@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -21,7 +22,7 @@ import (
 const timeLayout = "2006-01-02 15:04:05 Z07:00"
 
 const dumpTemplate = `
-[Basic]
+[basic]
   Version: %d
   Is CA: %t
 
@@ -44,14 +45,14 @@ const dumpTemplate = `
 %s
 
 [Public key]
-  algo: %s
-  size: %s bits
-  data: %s
+  Algo: %s
+  Size: %s bits
+  Data: %s
 
 [Signature]
-  algo: %s
-  size: %d bits
-  data: %s
+  Algo: %s
+  Size: %d bits
+  Data: %s
 
 [Valid time]
   Not before: %s
@@ -81,29 +82,28 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 		_, _ = w.Write([]byte("[error]: " + err.Error()))
 		return 0, err
 	}
-	serialNum := convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "  ", 8)
+	str := dumpHexBytes(cert.SerialNumber.Bytes())
+	serialNum := convert.SdumpStringWithPL(str, "  ", 48)
 	if serialNum == "" {
 		serialNum = "  [nil]"
-	} else {
-		serialNum = strings.TrimSuffix(serialNum, ",")
 	}
 	subjectKeyID := "  [nil]"
 	if len(cert.SubjectKeyId) > 0 {
-		subjectKeyID = convert.SdumpBytesWithPL(cert.SubjectKeyId, "  ", 8)
-		subjectKeyID = strings.TrimSuffix(subjectKeyID, ",")
+		str = dumpHexBytes(cert.SubjectKeyId)
+		subjectKeyID = convert.SdumpStringWithPL(str, "  ", 48)
 	}
 	authorityKeyID := "  [nil]"
 	if len(cert.AuthorityKeyId) > 0 {
-		authorityKeyID = convert.SdumpBytesWithPL(cert.AuthorityKeyId, "  ", 8)
-		authorityKeyID = strings.TrimSuffix(authorityKeyID, ",")
+		str = dumpHexBytes(cert.AuthorityKeyId)
+		authorityKeyID = convert.SdumpStringWithPL(str, "  ", 48)
 	}
 	prefix := strings.Repeat(" ", len("  data: "))
-	publicKey := convert.SdumpBytesWithPL(pub, prefix, 8)
+	str = dumpHexBytes(pub)
+	publicKey := convert.SdumpStringWithPL(str, prefix, 48)
 	publicKey = convert.RemoveFirstPrefix(publicKey, prefix)
-	publicKey = strings.TrimSuffix(publicKey, ",")
-	signature := convert.SdumpBytesWithPL(cert.Signature, prefix, 8)
+	str = dumpHexBytes(cert.Signature)
+	signature := convert.SdumpStringWithPL(str, prefix, 48)
 	signature = convert.RemoveFirstPrefix(signature, prefix)
-	signature = strings.TrimSuffix(signature, ",")
 	var num int
 	n, err := fmt.Fprintf(w, dumpTemplate[1:],
 		cert.Version, cert.IsCA, dumpKeyUsage(cert.KeyUsage),
@@ -137,6 +137,26 @@ func dumpPublicKey(publicKey interface{}) ([]byte, string, error) {
 	default:
 		return nil, "", errors.Errorf("unsupported public key: %T", pub)
 	}
+}
+
+// "0x89, 0x5E, 0x75," -> "89:5E:75"
+func dumpHexBytes(b []byte) string {
+	l := len(b)
+	if l == 0 {
+		return ""
+	}
+	builder := strings.Builder{}
+	buf := make([]byte, 2)
+	hex.Encode(buf, []byte{b[0]})
+	buf = bytes.ToUpper(buf)
+	builder.Write(buf)
+	for i := 1; i < l; i++ {
+		hex.Encode(buf, []byte{b[i]})
+		buf = bytes.ToUpper(buf)
+		builder.WriteString(":")
+		builder.Write(buf)
+	}
+	return builder.String()
 }
 
 var keyUsage = map[x509.KeyUsage]string{
