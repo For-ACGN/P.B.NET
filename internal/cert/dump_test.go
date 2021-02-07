@@ -15,19 +15,32 @@ import (
 	"project/internal/patch/monkey"
 )
 
-func TestDump(t *testing.T) {
+func testGenerateOptions() *Options {
 	opts := Options{
 		DNSNames:       []string{"test.com", "foo.com"},
 		IPAddresses:    []string{"1.1.1.1", "1234::1234"},
 		EmailAddresses: []string{"admin@test.com", "user@test.com"},
 		URLs:           []string{"https://1.1.1.1/", "http://example.com/"},
 	}
+	opts.Subject.CommonName = "test"
 	opts.Subject.Organization = []string{"org a", "org b"}
+	opts.Subject.OrganizationalUnit = []string{"unit a", "unit b"}
+	opts.Subject.Country = []string{"country a", "country b"}
+	opts.Subject.Locality = []string{"locality a", "locality b"}
+	opts.Subject.Province = []string{"province a", "province b"}
+	opts.Subject.StreetAddress = []string{"street address a", "street address b"}
+	opts.Subject.PostalCode = []string{"postal code a", "postal code b"}
+	opts.Subject.SerialNumber = "12345678"
+	return &opts
+}
+
+func TestDump(t *testing.T) {
+	opts := testGenerateOptions()
 
 	t.Run("rsa", func(t *testing.T) {
 		opts.Algorithm = "rsa|2048"
 
-		ca, err := GenerateCA(&opts)
+		ca, err := GenerateCA(opts)
 		require.NoError(t, err)
 
 		Dump(ca.Certificate)
@@ -36,7 +49,7 @@ func TestDump(t *testing.T) {
 	t.Run("ecdsa", func(t *testing.T) {
 		opts.Algorithm = "ecdsa|p256"
 
-		ca, err := GenerateCA(&opts)
+		ca, err := GenerateCA(opts)
 		require.NoError(t, err)
 
 		Dump(ca.Certificate)
@@ -45,7 +58,7 @@ func TestDump(t *testing.T) {
 	t.Run("ed25519", func(t *testing.T) {
 		opts.Algorithm = "ed25519"
 
-		ca, err := GenerateCA(&opts)
+		ca, err := GenerateCA(opts)
 		require.NoError(t, err)
 
 		Dump(ca.Certificate)
@@ -53,15 +66,9 @@ func TestDump(t *testing.T) {
 }
 
 func TestSdump(t *testing.T) {
-	opts := Options{
-		DNSNames:       []string{"test.com", "foo.com"},
-		IPAddresses:    []string{"1.1.1.1", "1234::1234"},
-		EmailAddresses: []string{"admin@test.com", "user@test.com"},
-		URLs:           []string{"https://1.1.1.1/", "http://example.com/"},
-	}
-	opts.Subject.Organization = []string{"org a", "org b"}
+	opts := testGenerateOptions()
 
-	ca, err := GenerateCA(&opts)
+	ca, err := GenerateCA(opts)
 	require.NoError(t, err)
 
 	output := Sdump(ca.Certificate)
@@ -84,15 +91,8 @@ func TestFdump(t *testing.T) {
 		fmt.Println(buf)
 	})
 
-	opts := Options{
-		DNSNames:       []string{"test.com", "foo.com"},
-		IPAddresses:    []string{"1.1.1.1", "1234::1234"},
-		EmailAddresses: []string{"admin@test.com", "user@test.com"},
-		URLs:           []string{"https://1.1.1.1/", "http://example.com/"},
-	}
-	opts.Subject.Organization = []string{"org a", "org b"}
-
-	ca, err := GenerateCA(&opts)
+	opts := testGenerateOptions()
+	ca, err := GenerateCA(opts)
 	require.NoError(t, err)
 
 	t.Run("failed to dump public key", func(t *testing.T) {

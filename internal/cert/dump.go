@@ -28,13 +28,13 @@ const dumpTemplate = `
 [Key usage]
   %s
 
+[Serial number]
+%s
+
 [Subject key ID]
 %s
   
 [Authority key ID]
-%s
-
-[Serial number]
 %s
 
 [Subject]
@@ -81,6 +81,12 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 		_, _ = w.Write([]byte("[error]: " + err.Error()))
 		return 0, err
 	}
+	serialNum := convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "  ", 8)
+	if serialNum == "" {
+		serialNum = "  [nil]"
+	} else {
+		serialNum = strings.TrimSuffix(serialNum, ",")
+	}
 	subjectKeyID := "  [nil]"
 	if len(cert.SubjectKeyId) > 0 {
 		subjectKeyID = convert.SdumpBytesWithPL(cert.SubjectKeyId, "  ", 8)
@@ -91,8 +97,6 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 		authorityKeyID = convert.SdumpBytesWithPL(cert.AuthorityKeyId, "  ", 8)
 		authorityKeyID = strings.TrimSuffix(authorityKeyID, ",")
 	}
-	serialNum := convert.SdumpBytesWithPL(cert.SerialNumber.Bytes(), "  ", 8)
-	serialNum = strings.TrimSuffix(serialNum, ",")
 	prefix := strings.Repeat(" ", len("  data: "))
 	publicKey := convert.SdumpBytesWithPL(pub, prefix, 8)
 	publicKey = convert.RemoveFirstPrefix(publicKey, prefix)
@@ -103,7 +107,7 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 	var num int
 	n, err := fmt.Fprintf(w, dumpTemplate[1:],
 		cert.Version, cert.IsCA, dumpKeyUsage(cert.KeyUsage),
-		subjectKeyID, authorityKeyID, serialNum,
+		serialNum, subjectKeyID, authorityKeyID,
 		dumpPKIXName(cert.Subject), dumpPKIXName(cert.Issuer),
 		cert.PublicKeyAlgorithm, pubSize, publicKey,
 		cert.SignatureAlgorithm, len(cert.Signature)*8, signature,
@@ -119,6 +123,22 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 	return num, err
 }
 
+// dumpPublicKey is used to dump a part information about public key.
+func dumpPublicKey(publicKey interface{}) ([]byte, string, error) {
+	switch pub := publicKey.(type) {
+	case *rsa.PublicKey:
+		size := pub.Size() * 8
+		return pub.N.Bytes(), strconv.Itoa(size), nil
+	case *ecdsa.PublicKey:
+		size := pub.Curve.Params().BitSize
+		return pub.X.Bytes(), strconv.Itoa(size), nil
+	case ed25519.PublicKey:
+		return pub, "256", nil
+	default:
+		return nil, "", errors.Errorf("unsupported public key: %T", pub)
+	}
+}
+
 var keyUsage = map[x509.KeyUsage]string{
 	x509.KeyUsageDigitalSignature:  "Digital Signature",
 	x509.KeyUsageContentCommitment: "Content Commitment",
@@ -132,6 +152,9 @@ var keyUsage = map[x509.KeyUsage]string{
 }
 
 func dumpKeyUsage(usage x509.KeyUsage) string {
+	if usage == 0 {
+		return "[nil]"
+	}
 	var usages []string
 	for i := 0; i < len(keyUsage); i++ {
 		ku := x509.KeyUsage(1 << i)
@@ -153,16 +176,17 @@ func dumpPKIXName(name pkix.Name) string {
   Street address: %s
   Postal code:    %s
   Serial number:  %s`
+	const sep = "\n                  "
 	builder := strings.Builder{}
 	_, _ = fmt.Fprintf(&builder, format[1:],
 		name.CommonName,
-		strings.Join(name.Organization, ", "),
-		strings.Join(name.OrganizationalUnit, ", "),
-		strings.Join(name.Country, ", "),
-		strings.Join(name.Locality, ", "),
-		strings.Join(name.Province, ", "),
-		strings.Join(name.StreetAddress, ", "),
-		strings.Join(name.PostalCode, ", "),
+		strings.Join(name.Organization, sep),
+		strings.Join(name.OrganizationalUnit, sep),
+		strings.Join(name.Country, sep),
+		strings.Join(name.Locality, sep),
+		strings.Join(name.Province, sep),
+		strings.Join(name.StreetAddress, sep),
+		strings.Join(name.PostalCode, sep),
 		name.SerialNumber,
 	)
 	return builder.String()
@@ -224,22 +248,6 @@ func dumpAlternate(w io.Writer, cert *x509.Certificate) (int, error) {
 		}
 	}
 	return num, err
-}
-
-// dumpPublicKey is used to dump a part information about public key.
-func dumpPublicKey(publicKey interface{}) ([]byte, string, error) {
-	switch pub := publicKey.(type) {
-	case *rsa.PublicKey:
-		size := pub.Size() * 8
-		return pub.N.Bytes(), strconv.Itoa(size), nil
-	case *ecdsa.PublicKey:
-		size := pub.Curve.Params().BitSize
-		return pub.X.Bytes(), strconv.Itoa(size), nil
-	case ed25519.PublicKey:
-		return pub, "256", nil
-	default:
-		return nil, "", errors.Errorf("unsupported public key: %T", pub)
-	}
 }
 
 func calcMaxPaddingLen(cert *x509.Certificate) int {
