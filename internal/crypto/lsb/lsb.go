@@ -57,12 +57,12 @@ func (m Mode) String() string {
 // Algorithm is the lsb Encrypter and Decrypter algorithm.
 type Algorithm uint32
 
-func (alg Algorithm) String() string {
-	switch alg {
+func (algo Algorithm) String() string {
+	switch algo {
 	case AESWithCTR:
 		return "AES-CTR"
 	default:
-		return fmt.Sprintf("unknown algorithm: %d", alg)
+		return fmt.Sprintf("unknown algorithm: %d", algo)
 	}
 }
 
@@ -240,16 +240,16 @@ func NewReader(mode Mode, r io.Reader) (Reader, error) {
 }
 
 // NewEncrypter is used to create a lsb encrypter with algorithm.
-func NewEncrypter(writer Writer, alg Algorithm, key []byte) (Encrypter, error) {
+func NewEncrypter(writer Writer, algo Algorithm, key []byte) (Encrypter, error) {
 	var (
 		enc Encrypter
 		err error
 	)
-	switch alg {
+	switch algo {
 	case AESWithCTR:
 		enc, err = NewCTREncrypter(writer, key)
 	default:
-		return nil, fmt.Errorf("failed to create lsb encrypter with %s", alg)
+		return nil, fmt.Errorf("failed to create lsb encrypter with %s", algo)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create lsb encrypter: %s", err)
@@ -258,16 +258,16 @@ func NewEncrypter(writer Writer, alg Algorithm, key []byte) (Encrypter, error) {
 }
 
 // NewDecrypter is used to create a lsb decrypter with algorithm.
-func NewDecrypter(reader Reader, alg Algorithm, key []byte) (Decrypter, error) {
+func NewDecrypter(reader Reader, algo Algorithm, key []byte) (Decrypter, error) {
 	var (
 		dec Decrypter
 		err error
 	)
-	switch alg {
+	switch algo {
 	case AESWithCTR:
 		dec, err = NewCTRDecrypter(reader, key)
 	default:
-		return nil, fmt.Errorf("failed to create lsb decrypter with %s", alg)
+		return nil, fmt.Errorf("failed to create lsb decrypter with %s", algo)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create lsb decrypter: %s", err)

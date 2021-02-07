@@ -31,7 +31,7 @@ var tests = [...]*test{
 
 type test struct {
 	Mode Mode
-	Alg  Algorithm
+	Algo Algorithm
 }
 
 func (t *test) NewWriter(img image.Image) (Writer, error) {
@@ -47,7 +47,7 @@ func (t *test) NewEncrypter(img image.Image, key []byte) (Encrypter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewEncrypter(writer, t.Alg, key)
+	return NewEncrypter(writer, t.Algo, key)
 }
 
 func (t *test) NewDecrypter(img, key []byte) (Decrypter, error) {
@@ -55,7 +55,7 @@ func (t *test) NewDecrypter(img, key []byte) (Decrypter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewDecrypter(reader, t.Alg, key)
+	return NewDecrypter(reader, t.Algo, key)
 }
 
 // testCompareImage is used to compare each pixel for check the gap will not be too big.
@@ -1536,7 +1536,7 @@ func TestMode_String(t *testing.T) {
 
 func TestAlgorithm_String(t *testing.T) {
 	for _, test := range tests {
-		fmt.Println(test.Alg)
+		fmt.Println(test.Algo)
 	}
 	fmt.Println(Algorithm(1234578))
 }

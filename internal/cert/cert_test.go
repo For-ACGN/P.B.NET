@@ -85,11 +85,11 @@ func TestGenerate(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	for _, alg := range [...]string{
+	for _, algo := range [...]string{
 		"rsa|2048", "ecdsa|p256", "ed25519",
 	} {
-		t.Run(alg, func(t *testing.T) {
-			opts := Options{Algorithm: alg}
+		t.Run(algo, func(t *testing.T) {
+			opts := Options{Algorithm: algo}
 			ca, err := GenerateCA(&opts)
 			require.NoError(t, err)
 			Dump(ca.Certificate)

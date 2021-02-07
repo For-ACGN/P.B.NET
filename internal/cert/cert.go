@@ -301,14 +301,14 @@ func isEmailAddress(email string) bool {
 }
 
 func generatePrivateKey(algorithm string) (interface{}, interface{}, error) {
-	alg := strings.ToLower(algorithm)
-	switch alg {
+	algo := strings.ToLower(algorithm)
+	switch algo {
 	case "":
 		return generateRSA("2048")
 	case "ed25519":
 		return generateEd25519()
 	}
-	configs := strings.Split(alg, "|")
+	configs := strings.Split(algo, "|")
 	if len(configs) != 2 {
 		return nil, nil, fmt.Errorf("invalid algorithm configs: %s", algorithm)
 	}
