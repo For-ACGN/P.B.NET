@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/url"
 	"strings"
@@ -42,6 +43,7 @@ func TestDump(t *testing.T) {
 
 		ca, err := GenerateCA(opts)
 		require.NoError(t, err)
+		ca.Certificate.AuthorityKeyId = ca.Certificate.SubjectKeyId
 
 		Dump(ca.Certificate)
 	})
@@ -51,6 +53,7 @@ func TestDump(t *testing.T) {
 
 		ca, err := GenerateCA(opts)
 		require.NoError(t, err)
+		ca.Certificate.AuthorityKeyId = ca.Certificate.SubjectKeyId
 
 		Dump(ca.Certificate)
 	})
@@ -60,6 +63,7 @@ func TestDump(t *testing.T) {
 
 		ca, err := GenerateCA(opts)
 		require.NoError(t, err)
+		ca.Certificate.AuthorityKeyId = ca.Certificate.SubjectKeyId
 
 		Dump(ca.Certificate)
 	})
@@ -81,9 +85,45 @@ func TestFdump(t *testing.T) {
 	require.NoError(t, err)
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
 
-	t.Run("empty info", func(t *testing.T) {
-		ca, err := GenerateCA(nil)
+	t.Run("common", func(t *testing.T) {
+		n, err := Fdump(buf, ca.Certificate)
 		require.NoError(t, err)
+		require.Equal(t, n, buf.Len())
+
+		fmt.Println(buf)
+	})
+
+	t.Run("empty alternate", func(t *testing.T) {
+		pair, err := GenerateCA(nil)
+		require.NoError(t, err)
+
+		buf.Reset()
+
+		n, err := Fdump(buf, pair.Certificate)
+		require.NoError(t, err)
+		require.Equal(t, n, buf.Len())
+
+		fmt.Println(buf)
+	})
+
+	t.Run("empty key usage", func(t *testing.T) {
+		ku := ca.Certificate.KeyUsage
+		defer func() { ca.Certificate.KeyUsage = ku }()
+		ca.Certificate.KeyUsage = 0
+
+		buf.Reset()
+
+		n, err := Fdump(buf, ca.Certificate)
+		require.NoError(t, err)
+		require.Equal(t, n, buf.Len())
+
+		fmt.Println(buf)
+	})
+
+	t.Run("empty serial number", func(t *testing.T) {
+		ku := ca.Certificate.SerialNumber
+		defer func() { ca.Certificate.SerialNumber = ku }()
+		ca.Certificate.SerialNumber = new(big.Int)
 
 		buf.Reset()
 

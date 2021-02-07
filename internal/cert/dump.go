@@ -146,6 +146,7 @@ func dumpHexBytes(b []byte) string {
 		return ""
 	}
 	builder := strings.Builder{}
+	builder.Grow(l*3 - 1)
 	buf := make([]byte, 2)
 	hex.Encode(buf, []byte{b[0]})
 	buf = bytes.ToUpper(buf)
@@ -198,6 +199,7 @@ func dumpPKIXName(name pkix.Name) string {
   Serial number:  %s`
 	const sep = "\n                  "
 	builder := strings.Builder{}
+	builder.Grow(256)
 	_, _ = fmt.Fprintf(&builder, format[1:],
 		name.CommonName,
 		strings.Join(name.Organization, sep),
