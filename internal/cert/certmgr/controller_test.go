@@ -233,7 +233,7 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		pool := certpool.NewPool()
 
 		data := make([]byte, sha256.Size+aes.IVSize+8)
-		aesKey := calculateAESKey(testPassword)
+		aesKey := deriveKey(testPassword)
 		hash := hmac.New(sha256.New, aesKey)
 		hash.Write(data[sha256.Size:])
 		copy(data, hash.Sum(nil))
@@ -246,7 +246,7 @@ func TestLoadCtrlCertPool(t *testing.T) {
 		pool := certpool.NewPool()
 
 		data := make([]byte, sha256.Size+aes.IVSize+8)
-		aesKey := calculateAESKey(testPassword)
+		aesKey := deriveKey(testPassword)
 		hash := hmac.New(sha256.New, aesKey)
 		hash.Write(data[sha256.Size:])
 		copy(data, hash.Sum(nil))

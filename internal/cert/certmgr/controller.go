@@ -243,7 +243,7 @@ func SaveCtrlCertPool(pool *certpool.Pool, password []byte) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to close deflate writer")
 	}
 	// encrypt compressed data
-	aesKey := calculateAESKey(password)
+	aesKey := deriveKey(password)
 	defer security.CoverBytes(aesKey)
 	output, err := aes.CTREncrypt(flateBuf.Bytes(), aesKey)
 	if err != nil {
@@ -264,7 +264,7 @@ func LoadCtrlCertPool(pool *certpool.Pool, data, password []byte) error {
 	memory := security.NewMemory()
 	defer memory.Flush()
 	// check certificate pool file mac
-	aesKey := calculateAESKey(password)
+	aesKey := deriveKey(password)
 	defer security.CoverBytes(aesKey)
 	memory.Padding()
 	hash := hmac.New(sha256.New, aesKey)
@@ -308,8 +308,8 @@ func LoadCtrlCertPool(pool *certpool.Pool, data, password []byte) error {
 	return certMgr.Dump(pool)
 }
 
-// calculateAESKey is used to generate aes key for encrypt certificate pool.
-func calculateAESKey(password []byte) []byte {
+// deriveKey is used to generate aes key for encrypt certificate pool.
+func deriveKey(password []byte) []byte {
 	hash := sha256.New()
 	hash.Write(password)
 	hash.Write([]byte{0x20, 0x17, 0x04, 0x17})
