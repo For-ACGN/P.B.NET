@@ -18,17 +18,17 @@ import (
 )
 
 var (
-	encrypt bool
-	decrypt bool
-	lsbMode uint
-	lsbAlg  uint
-	offset  int64
-	whence  int
-	img     string
-	text    string
-	file    string
-	key     string
-	output  string
+	encrypt  bool
+	decrypt  bool
+	lsbMode  uint
+	lsbAlgo  uint
+	offset   int64
+	whence   int
+	img      string
+	text     string
+	filePath string
+	key      string
+	output   string
 )
 
 func init() {
@@ -38,12 +38,12 @@ func init() {
 	flag.BoolVar(&encrypt, "enc", false, "encrypt data to a original image")
 	flag.BoolVar(&decrypt, "dec", false, "decrypt data from a encrypted image")
 	flag.UintVar(&lsbMode, "mode", 0, "specify lsb writer or reader mode")
-	flag.UintVar(&lsbAlg, "alg", 0, "specify lsb encrypter or decrypter algorithm")
+	flag.UintVar(&lsbAlgo, "algo", 0, "specify lsb encrypter or decrypter algorithm")
 	flag.Int64Var(&offset, "offset", 0, "specify offset about seek for encrypter or decrypter")
 	flag.IntVar(&whence, "whence", 0, "specify whence about seek for encrypter or decrypter")
 	flag.StringVar(&img, "img", "", "original or encrypted image file path")
 	flag.StringVar(&text, "text", "", "text message that will be encrypted")
-	flag.StringVar(&file, "file", "", "file that will be encrypted")
+	flag.StringVar(&filePath, "file", "", "file that will be encrypted")
 	flag.StringVar(&key, "key", "lsb", "password for encrypt or decrypt data")
 	flag.StringVar(&output, "output", "", "output encrypted image or secret file path")
 	flag.Parse()
@@ -102,28 +102,28 @@ func main() {
 		mode = lsb.PNGWithNRGBA32
 	}
 	// use default algorithm
-	alg := lsb.Algorithm(lsbAlg)
-	if alg == 0 {
-		alg = lsb.AESWithCTR
+	algo := lsb.Algorithm(lsbAlgo)
+	if algo == 0 {
+		algo = lsb.AESWithCTR
 	}
 	switch {
 	case encrypt:
-		encryptImage(mode, alg, imgFile)
+		encryptImage(mode, algo, imgFile)
 	case decrypt:
-		decryptImage(mode, alg, imgFile)
+		decryptImage(mode, algo, imgFile)
 	default:
 		printUsage()
 	}
 }
 
-func encryptImage(mode lsb.Mode, alg lsb.Algorithm, imgFile io.Reader) {
+func encryptImage(mode lsb.Mode, algo lsb.Algorithm, imgFile io.Reader) {
 	ext := filepath.Ext(img)
-	img, err := lsb.LoadImage(imgFile, ext)
+	image, err := lsb.LoadImage(imgFile, ext)
 	system.CheckError(err)
 	// create data reader
 	var reader io.Reader
-	if file != "" {
-		f, err := os.Open(file)
+	if filePath != "" {
+		f, err := os.Open(filePath)
 		system.CheckError(err)
 		defer func() { _ = f.Close() }()
 		reader = f
@@ -131,10 +131,9 @@ func encryptImage(mode lsb.Mode, alg lsb.Algorithm, imgFile io.Reader) {
 		reader = strings.NewReader(text)
 	}
 	// create lsb encrypter
-	writer, err := lsb.NewWriter(mode, img)
+	writer, err := lsb.NewWriter(mode, image)
 	system.CheckError(err)
-	aesKey := calculateAESKey()
-	encrypter, err := lsb.NewEncrypter(writer, alg, aesKey)
+	encrypter, err := lsb.NewEncrypter(writer, algo, deriveKey())
 	system.CheckError(err)
 	// set offset
 	if offset != 0 {
@@ -159,12 +158,11 @@ func encryptImage(mode lsb.Mode, alg lsb.Algorithm, imgFile io.Reader) {
 	system.CheckError(err)
 }
 
-func decryptImage(mode lsb.Mode, alg lsb.Algorithm, img io.Reader) {
+func decryptImage(mode lsb.Mode, algo lsb.Algorithm, img io.Reader) {
 	// create lsb decrypter
 	reader, err := lsb.NewReader(mode, img)
 	system.CheckError(err)
-	aesKey := calculateAESKey()
-	decrypter, err := lsb.NewDecrypter(reader, alg, aesKey)
+	decrypter, err := lsb.NewDecrypter(reader, algo, deriveKey())
 	system.CheckError(err)
 	// set offset
 	if offset != 0 {
@@ -194,8 +192,11 @@ func decryptImage(mode lsb.Mode, alg lsb.Algorithm, img io.Reader) {
 	system.CheckError(err)
 }
 
-func calculateAESKey() []byte {
-	pwd := []byte(key)
-	salt := []byte("lsb")
-	return pbkdf2.Key(pwd, salt, 4096, aes.Key256Bit, sha256.New)
+func deriveKey() []byte {
+	hash := sha256.New()
+	hash.Write([]byte(key))
+	hash.Write([]byte{0x20, 0x21, 0x05, 0x07})
+	hash.Write([]byte("lsb"))
+	digest := hash.Sum(nil)
+	return pbkdf2.Key(digest, digest[:16], 4096, aes.Key256Bit, sha256.New)
 }
