@@ -38,7 +38,7 @@ var algorithms = map[string]func() hash.Hash{
 }
 
 var (
-	alg  string
+	algo string
 	text string
 	file string
 	key  string
@@ -48,7 +48,7 @@ func init() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.CommandLine.Usage = printUsage
 
-	flag.StringVar(&alg, "alg", "", "specify hash algorithm")
+	flag.StringVar(&algo, "algo", "", "specify hash algorithm")
 	flag.StringVar(&text, "text", "", "input text message")
 	flag.StringVar(&file, "file", "", "input file path")
 	flag.StringVar(&key, "key", "", "key for hmac algorithm")
@@ -57,15 +57,15 @@ func init() {
 	// add hmac algorithm
 	algList := make([]string, len(algorithmIdx))
 	keyBytes := []byte(key)
-	for i, alg := range algorithmIdx {
-		fn, ok := algorithms[alg]
+	for i, a := range algorithmIdx {
+		fn, ok := algorithms[a]
 		if !ok {
-			panic(fmt.Sprintf("algorithm %s is not exist", alg))
+			panic(fmt.Sprintf("algorithm %s is not exist", a))
 		}
-		algorithms["hmac-"+alg] = func() hash.Hash {
+		algorithms["hmac-"+a] = func() hash.Hash {
 			return hmac.New(fn, keyBytes)
 		}
-		algList[i] = "hmac-" + alg
+		algList[i] = "hmac-" + a
 	}
 	algorithmIdx = append(algorithmIdx, algList...)
 }
@@ -82,12 +82,12 @@ supported algorithms:
 
 usage:
 
-  %s -alg "sha256" -text "hello"
-  %s -alg "sha256" -file "f.txt"
-  %s -alg "hmac-sha256" -text "hello" -key "hash"
-  %s -alg "hmac-sha256" -file "f.txt" -key "hash"
+  %s -algo "sha256" -text "hello"
+  %s -algo "sha256" -file "f.txt"
+  %s -algo "hmac-sha256" -text "hello" -key "hash"
+  %s -algo "hmac-sha256" -file "f.txt" -key "hash"
 
-  If -alg is empty, use all supported algorithms.
+  If -algo is empty, use all supported algorithms.
 
 arguments:
 `
@@ -107,13 +107,13 @@ func main() {
 		return
 	}
 	// specify algorithm
-	fn, ok := algorithms[alg]
-	if !ok && alg != "" {
-		system.PrintErrorf("unsupported algorithm: %s", alg)
+	fn, ok := algorithms[algo]
+	if !ok && algo != "" {
+		system.PrintErrorf("unsupported algorithm: %s", algo)
 	}
 	// check key if use hmac
-	if strings.Contains(alg, "hmac") && len(key) == 0 {
-		fmt.Printf("[warning] use %s algorithm, but key is empty\n\n", alg)
+	if strings.Contains(algo, "hmac") && len(key) == 0 {
+		fmt.Printf("[warning] use %s algorithm, but key is empty\n\n", algo)
 	}
 	// create data reader
 	var (
@@ -136,22 +136,22 @@ func main() {
 		_, err := io.CopyBuffer(h, rs, buffer)
 		system.CheckError(err)
 		digest := h.Sum(nil)
-		printAlgorithmAndDigest(alg, digest)
+		printAlgorithmAndDigest(algo, digest)
 		return
 	}
 	// use all algorithms
-	for _, alg := range algorithmIdx {
-		h := algorithms[alg]()
+	for _, a := range algorithmIdx {
+		h := algorithms[a]()
 		_, err := io.CopyBuffer(h, rs, buffer)
 		system.CheckError(err)
 		digest := h.Sum(nil)
-		printAlgorithmAndDigest(alg, digest)
+		printAlgorithmAndDigest(a, digest)
 		_, err = rs.Seek(0, io.SeekStart)
 		system.CheckError(err)
 	}
 }
 
-func printAlgorithmAndDigest(alg string, digest []byte) {
+func printAlgorithmAndDigest(algo string, digest []byte) {
 	hexStr := hex.EncodeToString(digest)
 	hexStrUp := strings.ToUpper(hexStr)
 	base64Str := base64.StdEncoding.EncodeToString(digest)
@@ -162,13 +162,13 @@ func printAlgorithmAndDigest(alg string, digest []byte) {
 	base64St := convert.SdumpStringWithPL(base64Str, prefix, 64)
 	bytesStr := convert.SdumpBytesWithPL(digest, prefix, 8)
 
-	fmt.Println("algorithm:", alg)
+	fmt.Println("algorithm:", algo)
 	fmt.Printf("  hex-low: %s\n\n", convert.RemoveFirstPrefix(hexLow, prefix))
 	fmt.Printf("  hex-up:  %s\n\n", convert.RemoveFirstPrefix(hexUp, prefix))
 	fmt.Printf("  base64:  %s\n\n", convert.RemoveFirstPrefix(base64St, prefix))
 	fmt.Printf("  bytes:   %s\n\n", convert.RemoveFirstPrefix(bytesStr, prefix))
 
-	if strings.Contains(alg, "md5") {
+	if strings.Contains(algo, "md5") {
 		fmt.Println("  ------------------------------------------------")
 		fmt.Println("  hex-low 16:", hexStr[8:24])
 		fmt.Println("  hex-up  16:", hexStrUp[8:24])
