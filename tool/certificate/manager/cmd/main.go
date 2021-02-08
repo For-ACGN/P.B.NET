@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"syscall"
 
 	"golang.org/x/term"
@@ -98,6 +99,12 @@ func manage(mgr *manager.Manager) {
 	system.CheckError(err)
 	fmt.Println()
 	defer security.CoverBytes(password)
+
+	// interrupt input
+	go func() {
+		signalCh := make(chan os.Signal, 1)
+		signal.Notify(signalCh, os.Interrupt)
+	}()
 
 	err = mgr.Manage(password)
 	system.CheckError(err)

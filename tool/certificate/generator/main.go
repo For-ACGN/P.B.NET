@@ -13,7 +13,7 @@ import (
 var (
 	gen  bool
 	sign bool
-	opts string
+	opt  string
 	typ  string
 	res  string
 )
@@ -23,7 +23,7 @@ func init() {
 
 	flag.BoolVar(&gen, "gen", false, "generate CA certificate")
 	flag.BoolVar(&sign, "sign", false, "generate certificate and sign it by CA")
-	flag.StringVar(&opts, "opts", "options.toml", "options file path")
+	flag.StringVar(&opt, "opt", "options.toml", "options file path")
 	flag.StringVar(&typ, "namer", "english", "namer type")
 	flag.StringVar(&res, "res", "namer/english.zip", "namer resource path")
 	flag.Parse()
@@ -31,7 +31,7 @@ func init() {
 
 func main() {
 	// load options
-	data, err := os.ReadFile(opts) // #nosec
+	data, err := os.ReadFile(opt) // #nosec
 	system.CheckError(err)
 	opts := new(cert.Options)
 	err = toml.Unmarshal(data, opts)
@@ -60,7 +60,7 @@ func generateCertificate(opts *cert.Options) {
 	system.CheckError(err)
 	err = system.WriteFile("ca_key.pem", caKey)
 	system.CheckError(err)
-	// print information
+	// dump certificate information
 	cert.Dump(ca.Certificate)
 }
 
@@ -84,6 +84,6 @@ func signCertificate(opts *cert.Options) {
 	system.CheckError(err)
 	err = system.WriteFile("key.pem", childKey)
 	system.CheckError(err)
-	// print information
+	// dump certificate information
 	cert.Dump(child.Certificate)
 }

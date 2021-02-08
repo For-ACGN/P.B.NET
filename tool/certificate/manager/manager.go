@@ -2,16 +2,13 @@ package manager
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/x509"
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"strconv"
 
 	"github.com/pkg/errors"
-	"golang.org/x/term"
 
 	"project/internal/cert"
 	"project/internal/cert/certmgr"
@@ -86,6 +83,7 @@ type Manager struct {
 	prefix   string
 	scanner  *bufio.Scanner
 	closed   bool
+	testMode bool
 }
 
 // New is used to create a certificate manager.
@@ -164,31 +162,38 @@ func (mgr *Manager) Manage(password []byte) error {
 		const format = "certificate pool file \"%s\" is not exist\n"
 		return errors.Errorf(format, mgr.dataPath)
 	}
+	// store password
 	mgr.password = security.NewBytes(password)
 	security.CoverBytes(password)
-	// interrupt input
-	go func() {
-		signalCh := make(chan os.Signal, 1)
-		signal.Notify(signalCh, os.Interrupt)
-	}()
-	mgr.createBackup()
-	mgr.reload()
+	// create backup
+	err = mgr.createBackup()
+	if err != nil {
+		return errors.WithMessage(err, "failed to create backup")
+	}
+	err = mgr.load()
+	if err != nil {
+		return errors.WithMessage(err, "failed to load certificate pool")
+	}
+	return mgr.readCommandLoop()
+}
+
+func (mgr *Manager) readCommandLoop() error {
 	mgr.prefix = prefixManager
 	mgr.scanner = bufio.NewScanner(mgr.stdin)
 	for {
 		// for test mode
 		if mgr.closed {
-			return
+			return nil
 		}
 		fmt.Printf("%s> ", mgr.prefix)
-		// handle CTRL+CS
+		// handle CTRL+C
 		if !mgr.scanner.Scan() {
 			mgr.scanner = bufio.NewScanner(mgr.stdin)
 			fmt.Println()
 			continue
 		}
 		// print test input content
-		if testMode {
+		if mgr.testMode {
 			fmt.Println(mgr.scanner.Text())
 		}
 		switch mgr.prefix {
@@ -211,39 +216,46 @@ func (mgr *Manager) Manage(password []byte) error {
 		case prefixPrivateClient:
 			mgr.privateClient()
 		default:
-			fmt.Printf("unknown prefix: %s\n", mgr.prefix)
-			os.Exit(1)
+			panic(fmt.Sprintf("unknown prefix: %s\n", mgr.prefix))
 		}
 	}
 }
 
-func (mgr *Manager) createBackup() {
+func (mgr *Manager) createBackup() error {
 	data, err := os.ReadFile(mgr.dataPath)
-	checkError(err, true)
-	err = system.WriteFile(mgr.bakPath, data)
-	checkError(err, true)
+	if err != nil {
+		return err
+	}
+	return system.WriteFile(mgr.bakPath, data)
 }
 
-func (mgr *Manager) deleteBackup() {
-	err := os.Remove(mgr.bakPath)
-	checkError(err, true)
+func (mgr *Manager) deleteBackup() error {
+	return os.Remove(mgr.bakPath)
 }
 
-func (mgr *Manager) reload() {
+func (mgr *Manager) load() error {
 	// read certificate pool file
 	data, err := os.ReadFile(mgr.dataPath)
-	checkError(err, true)
+	if err != nil {
+		return err
+	}
 	// get password
 	password := mgr.password.Get()
 	defer mgr.password.Put(password)
 	// load certificate
 	pool := certpool.NewPool()
 	err = certmgr.LoadCtrlCertPool(pool, data, password)
-	checkError(err, true)
+	if err != nil {
+		return err
+	}
 	mgr.pool = pool
-	// for check certificate
-	if testMode {
-		testCertPool.Store(pool)
+	return nil
+}
+
+func (mgr *Manager) reload() {
+	err := mgr.load()
+	if err != nil {
+		fmt.Printf("failed to reload certificate pool: %s\n", err)
 	}
 }
 
