@@ -16,19 +16,7 @@ import (
 
 func TestMain(m *testing.M) {
 	testClean()
-	filePath = "testdata/certpool.bin"
-	testMode = true
-
-	// hook os.Exit()
-	patch := func(code int) {
-		if code != 0 {
-			panic("error occurred in test")
-		}
-	}
-	monkey.Patch(os.Exit, patch)
-
 	code := m.Run()
-
 	testClean()
 	os.Exit(code)
 }

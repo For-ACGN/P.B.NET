@@ -181,7 +181,6 @@ func (mgr *Manager) readCommandLoop() error {
 	mgr.prefix = prefixManager
 	mgr.scanner = bufio.NewScanner(mgr.stdin)
 	for {
-		// for test mode
 		if mgr.closed {
 			return nil
 		}
@@ -260,21 +259,29 @@ func (mgr *Manager) reload() {
 }
 
 func (mgr *Manager) save() {
-	// get password
+	err := mgr.saveCertPool()
+	if err != nil {
+		fmt.Printf("failed to save certificate pool: %s\n", err)
+	}
+}
+
+func (mgr *Manager) saveCertPool() error {
 	password := mgr.password.Get()
 	defer mgr.password.Put(password)
-	// save certificate
 	data, err := certmgr.SaveCtrlCertPool(mgr.pool, password)
-	checkError(err, false)
-	err = system.WriteFile(mgr.dataPath, data)
-	checkError(err, false)
+	if err != nil {
+		return err
+	}
+	return system.WriteFile(mgr.dataPath, data)
 }
 
 func (mgr *Manager) exit() {
-	mgr.deleteBackup()
+	err := mgr.deleteBackup()
+	if err != nil {
+		fmt.Printf("failed to delete backup: %s\n", err)
+	}
 	mgr.closed = true
 	fmt.Println("Bye!")
-	os.Exit(0)
 }
 
 func (mgr *Manager) manager() {
@@ -430,41 +437,43 @@ func (mgr *Manager) publicRootCAList() {
 }
 
 func (mgr *Manager) publicRootCAAdd(certFile string) {
-	pemData, err := os.ReadFile(certFile) // #nosec
-	if checkError(err, false) {
+	block, err := os.ReadFile(certFile) // #nosec
+	if checkError(err) {
 		return
 	}
-	certs, err := cert.ParseCertificatesPEM(pemData)
-	if checkError(err, false) {
+	certs, err := cert.ParseCertificatesPEM(block)
+	if checkError(err) {
 		return
 	}
 	for i := 0; i < len(certs); i++ {
 		err = mgr.pool.AddPublicRootCACert(certs[i].Raw)
-		checkError(err, false)
+		if checkError(err) {
+			return
+		}
 		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
 func (mgr *Manager) publicRootCADelete(id string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = mgr.pool.DeletePublicRootCACert(i)
-	checkError(err, false)
+	checkError(err)
 }
 
 func (mgr *Manager) publicRootCAExport(id, file string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	certPEM, err := mgr.pool.ExportPublicRootCACert(i)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(file, certPEM)
-	checkError(err, false)
+	checkError(err)
 }
 
 // ----------------------------------------Public Client CA----------------------------------------
@@ -521,40 +530,42 @@ func (mgr *Manager) publicClientCAList() {
 
 func (mgr *Manager) publicClientCAAdd(certFile string) {
 	pemData, err := os.ReadFile(certFile) // #nosec
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	certs, err := cert.ParseCertificatesPEM(pemData)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	for i := 0; i < len(certs); i++ {
 		err = mgr.pool.AddPublicClientCACert(certs[i].Raw)
-		checkError(err, false)
+		if checkError(err) {
+			return
+		}
 		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
 func (mgr *Manager) publicClientCADelete(id string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = mgr.pool.DeletePublicClientCACert(i)
-	checkError(err, false)
+	checkError(err)
 }
 
 func (mgr *Manager) publicClientCAExport(id, file string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	certPEM, err := mgr.pool.ExportPublicClientCACert(i)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(file, certPEM)
-	checkError(err, false)
+	checkError(err)
 }
 
 // -----------------------------------------Public Client------------------------------------------
@@ -614,35 +625,37 @@ func (mgr *Manager) publicClientAdd(certFile, keyFile string) {
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
 		err := mgr.pool.AddPublicClientPair(certs[i].Raw, keyData)
-		checkError(err, false)
+		if checkError(err) {
+			return
+		}
 		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
 func (mgr *Manager) publicClientDelete(id string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = mgr.pool.DeletePublicClientCert(i)
-	checkError(err, false)
+	checkError(err)
 }
 
 func (mgr *Manager) publicClientExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	certPEM, keyPEM, err := mgr.pool.ExportPublicClientPair(i)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(cert, certPEM)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(key, keyPEM)
-	checkError(err, false)
+	checkError(err)
 }
 
 // ----------------------------------------Private Root CA-----------------------------------------
@@ -702,35 +715,37 @@ func (mgr *Manager) privateRootCAAdd(certFile, keyFile string) {
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
 		err := mgr.pool.AddPrivateRootCAPair(certs[i].Raw, keyData)
-		checkError(err, false)
+		if checkError(err) {
+			return
+		}
 		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
 func (mgr *Manager) privateRootCADelete(id string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = mgr.pool.DeletePrivateRootCACert(i)
-	checkError(err, false)
+	checkError(err)
 }
 
 func (mgr *Manager) privateRootCAExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	certPEM, keyPEM, err := mgr.pool.ExportPrivateRootCAPair(i)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(cert, certPEM)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(key, keyPEM)
-	checkError(err, false)
+	checkError(err)
 }
 
 // ---------------------------------------Private Client CA----------------------------------------
@@ -790,35 +805,37 @@ func (mgr *Manager) privateClientCAAdd(certFile, keyFile string) {
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
 		err := mgr.pool.AddPrivateClientCAPair(certs[i].Raw, keyData)
-		checkError(err, false)
+		if checkError(err) {
+			return
+		}
 		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
 func (mgr *Manager) privateClientCADelete(id string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = mgr.pool.DeletePrivateClientCACert(i)
-	checkError(err, false)
+	checkError(err)
 }
 
 func (mgr *Manager) privateClientCAExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	certPEM, keyPEM, err := mgr.pool.ExportPrivateClientCAPair(i)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(cert, certPEM)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(key, keyPEM)
-	checkError(err, false)
+	checkError(err)
 }
 
 // ----------------------------------------Private Client------------------------------------------
@@ -878,52 +895,54 @@ func (mgr *Manager) privateClientAdd(certFile, keyFile string) {
 	for i := 0; i < len(certs); i++ {
 		keyData, _ := x509.MarshalPKCS8PrivateKey(keys[i])
 		err := mgr.pool.AddPrivateClientPair(certs[i].Raw, keyData)
-		checkError(err, false)
+		if checkError(err) {
+			return
+		}
 		fmt.Printf("\n%s\n\n", cert.Sdump(certs[i]))
 	}
 }
 
 func (mgr *Manager) privateClientDelete(id string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = mgr.pool.DeletePrivateClientCert(i)
-	checkError(err, false)
+	checkError(err)
 }
 
 func (mgr *Manager) privateClientExport(id, cert, key string) {
 	i, err := strconv.Atoi(id)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	certPEM, keyPEM, err := mgr.pool.ExportPrivateClientPair(i)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(cert, certPEM)
-	if checkError(err, false) {
+	if checkError(err) {
 		return
 	}
 	err = system.WriteFile(key, keyPEM)
-	checkError(err, false)
+	checkError(err)
 }
 
 func loadPairs(certFile, keyFile string) ([]*x509.Certificate, []interface{}) {
 	certPEM, err := os.ReadFile(certFile) // #nosec
-	if checkError(err, false) {
+	if checkError(err) {
 		return nil, nil
 	}
 	keyPEM, err := os.ReadFile(keyFile) // #nosec
-	if checkError(err, false) {
+	if checkError(err) {
 		return nil, nil
 	}
 	certs, err := cert.ParseCertificatesPEM(certPEM)
-	if checkError(err, false) {
+	if checkError(err) {
 		return nil, nil
 	}
 	keys, err := cert.ParsePrivateKeysPEM(keyPEM)
-	if checkError(err, false) {
+	if checkError(err) {
 		return nil, nil
 	}
 	certsNum := len(certs)
@@ -940,14 +959,9 @@ func dumpCert(id int, crt *x509.Certificate) {
 	fmt.Printf("ID: %d\n%s\n\n", id, cert.Sdump(crt))
 }
 
-func checkError(err error, exit bool) bool {
+func checkError(err error) bool {
 	if err != nil {
-		if err != io.EOF {
-			fmt.Println(err)
-		}
-		if exit {
-			os.Exit(1)
-		}
+		fmt.Println(err)
 		return true
 	}
 	return false
