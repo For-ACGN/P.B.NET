@@ -32,6 +32,10 @@ func init() {
 }
 
 func main() {
+	fmt.Println("certificate manager")
+	fmt.Println("[*] Remember use \"save\" before exit If you changed")
+	fmt.Println()
+
 	mgr := manager.New(os.Stdin, filePath)
 	switch {
 	case initMgr:
