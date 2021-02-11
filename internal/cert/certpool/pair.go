@@ -1,6 +1,7 @@
 package certpool
 
 import (
+	"bytes"
 	"crypto/x509"
 	"fmt"
 
@@ -68,4 +69,32 @@ func loadCertToPair(cert []byte) (*pair, error) {
 		return nil, err
 	}
 	return &pair{Certificate: certCopy}, nil
+}
+
+func isCertExist(certs []*x509.Certificate, cert *x509.Certificate) bool {
+	for i := 0; i < len(certs); i++ {
+		if bytes.Equal(certs[i].Raw, cert.Raw) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPairExist(pairs []*pair, pair *pair) bool {
+	for i := 0; i < len(pairs); i++ {
+		if bytes.Equal(pairs[i].Certificate.Raw, pair.Certificate.Raw) {
+			return true
+		}
+	}
+	return false
+}
+
+func copyCert(crt *x509.Certificate) *x509.Certificate {
+	raw := make([]byte, len(crt.Raw))
+	copy(raw, crt.Raw)
+	certCp, err := x509.ParseCertificate(raw)
+	if err != nil {
+		panic(fmt.Sprintf("certpool: internal error: %s", err))
+	}
+	return certCp
 }
