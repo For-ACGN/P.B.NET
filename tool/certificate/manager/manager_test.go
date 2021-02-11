@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"project/internal/cert/certpool"
 
 	"project/internal/testsuite"
 )
@@ -127,9 +128,23 @@ func testManager(t *testing.T, fn func(mgr *Manager, w io.Writer)) {
 	testsuite.IsDestroyed(t, mgr)
 }
 
-func TestReloadAndSave(t *testing.T) {
+func testGetCertPool(mgr *Manager, old *certpool.Pool) *certpool.Pool {
+	for {
+		v := mgr.testPool.Load()
+		if v == nil {
+			continue
+		}
+		pool := v.(*certpool.Pool)
+		if pool != old {
+			return pool
+		}
+	}
+}
+
+func TestSaveAndReload(t *testing.T) {
 	testManager(t, func(mgr *Manager, w io.Writer) {
-		n0 := len(mgr.pool.GetPublicRootCACerts())
+		pool := mgr.pool
+		certs0 := pool.GetPublicRootCACerts()
 
 		for _, cmd := range []string{
 			"public", "root-ca",
@@ -140,7 +155,12 @@ func TestReloadAndSave(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		n1 := len(mgr.pool.GetPublicRootCACerts())
-		require.True(t, n0-n1 == 1)
+		pool = testGetCertPool(mgr, pool)
+		certs1 := pool.GetPublicRootCACerts()
+
+		require.True(t, len(certs0)-len(certs1) == 1)
+		for i := 0; i < len(certs1); i++ {
+			require.Equal(t, certs0[i+1].Raw, certs1[i].Raw)
+		}
 	})
 }

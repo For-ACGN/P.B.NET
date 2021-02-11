@@ -110,3 +110,19 @@ func TestLoadCertToPair(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestCopyCert(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		pair := testGeneratePair(t)
+
+		crt := copyCert(pair.Certificate)
+		require.Equal(t, pair.Certificate, crt)
+	})
+
+	t.Run("modified", func(t *testing.T) {
+		defer testsuite.DeferForPanic(t)
+
+		crt := x509.Certificate{}
+		copyCert(&crt)
+	})
+}

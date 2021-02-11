@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 
@@ -86,6 +87,7 @@ type Manager struct {
 	scanner  *bufio.Scanner
 	closed   bool
 	testMode bool
+	testPool atomic.Value
 }
 
 // New is used to create a certificate manager.
@@ -257,6 +259,9 @@ func (mgr *Manager) reload() {
 	err := mgr.load()
 	if err != nil {
 		fmt.Printf("failed to reload certificate pool: %s\n", err)
+	}
+	if mgr.testMode {
+		mgr.testPool.Store(mgr.pool)
 	}
 }
 
