@@ -118,9 +118,6 @@ func testManager(t *testing.T, fn func(mgr *Manager, w io.Writer)) {
 
 	fn(mgr, w)
 
-	_, err = w.Write([]byte("exit\n"))
-	require.NoError(t, err)
-
 	wg.Wait()
 
 	fmt.Println("================================================")
@@ -150,6 +147,60 @@ func TestSaveAndReload(t *testing.T) {
 			"public", "root-ca",
 			"delete 0",
 			"save", "reload",
+			"exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		pool = testGetCertPool(mgr, pool)
+		certs1 := pool.GetPublicRootCACerts()
+
+		require.True(t, len(certs0)-len(certs1) == 1)
+		for i := 0; i < len(certs1); i++ {
+			require.Equal(t, certs0[i+1].Raw, certs1[i].Raw)
+		}
+	})
+}
+
+func TestPublicRootCA_Common(t *testing.T) {
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool := mgr.pool
+
+		for _, cmd := range []string{
+			"public", "root-ca",
+
+			"print 0",
+			"print", "print foo",
+			"print -1", "print 9999",
+
+			"list", "save", "reload",
+			"help", "invalid-cmd",
+			"return", "root-ca", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		pool = testGetCertPool(mgr, pool)
+	})
+}
+
+func TestPublicRootCA_Add(t *testing.T) {
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool := mgr.pool
+		certs0 := pool.GetPublicRootCACerts()
+
+		for _, cmd := range []string{
+			"public", "root-ca",
+			"print 0",
+			"add testdata/cert.pem", "add", "add foo.pem",
+			"add testdata/broken.pem", "add testdata/cert.pem",
+
+			"delete 0",
+			"save", "reload",
+
+			"return", "root-ca", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
 			require.NoError(t, err)
