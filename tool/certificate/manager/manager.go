@@ -302,7 +302,7 @@ func (mgr *Manager) manager() {
 	case "private":
 		mgr.prefix = prefixPrivate
 	case "help":
-		fmt.Print(managerHelp)
+		fmt.Print(managerHelp[1:])
 	case "save":
 		mgr.save()
 	case "reload":
@@ -336,7 +336,7 @@ func (mgr *Manager) public() {
 		for i := 0; i < 4; i++ {
 			a[i] = "public"
 		}
-		fmt.Printf(locationHelpTemplate, a...)
+		fmt.Printf(locationHelpTemplate[1:], a...)
 	case "save":
 		mgr.save()
 	case "reload":
@@ -372,7 +372,7 @@ func (mgr *Manager) private() {
 		for i := 0; i < 4; i++ {
 			a[i] = "private"
 		}
-		fmt.Printf(locationHelpTemplate, a...)
+		fmt.Printf(locationHelpTemplate[1:], a...)
 	case "save":
 		mgr.save()
 	case "reload":
@@ -410,7 +410,7 @@ func (mgr *Manager) publicRootCA() {
 	case "reload":
 		mgr.reload()
 	case "help":
-		fmt.Printf(certHelpTemplate, "public/root-ca", "Root CA", "public")
+		fmt.Printf(certHelpTemplate[1:], "public/root-ca", "Root CA", "public")
 	case "return":
 		mgr.prefix = prefixPublic
 	case "exit":
@@ -520,7 +520,7 @@ func (mgr *Manager) publicClientCA() {
 	case "reload":
 		mgr.reload()
 	case "help":
-		fmt.Printf(certHelpTemplate, "public/client-ca", "Client CA", "public")
+		fmt.Printf(certHelpTemplate[1:], "public/client-ca", "Client CA", "public")
 	case "return":
 		mgr.prefix = prefixPublic
 	case "exit":
@@ -630,7 +630,7 @@ func (mgr *Manager) publicClient() {
 	case "reload":
 		mgr.reload()
 	case "help":
-		fmt.Printf(certHelpTemplate, "public/client", "Client", "public")
+		fmt.Printf(certHelpTemplate[1:], "public/client", "Client", "public")
 	case "return":
 		mgr.prefix = prefixPublic
 	case "exit":
@@ -738,7 +738,7 @@ func (mgr *Manager) privateRootCA() {
 	case "reload":
 		mgr.reload()
 	case "help":
-		fmt.Printf(certHelpTemplate, "private/root-ca", "Root CA", "private")
+		fmt.Printf(certHelpTemplate[1:], "private/root-ca", "Root CA", "private")
 	case "return":
 		mgr.prefix = prefixPrivate
 	case "exit":
@@ -846,7 +846,7 @@ func (mgr *Manager) privateClientCA() {
 	case "reload":
 		mgr.reload()
 	case "help":
-		fmt.Printf(certHelpTemplate, "private/client-ca", "Client CA", "private")
+		fmt.Printf(certHelpTemplate[1:], "private/client-ca", "Client CA", "private")
 	case "return":
 		mgr.prefix = prefixPrivate
 	case "exit":
@@ -954,7 +954,7 @@ func (mgr *Manager) privateClient() {
 	case "reload":
 		mgr.reload()
 	case "help":
-		fmt.Printf(certHelpTemplate, "private/client", "Client", "private")
+		fmt.Printf(certHelpTemplate[1:], "private/client", "Client", "private")
 	case "return":
 		mgr.prefix = prefixPrivate
 	case "exit":

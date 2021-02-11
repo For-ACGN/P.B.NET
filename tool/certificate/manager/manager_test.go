@@ -2,195 +2,145 @@ package manager
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"golang.org/x/term"
-	"project/internal/cert/certpool"
-	"project/internal/testsuite"
 
-	"project/internal/patch/monkey"
+	"project/internal/testsuite"
 )
 
-func TestMain(m *testing.M) {
-	testClean()
-	code := m.Run()
-	testClean()
-	os.Exit(code)
-}
+const testFilePath = "testdata/key/certpool.bin"
+
+var testPassword = []byte("test")
 
 func testClean() {
-	err := os.RemoveAll("testdata")
+	err := os.RemoveAll("testdata/key")
 	testsuite.TestMainCheckError(err)
 }
 
+func testNewManager(r io.Reader) *Manager {
+	mgr := New(r, testFilePath)
+	mgr.testMode = true
+	return mgr
+}
+
 func TestInitialize(t *testing.T) {
-	patch := func(int) ([]byte, error) {
-		return []byte("test"), nil
-	}
-	pg := monkey.Patch(term.ReadPassword, patch)
-	defer pg.Unpatch()
+	testClean()
+	defer testClean()
 
-	initMgr = true
-	defer func() { initMgr = false }()
-
-	fmt.Println("================================================")
-	fmt.Println(initMgr)
-	main()
-	fmt.Println("================================================")
-
-	initMgr = false
-
-	// simulate user input
-	r, w, err := os.Pipe()
+	mgr := testNewManager(nil)
+	err := mgr.Initialize(testPassword)
 	require.NoError(t, err)
-	defer func() {
-		err = r.Close()
-		require.NoError(t, err)
-		err = w.Close()
-		require.NoError(t, err)
-	}()
-	stdin := os.Stdin
-	defer func() { os.Stdin = stdin }()
-	os.Stdin = r
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		main()
-	}()
-
-	for _, cmd := range []string{
-		"help", "exit",
-	} {
-		_, err = w.WriteString(cmd + "\n")
-		require.NoError(t, err)
-	}
-
-	wg.Wait()
+	testsuite.IsDestroyed(t, mgr)
 }
 
 func TestResetPassword(t *testing.T) {
-	var n int
-	patch := func(int) ([]byte, error) {
-		n++
-		if n < 4 {
-			return []byte("test"), nil
-		}
-		return []byte("test123"), nil
-	}
-	pg := monkey.Patch(term.ReadPassword, patch)
-	defer pg.Unpatch()
+	testClean()
+	defer testClean()
 
-	fmt.Println("================================================")
-	initialize()
-	fmt.Println("================================================")
-	resetPassword()
-	fmt.Println("================================================")
+	newPassword := []byte("test123")
 
 	// simulate user input
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
+	r, w := io.Pipe()
 	defer func() {
-		err = r.Close()
+		err := r.Close()
 		require.NoError(t, err)
 		err = w.Close()
 		require.NoError(t, err)
 	}()
-	stdin := os.Stdin
-	defer func() { os.Stdin = stdin }()
-	os.Stdin = r
+	mgr := testNewManager(r)
+
+	fmt.Println("================================================")
+	err := mgr.Initialize(testPassword)
+	require.NoError(t, err)
+	fmt.Println("================================================")
+	err = mgr.ResetPassword(testPassword, newPassword)
+	require.NoError(t, err)
+	fmt.Println("================================================")
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		manage()
+		err := mgr.Manage(newPassword)
+		require.NoError(t, err)
 	}()
 
 	for _, cmd := range []string{
 		"help", "exit",
 	} {
-		_, err = w.WriteString(cmd + "\n")
+		_, err = w.Write([]byte(cmd + "\n"))
 		require.NoError(t, err)
 	}
 
 	wg.Wait()
+
+	fmt.Println("================================================")
+
+	testsuite.IsDestroyed(t, mgr)
 }
 
-func testManager(t *testing.T, fn func(w *os.File)) {
-	patch := func(int) ([]byte, error) {
-		return []byte("test"), nil
-	}
-	pg := monkey.Patch(term.ReadPassword, patch)
-	defer pg.Unpatch()
-
-	fmt.Println("================================================")
-	main()
-	fmt.Println("================================================")
+func testManager(t *testing.T, fn func(mgr *Manager, w io.Writer)) {
+	testClean()
+	defer testClean()
 
 	// simulate user input
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
+	r, w := io.Pipe()
 	defer func() {
-		err = r.Close()
+		err := r.Close()
 		require.NoError(t, err)
 		err = w.Close()
 		require.NoError(t, err)
 	}()
-	stdin := os.Stdin
-	defer func() { os.Stdin = stdin }()
-	os.Stdin = r
+	mgr := testNewManager(r)
+
+	fmt.Println("================================================")
+	err := mgr.Initialize(testPassword)
+	require.NoError(t, err)
+	fmt.Println("================================================")
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		manage()
+		err := mgr.Manage(testPassword)
+		require.NoError(t, err)
 	}()
 
-	fn(w)
+	// make sure readCommandLoop is running
+	_, err = w.Write([]byte("help\n"))
+	require.NoError(t, err)
 
-	_, err = w.WriteString("exit\n")
+	fn(mgr, w)
+
+	_, err = w.Write([]byte("exit\n"))
 	require.NoError(t, err)
 
 	wg.Wait()
-}
 
-func testGetCertPool(old *certpool.Pool) *certpool.Pool {
-	for {
-		v := testCertPool.Load()
-		if v == nil {
-			continue
-		}
-		pool := v.(*certpool.Pool)
-		if pool != old {
-			return pool
-		}
-	}
+	fmt.Println("================================================")
+
+	testsuite.IsDestroyed(t, mgr)
 }
 
 func TestReloadAndSave(t *testing.T) {
-	testManager(t, func(w *os.File) {
-		pool := testGetCertPool(nil)
-
-		n0 := len(pool.GetPublicRootCACerts())
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		n0 := len(mgr.pool.GetPublicRootCACerts())
 
 		for _, cmd := range []string{
 			"public", "root-ca",
 			"delete 0",
 			"save", "reload",
 		} {
-			_, err := w.WriteString(cmd + "\n")
+			_, err := w.Write([]byte(cmd + "\n"))
 			require.NoError(t, err)
 		}
 
-		pool = testGetCertPool(pool)
-
-		n1 := len(pool.GetPublicRootCACerts())
+		n1 := len(mgr.pool.GetPublicRootCACerts())
 		require.True(t, n0-n1 == 1)
 	})
 }

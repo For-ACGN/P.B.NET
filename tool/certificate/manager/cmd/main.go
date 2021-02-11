@@ -113,3 +113,7 @@ func manage(mgr *manager.Manager) {
 	err = mgr.Manage(password)
 	system.CheckError(err)
 }
+
+func checkPassword() bool {
+	return true
+}
