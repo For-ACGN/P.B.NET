@@ -86,23 +86,29 @@ func Fdump(w io.Writer, cert *x509.Certificate) (int, error) {
 	serialNum := convert.SdumpStringWithPL(str, "  ", 48)
 	if serialNum == "" {
 		serialNum = "  [nil]"
+	} else {
+		serialNum = strings.ReplaceAll(serialNum, ":\n", "\n")
 	}
 	subjectKeyID := "  [nil]"
 	if len(cert.SubjectKeyId) > 0 {
 		str = dumpHexBytes(cert.SubjectKeyId)
 		subjectKeyID = convert.SdumpStringWithPL(str, "  ", 48)
+		subjectKeyID = strings.ReplaceAll(subjectKeyID, ":\n", "\n")
 	}
 	authorityKeyID := "  [nil]"
 	if len(cert.AuthorityKeyId) > 0 {
 		str = dumpHexBytes(cert.AuthorityKeyId)
 		authorityKeyID = convert.SdumpStringWithPL(str, "  ", 48)
+		authorityKeyID = strings.ReplaceAll(authorityKeyID, ":\n", "\n")
 	}
 	prefix := strings.Repeat(" ", len("  data: "))
 	str = dumpHexBytes(pub)
 	publicKey := convert.SdumpStringWithPL(str, prefix, 48)
+	publicKey = strings.ReplaceAll(publicKey, ":\n", "\n")
 	publicKey = convert.RemoveFirstPrefix(publicKey, prefix)
 	str = dumpHexBytes(cert.Signature)
 	signature := convert.SdumpStringWithPL(str, prefix, 48)
+	signature = strings.ReplaceAll(signature, ":\n", "\n")
 	signature = convert.RemoveFirstPrefix(signature, prefix)
 	var num int
 	n, err := fmt.Fprintf(w, dumpTemplate[1:],
