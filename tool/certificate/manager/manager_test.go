@@ -8,8 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"project/internal/cert/certpool"
 
+	"project/internal/cert"
+	"project/internal/cert/certpool"
 	"project/internal/testsuite"
 )
 
@@ -28,7 +29,7 @@ func testNewManager(r io.Reader) *Manager {
 	return mgr
 }
 
-func TestInitialize(t *testing.T) {
+func TestManager_Initialize(t *testing.T) {
 	testClean()
 	defer testClean()
 
@@ -39,7 +40,7 @@ func TestInitialize(t *testing.T) {
 	testsuite.IsDestroyed(t, mgr)
 }
 
-func TestResetPassword(t *testing.T) {
+func TestManager_ResetPassword(t *testing.T) {
 	testClean()
 	defer testClean()
 
@@ -104,6 +105,17 @@ func testManager(t *testing.T, fn func(mgr *Manager, w io.Writer)) {
 	require.NoError(t, err)
 	fmt.Println("================================================")
 
+	// generate test certificates parallel
+	opts := cert.Options{Algorithm: "ed25519"}
+	pairs := make(chan *cert.Pair, 6)
+	for i := 0; i < 6; i++ {
+		go func() {
+			pair, err := cert.GenerateCA(&opts)
+			require.NoError(t, err)
+			pairs <- pair
+		}()
+	}
+
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
@@ -114,6 +126,20 @@ func testManager(t *testing.T, fn func(mgr *Manager, w io.Writer)) {
 
 	// make sure readCommandLoop is running
 	_, err = w.Write([]byte("help\n"))
+	require.NoError(t, err)
+
+	// add test certificates
+	err = mgr.pool.AddPublicRootCACert((<-pairs).ASN1())
+	require.NoError(t, err)
+	err = mgr.pool.AddPublicClientCACert((<-pairs).ASN1())
+	require.NoError(t, err)
+	err = mgr.pool.AddPublicClientPair((<-pairs).Encode())
+	require.NoError(t, err)
+	err = mgr.pool.AddPrivateRootCAPair((<-pairs).Encode())
+	require.NoError(t, err)
+	err = mgr.pool.AddPrivateClientCAPair((<-pairs).Encode())
+	require.NoError(t, err)
+	err = mgr.pool.AddPrivateClientPair((<-pairs).Encode())
 	require.NoError(t, err)
 
 	fn(mgr, w)
@@ -138,10 +164,10 @@ func testGetCertPool(mgr *Manager, old *certpool.Pool) *certpool.Pool {
 	}
 }
 
-func TestSaveAndReload(t *testing.T) {
+func TestManager_SaveAndReload(t *testing.T) {
 	testManager(t, func(mgr *Manager, w io.Writer) {
-		pool := mgr.pool
-		certs0 := pool.GetPublicRootCACerts()
+		pool1 := mgr.pool
+		certs0 := pool1.GetPublicRootCACerts()
 
 		for _, cmd := range []string{
 			"public", "root-ca",
@@ -153,8 +179,8 @@ func TestSaveAndReload(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		pool = testGetCertPool(mgr, pool)
-		certs1 := pool.GetPublicRootCACerts()
+		pool2 := testGetCertPool(mgr, pool1)
+		certs1 := pool2.GetPublicRootCACerts()
 
 		require.True(t, len(certs0)-len(certs1) == 1)
 		for i := 0; i < len(certs1); i++ {
@@ -163,9 +189,52 @@ func TestSaveAndReload(t *testing.T) {
 	})
 }
 
-func TestPublicRootCA_Common(t *testing.T) {
+const (
+	testExceptNone = iota
+	testExceptPublicRootCA
+	testExceptPublicClientCA
+	testExceptPublicClient
+	testExceptPrivateRootCA
+	testExceptPrivateClientCA
+	testExceptPrivateClient
+)
+
+func testCompareCertPool(t *testing.T, cp1, cp2 *certpool.Pool, except int) {
+	if except != testExceptPublicRootCA {
+		certs1 := cp1.GetPublicRootCACerts()
+		certs2 := cp2.GetPublicRootCACerts()
+		require.Equal(t, certs1, certs2)
+	}
+	if except != testExceptPublicClientCA {
+		certs1 := cp1.GetPublicClientCACerts()
+		certs2 := cp2.GetPublicClientCACerts()
+		require.Equal(t, certs1, certs2)
+	}
+	if except != testExceptPublicClient {
+		pairs1 := cp1.GetPublicClientPairs()
+		pairs2 := cp2.GetPublicClientPairs()
+		require.Equal(t, pairs1, pairs2)
+	}
+	if except != testExceptPrivateRootCA {
+		pairs1 := cp1.GetPrivateRootCAPairs()
+		pairs2 := cp2.GetPrivateRootCAPairs()
+		require.Equal(t, pairs1, pairs2)
+	}
+	if except != testExceptPrivateClientCA {
+		pairs1 := cp1.GetPrivateClientCAPairs()
+		pairs2 := cp2.GetPrivateClientCAPairs()
+		require.Equal(t, pairs1, pairs2)
+	}
+	if except != testExceptPrivateClient {
+		pairs1 := cp1.GetPrivateClientPairs()
+		pairs2 := cp2.GetPrivateClientPairs()
+		require.Equal(t, pairs1, pairs2)
+	}
+}
+
+func TestManager_PublicRootCA_Common(t *testing.T) {
 	testManager(t, func(mgr *Manager, w io.Writer) {
-		pool := mgr.pool
+		pool1 := mgr.pool
 
 		for _, cmd := range []string{
 			"public", "root-ca",
@@ -182,36 +251,36 @@ func TestPublicRootCA_Common(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		pool = testGetCertPool(mgr, pool)
+		pool2 := testGetCertPool(mgr, pool1)
+
+		testCompareCertPool(t, pool1, pool2, testExceptNone)
 	})
 }
 
-func TestPublicRootCA_Add(t *testing.T) {
+func TestManager_PublicRootCA_Add(t *testing.T) {
 	testManager(t, func(mgr *Manager, w io.Writer) {
-		pool := mgr.pool
-		certs0 := pool.GetPublicRootCACerts()
+		pool1 := mgr.pool
+		certs0 := pool1.GetPublicRootCACerts()
 
 		for _, cmd := range []string{
 			"public", "root-ca",
-			"print 0",
+
 			"add testdata/cert.pem", "add", "add foo.pem",
 			"add testdata/broken.pem", "add testdata/cert.pem",
 
-			"delete 0",
-			"save", "reload",
-
-			"return", "root-ca", "exit",
+			"save", "reload", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
 			require.NoError(t, err)
 		}
 
-		pool = testGetCertPool(mgr, pool)
-		certs1 := pool.GetPublicRootCACerts()
+		pool2 := testGetCertPool(mgr, pool1)
+		certs1 := pool2.GetPublicRootCACerts()
 
-		require.True(t, len(certs0)-len(certs1) == 1)
-		for i := 0; i < len(certs1); i++ {
-			require.Equal(t, certs0[i+1].Raw, certs1[i].Raw)
+		testCompareCertPool(t, pool1, pool2, testExceptPublicRootCA)
+		require.True(t, len(certs1)-len(certs0) == 1)
+		for i := 0; i < len(certs0); i++ {
+			require.Equal(t, certs0[i].Raw, certs1[i].Raw)
 		}
 	})
 }
