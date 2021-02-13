@@ -536,7 +536,7 @@ func (mgr *Manager) publicClientCA() {
 }
 
 func (mgr *Manager) publicClientCAPrint(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -553,7 +553,7 @@ func (mgr *Manager) publicClientCAPrint(args []string) {
 }
 
 func (mgr *Manager) publicClientCAAdd(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate file")
 		return
 	}
@@ -575,7 +575,7 @@ func (mgr *Manager) publicClientCAAdd(args []string) {
 }
 
 func (mgr *Manager) publicClientCADelete(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -588,7 +588,7 @@ func (mgr *Manager) publicClientCADelete(args []string) {
 }
 
 func (mgr *Manager) publicClientCAExport(args []string) {
-	if len(args) < 3 {
+	if len(args) < 2 {
 		fmt.Println("no certificate id or export file name")
 		return
 	}
@@ -646,7 +646,7 @@ func (mgr *Manager) publicClient() {
 }
 
 func (mgr *Manager) publicClientPrint(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -663,7 +663,7 @@ func (mgr *Manager) publicClientPrint(args []string) {
 }
 
 func (mgr *Manager) publicClientAdd(args []string) {
-	if len(args) < 3 {
+	if len(args) < 2 {
 		fmt.Println("no certificate file or private key file")
 		return
 	}
@@ -679,7 +679,7 @@ func (mgr *Manager) publicClientAdd(args []string) {
 }
 
 func (mgr *Manager) publicClientDelete(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -692,7 +692,7 @@ func (mgr *Manager) publicClientDelete(args []string) {
 }
 
 func (mgr *Manager) publicClientExport(args []string) {
-	if len(args) < 4 {
+	if len(args) < 3 {
 		fmt.Println("no certificate id or two export file name")
 		return
 	}
@@ -754,7 +754,7 @@ func (mgr *Manager) privateRootCA() {
 }
 
 func (mgr *Manager) privateRootCAPrint(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -771,7 +771,7 @@ func (mgr *Manager) privateRootCAPrint(args []string) {
 }
 
 func (mgr *Manager) privateRootCAAdd(args []string) {
-	if len(args) < 3 {
+	if len(args) < 2 {
 		fmt.Println("no certificate file or private key file")
 		return
 	}
@@ -787,7 +787,7 @@ func (mgr *Manager) privateRootCAAdd(args []string) {
 }
 
 func (mgr *Manager) privateRootCADelete(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -800,7 +800,7 @@ func (mgr *Manager) privateRootCADelete(args []string) {
 }
 
 func (mgr *Manager) privateRootCAExport(args []string) {
-	if len(args) < 4 {
+	if len(args) < 3 {
 		fmt.Println("no certificate id or two export file name")
 		return
 	}
@@ -862,7 +862,7 @@ func (mgr *Manager) privateClientCA() {
 }
 
 func (mgr *Manager) privateClientCAPrint(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -879,7 +879,7 @@ func (mgr *Manager) privateClientCAPrint(args []string) {
 }
 
 func (mgr *Manager) privateClientCAAdd(args []string) {
-	if len(args) < 3 {
+	if len(args) < 2 {
 		fmt.Println("no certificate file or private key file")
 		return
 	}
@@ -895,7 +895,7 @@ func (mgr *Manager) privateClientCAAdd(args []string) {
 }
 
 func (mgr *Manager) privateClientCADelete(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -908,7 +908,7 @@ func (mgr *Manager) privateClientCADelete(args []string) {
 }
 
 func (mgr *Manager) privateClientCAExport(args []string) {
-	if len(args) < 4 {
+	if len(args) < 3 {
 		fmt.Println("no certificate id or two export file name")
 		return
 	}
@@ -970,7 +970,7 @@ func (mgr *Manager) privateClient() {
 }
 
 func (mgr *Manager) privateClientPrint(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -987,7 +987,7 @@ func (mgr *Manager) privateClientPrint(args []string) {
 }
 
 func (mgr *Manager) privateClientAdd(args []string) {
-	if len(args) < 3 {
+	if len(args) < 2 {
 		fmt.Println("no certificate file or private key file")
 		return
 	}
@@ -1003,7 +1003,7 @@ func (mgr *Manager) privateClientAdd(args []string) {
 }
 
 func (mgr *Manager) privateClientDelete(args []string) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Println("no certificate id")
 		return
 	}
@@ -1016,7 +1016,7 @@ func (mgr *Manager) privateClientDelete(args []string) {
 }
 
 func (mgr *Manager) privateClientExport(args []string) {
-	if len(args) < 4 {
+	if len(args) < 3 {
 		fmt.Println("no certificate id or two export file name")
 		return
 	}

@@ -364,3 +364,129 @@ func TestManager_PublicRootCA_Export(t *testing.T) {
 		testCompareCertPool(t, pool1, pool2, testExceptNone)
 	})
 }
+
+func TestManager_PublicClientCA(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+
+		for _, cmd := range []string{
+			"public", "client-ca",
+
+			"print 0",
+			"print", "print id",
+			"print -1", "print 9999",
+
+			"list", "save", "reload",
+			"help", " ", "invalid-cmd",
+			"return", "client-ca", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		pool2 := testGetCertPool(mgr, pool1)
+
+		testCompareCertPool(t, pool1, pool2, testExceptNone)
+	})
+}
+
+func TestManager_PublicClientCA_Add(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+		certs0 := pool1.GetPublicClientCACerts()
+
+		for _, cmd := range []string{
+			"public", "client-ca",
+
+			"add testdata/cert.pem",
+			"add ", "add foo.pem",
+			"add testdata/broken.pem",
+			"add testdata/cert.pem",
+
+			"save", "reload", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		pool2 := testGetCertPool(mgr, pool1)
+		certs1 := pool2.GetPublicClientCACerts()
+
+		testCompareCertPool(t, pool1, pool2, testExceptPublicClientCA)
+		require.True(t, len(certs1)-len(certs0) == 1)
+		for i := 0; i < len(certs0); i++ {
+			require.Equal(t, certs0[i].Raw, certs1[i].Raw)
+		}
+	})
+}
+
+func TestManager_PublicClientCA_Delete(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+		certs0 := pool1.GetPublicClientCACerts()
+
+		for _, cmd := range []string{
+			"public", "client-ca",
+
+			"delete 0",
+			"delete", "delete id",
+			"delete 9999",
+
+			"save", "reload", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		pool2 := testGetCertPool(mgr, pool1)
+		certs1 := pool2.GetPublicClientCACerts()
+
+		testCompareCertPool(t, pool1, pool2, testExceptPublicClientCA)
+		require.True(t, len(certs0)-len(certs1) == 1)
+		for i := 0; i < len(certs1); i++ {
+			require.Equal(t, certs0[i+1].Raw, certs1[i].Raw)
+		}
+	})
+}
+
+func TestManager_PublicClientCA_Export(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+
+		for _, cmd := range []string{
+			"public", "client-ca",
+
+			"export 0 " + testExportCert,
+			"export", "export id path",
+			"export 9999 path",
+
+			"save", "reload", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		raw := pool1.GetPublicClientCACerts()[0].Raw
+		data, err := os.ReadFile(testExportCert)
+		require.NoError(t, err)
+		block, _ := pem.Decode(data)
+		require.NotNil(t, block)
+		require.Equal(t, raw, block.Bytes)
+
+		pool2 := testGetCertPool(mgr, pool1)
+
+		testCompareCertPool(t, pool1, pool2, testExceptNone)
+	})
+}
