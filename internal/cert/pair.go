@@ -1,6 +1,7 @@
 package cert
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -39,15 +40,17 @@ func (p *Pair) EncodeToPEM() ([]byte, []byte) {
 		security.CoverBytes(cert)
 		security.CoverBytes(key)
 	}()
-	certBlock := &pem.Block{
+	certPEMBlock := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: cert,
-	}
-	keyBlock := &pem.Block{
+	})
+	keyPEMBlock := pem.EncodeToMemory(&pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: key,
-	}
-	return pem.EncodeToMemory(certBlock), pem.EncodeToMemory(keyBlock)
+	})
+	certPEMBlock = bytes.ReplaceAll(certPEMBlock, []byte("\n"), []byte("\r\n"))
+	keyPEMBlock = bytes.ReplaceAll(keyPEMBlock, []byte("\n"), []byte("\r\n"))
+	return certPEMBlock, keyPEMBlock
 }
 
 // TLSCertificate is used to create tls certificate.

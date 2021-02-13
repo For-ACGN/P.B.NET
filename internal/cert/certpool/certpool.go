@@ -1,6 +1,7 @@
 package certpool
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/pem"
 	"sync"
@@ -335,11 +336,11 @@ func (p *Pool) ExportPublicRootCACert(i int) ([]byte, error) {
 	if i < 0 || i > len(p.pubRootCACerts)-1 {
 		return nil, errors.Errorf("invalid id: %d", i)
 	}
-	block := &pem.Block{
+	block := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: p.pubRootCACerts[i].Raw,
-	}
-	return pem.EncodeToMemory(block), nil
+	})
+	return bytes.ReplaceAll(block, []byte("\n"), []byte("\r\n")), nil
 }
 
 // ExportPublicClientCACert is used to export public client CA certificate.
@@ -349,11 +350,11 @@ func (p *Pool) ExportPublicClientCACert(i int) ([]byte, error) {
 	if i < 0 || i > len(p.pubClientCACerts)-1 {
 		return nil, errors.Errorf("invalid id: %d", i)
 	}
-	block := &pem.Block{
+	block := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: p.pubClientCACerts[i].Raw,
-	}
-	return pem.EncodeToMemory(block), nil
+	})
+	return bytes.ReplaceAll(block, []byte("\n"), []byte("\r\n")), nil
 }
 
 // ExportPublicClientPair is used to export public client CA certificate.
