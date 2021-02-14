@@ -648,7 +648,7 @@ func TestManager_PrivateRootCA(t *testing.T) {
 
 			"list", "save", "reload",
 			"help", " ", "invalid-cmd",
-			"return", "private-ca", "exit",
+			"return", "root-ca", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
 			require.NoError(t, err)
@@ -753,6 +753,144 @@ func TestManager_PrivateRootCA_Export(t *testing.T) {
 		}
 
 		crt, key := pool1.GetPrivateRootCAPairs()[0].Encode()
+		data, err := os.ReadFile(testExportCert)
+		require.NoError(t, err)
+		block, _ := pem.Decode(data)
+		require.NotNil(t, block)
+		require.Equal(t, crt, block.Bytes)
+		data, err = os.ReadFile(testExportKey)
+		require.NoError(t, err)
+		block, _ = pem.Decode(data)
+		require.NotNil(t, block)
+		require.Equal(t, key, block.Bytes)
+
+		pool2 := testGetCertPool(mgr, pool1)
+
+		testCompareCertPool(t, pool1, pool2, testExceptNone)
+	})
+}
+
+func TestManager_PrivateClientCA(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+
+		for _, cmd := range []string{
+			"private", "client-ca",
+
+			"print 0",
+			"print", "print id",
+			"print -1", "print 9999",
+
+			"list", "save", "reload",
+			"help", " ", "invalid-cmd",
+			"return", "client-ca", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		pool2 := testGetCertPool(mgr, pool1)
+
+		testCompareCertPool(t, pool1, pool2, testExceptNone)
+	})
+}
+
+func TestManager_PrivateClientCA_Add(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+		pairs1 := pool1.GetPrivateClientCAPairs()
+
+		for _, cmd := range []string{
+			"private", "client-ca",
+
+			"add testdata/cert.pem testdata/key.pem",
+			"add testdata/certs.pem testdata/keys.pem",
+			"add ",
+			"add testdata/foo.pem testdata/foo.pem",
+			"add testdata/broken.pem testdata/foo.pem",
+			"add testdata/cert.pem testdata/foo.pem",
+			"add testdata/cert.pem testdata/broken.pem",
+			"add testdata/certs.pem testdata/key.pem",
+			"add testdata/cert.pem testdata/key.pem",
+
+			"save", "reload", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		pool2 := testGetCertPool(mgr, pool1)
+		pairs2 := pool2.GetPrivateClientCAPairs()
+
+		testCompareCertPool(t, pool1, pool2, testExceptPrivateClientCA)
+		require.True(t, len(pairs2)-len(pairs1) == 3)
+		for i := 0; i < len(pairs1); i++ {
+			require.Equal(t, pairs1[i], pairs2[i])
+		}
+	})
+}
+
+func TestManager_PrivateClientCA_Delete(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+		pairs1 := pool1.GetPrivateClientCAPairs()
+
+		for _, cmd := range []string{
+			"private", "client-ca",
+
+			"delete 0",
+			"delete", "delete id",
+			"delete 9999",
+
+			"save", "reload", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		pool2 := testGetCertPool(mgr, pool1)
+		pairs2 := pool2.GetPrivateClientCAPairs()
+
+		testCompareCertPool(t, pool1, pool2, testExceptPrivateClientCA)
+		require.True(t, len(pairs1)-len(pairs2) == 1)
+		for i := 0; i < len(pairs2); i++ {
+			require.Equal(t, pairs1[i+1], pairs2[i])
+		}
+	})
+}
+
+func TestManager_PrivateClientCA_Export(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+
+		for _, cmd := range []string{
+			"private", "client-ca",
+
+			"export 0 " + testExportCert + " " + testExportKey,
+			"export", "export id path1 path2",
+			"export 9999 path1 path2",
+			"export 0 testdata testdata",
+			"export 0 " + testExportCert + " testdata",
+
+			"save", "reload", "exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		crt, key := pool1.GetPrivateClientCAPairs()[0].Encode()
 		data, err := os.ReadFile(testExportCert)
 		require.NoError(t, err)
 		block, _ := pem.Decode(data)
