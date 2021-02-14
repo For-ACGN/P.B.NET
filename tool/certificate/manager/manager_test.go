@@ -12,10 +12,12 @@ import (
 
 	"project/internal/cert"
 	"project/internal/cert/certpool"
+	"project/internal/system"
 	"project/internal/testsuite"
 )
 
 const (
+	testFilePath   = "testdata/key/certpool.bin"
 	testExportCert = "testdata/export/cert.pem"
 	testExportKey  = "testdata/export/key.pem"
 )
@@ -30,67 +32,122 @@ func testCleanTestData(t *testing.T) {
 }
 
 func testNewManager(r io.Reader) *Manager {
-	mgr := New(r, "testdata/key/certpool.bin")
+	mgr := New(r, testFilePath)
 	mgr.testMode = true
 	return mgr
 }
 
 func TestManager_Initialize(t *testing.T) {
-	testCleanTestData(t)
-	defer testCleanTestData(t)
+	t.Run("common", func(t *testing.T) {
+		testCleanTestData(t)
+		defer testCleanTestData(t)
 
-	mgr := testNewManager(nil)
-	err := mgr.Initialize(testPassword)
-	require.NoError(t, err)
+		mgr := testNewManager(nil)
+		err := mgr.Initialize(testPassword)
+		require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, mgr)
+		testsuite.IsDestroyed(t, mgr)
+	})
+
+	t.Run("file already exist", func(t *testing.T) {
+		testCleanTestData(t)
+		defer testCleanTestData(t)
+
+		err := system.WriteFile(testFilePath, []byte("test"))
+		require.NoError(t, err)
+
+		mgr := testNewManager(nil)
+		err = mgr.Initialize(testPassword)
+		require.Error(t, err)
+
+		testsuite.IsDestroyed(t, mgr)
+	})
 }
 
 func TestManager_ResetPassword(t *testing.T) {
+	newPassword := []byte("test123")
+
+	t.Run("common", func(t *testing.T) {
+		testCleanTestData(t)
+		defer testCleanTestData(t)
+
+		// simulate user input
+		r, w := io.Pipe()
+		defer func() {
+			err := r.Close()
+			require.NoError(t, err)
+			err = w.Close()
+			require.NoError(t, err)
+		}()
+
+		// initialize certificate manager and reset password
+		fmt.Println("================================================")
+		mgr := testNewManager(r)
+		err := mgr.Initialize(testPassword)
+		require.NoError(t, err)
+		fmt.Println("================================================")
+		err = mgr.ResetPassword(testPassword, newPassword)
+		require.NoError(t, err)
+		fmt.Println("================================================")
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := mgr.Manage(newPassword)
+			require.NoError(t, err)
+		}()
+
+		for _, cmd := range []string{
+			"help", "exit",
+		} {
+			_, err = w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+
+		wg.Wait()
+
+		fmt.Println("================================================")
+
+		testsuite.IsDestroyed(t, mgr)
+	})
+
+	t.Run("same password", func(t *testing.T) {
+		mgr := testNewManager(nil)
+		err := mgr.ResetPassword(testPassword, testPassword)
+		require.Error(t, err)
+	})
+
+	t.Run("file is not exist", func(t *testing.T) {
+		defer testCleanTestData(t)
+
+		mgr := testNewManager(nil)
+		err := mgr.ResetPassword(testPassword, newPassword)
+		require.Error(t, err)
+
+		testsuite.IsDestroyed(t, mgr)
+	})
+
+	t.Run("invalid password", func(t *testing.T) {
+		testCleanTestData(t)
+		defer testCleanTestData(t)
+
+		mgr := testNewManager(nil)
+		err := mgr.Initialize(testPassword)
+		require.NoError(t, err)
+
+		err = mgr.ResetPassword(newPassword, newPassword)
+		require.Error(t, err)
+	})
+}
+
+func TestManager_Manage(t *testing.T) {
 	testCleanTestData(t)
 	defer testCleanTestData(t)
 
-	newPassword := []byte("test123")
+	t.Run("common", func(t *testing.T) {
 
-	// simulate user input
-	r, w := io.Pipe()
-	defer func() {
-		err := r.Close()
-		require.NoError(t, err)
-		err = w.Close()
-		require.NoError(t, err)
-	}()
-
-	// initialize certificate manager and reset password
-	fmt.Println("================================================")
-	mgr := testNewManager(r)
-	err := mgr.Initialize(testPassword)
-	require.NoError(t, err)
-	fmt.Println("================================================")
-	err = mgr.ResetPassword(testPassword, newPassword)
-	require.NoError(t, err)
-	fmt.Println("================================================")
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := mgr.Manage(newPassword)
-		require.NoError(t, err)
-	}()
-
-	for _, cmd := range []string{
-		"help", "exit",
-	} {
-		_, err = w.Write([]byte(cmd + "\n"))
-		require.NoError(t, err)
-	}
-
-	wg.Wait()
-
-	fmt.Println("================================================")
-
-	testsuite.IsDestroyed(t, mgr)
+	})
 }
 
 func testManager(t *testing.T, fn func(mgr *Manager, w io.Writer)) {
@@ -169,34 +226,6 @@ func testGetCertPool(mgr *Manager, old *certpool.Pool) *certpool.Pool {
 	}
 }
 
-func TestManager_SaveAndReload(t *testing.T) {
-	testCleanTestData(t)
-	defer testCleanTestData(t)
-
-	testManager(t, func(mgr *Manager, w io.Writer) {
-		pool1 := mgr.pool
-		certs1 := pool1.GetPublicRootCACerts()
-
-		for _, cmd := range []string{
-			"public", "root-ca",
-			"delete 0",
-			"save", "reload",
-			"exit",
-		} {
-			_, err := w.Write([]byte(cmd + "\n"))
-			require.NoError(t, err)
-		}
-
-		pool2 := testGetCertPool(mgr, pool1)
-		certs2 := pool2.GetPublicRootCACerts()
-
-		require.True(t, len(certs1)-len(certs2) == 1)
-		for i := 0; i < len(certs2); i++ {
-			require.Equal(t, certs1[i+1].Raw, certs2[i].Raw)
-		}
-	})
-}
-
 const (
 	testExceptNone = iota
 	testExceptPublicRootCA
@@ -238,6 +267,31 @@ func testCompareCertPool(t *testing.T, cp1, cp2 *certpool.Pool, except int) {
 		pairs2 := cp2.GetPrivateClientPairs()
 		require.Equal(t, pairs1, pairs2)
 	}
+}
+
+func TestManager_Main(t *testing.T) {
+	testCleanTestData(t)
+	defer testCleanTestData(t)
+
+	testManager(t, func(mgr *Manager, w io.Writer) {
+		pool1 := mgr.pool
+
+		for _, cmd := range []string{
+			"public", "help", "return",
+			"private", "help", "return",
+
+			"save", "reload",
+			"help", "", "cmd1 cmd2", "invalid-cmd",
+			"exit",
+		} {
+			_, err := w.Write([]byte(cmd + "\n"))
+			require.NoError(t, err)
+		}
+		require.Equal(t, prefixManager, mgr.prefix)
+
+		pool2 := testGetCertPool(mgr, pool1)
+		testCompareCertPool(t, pool1, pool2, testExceptPublicRootCA)
+	})
 }
 
 func TestManager_Public(t *testing.T) {

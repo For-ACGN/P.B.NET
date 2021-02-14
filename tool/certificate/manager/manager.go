@@ -2,6 +2,7 @@ package manager
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/x509"
 	"fmt"
 	"io"
@@ -131,6 +132,9 @@ func (mgr *Manager) Initialize(password []byte) error {
 
 // ResetPassword is used to reset certificate manager password.
 func (mgr *Manager) ResetPassword(oldPwd, newPwd []byte) error {
+	if bytes.Equal(oldPwd, newPwd) {
+		return errors.New("as same as the old password")
+	}
 	// load certificate pool with old password
 	data, err := os.ReadFile(mgr.dataPath)
 	if err != nil {
@@ -201,7 +205,7 @@ func (mgr *Manager) readCommandLoop() error {
 		}
 		switch mgr.prefix {
 		case prefixManager:
-			mgr.manager()
+			mgr.main()
 		case prefixPublic:
 			mgr.public()
 		case prefixPrivate:
@@ -291,7 +295,7 @@ func (mgr *Manager) exit() {
 	fmt.Println("Bye!")
 }
 
-func (mgr *Manager) manager() {
+func (mgr *Manager) main() {
 	cmd := mgr.scanner.Text()
 	args := system.CommandLineToArgv(cmd)
 	if len(args) == 0 {
@@ -306,12 +310,12 @@ func (mgr *Manager) manager() {
 		mgr.prefix = prefixPublic
 	case "private":
 		mgr.prefix = prefixPrivate
-	case "help":
-		fmt.Print(managerHelp[1:])
 	case "save":
 		mgr.save()
 	case "reload":
 		mgr.reload()
+	case "help":
+		fmt.Print(managerHelp[1:])
 	case "exit":
 		mgr.exit()
 	default:
