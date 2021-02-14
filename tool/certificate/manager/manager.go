@@ -336,16 +336,16 @@ func (mgr *Manager) public() {
 		mgr.prefix = prefixPublicClientCA
 	case "client":
 		mgr.prefix = prefixPublicClient
+	case "save":
+		mgr.save()
+	case "reload":
+		mgr.reload()
 	case "help":
 		a := make([]interface{}, 4)
 		for i := 0; i < 4; i++ {
 			a[i] = "public"
 		}
 		fmt.Printf(locationHelpTemplate[1:], a...)
-	case "save":
-		mgr.save()
-	case "reload":
-		mgr.reload()
 	case "return":
 		mgr.prefix = prefixManager
 	case "exit":
@@ -372,16 +372,16 @@ func (mgr *Manager) private() {
 		mgr.prefix = prefixPrivateClientCA
 	case "client":
 		mgr.prefix = prefixPrivateClient
+	case "save":
+		mgr.save()
+	case "reload":
+		mgr.reload()
 	case "help":
 		a := make([]interface{}, 4)
 		for i := 0; i < 4; i++ {
 			a[i] = "private"
 		}
 		fmt.Printf(locationHelpTemplate[1:], a...)
-	case "save":
-		mgr.save()
-	case "reload":
-		mgr.reload()
 	case "return":
 		mgr.prefix = prefixManager
 	case "exit":
