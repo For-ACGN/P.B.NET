@@ -24,14 +24,14 @@ import (
 // testImageFullSize is the test png image size.
 const testImageFullSize = 160 * 90
 
-var tests = [...]*test{
-	{PNGWithNRGBA32, AESWithCTR},
-	{PNGWithNRGBA64, AESWithCTR},
-}
-
 type test struct {
 	Mode Mode
 	Algo Algorithm
+}
+
+var tests = [...]*test{
+	{PNGWithNRGBA32, AESWithCTR},
+	{PNGWithNRGBA64, AESWithCTR},
 }
 
 func (t *test) NewWriter(img image.Image) (Writer, error) {
