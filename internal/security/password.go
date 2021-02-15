@@ -2,6 +2,7 @@ package security
 
 import (
 	"errors"
+	"fmt"
 	"unsafe"
 )
 
@@ -9,6 +10,14 @@ import (
 // 2: must contain number
 // 3: must contain upper and lower case letters
 // 4: must contain special symbols
+// 5: continuous string must less than 5
+
+const (
+	minPasswordLen = 12
+	maxContinuous  = 4
+)
+
+var errPasswordLen = fmt.Errorf("password length must longer than %d", minPasswordLen)
 
 type rule int
 
@@ -34,24 +43,26 @@ func CheckPasswordStrength(password []byte) error {
 
 // CheckPasswordStringStrength is used to check password string strength.
 func CheckPasswordStringStrength(password string) error {
-	if len(password) < 12 {
-		return errors.New("password length must longer than 12")
+	if len(password) < minPasswordLen {
+		return errPasswordLen
 	}
 	rules := make([]bool, len(ruleErrors))
+	str := make([]rune, maxContinuous+1)
 	var (
 		last rune
-		str  []rune
 		hit  int
 	)
 	for _, s := range password {
 		if s == last || s-1 == last || s+1 == last {
 			str = append(str, s)
 			hit++
+			if hit > maxContinuous-1 {
+				return fmt.Errorf("find continuous content: \"%s\"", string(str))
+			}
 		} else {
-			str = nil
-		}
-		if hit > 4 {
-			return errors.New("find continuous content: " + string(str))
+			str[0] = s
+			str = str[:1]
+			hit = 0
 		}
 		switch {
 		case s >= '0' && s <= '9':
