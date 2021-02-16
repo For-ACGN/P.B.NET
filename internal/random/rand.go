@@ -97,34 +97,63 @@ func (r *Rand) Bytes(n int) []byte {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := 0; i < n; i++ {
-		ri := r.rand.Intn(256)
-		result[i] = byte(ri)
+		b := r.rand.Intn(256)
+		result[i] = byte(b)
 	}
 	return result
 }
 
-// String returns a string that only include 0-9, A-Z and a-z.
+// String is used to generate a string that only include 0-9, A-Z and a-z.
 func (r *Rand) String(n int) string {
 	if n < 1 {
 		return ""
 	}
-	result := make([]rune, n)
+	str := make([]rune, n)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i := 0; i < n; i++ {
-		// after space
-		ri := 33 + r.rand.Intn(90)
+		s := ' ' + 1 + r.rand.Intn(90)
 		switch {
-		case ri >= '0' && ri <= '9':
-		case ri >= 'A' && ri <= 'Z':
-		case ri >= 'a' && ri <= 'z':
+		case s >= '0' && s <= '9':
+		case s >= 'A' && s <= 'Z':
+		case s >= 'a' && s <= 'z':
 		default:
 			i--
 			continue
 		}
-		result[i] = rune(ri)
+		str[i] = rune(s)
 	}
-	return string(result)
+	return string(str)
+}
+
+// Password is used to generate a random password that include
+// number, upper & lower case letter and special symbol.
+func (r *Rand) Password(n int) string {
+	if n < 12 {
+		n = 12
+	}
+	pwd := make([]rune, n)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i := 0; i < n; i++ {
+		s := r.rand.Intn(128)
+		switch {
+		case s >= '0' && s <= '9':
+		case s >= 'A' && s <= 'Z':
+		case s >= 'a' && s <= 'z':
+		case s >= '#' && s <= '%':
+		case s >= '(' && s <= '*':
+		case s >= '<' && s <= '@':
+		default:
+			i--
+			continue
+		}
+		pwd[i] = rune(s)
+	}
+	r.rand.Shuffle(n, func(i, j int) {
+		pwd[i], pwd[j] = pwd[j], pwd[i]
+	})
+	return string(pwd)
 }
 
 // Bool returns a pseudo-random bool in [false, true].
@@ -384,9 +413,15 @@ func Bytes(n int) []byte {
 	return gRand.Bytes(n)
 }
 
-// String returns a string that only include 0-9, A-Z and a-z.
+// String is used to generate a string that only include 0-9, A-Z and a-z.
 func String(n int) string {
 	return gRand.String(n)
+}
+
+// Password is used to generate a random password that include
+// number, upper & lower case letter and special symbol.
+func Password(n int) string {
+	return gRand.Password(n)
 }
 
 // Bool returns a pseudo-random bool in [false, true].

@@ -56,11 +56,19 @@ func TestRand_Bytes(t *testing.T) {
 }
 
 func TestRand_String(t *testing.T) {
-	str := String(4096)
-	require.Len(t, str, 4096)
+	str := String(32768)
+	require.Len(t, str, 32768)
 
 	str = String(-1)
 	require.Len(t, str, 0)
+}
+
+func TestRand_Password(t *testing.T) {
+	pwd := Password(4096)
+	require.Len(t, pwd, 4096)
+
+	pwd = Password(-1)
+	require.Len(t, pwd, 12)
 }
 
 func TestRand_Bool(t *testing.T) {
