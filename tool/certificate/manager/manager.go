@@ -171,11 +171,7 @@ func (mgr *Manager) Manage(password []byte) error {
 	// store password
 	mgr.password = security.NewBytes(password)
 	security.CoverBytes(password)
-	// create backup
-	err = mgr.createBackup()
-	if err != nil {
-		return errors.WithMessage(err, "failed to create backup")
-	}
+	// load certificate pool
 	err = mgr.load()
 	if err != nil {
 		return errors.WithMessage(err, "failed to load certificate pool")
@@ -226,14 +222,6 @@ func (mgr *Manager) readCommandLoop() error {
 	}
 }
 
-func (mgr *Manager) createBackup() error {
-	data, err := os.ReadFile(mgr.dataPath)
-	if err != nil {
-		return err
-	}
-	return system.WriteFile(mgr.bakPath, data)
-}
-
 func (mgr *Manager) load() error {
 	// read certificate pool file
 	data, err := os.ReadFile(mgr.dataPath)
@@ -271,9 +259,19 @@ func (mgr *Manager) save() {
 }
 
 func (mgr *Manager) saveCertPool() error {
+	// create backup file
+	data, err := os.ReadFile(mgr.dataPath)
+	if err != nil {
+		return err
+	}
+	err = system.WriteFile(mgr.bakPath, data)
+	if err != nil {
+		return errors.WithMessage(err, "failed to create backup")
+	}
+	// save current certificate pool
 	password := mgr.password.Get()
 	defer mgr.password.Put(password)
-	data, err := certmgr.SaveCtrlCertPool(mgr.pool, password)
+	data, err = certmgr.SaveCtrlCertPool(mgr.pool, password)
 	if err != nil {
 		return err
 	}
