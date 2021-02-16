@@ -119,6 +119,7 @@ func TestManager_ResetPassword(t *testing.T) {
 	})
 
 	t.Run("file is not exist", func(t *testing.T) {
+		testCleanTestData(t)
 		defer testCleanTestData(t)
 
 		mgr := testNewManager(nil)
@@ -136,17 +137,31 @@ func TestManager_ResetPassword(t *testing.T) {
 		err := mgr.Initialize(testPassword)
 		require.NoError(t, err)
 
-		err = mgr.ResetPassword(newPassword, newPassword)
+		err = mgr.ResetPassword(newPassword, testPassword)
 		require.Error(t, err)
 	})
 }
 
 func TestManager_Manage(t *testing.T) {
-	testCleanTestData(t)
-	defer testCleanTestData(t)
+	t.Run("file not exist", func(t *testing.T) {
+		testCleanTestData(t)
+		defer testCleanTestData(t)
 
-	t.Run("common", func(t *testing.T) {
+		mgr := testNewManager(nil)
+		err := mgr.Manage(testPassword)
+		require.Error(t, err)
+	})
 
+	t.Run("invalid password", func(t *testing.T) {
+		testCleanTestData(t)
+		defer testCleanTestData(t)
+
+		mgr := testNewManager(nil)
+		err := mgr.Initialize(testPassword)
+		require.NoError(t, err)
+
+		err = mgr.Manage(nil)
+		require.Error(t, err)
 	})
 }
 

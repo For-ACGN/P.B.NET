@@ -34,8 +34,8 @@ const (
 const managerHelp = `
 help about manager:
   
-  public       switch to public mode
-  private      switch to private mode
+  public       switch to public area
+  private      switch to private area
   save         save certificate pool
   reload       reload certificate pool
   help         print help information
@@ -46,9 +46,9 @@ help about manager:
 const locationHelpTemplate = `
 help about manager/%s:
   
-  root-ca      switch to %s/root-ca mode
-  client-ca    switch to %s/client-ca mode
-  client       switch to %s/client mode
+  root-ca      switch to %s/root-ca area
+  client-ca    switch to %s/client-ca area
+  client       switch to %s/client area
   save         save certificate pool
   reload       reload certificate pool
   help         print help information
@@ -72,7 +72,7 @@ help about manager/%s:
   save         save certificate pool
   reload       reload certificate pool
   help         print help information
-  return       return to the %s mode
+  return       return to the %s area
   exit         close certificate manager
 
 `
@@ -82,11 +82,13 @@ type Manager struct {
 	stdin    io.Reader
 	dataPath string
 	bakPath  string
+
 	password *security.Bytes
 	pool     *certpool.Pool
-	prefix   string
 	scanner  *bufio.Scanner
+	prefix   string
 	closed   bool
+
 	testMode bool
 	testPool atomic.Value
 }

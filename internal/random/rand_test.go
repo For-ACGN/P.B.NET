@@ -64,8 +64,8 @@ func TestRand_String(t *testing.T) {
 }
 
 func TestRand_Password(t *testing.T) {
-	pwd := Password(4096)
-	require.Len(t, pwd, 4096)
+	pwd := Password(32768)
+	require.Len(t, pwd, 32768)
 
 	pwd = Password(-1)
 	require.Len(t, pwd, 12)
