@@ -112,12 +112,6 @@ func TestManager_ResetPassword(t *testing.T) {
 		testsuite.IsDestroyed(t, mgr)
 	})
 
-	t.Run("same password", func(t *testing.T) {
-		mgr := testNewManager(nil)
-		err := mgr.ResetPassword(testPassword, testPassword)
-		require.Error(t, err)
-	})
-
 	t.Run("file is not exist", func(t *testing.T) {
 		testCleanTestData(t)
 		defer testCleanTestData(t)

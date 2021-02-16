@@ -2,7 +2,6 @@ package manager
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/x509"
 	"fmt"
 	"io"
@@ -134,9 +133,6 @@ func (mgr *Manager) Initialize(password []byte) error {
 
 // ResetPassword is used to reset certificate manager password.
 func (mgr *Manager) ResetPassword(oldPwd, newPwd []byte) error {
-	if bytes.Equal(oldPwd, newPwd) {
-		return errors.New("as same as the old password")
-	}
 	// load certificate pool with old password
 	data, err := os.ReadFile(mgr.dataPath)
 	if err != nil {
@@ -238,10 +234,6 @@ func (mgr *Manager) createBackup() error {
 	return system.WriteFile(mgr.bakPath, data)
 }
 
-func (mgr *Manager) deleteBackup() error {
-	return os.Remove(mgr.bakPath)
-}
-
 func (mgr *Manager) load() error {
 	// read certificate pool file
 	data, err := os.ReadFile(mgr.dataPath)
@@ -289,10 +281,6 @@ func (mgr *Manager) saveCertPool() error {
 }
 
 func (mgr *Manager) exit() {
-	err := mgr.deleteBackup()
-	if err != nil {
-		fmt.Printf("failed to delete backup: %s\n", err)
-	}
 	mgr.closed = true
 	fmt.Println("Bye!")
 }
