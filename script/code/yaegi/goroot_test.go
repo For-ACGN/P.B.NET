@@ -109,7 +109,7 @@ func init() {
 		"crypto/x509",
 		"database/sql",
 		"debug/dwarf",
-		// "debug/elf",
+		"debug/elf",
 		// "debug/gosym",
 		// "debug/macho",
 		// "debug/pe",
