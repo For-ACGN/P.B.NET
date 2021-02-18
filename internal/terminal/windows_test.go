@@ -1,6 +1,6 @@
 // +build windows
 
-package console
+package terminal
 
 import (
 	"fmt"
@@ -43,7 +43,7 @@ func TestClear(t *testing.T) {
 
 	handle := os.Stdout.Fd()
 	if !IsTerminal(handle) {
-		// TODO need to find a way to test in Goland
+		// TODO [debt] need to find a way to test in Goland
 
 		testFreeConsole(t)
 		testAllocConsole(t)

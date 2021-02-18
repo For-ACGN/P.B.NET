@@ -1,6 +1,6 @@
 // +build !windows
 
-package console
+package terminal
 
 func isTerminal(fd uintptr) bool {
 	return false

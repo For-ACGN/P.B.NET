@@ -1,4 +1,4 @@
-package console
+package terminal
 
 // IsTerminal is used to check is in terminal.
 func IsTerminal(handle uintptr) bool {
