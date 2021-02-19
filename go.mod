@@ -37,6 +37,7 @@ require (
 	golang.org/x/net v0.0.0-20210331212208-0fccb6fa2b5c
 	golang.org/x/sys v0.0.0-20210331175145-43e1dd70ce54
 	golang.org/x/term v0.0.0-20210317153231-de623e64d2a6
+	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
 
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 )
