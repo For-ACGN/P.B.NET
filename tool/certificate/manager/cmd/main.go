@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"golang.org/x/term"
 
@@ -15,22 +14,6 @@ import (
 
 	"project/tool/certificate/manager"
 )
-
-func banner() {
-	fmt.Println()
-	fmt.Println("  ::::::::  :::::::::: :::::::::  ::::::::::: ::::    ::::   ::::::::  ::::::::: ")
-	fmt.Println(" :+:    :+: :+:        :+:    :+:     :+:     +:+:+: :+:+:+ :+:    :+: :+:    :+:")
-	fmt.Println(" +:+        +:+        +:+    +:+     +:+     +:+ +:+:+ +:+ +:+        +:+    +:+")
-	fmt.Println(" +#+        +#++:++#   +#++:++#:      +#+     +#+  +:+  +#+ :#:        +#++:++#: ")
-	fmt.Println(" +#+        +#+        +#+    +#+     +#+     +#+       +#+ +#+   +#+# +#+    +#+")
-	fmt.Println(" #+#    #+# #+#        #+#    #+#     #+#     #+#       #+# #+#    #+# #+#    #+#")
-	fmt.Println("  ########  ########## ###    ###     ###     ###       ###  ########  ###    ###")
-	fmt.Println()
-	fmt.Println("[*] Remember use \"save\" before exit if you changed")
-	fmt.Println("[*] Use \"reload\" If you accidentally delete certificate")
-	fmt.Println("[*] You can find the backup file in the destination path")
-	fmt.Println()
-}
 
 var (
 	initMgr  bool
@@ -45,11 +28,10 @@ func init() {
 	flag.BoolVar(&resetPwd, "reset", false, "reset certificate manager password")
 	flag.StringVar(&filePath, "file", "key/certpool.bin", "certificate pool file")
 	flag.Parse()
-
-	banner()
 }
 
 func main() {
+	banner()
 	mgr := manager.New(os.Stdin, filePath)
 	switch {
 	case initMgr:
@@ -61,21 +43,33 @@ func main() {
 	}
 }
 
-var stdinFD = int(syscall.Stdin)
+func banner() {
+	fmt.Println()
+	fmt.Println("  ::::::::  :::::::::: :::::::::  ::::::::::: ::::     ::::  ::::::::  ::::::::: ")
+	fmt.Println(" :+:    :+: :+:        :+:    :+:     :+:     +:+:+: :+:+:+ :+:    :+: :+:    :+:")
+	fmt.Println(" +:+        +:+        +:+    +:+     +:+     +:+ +:+:+ +:+ +:+        +:+    +:+")
+	fmt.Println(" +#+        +#++:++#   +#++:++#:      +#+     +#+  +:+  +#+ :#:        +#++:++#: ")
+	fmt.Println(" +#+        +#+        +#+    +#+     +#+     +#+       +#+ +#+   +#+# +#+    +#+")
+	fmt.Println(" #+#    #+# #+#        #+#    #+#     #+#     #+#       #+# #+#    #+# #+#    #+#")
+	fmt.Println("  ########  ########## ###    ###     ###     ###       ###  ########  ###    ###")
+	fmt.Println()
+	fmt.Println("[*] Remember use \"save\" before exit if you changed")
+	fmt.Println("[*] Use \"reload\" If you accidentally delete certificate")
+	fmt.Println("[*] You can find the backup file in the destination path")
+	fmt.Println()
+}
 
 func initialize(mgr *manager.Manager) {
 	fmt.Print("password: ")
-	password, err := term.ReadPassword(stdinFD)
-	system.CheckError(err)
+	password := readPassword()
 	fmt.Println()
 
-	err = security.CheckPasswordStrength(password)
+	err := security.CheckPasswordStrength(password)
 	system.CheckError(err)
 
 	for {
 		fmt.Print("retype: ")
-		retype, err := term.ReadPassword(stdinFD)
-		system.CheckError(err)
+		retype := readPassword()
 		fmt.Println()
 
 		if !bytes.Equal(password, retype) {
@@ -91,18 +85,16 @@ func initialize(mgr *manager.Manager) {
 
 func resetPassword(mgr *manager.Manager) {
 	fmt.Print("input old password: ")
-	oldPwd, err := term.ReadPassword(stdinFD)
-	system.CheckError(err)
+	oldPwd := readPassword()
 	defer security.CoverBytes(oldPwd)
 	fmt.Println()
 
 	fmt.Print("input new password: ")
-	newPwd, err := term.ReadPassword(stdinFD)
-	system.CheckError(err)
+	newPwd := readPassword()
 	defer security.CoverBytes(newPwd)
 	fmt.Println()
 
-	err = security.CheckPasswordStrength(newPwd)
+	err := security.CheckPasswordStrength(newPwd)
 	system.CheckError(err)
 
 	if bytes.Equal(oldPwd, newPwd) {
@@ -110,8 +102,7 @@ func resetPassword(mgr *manager.Manager) {
 	}
 
 	fmt.Print("retype: ")
-	rePwd, err := term.ReadPassword(stdinFD)
-	system.CheckError(err)
+	rePwd := readPassword()
 	defer security.CoverBytes(rePwd)
 	fmt.Println()
 
@@ -125,8 +116,7 @@ func resetPassword(mgr *manager.Manager) {
 
 func manage(mgr *manager.Manager) {
 	fmt.Print("password: ")
-	password, err := term.ReadPassword(stdinFD)
-	system.CheckError(err)
+	password := readPassword()
 	defer security.CoverBytes(password)
 	fmt.Println()
 
@@ -136,6 +126,14 @@ func manage(mgr *manager.Manager) {
 		signal.Notify(signalCh, os.Interrupt)
 	}()
 
-	err = mgr.Manage(password)
+	err := mgr.Manage(password)
 	system.CheckError(err)
+}
+
+var stdinFD = int(os.Stdin.Fd())
+
+func readPassword() []byte {
+	password, err := term.ReadPassword(stdinFD)
+	system.CheckError(err)
+	return password
 }
