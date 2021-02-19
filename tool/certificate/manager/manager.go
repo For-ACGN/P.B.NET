@@ -449,7 +449,7 @@ func (mgr *Manager) publicRootCAPrint(args []string) {
 		return
 	}
 	certs := mgr.pool.GetPublicRootCACerts()
-	if i < 0 || i > len(certs) {
+	if i < 0 || i > len(certs)-1 {
 		fmt.Println("invalid certificate id")
 		return
 	}
@@ -458,7 +458,7 @@ func (mgr *Manager) publicRootCAPrint(args []string) {
 
 func (mgr *Manager) publicRootCAAdd(args []string) {
 	if len(args) < 1 {
-		fmt.Println("no certificate file")
+		fmt.Println("no certificate file path")
 		return
 	}
 	block, err := os.ReadFile(args[0]) // #nosec
@@ -493,7 +493,7 @@ func (mgr *Manager) publicRootCADelete(args []string) {
 
 func (mgr *Manager) publicRootCAExport(args []string) {
 	if len(args) < 2 {
-		fmt.Println("no certificate id or export file name")
+		fmt.Println("no certificate id or export file path")
 		return
 	}
 	i, err := strconv.Atoi(args[0])
@@ -561,7 +561,7 @@ func (mgr *Manager) publicClientCAPrint(args []string) {
 		return
 	}
 	certs := mgr.pool.GetPublicClientCACerts()
-	if i < 0 || i > len(certs) {
+	if i < 0 || i > len(certs)-1 {
 		fmt.Println("invalid certificate id")
 		return
 	}
@@ -570,7 +570,7 @@ func (mgr *Manager) publicClientCAPrint(args []string) {
 
 func (mgr *Manager) publicClientCAAdd(args []string) {
 	if len(args) < 1 {
-		fmt.Println("no certificate file")
+		fmt.Println("no certificate file path")
 		return
 	}
 	block, err := os.ReadFile(args[0]) // #nosec
@@ -605,7 +605,7 @@ func (mgr *Manager) publicClientCADelete(args []string) {
 
 func (mgr *Manager) publicClientCAExport(args []string) {
 	if len(args) < 2 {
-		fmt.Println("no certificate id or export file name")
+		fmt.Println("no certificate id or export file path")
 		return
 	}
 	i, err := strconv.Atoi(args[0])
@@ -673,7 +673,7 @@ func (mgr *Manager) publicClientPrint(args []string) {
 		return
 	}
 	pairs := mgr.pool.GetPublicClientPairs()
-	if i < 0 || i > len(pairs) {
+	if i < 0 || i > len(pairs)-1 {
 		fmt.Println("invalid certificate id")
 		return
 	}
@@ -682,7 +682,7 @@ func (mgr *Manager) publicClientPrint(args []string) {
 
 func (mgr *Manager) publicClientAdd(args []string) {
 	if len(args) < 2 {
-		fmt.Println("no certificate file or private key file")
+		fmt.Println("no certificate or private key file path")
 		return
 	}
 	certs, keys := loadPairs(args[0], args[1])
@@ -711,7 +711,7 @@ func (mgr *Manager) publicClientDelete(args []string) {
 
 func (mgr *Manager) publicClientExport(args []string) {
 	if len(args) < 3 {
-		fmt.Println("no certificate id or two export file name")
+		fmt.Println("no certificate id or export file paths")
 		return
 	}
 	i, err := strconv.Atoi(args[0])
@@ -783,7 +783,7 @@ func (mgr *Manager) privateRootCAPrint(args []string) {
 		return
 	}
 	certs := mgr.pool.GetPrivateRootCACerts()
-	if i < 0 || i > len(certs) {
+	if i < 0 || i > len(certs)-1 {
 		fmt.Println("invalid certificate id")
 		return
 	}
@@ -792,7 +792,7 @@ func (mgr *Manager) privateRootCAPrint(args []string) {
 
 func (mgr *Manager) privateRootCAAdd(args []string) {
 	if len(args) < 2 {
-		fmt.Println("no certificate file or private key file")
+		fmt.Println("no certificate or private key file path")
 		return
 	}
 	certs, keys := loadPairs(args[0], args[1])
@@ -821,7 +821,7 @@ func (mgr *Manager) privateRootCADelete(args []string) {
 
 func (mgr *Manager) privateRootCAExport(args []string) {
 	if len(args) < 3 {
-		fmt.Println("no certificate id or two export file name")
+		fmt.Println("no certificate id or export file paths")
 		return
 	}
 	i, err := strconv.Atoi(args[0])
@@ -893,7 +893,7 @@ func (mgr *Manager) privateClientCAPrint(args []string) {
 		return
 	}
 	certs := mgr.pool.GetPrivateClientCACerts()
-	if i < 0 || i > len(certs) {
+	if i < 0 || i > len(certs)-1 {
 		fmt.Println("invalid certificate id")
 		return
 	}
@@ -902,7 +902,7 @@ func (mgr *Manager) privateClientCAPrint(args []string) {
 
 func (mgr *Manager) privateClientCAAdd(args []string) {
 	if len(args) < 2 {
-		fmt.Println("no certificate file or private key file")
+		fmt.Println("no certificate or private key file path")
 		return
 	}
 	certs, keys := loadPairs(args[0], args[1])
@@ -931,7 +931,7 @@ func (mgr *Manager) privateClientCADelete(args []string) {
 
 func (mgr *Manager) privateClientCAExport(args []string) {
 	if len(args) < 3 {
-		fmt.Println("no certificate id or two export file name")
+		fmt.Println("no certificate id or export file paths")
 		return
 	}
 	i, err := strconv.Atoi(args[0])
@@ -1003,7 +1003,7 @@ func (mgr *Manager) privateClientPrint(args []string) {
 		return
 	}
 	pairs := mgr.pool.GetPrivateClientPairs()
-	if i < 0 || i > len(pairs) {
+	if i < 0 || i > len(pairs)-1 {
 		fmt.Println("invalid certificate id")
 		return
 	}
@@ -1012,7 +1012,7 @@ func (mgr *Manager) privateClientPrint(args []string) {
 
 func (mgr *Manager) privateClientAdd(args []string) {
 	if len(args) < 2 {
-		fmt.Println("no certificate file or private key file")
+		fmt.Println("no certificate or private key file path")
 		return
 	}
 	certs, keys := loadPairs(args[0], args[1])
@@ -1041,7 +1041,7 @@ func (mgr *Manager) privateClientDelete(args []string) {
 
 func (mgr *Manager) privateClientExport(args []string) {
 	if len(args) < 3 {
-		fmt.Println("no certificate id or two export file name")
+		fmt.Println("no certificate id or export file paths")
 		return
 	}
 	i, err := strconv.Atoi(args[0])
