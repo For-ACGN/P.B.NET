@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 
 	"github.com/pkg/errors"
@@ -16,6 +17,7 @@ import (
 	"project/internal/cert/certpool"
 	"project/internal/security"
 	"project/internal/system"
+	"project/internal/terminal"
 )
 
 const (
@@ -31,19 +33,20 @@ const (
 )
 
 const managerHelp = `
-help about manager:
+help information about manager
   
   public       switch to public area
   private      switch to private area
   save         save certificate pool
   reload       reload certificate pool
   help         print help information
+  clear        [reset, cls] clear screen
   exit         close certificate manager
   
 `
 
 const locationHelpTemplate = `
-help about manager/%s:
+help information about manager/%s
   
   root-ca      switch to %s/root-ca area
   client-ca    switch to %s/client-ca area
@@ -51,13 +54,14 @@ help about manager/%s:
   save         save certificate pool
   reload       reload certificate pool
   help         print help information
+  clear        [reset, cls] clear screen
   return       return to the manager
   exit         close certificate manager
   
 `
 
 const certHelpTemplate = `
-help about manager/%s:
+help information about manager/%s
 
   print        print certificate information with ID
                  example: print 0
@@ -71,6 +75,7 @@ help about manager/%s:
   save         save certificate pool
   reload       reload certificate pool
   help         print help information
+  clear        [reset, cls] clear screen
   return       return to the %s area
   exit         close certificate manager
 
@@ -81,6 +86,7 @@ type Manager struct {
 	stdin    io.Reader
 	dataPath string
 	bakPath  string
+	stdinFD  uintptr
 
 	password *security.Bytes
 	pool     *certpool.Pool
@@ -98,6 +104,7 @@ func New(stdin io.Reader, path string) *Manager {
 		stdin:    stdin,
 		dataPath: path,
 		bakPath:  path + ".bak",
+		stdinFD:  os.Stdout.Fd(),
 	}
 }
 
@@ -278,6 +285,13 @@ func (mgr *Manager) saveCertPool() error {
 	return system.WriteFile(mgr.dataPath, data)
 }
 
+func (mgr *Manager) clear() {
+	err := terminal.Clear(mgr.stdinFD)
+	if err != nil {
+		fmt.Println("[clear]:", err)
+	}
+}
+
 func (mgr *Manager) exit() {
 	mgr.closed = true
 	fmt.Println("Bye!")
@@ -293,7 +307,7 @@ func (mgr *Manager) main() {
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "public":
 		mgr.prefix = prefixPublic
 	case "private":
@@ -304,6 +318,8 @@ func (mgr *Manager) main() {
 		mgr.reload()
 	case "help":
 		fmt.Print(managerHelp[1:])
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "exit":
 		mgr.exit()
 	default:
@@ -321,7 +337,7 @@ func (mgr *Manager) public() {
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "root-ca":
 		mgr.prefix = prefixPublicRootCA
 	case "client-ca":
@@ -338,6 +354,8 @@ func (mgr *Manager) public() {
 			a[i] = "public"
 		}
 		fmt.Printf(locationHelpTemplate[1:], a...)
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "return":
 		mgr.prefix = prefixManager
 	case "exit":
@@ -357,7 +375,7 @@ func (mgr *Manager) private() {
 		fmt.Printf("unknown command: \"%s\"\n", cmd)
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "root-ca":
 		mgr.prefix = prefixPrivateRootCA
 	case "client-ca":
@@ -374,6 +392,8 @@ func (mgr *Manager) private() {
 			a[i] = "private"
 		}
 		fmt.Printf(locationHelpTemplate[1:], a...)
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "return":
 		mgr.prefix = prefixManager
 	case "exit":
@@ -391,7 +411,7 @@ func (mgr *Manager) publicRootCA() {
 	if len(args) == 0 {
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "print":
 		mgr.publicRootCAPrint(args[1:])
 	case "add":
@@ -408,6 +428,8 @@ func (mgr *Manager) publicRootCA() {
 		mgr.reload()
 	case "help":
 		fmt.Printf(certHelpTemplate[1:], "public/root-ca", "Root CA", "public")
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "return":
 		mgr.prefix = prefixPublic
 	case "exit":
@@ -501,7 +523,7 @@ func (mgr *Manager) publicClientCA() {
 	if len(args) == 0 {
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "print":
 		mgr.publicClientCAPrint(args[1:])
 	case "add":
@@ -518,6 +540,8 @@ func (mgr *Manager) publicClientCA() {
 		mgr.reload()
 	case "help":
 		fmt.Printf(certHelpTemplate[1:], "public/client-ca", "Client CA", "public")
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "return":
 		mgr.prefix = prefixPublic
 	case "exit":
@@ -611,7 +635,7 @@ func (mgr *Manager) publicClient() {
 	if len(args) == 0 {
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "print":
 		mgr.publicClientPrint(args[1:])
 	case "add":
@@ -628,6 +652,8 @@ func (mgr *Manager) publicClient() {
 		mgr.reload()
 	case "help":
 		fmt.Printf(certHelpTemplate[1:], "public/client", "Client", "public")
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "return":
 		mgr.prefix = prefixPublic
 	case "exit":
@@ -719,7 +745,7 @@ func (mgr *Manager) privateRootCA() {
 	if len(args) == 0 {
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "print":
 		mgr.privateRootCAPrint(args[1:])
 	case "add":
@@ -736,6 +762,8 @@ func (mgr *Manager) privateRootCA() {
 		mgr.reload()
 	case "help":
 		fmt.Printf(certHelpTemplate[1:], "private/root-ca", "Root CA", "private")
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "return":
 		mgr.prefix = prefixPrivate
 	case "exit":
@@ -827,7 +855,7 @@ func (mgr *Manager) privateClientCA() {
 	if len(args) == 0 {
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "print":
 		mgr.privateClientCAPrint(args[1:])
 	case "add":
@@ -844,6 +872,8 @@ func (mgr *Manager) privateClientCA() {
 		mgr.reload()
 	case "help":
 		fmt.Printf(certHelpTemplate[1:], "private/client-ca", "Client CA", "private")
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "return":
 		mgr.prefix = prefixPrivate
 	case "exit":
@@ -935,7 +965,7 @@ func (mgr *Manager) privateClient() {
 	if len(args) == 0 {
 		return
 	}
-	switch args[0] {
+	switch strings.ToLower(args[0]) {
 	case "print":
 		mgr.privateClientPrint(args[1:])
 	case "add":
@@ -952,6 +982,8 @@ func (mgr *Manager) privateClient() {
 		mgr.reload()
 	case "help":
 		fmt.Printf(certHelpTemplate[1:], "private/client", "Client", "private")
+	case "clear", "reset", "cls":
+		mgr.clear()
 	case "return":
 		mgr.prefix = prefixPrivate
 	case "exit":

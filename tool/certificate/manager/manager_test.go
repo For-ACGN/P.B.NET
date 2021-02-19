@@ -291,6 +291,7 @@ func TestManager_Main(t *testing.T) {
 
 			"save", "reload",
 			"help", "", "cmd1 cmd2", "invalid-cmd",
+			"clear", "reset", "cls",
 			"exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
@@ -319,6 +320,7 @@ func TestManager_Public(t *testing.T) {
 
 			"save", "reload",
 			"help", "", "cmd1 cmd2", "invalid-cmd",
+			"clear", "reset", "cls",
 			"return", "public", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
@@ -347,6 +349,7 @@ func TestManager_Private(t *testing.T) {
 
 			"save", "reload",
 			"help", "", "cmd1 cmd2", "invalid-cmd",
+			"clear", "reset", "cls",
 			"return", "private", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
@@ -375,6 +378,7 @@ func TestManager_PublicRootCA(t *testing.T) {
 
 			"list", "save", "reload",
 			"help", " ", "invalid-cmd",
+			"clear", "reset", "cls",
 			"return", "root-ca", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
@@ -502,6 +506,7 @@ func TestManager_PublicClientCA(t *testing.T) {
 
 			"list", "save", "reload",
 			"help", " ", "invalid-cmd",
+			"clear", "reset", "cls",
 			"return", "client-ca", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
@@ -629,6 +634,7 @@ func TestManager_PublicClient(t *testing.T) {
 
 			"list", "save", "reload",
 			"help", " ", "invalid-cmd",
+			"clear", "reset", "cls",
 			"return", "client", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
@@ -767,6 +773,7 @@ func TestManager_PrivateRootCA(t *testing.T) {
 
 			"list", "save", "reload",
 			"help", " ", "invalid-cmd",
+			"clear", "reset", "cls",
 			"return", "root-ca", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
@@ -905,6 +912,7 @@ func TestManager_PrivateClientCA(t *testing.T) {
 
 			"list", "save", "reload",
 			"help", " ", "invalid-cmd",
+			"clear", "reset", "cls",
 			"return", "client-ca", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
@@ -1043,6 +1051,7 @@ func TestManager_PrivateClient(t *testing.T) {
 
 			"list", "save", "reload",
 			"help", " ", "invalid-cmd",
+			"clear", "reset", "cls",
 			"return", "client", "exit",
 		} {
 			_, err := w.Write([]byte(cmd + "\n"))
