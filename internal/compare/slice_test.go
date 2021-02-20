@@ -10,27 +10,28 @@ import (
 )
 
 func TestUniqueStrings(t *testing.T) {
-	for _, item := range [...]*struct {
-		new     []string
-		old     []string
-		added   []int
-		deleted []int
+	for _, testdata := range [...]*struct {
+		previous []string
+		current  []string
+		added    []int
+		deleted  []int
 	}{
 		{
-			new:     []string{"b", "c", "d"},
-			old:     []string{"a", "b", "c"},
-			added:   []int{2},
-			deleted: []int{0},
+			previous: []string{"a", "b", "c"},
+			current:  []string{"b", "c", "d"},
+			added:    []int{2},
+			deleted:  []int{0},
 		},
 	} {
-		added, deleted := UniqueStrings(item.new, item.old)
-		require.Equal(t, item.added, added)
-		require.Equal(t, item.deleted, deleted)
+		added, deleted := UniqueStrings(testdata.previous, testdata.current)
+		require.Equal(t, testdata.added, added)
+		require.Equal(t, testdata.deleted, deleted)
 	}
 }
 
 func BenchmarkUniqueStrings(b *testing.B) {
-	// see project/internal/module/netmon/netstat.go
+	// 2 = port(uint16) size
+	// 4 = zone(uint32) size
 	const (
 		tcp4RowSize = net.IPv4len + 2 + net.IPv4len + 2
 		tcp6RowSize = net.IPv6len + 4 + 2 + net.IPv6len + 4 + 2
@@ -83,7 +84,7 @@ func benchmarkUniqueStrings(b *testing.B, size, factor int) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		added, deleted := UniqueStrings(n, o)
+		added, deleted := UniqueStrings(o, n)
 		if len(added) != 1 {
 			b.Fatal("invalid added number:", added)
 		}
@@ -97,6 +98,4 @@ func benchmarkUniqueStrings(b *testing.B, size, factor int) {
 			b.Fatal("invalid deleted index:", deleted[0])
 		}
 	}
-
-	b.StopTimer()
 }
