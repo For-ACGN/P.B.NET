@@ -8,8 +8,8 @@ import (
 
 type testStruct struct{}
 
-func TestGetStructureName(t *testing.T) {
-	name := GetStructureName(&testStruct{})
+func TestGetStructName(t *testing.T) {
+	name := GetStructName(&testStruct{})
 	require.Equal(t, "testStruct", name)
 	nest := struct {
 		a int
@@ -18,12 +18,12 @@ func TestGetStructureName(t *testing.T) {
 			d int
 		}
 	}{}
-	name = GetStructureName(nest)
+	name = GetStructName(nest)
 	expected := "struct { a int; b struct { c int; d int } }"
 	require.Equal(t, expected, name)
 }
 
-func TestStructureToMap(t *testing.T) {
+func TestStructToMap(t *testing.T) {
 	s := struct {
 		Name string `msgpack:"name"`
 		Host string `msgpack:"host"`
@@ -32,16 +32,16 @@ func TestStructureToMap(t *testing.T) {
 		Host: "bbb",
 	}
 	// point
-	m := StructureToMap(&s, "msgpack")
+	m := StructToMap(&s, "msgpack")
 	require.Equal(t, "aaa", m["name"])
 	require.Equal(t, "bbb", m["host"])
 	// value
-	m = StructureToMap(s, "msgpack")
+	m = StructToMap(s, "msgpack")
 	require.Equal(t, "aaa", m["name"])
 	require.Equal(t, "bbb", m["host"])
 }
 
-func TestStructureToMapWithoutZero(t *testing.T) {
+func TestStructToMapExceptZero(t *testing.T) {
 	s := struct {
 		Name string `msgpack:"name"`
 		Host string `msgpack:"host"`
@@ -50,11 +50,11 @@ func TestStructureToMapWithoutZero(t *testing.T) {
 		Host: "",
 	}
 	// point
-	m := StructureToMapWithoutZero(&s, "msgpack")
+	m := StructToMapExceptZero(&s, "msgpack")
 	require.Len(t, m, 1)
 	require.Equal(t, "aaa", m["name"])
 	// value
-	m = StructureToMapWithoutZero(s, "msgpack")
+	m = StructToMapExceptZero(s, "msgpack")
 	require.Len(t, m, 1)
 	require.Equal(t, "aaa", m["name"])
 }
