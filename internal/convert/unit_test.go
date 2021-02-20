@@ -1,9 +1,7 @@
 package convert
 
 import (
-	"runtime"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -33,9 +31,6 @@ func TestStorageUnit(t *testing.T) {
 			{1264, "1.234 KiB"},  // 1264/1024 = 1.234375
 			{1153539, "1.1 MiB"}, // 1.1001 MiB
 		} {
-			if runtime.GOOS == "windows" {
-				testdata.output = strings.ReplaceAll(testdata.output, "iB", "B")
-			}
 			require.Equal(t, testdata.output, StorageUnit(testdata.input))
 		}
 	})

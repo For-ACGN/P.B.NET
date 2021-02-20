@@ -3,7 +3,6 @@ package convert
 import (
 	"fmt"
 	"math/big"
-	"runtime"
 	"strconv"
 	"strings"
 )
@@ -48,10 +47,6 @@ func StorageUnit(n uint64) string {
 	default:
 		unit = "EiB"
 		div = EiB
-	}
-	// history of habit
-	if runtime.GOOS == "windows" {
-		unit = strings.ReplaceAll(unit, "iB", "B")
 	}
 	bf := new(big.Float).SetUint64(n)
 	bf.Quo(bf, new(big.Float).SetUint64(div))
