@@ -64,8 +64,7 @@ func truncFloat(f string, n int) string {
 
 // SplitNumber is used to convert "123456.789" to "123,456.789".
 func SplitNumber(str string) string {
-	length := len(str)
-	if length < 4 {
+	if len(str) < 4 {
 		return str
 	}
 	all := strings.SplitN(str, ".", 2)

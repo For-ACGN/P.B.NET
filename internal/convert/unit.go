@@ -1,10 +1,8 @@
 package convert
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 )
 
 // storage unit
@@ -19,11 +17,33 @@ const (
 )
 
 // StorageUnit is used to convert byte to larger unit.
-// output unit are KB KiB, MB MiB ...
+// Output unit are Byte, KiB, MiB, GiB...
 func StorageUnit(n uint64) string {
 	if n < KiB {
-		return strconv.Itoa(int(n)) + " Byte"
+		return strconv.FormatUint(n, 10) + " Byte"
 	}
+	unit, div := selectStorageUnitAndDiv(n)
+	bf := new(big.Float).SetUint64(n)
+	bf.Quo(bf, new(big.Float).SetUint64(div))
+	value := TruncBigFloat(bf, 2)
+	return value + " " + unit
+}
+
+// StorageUnitBigInt is used to convert byte to larger unit.
+// Output unit are Byte, KiB, MiB, GiB...
+func StorageUnitBigInt(n *big.Int) string {
+	ui64 := n.Uint64()
+	if ui64 < KiB {
+		return strconv.FormatUint(ui64, 10) + " Byte"
+	}
+	unit, div := selectStorageUnitAndDiv(ui64)
+	bf := new(big.Float).SetInt(n)
+	bf.Quo(bf, new(big.Float).SetUint64(div))
+	value := TruncBigFloat(bf, 2)
+	return value + " " + unit
+}
+
+func selectStorageUnitAndDiv(n uint64) (string, uint64) {
 	var (
 		unit string
 		div  uint64
@@ -48,19 +68,5 @@ func StorageUnit(n uint64) string {
 		unit = "EiB"
 		div = EiB
 	}
-	bf := new(big.Float).SetUint64(n)
-	bf.Quo(bf, new(big.Float).SetUint64(div))
-	// 1.99999999 -> 1.999
-	text := bf.Text('G', 64)
-	offset := strings.Index(text, ".")
-	if offset != -1 && len(text[offset+1:]) > 3 {
-		text = text[:offset+1+3]
-	}
-	// delete zero: 1.100 -> 1.1
-	result, err := strconv.ParseFloat(text, 64)
-	if err != nil {
-		panic(fmt.Sprintf("convert: internal error: %s", err))
-	}
-	value := strconv.FormatFloat(result, 'f', -1, 64)
-	return value + " " + unit
+	return unit, div
 }

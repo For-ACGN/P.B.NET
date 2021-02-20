@@ -52,6 +52,7 @@ func TestTruncFloat(t *testing.T) {
 		require.Equal(t, testdata.output, TruncBigFloat(bf, 3))
 	}
 
+	// truncate all decimal
 	for _, testdata := range [...]*struct {
 		f32    float32
 		f64    float64
