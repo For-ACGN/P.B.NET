@@ -11,11 +11,11 @@ type Conn struct {
 	net.Conn
 
 	// imprecise
-	sent     uint64
-	received uint64
-	rwm      sync.RWMutex
+	read    uint64
+	written uint64
+	rwm     sync.RWMutex
 
-	estAt time.Time
+	established time.Time
 }
 
 // Status is used to get connection status.
@@ -28,8 +28,8 @@ func (c *Conn) Status() *ConnStatus {
 		LocalAddress:  c.LocalAddr().String(),
 		RemoteNetwork: c.RemoteAddr().Network(),
 		RemoteAddress: c.RemoteAddr().String(),
-		Sent:          c.sent,
-		Received:      c.received,
-		EstablishedAt: c.estAt,
+		Read:          c.read,
+		Written:       c.written,
+		Established:   c.established,
 	}
 }

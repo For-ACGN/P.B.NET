@@ -7,8 +7,9 @@ import (
 )
 
 // Manager is the network manager, it used to store status about listeners
-// and connections. It can close the listeners or connections, limit the income
-// connections about each listener and limit the upload and download speed.
+// and connections. It can close the listeners and connections by guid,
+// limit established connections about each listener, it also can set the
+// upload and download rate.
 type Manager struct {
 	listeners    map[guid.GUID]*Listener
 	listenersRWM sync.RWMutex

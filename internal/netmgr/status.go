@@ -20,7 +20,7 @@ type ListenerStatus struct {
 
 // String is used to get status about listener.
 // Output:
-// -------------------------listener status------------------------
+// ------------------------listener status-------------------------
 // address:     tcp 127.0.0.1:1234
 // connections: 123/10000 (est/max)
 // listened:    2018-11-27 00:00:00 +08:00
@@ -48,8 +48,10 @@ type ConnStatus struct {
 	LocalAddress  string    `json:"local_address"`
 	RemoteNetwork string    `json:"remote_network"`
 	RemoteAddress string    `json:"remote_address"`
-	Sent          uint64    `json:"sent"`
-	Received      uint64    `json:"received"`
+	ReadRate      uint64    `json:"read_rate"`
+	WriteRate     uint64    `json:"write_rate"`
+	Read          uint64    `json:"read"`
+	Written       uint64    `json:"written"`
 	Established   time.Time `json:"established"`
 	LastRead      time.Time `json:"last_read"`
 	LastWrite     time.Time `json:"last_write"`
@@ -60,29 +62,39 @@ type ConnStatus struct {
 // -----------------------connection status------------------------
 // local addr:  tcp 127.0.0.1:1234
 // remote addr: tcp 127.0.0.1:5678
-// traffic:     123 Byte/1.101 KB (sent/recv)
+// rate:        16 MiB/32 MiB (send/recv)
+// traffic:     123 Byte/1.1 KiB (sent/recv)
 // established: 2018-11-27 00:00:00 +08:00
-// last read:   2018-11-27 00:01:00 +08:00
-// last write:  2018-11-27 00:02:00 +08:00
+// last send:   2018-11-27 00:01:00 +08:00
+// last recv:   2018-11-27 00:02:00 +08:00
 // ----------------------------------------------------------------
 func (cs *ConnStatus) String() string {
 	const format = `
 -----------------------connection status------------------------
 local addr:  %s %s
 remote addr: %s %s
+rate:        %s/%s (send/recv)
 traffic:     %s/%s (sent/recv)
 established: %s
-last read:   %s
-last write:  %s
-----------------------------------------------------------------
-`
+last send:   %s
+last recv:   %s
+----------------------------------------------------------------`
+	sendRate := "[no limit]"
+	if cs.WriteRate != 0 {
+		sendRate = convert.StorageUnit(cs.WriteRate)
+	}
+	recvRate := "[no limit]"
+	if cs.ReadRate != 0 {
+		recvRate = convert.StorageUnit(cs.ReadRate)
+	}
 	return fmt.Sprintf(format[1:],
 		cs.LocalNetwork, cs.LocalAddress,
 		cs.RemoteNetwork, cs.RemoteAddress,
-		convert.StorageUnit(cs.Sent),
-		convert.StorageUnit(cs.Received),
+		sendRate, recvRate,
+		convert.StorageUnit(cs.Written),
+		convert.StorageUnit(cs.Read),
 		cs.Established.Format(logger.TimeLayout),
-		cs.LastRead.Format(logger.TimeLayout),
 		cs.LastWrite.Format(logger.TimeLayout),
+		cs.LastRead.Format(logger.TimeLayout),
 	)
 }
