@@ -31,35 +31,36 @@ type Options struct {
 }
 
 // registered new functions
-var newNamers = map[string]func() Namer{
+var namers = map[string]func() Namer{
 	"english": func() Namer { return NewEnglish() },
 }
-var newNamersRWM sync.RWMutex
+var namersRWM sync.RWMutex
 
 // Register is used to register a new namer function.
 func Register(typ string, fn func() Namer) error {
-	newNamersRWM.Lock()
-	defer newNamersRWM.Unlock()
-	if _, ok := newNamers[typ]; ok {
+	namersRWM.Lock()
+	defer namersRWM.Unlock()
+	if _, ok := namers[typ]; ok {
 		return errors.Errorf("namer \"%s\" is already registered", typ)
 	}
-	newNamers[typ] = fn
+	namers[typ] = fn
 	return nil
 }
 
 // Unregister is used to unregister a new namer function.
 func Unregister(typ string) {
-	newNamersRWM.Lock()
-	defer newNamersRWM.Unlock()
-	delete(newNamers, typ)
+	namersRWM.Lock()
+	defer namersRWM.Unlock()
+	delete(namers, typ)
 }
 
 // Load is used to load resource and create a namer.
 func Load(typ string, res []byte) (Namer, error) {
-	namer, err := newNamer(typ)
+	fn, err := getNewNamerFn(typ)
 	if err != nil {
 		return nil, err
 	}
+	namer := fn()
 	err = namer.Load(res)
 	if err != nil {
 		return nil, errors.WithMessagef(err, "failed to load namer \"%s\"", typ)
@@ -67,14 +68,14 @@ func Load(typ string, res []byte) (Namer, error) {
 	return namer, nil
 }
 
-func newNamer(typ string) (Namer, error) {
-	newNamersRWM.RLock()
-	defer newNamersRWM.RUnlock()
-	nn, ok := newNamers[typ]
+func getNewNamerFn(typ string) (func() Namer, error) {
+	namersRWM.RLock()
+	defer namersRWM.RUnlock()
+	nn, ok := namers[typ]
 	if !ok {
 		return nil, errors.Errorf("namer \"%s\" is not registered", typ)
 	}
-	return nn(), nil
+	return nn, nil
 }
 
 func loadWordsFromZipFile(file *zip.File) (*security.Bytes, error) {
@@ -83,9 +84,9 @@ func loadWordsFromZipFile(file *zip.File) (*security.Bytes, error) {
 		return nil, errors.WithStack(err)
 	}
 	defer func() { _ = rc.Close() }()
-	data, err := security.ReadAll(rc, 16*1024)
+	data, err := security.ReadAll(rc, 128*1024)
 	if err != nil {
-		return nil, errors.Errorf("%s, maybe zip file is larger than 16KB", err)
+		return nil, errors.Errorf("%s, maybe zip file is larger than 128 KB", err)
 	}
 	defer security.CoverBytes(data)
 	return security.NewBytes(data), nil
