@@ -40,16 +40,16 @@ func TestParseLevel(t *testing.T) {
 	})
 }
 
-func TestPrefix(t *testing.T) {
+func TestDumpPrefix(t *testing.T) {
 	t.Run("valid level", func(t *testing.T) {
 		for lv := Level(0); lv < Off; lv++ {
-			buf := Prefix(time.Now(), lv, testLogSrc)
+			buf := DumpPrefix(time.Now(), lv, testLogSrc)
 			fmt.Println(buf)
 		}
 	})
 
 	t.Run("invalid level", func(t *testing.T) {
-		buf := Prefix(time.Now(), Level(153), testLogSrc)
+		buf := DumpPrefix(time.Now(), Level(153), testLogSrc)
 		fmt.Println(buf)
 	})
 }

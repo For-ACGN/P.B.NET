@@ -35,25 +35,20 @@ func (lv Level) String() string {
 
 // about log levels.
 const (
-	// log all(with unexpected level)
-	All Level = iota
+	All Level = iota // log all(include unexpected level)
 
-	// about debug
 	Trace // for trace function (development)
-	Debug // general debug information
+	Debug // generic debug information
 
-	// about information
-	Info     // general running information
+	Info     // generic running information
 	Critical // important information like exploit successfully
 
-	// about error
 	Warning // appear error but can continue
 	Error   // appear error that can not continue (returned)
-	Exploit // find excepted exploit or security problem(maybe)
-	Fatal   // appear panic in goroutine or error that need return
+	Exploit // appear excepted exploit or security problem(maybe)
+	Fatal   // appear panic in goroutine or error that need interrupt
 
-	// stop logger
-	Off
+	Off // stop logger
 )
 
 // ParseLevel is used to parse log level from string.
@@ -86,14 +81,14 @@ func ParseLevel(level string) (Level, error) {
 	return lv, nil
 }
 
-// Prefix is used to print time, level and source to a buffer.
-// The output is time + level + source + log
+// DumpPrefix is used to print time, level and source to a *bytes.buffer.
+// The output is [time] + [level] + <source> + log1 + log2 ...
 // Log source is: class name + ":" + instance tag like "server:tag1",
 // if log source include more that two words, connect these with "-"
 // like "socks5-server:tag1".
 //
 // [2018-11-27 09:16:16 +08:00] [info] <main> controller is running
-func Prefix(t time.Time, lv Level, src string) *bytes.Buffer {
+func DumpPrefix(t time.Time, lv Level, src string) *bytes.Buffer {
 	buf := bytes.Buffer{}
 	buf.WriteString("[")
 	buf.WriteString(t.Format(TimeLayout))

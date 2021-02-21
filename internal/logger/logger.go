@@ -61,7 +61,7 @@ func (c *common) Printf(lv Level, src, format string, log ...interface{}) {
 	if c.discard(lv) {
 		return
 	}
-	output := Prefix(time.Now(), lv, src)
+	output := DumpPrefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintf(output, format, log...)
 	fmt.Println(output)
 }
@@ -70,7 +70,7 @@ func (c *common) Print(lv Level, src string, log ...interface{}) {
 	if c.discard(lv) {
 		return
 	}
-	output := Prefix(time.Now(), lv, src)
+	output := DumpPrefix(time.Now(), lv, src)
 	_, _ = fmt.Fprint(output, log...)
 	fmt.Println(output)
 }
@@ -79,7 +79,7 @@ func (c *common) Println(lv Level, src string, log ...interface{}) {
 	if c.discard(lv) {
 		return
 	}
-	output := Prefix(time.Now(), lv, src)
+	output := DumpPrefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintln(output, log...)
 	fmt.Print(output)
 }
@@ -158,7 +158,7 @@ func (t *test) discard(lv Level) bool {
 func writePrefix(lv Level, src string) *bytes.Buffer {
 	output := new(bytes.Buffer)
 	output.WriteString("[Test] ")
-	_, _ = Prefix(time.Now(), lv, src).WriteTo(output)
+	_, _ = DumpPrefix(time.Now(), lv, src).WriteTo(output)
 	return output
 }
 
@@ -214,7 +214,7 @@ func (ml *multiLogger) Printf(lv Level, src, format string, log ...interface{}) 
 	if ml.discard(lv) {
 		return
 	}
-	buf := Prefix(time.Now(), lv, src)
+	buf := DumpPrefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintf(buf, format, log...)
 	buf.WriteString("\n")
 	_, _ = buf.WriteTo(ml.writer)
@@ -224,7 +224,7 @@ func (ml *multiLogger) Print(lv Level, src string, log ...interface{}) {
 	if ml.discard(lv) {
 		return
 	}
-	buf := Prefix(time.Now(), lv, src)
+	buf := DumpPrefix(time.Now(), lv, src)
 	_, _ = fmt.Fprint(buf, log...)
 	buf.WriteString("\n")
 	_, _ = buf.WriteTo(ml.writer)
@@ -234,7 +234,7 @@ func (ml *multiLogger) Println(lv Level, src string, log ...interface{}) {
 	if ml.discard(lv) {
 		return
 	}
-	buf := Prefix(time.Now(), lv, src)
+	buf := DumpPrefix(time.Now(), lv, src)
 	_, _ = fmt.Fprintln(buf, log...)
 	_, _ = buf.WriteTo(ml.writer)
 }
