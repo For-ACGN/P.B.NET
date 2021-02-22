@@ -18,8 +18,13 @@ type Conn struct {
 	established time.Time
 }
 
-// Status is used to get connection status.
-// address maybe changed, such as QUIC.
+func (c *Conn) Close() error {
+
+	return c.Conn.Close()
+}
+
+// Status is used to get status about connection.
+// LocalAddress maybe changed, such as QUIC.
 func (c *Conn) Status() *ConnStatus {
 	c.rwm.RLock()
 	defer c.rwm.RUnlock()

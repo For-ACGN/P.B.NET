@@ -2,6 +2,7 @@ package netmgr
 
 import (
 	"sync"
+	"time"
 
 	"project/internal/guid"
 )
@@ -11,6 +12,8 @@ import (
 // limit established connections about each listener, it also can set the
 // upload and download rate.
 type Manager struct {
+	now func() time.Time
+
 	listeners    map[guid.GUID]*Listener
 	listenersRWM sync.RWMutex
 	conns        map[guid.GUID]*Conn
@@ -22,13 +25,13 @@ func NewManager() {
 
 }
 
-// WrapListener is used to wrap a net.Listener to a limited listener.
-func (mgr *Manager) WrapListener() {
+// TraceListener is used to wrap a net.Listener to a limited listener.
+func (mgr *Manager) TraceListener() {
 
 }
 
-// WrapConn is used to wrap a net.Conn to a rate limited connection.
-func (mgr *Manager) WrapConn() {
+// TraceConn is used to wrap a net.Conn to a rate limited connection.
+func (mgr *Manager) TraceConn() {
 
 }
 
