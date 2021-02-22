@@ -16,6 +16,7 @@ type Listener struct {
 	ctx *Manager
 
 	net.Listener
+	now      func() time.Time
 	guid     *guid.GUID
 	listened time.Time
 
@@ -29,16 +30,18 @@ type Listener struct {
 	closeOnce  sync.Once
 }
 
-func (mgr *Manager) newListener(l net.Listener, max uint64) *Listener {
+func (mgr *Manager) newListener(listener net.Listener) *Listener {
 	now := mgr.now()
+	maxConns := mgr.GetListenerMaxConns()
 	return &Listener{
 		ctx:        mgr,
-		Listener:   l,
+		Listener:   listener,
+		now:        mgr.now,
 		guid:       mgr.guid.Get(),
 		listened:   now,
-		maxConns:   max,
+		maxConns:   maxConns,
 		lastAccept: now,
-		semaphore:  make(chan struct{}, max),
+		semaphore:  make(chan struct{}, maxConns),
 		stopSignal: make(chan struct{}),
 	}
 }

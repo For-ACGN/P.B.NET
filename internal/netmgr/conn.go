@@ -43,7 +43,7 @@ type Conn struct {
 
 func (mgr *Manager) newConn(conn net.Conn, release func()) *Conn {
 	now := mgr.now()
-	readLimitRate, writeLimitRate := mgr.GetLimitRate()
+	readLimitRate, writeLimitRate := mgr.GetConnLimitRate()
 	readLimit := calcLimitRate(readLimitRate)
 	writeLimit := calcLimitRate(writeLimitRate)
 	readLimiter := rate.NewLimiter(readLimit, int(readLimit))
@@ -63,7 +63,6 @@ func (mgr *Manager) newConn(conn net.Conn, release func()) *Conn {
 		lastWrite:      now,
 	}
 	c.context, c.cancel = context.WithCancel(context.Background())
-	mgr.addConn(c)
 	return c
 }
 
@@ -139,17 +138,19 @@ func (c *Conn) SetWriteLimitRate(n uint64) {
 }
 
 // Status is used to get status about connection.
-// LocalAddress and RemoteAddress maybe changed, such as QUIC.
+// Local and remote address maybe changed, such as QUIC.
 func (c *Conn) Status() *ConnStatus {
+	localAddr := c.LocalAddr()
+	remoteAddr := c.RemoteAddr()
 	cs := ConnStatus{
-		Established: c.established,
+		LocalNetwork:  localAddr.Network(),
+		LocalAddress:  localAddr.String(),
+		RemoteNetwork: remoteAddr.Network(),
+		RemoteAddress: remoteAddr.String(),
+		Established:   c.established,
 	}
 	c.rwm.RLock()
 	defer c.rwm.RUnlock()
-	cs.LocalNetwork = c.LocalAddr().Network()
-	cs.LocalAddress = c.LocalAddr().String()
-	cs.RemoteNetwork = c.RemoteAddr().Network()
-	cs.RemoteAddress = c.RemoteAddr().String()
 	cs.ReadLimitRate = c.readLimitRate
 	cs.WriteLimitRate = c.writeLimitRate
 	cs.Read = c.read
