@@ -44,17 +44,17 @@ last accept: %s
 
 // ConnStatus contains status about connection.
 type ConnStatus struct {
-	LocalNetwork  string    `json:"local_network"`
-	LocalAddress  string    `json:"local_address"`
-	RemoteNetwork string    `json:"remote_network"`
-	RemoteAddress string    `json:"remote_address"`
-	ReadRate      uint64    `json:"read_rate"`
-	WriteRate     uint64    `json:"write_rate"`
-	Read          uint64    `json:"read"`
-	Written       uint64    `json:"written"`
-	Established   time.Time `json:"established"`
-	LastRead      time.Time `json:"last_read"`
-	LastWrite     time.Time `json:"last_write"`
+	LocalNetwork   string    `json:"local_network"`
+	LocalAddress   string    `json:"local_address"`
+	RemoteNetwork  string    `json:"remote_network"`
+	RemoteAddress  string    `json:"remote_address"`
+	ReadLimitRate  uint64    `json:"read_limit_rate"`
+	WriteLimitRate uint64    `json:"write_limit_rate"`
+	Read           uint64    `json:"read"`
+	Written        uint64    `json:"written"`
+	Established    time.Time `json:"established"`
+	LastRead       time.Time `json:"last_read"`
+	LastWrite      time.Time `json:"last_write"`
 }
 
 // String is used to get status about connection.
@@ -79,18 +79,18 @@ established: %s
 last send:   %s
 last recv:   %s
 ----------------------------------------------------------------`
-	sendRate := "[no limit]"
-	if cs.WriteRate != 0 {
-		sendRate = convert.StorageUnit(cs.WriteRate)
+	sendLimitRate := "[no limit]"
+	if cs.WriteLimitRate != 0 {
+		sendLimitRate = convert.StorageUnit(cs.WriteLimitRate)
 	}
-	recvRate := "[no limit]"
-	if cs.ReadRate != 0 {
-		recvRate = convert.StorageUnit(cs.ReadRate)
+	receiveLimitRate := "[no limit]"
+	if cs.ReadLimitRate != 0 {
+		receiveLimitRate = convert.StorageUnit(cs.ReadLimitRate)
 	}
 	return fmt.Sprintf(format[1:],
 		cs.LocalNetwork, cs.LocalAddress,
 		cs.RemoteNetwork, cs.RemoteAddress,
-		sendRate, recvRate,
+		sendLimitRate, receiveLimitRate,
 		convert.StorageUnit(cs.Written),
 		convert.StorageUnit(cs.Read),
 		cs.Established.Format(logger.TimeLayout),

@@ -14,6 +14,7 @@ import (
 type Manager struct {
 	now func() time.Time
 
+	// default read and write limit rate
 	readLimitRate  uint64
 	writeLimitRate uint64
 	limitRateRWM   sync.RWMutex
@@ -47,14 +48,6 @@ func (mgr *Manager) TraceConn() {
 
 }
 
-func (mgr *Manager) addListener(listener *Listener) {
-
-}
-
-func (mgr *Manager) addConn(conn *Conn) {
-
-}
-
 func (mgr *Manager) CloseListener() error {
 
 	return nil
@@ -64,10 +57,30 @@ func (mgr *Manager) CloseConn() error {
 	return nil
 }
 
-func (mgr *Manager) deleteListener(guid guid.GUID) error {
-	return nil
+func (mgr *Manager) addListener(listener *Listener) {
+	key := *listener.guid
+	mgr.listenersRWM.Lock()
+	defer mgr.listenersRWM.Unlock()
+	mgr.listeners[key] = listener
 }
 
-func (mgr *Manager) deleteConn(guid guid.GUID) error {
-	return nil
+func (mgr *Manager) addConn(conn *Conn) {
+	key := *conn.guid
+	mgr.connsRWM.Lock()
+	defer mgr.connsRWM.Unlock()
+	mgr.conns[key] = conn
+}
+
+func (mgr *Manager) deleteListener(listener *Listener) {
+	key := *listener.guid
+	mgr.listenersRWM.Lock()
+	defer mgr.listenersRWM.Unlock()
+	delete(mgr.listeners, key)
+}
+
+func (mgr *Manager) deleteConn(conn *Conn) {
+	key := *conn.guid
+	mgr.connsRWM.Lock()
+	defer mgr.connsRWM.Unlock()
+	delete(mgr.conns, key)
 }

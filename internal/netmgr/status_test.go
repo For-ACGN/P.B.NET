@@ -36,14 +36,14 @@ last accept: 2018-11-27 00:01:00 +08:00
 
 func TestConnStatus_String(t *testing.T) {
 	cs := ConnStatus{
-		LocalNetwork:  "tcp",
-		LocalAddress:  "127.0.0.1:1234",
-		RemoteNetwork: "tcp4",
-		RemoteAddress: "127.0.0.1:5678",
-		ReadRate:      32 * convert.MiB,
-		WriteRate:     16 * convert.MiB,
-		Read:          1127,
-		Written:       123,
+		LocalNetwork:   "tcp",
+		LocalAddress:   "127.0.0.1:1234",
+		RemoteNetwork:  "tcp4",
+		RemoteAddress:  "127.0.0.1:5678",
+		ReadLimitRate:  32 * convert.MiB,
+		WriteLimitRate: 16 * convert.MiB,
+		Read:           1127,
+		Written:        123,
 	}
 	established, err := time.Parse(logger.TimeLayout, "2018-11-27 00:00:00 +08:00")
 	require.NoError(t, err)
@@ -70,8 +70,8 @@ last recv:   2018-11-27 00:02:00 +08:00
 	})
 
 	t.Run("no read limit", func(t *testing.T) {
-		cs.ReadRate = 0
-		cs.WriteRate = 16 * convert.MiB
+		cs.ReadLimitRate = 0
+		cs.WriteLimitRate = 16 * convert.MiB
 
 		const expected = `
 -----------------------connection status------------------------
@@ -87,8 +87,8 @@ last recv:   2018-11-27 00:02:00 +08:00
 	})
 
 	t.Run("no write limit", func(t *testing.T) {
-		cs.ReadRate = 32 * convert.MiB
-		cs.WriteRate = 0
+		cs.ReadLimitRate = 32 * convert.MiB
+		cs.WriteLimitRate = 0
 
 		const expected = `
 -----------------------connection status------------------------
@@ -104,8 +104,8 @@ last recv:   2018-11-27 00:02:00 +08:00
 	})
 
 	t.Run("no limit", func(t *testing.T) {
-		cs.ReadRate = 0
-		cs.WriteRate = 0
+		cs.ReadLimitRate = 0
+		cs.WriteLimitRate = 0
 
 		const expected = `
 -----------------------connection status------------------------

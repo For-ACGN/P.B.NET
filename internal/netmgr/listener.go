@@ -4,6 +4,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"project/internal/guid"
 )
 
 // reference:
@@ -14,6 +16,7 @@ type Listener struct {
 	ctx *Manager
 
 	net.Listener
+	guid     *guid.GUID
 	listened time.Time
 
 	estConns   uint64
@@ -31,6 +34,7 @@ func (mgr *Manager) newListener(l net.Listener, max uint64) *Listener {
 	return &Listener{
 		ctx:        mgr,
 		Listener:   l,
+		guid:       mgr.guid.Get(),
 		listened:   now,
 		maxConns:   max,
 		lastAccept: now,
