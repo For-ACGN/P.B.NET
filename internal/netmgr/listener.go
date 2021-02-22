@@ -16,21 +16,17 @@ type Listener struct {
 	net.Listener
 	listened time.Time
 
-	// about status
 	estConns   uint64
 	maxConns   uint64
 	lastAccept time.Time
-	statusRWM  sync.RWMutex
-
-	// limit established connection
-	sem    chan struct{}
-	semRWM sync.RWMutex
+	semaphore  chan struct{}
+	rwm        sync.RWMutex
 
 	stopSignal chan struct{}
 	closeOnce  sync.Once
 }
 
-func newListener(mgr *Manager, l net.Listener, max uint64) *Listener {
+func (mgr *Manager) newListener(l net.Listener, max uint64) *Listener {
 	now := mgr.now()
 	return &Listener{
 		ctx:        mgr,
@@ -38,7 +34,7 @@ func newListener(mgr *Manager, l net.Listener, max uint64) *Listener {
 		listened:   now,
 		maxConns:   max,
 		lastAccept: now,
-		sem:        make(chan struct{}, max),
+		semaphore:  make(chan struct{}, max),
 		stopSignal: make(chan struct{}),
 	}
 }
@@ -56,11 +52,15 @@ func (l *Listener) AcceptEx() (*Conn, error) {
 
 func (l *Listener) acquire() bool {
 	select {
-	case l.sem <- struct{}{}:
+	case l.semaphore <- struct{}{}:
 		return true
 	case <-l.stopSignal:
 		return false
 	}
+}
+
+func (l *Listener) release() {
+
 }
 
 // GetMaxConns is used to get the maximum number of the established connection.
@@ -91,8 +91,8 @@ func (l *Listener) Status() *ListenerStatus {
 		Address:  addr.String(),
 		Listened: l.listened,
 	}
-	l.statusRWM.RLock()
-	defer l.statusRWM.RUnlock()
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
 	ls.EstConns = l.estConns
 	ls.MaxConns = l.maxConns
 	ls.LastAccept = l.lastAccept

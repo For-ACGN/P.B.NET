@@ -9,4 +9,5 @@ import (
 
 func TestRate(t *testing.T) {
 	rate.NewLimiter(rate.Every(time.Second), 0)
+
 }
