@@ -11,7 +11,7 @@ import (
 	"project/internal/guid"
 )
 
-// Conn is a net.Conn wrapper that spawned by Listener.
+// Conn is a net.Conn wrapper that spawned by Listener or Manager.TrackConn.
 type Conn struct {
 	ctx *Manager
 
@@ -104,10 +104,17 @@ func (c *Conn) Write(b []byte) (int, error) {
 func (c *Conn) Close() error {
 	c.closeOnce.Do(func() {
 		c.cancel()
-		c.release()
+		if c.release != nil {
+			c.release()
+		}
 		c.ctx.deleteConn(c)
 	})
 	return c.Conn.Close()
+}
+
+// GUID is used to get the guid of the connection.
+func (c *Conn) GUID() guid.GUID {
+	return *c.guid
 }
 
 // GetLimitRate is used to get read and write limit rate.

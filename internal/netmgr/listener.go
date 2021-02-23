@@ -57,6 +57,16 @@ func (l *Listener) AcceptEx() (*Conn, error) {
 	return nil, nil
 }
 
+// Close is used to close the listener.
+func (l *Listener) Close() error {
+	return l.Listener.Close()
+}
+
+// GUID is used to get the guid of the connection.
+func (l *Listener) GUID() guid.GUID {
+	return *l.guid
+}
+
 func (l *Listener) acquire() bool {
 	select {
 	case l.semaphore <- struct{}{}:
@@ -82,11 +92,6 @@ func (l *Listener) SetMaxConns() {
 
 // GetEstConnsNum is used to get the number of the established connection.
 func (l *Listener) GetEstConnsNum() {
-
-}
-
-// GetLastAcceptTime is used to ge the time of last accepted connection.
-func (l *Listener) GetLastAcceptTime() {
 
 }
 
