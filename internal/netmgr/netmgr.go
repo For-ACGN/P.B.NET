@@ -7,12 +7,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"project/internal/nettool"
 
 	"project/internal/guid"
+	"project/internal/nettool"
 )
-
-const defaultListenerMaxConns = 4096
 
 // Manager is the network manager, it used to store status about listeners
 // and connections. It can close the listeners and connections by guid,

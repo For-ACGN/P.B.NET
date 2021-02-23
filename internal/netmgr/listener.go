@@ -3,13 +3,14 @@ package netmgr
 import (
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
 	"project/internal/guid"
 )
 
-// reference:
-// Function LimitListener in golang.org/x/net/netutil
+const defaultListenerMaxConns = 4096
 
 // Listener is a net.Listener wrapper that spawned by Manager.
 type Listener struct {
@@ -23,16 +24,17 @@ type Listener struct {
 	estConns   uint64
 	maxConns   uint64
 	lastAccept time.Time
-	semaphore  chan struct{}
-	rwm        sync.RWMutex
+	rwm        *sync.RWMutex
+	cond       *sync.Cond
 
-	stopSignal chan struct{}
+	inShutdown int32
 	closeOnce  sync.Once
 }
 
 func (mgr *Manager) newListener(listener net.Listener) *Listener {
 	now := mgr.now()
 	maxConns := mgr.GetListenerMaxConns()
+	rwm := new(sync.RWMutex)
 	return &Listener{
 		ctx:        mgr,
 		Listener:   listener,
@@ -41,8 +43,8 @@ func (mgr *Manager) newListener(listener net.Listener) *Listener {
 		listened:   now,
 		maxConns:   maxConns,
 		lastAccept: now,
-		semaphore:  make(chan struct{}, maxConns),
-		stopSignal: make(chan struct{}),
+		rwm:        rwm,
+		cond:       sync.NewCond(rwm),
 	}
 }
 
@@ -53,12 +55,30 @@ func (l *Listener) Accept() (net.Conn, error) {
 
 // AcceptEx is used to accept next connection and wrap it to *Conn.
 func (l *Listener) AcceptEx() (*Conn, error) {
-
-	return nil, nil
+	if !l.require() {
+		return nil, errors.New("listener is closed")
+	}
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	// track connection
+	c := l.ctx.newConn(conn, l.release)
+	l.ctx.addConn(c)
+	// update counter
+	l.rwm.Lock()
+	defer l.rwm.Unlock()
+	l.estConns++
+	return c, nil
 }
 
 // Close is used to close the listener.
 func (l *Listener) Close() error {
+	atomic.StoreInt32(&l.inShutdown, 1)
+	l.cond.Signal()
+	l.closeOnce.Do(func() {
+		l.ctx.deleteListener(l)
+	})
 	return l.Listener.Close()
 }
 
@@ -67,32 +87,51 @@ func (l *Listener) GUID() guid.GUID {
 	return *l.guid
 }
 
-func (l *Listener) acquire() bool {
-	select {
-	case l.semaphore <- struct{}{}:
-		return true
-	case <-l.stopSignal:
-		return false
-	}
-}
-
-func (l *Listener) release() {
-
-}
-
 // GetMaxConns is used to get the maximum number of the established connection.
-func (l *Listener) GetMaxConns() {
-
+func (l *Listener) GetMaxConns() uint64 {
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
+	return l.maxConns
 }
 
 // SetMaxConns is used to set the maximum number of the established connection.
-func (l *Listener) SetMaxConns() {
-
+func (l *Listener) SetMaxConns(n uint64) {
+	if n < 1 {
+		n = defaultListenerMaxConns
+	}
+	l.rwm.Lock()
+	defer l.rwm.Unlock()
+	l.maxConns = n
 }
 
 // GetEstConnsNum is used to get the number of the established connection.
-func (l *Listener) GetEstConnsNum() {
+func (l *Listener) GetEstConnsNum() uint64 {
+	l.rwm.RLock()
+	defer l.rwm.RUnlock()
+	return l.estConns
+}
 
+func (l *Listener) shuttingDown() bool {
+	return atomic.LoadInt32(&l.inShutdown) != 0
+}
+
+func (l *Listener) require() bool {
+	l.rwm.Lock()
+	defer l.rwm.Unlock()
+	for l.estConns >= l.maxConns {
+		l.cond.Wait()
+		if l.shuttingDown() {
+			return false
+		}
+	}
+	return true
+}
+
+func (l *Listener) release() {
+	l.rwm.Lock()
+	defer l.rwm.Unlock()
+	l.estConns--
+	l.cond.Signal()
 }
 
 // Status is used to get status about listener.
