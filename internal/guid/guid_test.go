@@ -30,6 +30,17 @@ func TestGUID_Write(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestGUID_String(t *testing.T) {
+	guid := GUID{}
+	copy(guid[Size/2:], bytes.Repeat([]byte{10}, Size/2))
+
+	buf := bytes.Buffer{}
+	buf.WriteString(strings.Repeat("00", Size/2))
+	buf.WriteString(strings.Repeat("0A", Size/2))
+
+	require.Equal(t, buf.String(), guid.String())
+}
+
 func TestGUID_Print(t *testing.T) {
 	guid := GUID{}
 	copy(guid[Size/2:], bytes.Repeat([]byte{10}, Size/2))
@@ -40,17 +51,6 @@ func TestGUID_Print(t *testing.T) {
 	buf.WriteString(strings.Repeat("0A", Size/2))
 
 	require.Equal(t, buf.String(), guid.Print())
-}
-
-func TestGUID_Hex(t *testing.T) {
-	guid := GUID{}
-	copy(guid[Size/2:], bytes.Repeat([]byte{10}, Size/2))
-
-	buf := bytes.Buffer{}
-	buf.WriteString(strings.Repeat("00", Size/2))
-	buf.WriteString(strings.Repeat("0A", Size/2))
-
-	require.Equal(t, buf.String(), guid.Hex())
 }
 
 func TestGUID_Timestamp(t *testing.T) {
@@ -115,10 +115,11 @@ func TestGUID_JSONUnmarshal(t *testing.T) {
 }
 
 func testPrintGUID(t testing.TB, guid *GUID) {
-	t.Log(guid[:])
+	t.Log("------------------------------GUID------------------------------")
+	t.Log(guid)
 	t.Log(guid.Print())
-	t.Log(guid.Hex())
-	t.Log()
+	t.Log(guid[:])
+	t.Log("----------------------------------------------------------------")
 }
 
 func TestGenerator(t *testing.T) {

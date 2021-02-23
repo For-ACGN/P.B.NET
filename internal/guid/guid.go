@@ -16,7 +16,7 @@ import (
 )
 
 // +------------+-------------+----------+------------------+------------+
-// | hash(part) | PID(hashed) |  random  | timestamp(int64) | ID(uint64) |
+// | hash(part) | PID(hashed) |  random  | timestamp(int64) | ID(uint32) |
 // +------------+-------------+----------+------------------+------------+
 // |  8 bytes   |   4 bytes   |  8 bytes |      8 bytes     |  4 bytes   |
 // +------------+-------------+----------+------------------+------------+
@@ -24,38 +24,34 @@ import (
 // Size is the generated guid size, it is not standard.
 const Size = 8 + 4 + 8 + 8 + 4
 
-// zeroGUID is the zero guid for improve GUID.IsZero() performance.
-var zeroGUID = GUID{}
-
 // GUID is the generated guid, it is not standard size.
 type GUID [Size]byte
 
 // Write is used to copy []byte to guid.
 func (guid *GUID) Write(b []byte) error {
 	if len(b) != Size {
-		return errors.New("invalid byte slice size")
+		return errors.New("byte slice size is not equal of guid size")
 	}
 	copy(guid[:], b)
 	return nil
+}
+
+// String is used to encode guid to a hex string.
+// Output:
+// BF0AF7928C30AA6B1027DE8D6789F09202262591000000005E6C65F8002AD680
+func (guid *GUID) String() string {
+	dst := make([]byte, Size*2)
+	hex.Encode(dst, guid[:])
+	return string(bytes.ToUpper(dst))
 }
 
 // Print is used to print guid with prefix.
 // Output:
 // GUID: BF0AF7928C30AA6B1027DE8D6789F09202262591000000005E6C65F8002AD680
 func (guid *GUID) Print() string {
-	// 6 = len("GUID: ")
-	dst := make([]byte, Size*2+6)
+	dst := make([]byte, Size*2+6) // 6 = len("GUID: ")
 	copy(dst, "GUID: ")
 	hex.Encode(dst[6:], guid[:])
-	return string(bytes.ToUpper(dst))
-}
-
-// Hex is used to encode guid to a hex string.
-// Output:
-// BF0AF7928C30AA6B1027DE8D6789F09202262591000000005E6C65F8002AD680
-func (guid *GUID) Hex() string {
-	dst := make([]byte, Size*2) // add a "\n"
-	hex.Encode(dst, guid[:])
 	return string(bytes.ToUpper(dst))
 }
 
@@ -63,6 +59,9 @@ func (guid *GUID) Hex() string {
 func (guid *GUID) Timestamp() int64 {
 	return int64(binary.BigEndian.Uint64(guid[20:28]))
 }
+
+// zeroGUID is the zero guid for improve GUID.IsZero() performance.
+var zeroGUID = GUID{}
 
 // IsZero is used to check this guid is [0, 0, ...., 0].
 func (guid *GUID) IsZero() bool {
@@ -82,7 +81,7 @@ func (guid GUID) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON is used to implement JSON Unmarshaler interface.
 func (guid *GUID) UnmarshalJSON(data []byte) error {
 	if len(data) != 2*Size+2 {
-		return errors.New("invalid size about guid")
+		return errors.New("invalid guid size")
 	}
 	_, err := hex.Decode(guid[:], data[1:2*Size+1])
 	return err
