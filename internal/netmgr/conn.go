@@ -42,7 +42,6 @@ type Conn struct {
 }
 
 func (mgr *Manager) newConn(conn net.Conn, release func()) *Conn {
-	now := mgr.now()
 	readLimitRate, writeLimitRate := mgr.GetConnLimitRate()
 	readLimit := calcLimitRate(readLimitRate)
 	writeLimit := calcLimitRate(writeLimitRate)
@@ -54,13 +53,11 @@ func (mgr *Manager) newConn(conn net.Conn, release func()) *Conn {
 		release:        release,
 		now:            mgr.now,
 		guid:           mgr.guid.Get(),
-		established:    now,
+		established:    mgr.now(),
 		readLimiter:    readLimiter,
 		writeLimiter:   writeLimiter,
 		readLimitRate:  readLimitRate,
 		writeLimitRate: writeLimitRate,
-		lastRead:       now,
-		lastWrite:      now,
 	}
 	c.context, c.cancel = context.WithCancel(context.Background())
 	return c

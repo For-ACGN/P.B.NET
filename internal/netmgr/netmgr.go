@@ -36,11 +36,14 @@ type Manager struct {
 	inShutdown int32
 }
 
-// NewManager is used to create a new network manager.
-func NewManager(now func() time.Time) *Manager {
+// New is used to create a new network manager.
+func New(now func() time.Time) *Manager {
+	if now == nil {
+		now = time.Now
+	}
 	return &Manager{
 		now:       now,
-		guid:      guid.NewGenerator(4096, now),
+		guid:      guid.NewGenerator(512, now),
 		listeners: make(map[guid.GUID]*Listener, 8),
 		conns:     make(map[guid.GUID]*Conn, 1024),
 	}

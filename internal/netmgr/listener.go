@@ -31,18 +31,16 @@ type Listener struct {
 }
 
 func (mgr *Manager) newListener(listener net.Listener) *Listener {
-	now := mgr.now()
 	rwm := new(sync.RWMutex)
 	return &Listener{
-		ctx:        mgr,
-		Listener:   listener,
-		now:        mgr.now,
-		guid:       mgr.guid.Get(),
-		listened:   now,
-		maxConns:   mgr.GetListenerMaxConns(),
-		lastAccept: now,
-		rwm:        rwm,
-		cond:       sync.NewCond(rwm),
+		ctx:      mgr,
+		Listener: listener,
+		now:      mgr.now,
+		guid:     mgr.guid.Get(),
+		listened: mgr.now(),
+		maxConns: mgr.GetListenerMaxConns(),
+		rwm:      rwm,
+		cond:     sync.NewCond(rwm),
 	}
 }
 
@@ -67,6 +65,7 @@ func (l *Listener) AcceptEx() (*Conn, error) {
 	l.rwm.Lock()
 	defer l.rwm.Unlock()
 	l.estConns++
+	l.lastAccept = l.now()
 	return c, nil
 }
 
@@ -78,6 +77,7 @@ func (l *Listener) require() bool {
 	}
 	for l.estConns >= l.maxConns {
 		l.cond.Wait()
+		// check listener is closed
 		if atomic.LoadInt32(&l.inShutdown) != 0 {
 			return false
 		}
