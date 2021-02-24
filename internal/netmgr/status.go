@@ -2,6 +2,7 @@ package netmgr
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"project/internal/convert"
@@ -30,13 +31,17 @@ func (ls *ListenerStatus) String() string {
 	const format = `
 ------------------------listener status-------------------------
 address:     %s %s
-connections: %d/%d (est/max)
+connections: %d/%s (est/max)
 listened:    %s
 last accept: %s
 ----------------------------------------------------------------`
+	maxConns := "[no limit]"
+	if ls.MaxConns != 0 {
+		maxConns = strconv.FormatUint(ls.MaxConns, 10)
+	}
 	return fmt.Sprintf(format[1:],
 		ls.Network, ls.Address,
-		ls.EstConns, ls.MaxConns,
+		ls.EstConns, maxConns,
 		ls.Listened.Format(logger.TimeLayout),
 		ls.LastAccept.Format(logger.TimeLayout),
 	)

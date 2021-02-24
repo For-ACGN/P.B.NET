@@ -122,7 +122,7 @@ func (mgr *Manager) KillConn(guid *guid.GUID) error {
 }
 
 // GetListenerMaxConns is used to get the default maximum number of
-// connections that each listener can established.
+// connections that each listener can established, zero value means no limit.
 func (mgr *Manager) GetListenerMaxConns() uint64 {
 	mgr.defaultConfigRWM.RLock()
 	defer mgr.defaultConfigRWM.RUnlock()
@@ -130,7 +130,7 @@ func (mgr *Manager) GetListenerMaxConns() uint64 {
 }
 
 // GetConnLimitRate is used to get the default read and write limit
-// rate of connection, zero means no limit.
+// rate of connection, zero value means no limit.
 func (mgr *Manager) GetConnLimitRate() (read, write uint64) {
 	mgr.defaultConfigRWM.RLock()
 	defer mgr.defaultConfigRWM.RUnlock()
@@ -138,7 +138,7 @@ func (mgr *Manager) GetConnLimitRate() (read, write uint64) {
 }
 
 // SetListenerMaxConns is used to set the default maximum number of
-// connections that each listener can established.
+// connections that each listener can established, zero value means no limit.
 func (mgr *Manager) SetListenerMaxConns(n uint64) {
 	mgr.defaultConfigRWM.Lock()
 	defer mgr.defaultConfigRWM.Unlock()
@@ -146,7 +146,7 @@ func (mgr *Manager) SetListenerMaxConns(n uint64) {
 }
 
 // SetConnLimitRate is used to set the default read and write limit
-// rate of connection, zero means no limit.
+// rate of connection, zero value means no limit.
 func (mgr *Manager) SetConnLimitRate(read, write uint64) {
 	mgr.defaultConfigRWM.Lock()
 	defer mgr.defaultConfigRWM.Unlock()

@@ -72,14 +72,26 @@ func (l *Listener) AcceptEx() (*Conn, error) {
 	return c, nil
 }
 
-// Close is used to close the listener.
-func (l *Listener) Close() error {
-	atomic.StoreInt32(&l.inShutdown, 1)
+func (l *Listener) require() bool {
+	l.rwm.Lock()
+	defer l.rwm.Unlock()
+	if l.maxConns == 0 {
+		return true
+	}
+	for l.estConns >= l.maxConns {
+		l.cond.Wait()
+		if atomic.LoadInt32(&l.inShutdown) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func (l *Listener) release() {
+	l.rwm.Lock()
+	defer l.rwm.Unlock()
+	l.estConns--
 	l.cond.Signal()
-	l.closeOnce.Do(func() {
-		l.ctx.deleteListener(l)
-	})
-	return l.Listener.Close()
 }
 
 // GUID is used to get the guid of the connection.
@@ -87,14 +99,16 @@ func (l *Listener) GUID() guid.GUID {
 	return *l.guid
 }
 
-// GetMaxConns is used to get the maximum number of the established connection.
+// GetMaxConns is used to get the maximum number of the established
+// connection, zero value means no limit.
 func (l *Listener) GetMaxConns() uint64 {
 	l.rwm.RLock()
 	defer l.rwm.RUnlock()
 	return l.maxConns
 }
 
-// SetMaxConns is used to set the maximum number of the established connection.
+// SetMaxConns is used to set the maximum number of the established
+// connection, zero value means no limit.
 func (l *Listener) SetMaxConns(n uint64) {
 	if n < 1 {
 		n = defaultListenerMaxConns
@@ -111,29 +125,6 @@ func (l *Listener) GetEstConnsNum() uint64 {
 	return l.estConns
 }
 
-func (l *Listener) shuttingDown() bool {
-	return atomic.LoadInt32(&l.inShutdown) != 0
-}
-
-func (l *Listener) require() bool {
-	l.rwm.Lock()
-	defer l.rwm.Unlock()
-	for l.estConns >= l.maxConns {
-		l.cond.Wait()
-		if l.shuttingDown() {
-			return false
-		}
-	}
-	return true
-}
-
-func (l *Listener) release() {
-	l.rwm.Lock()
-	defer l.rwm.Unlock()
-	l.estConns--
-	l.cond.Signal()
-}
-
 // Status is used to get status about listener.
 func (l *Listener) Status() *ListenerStatus {
 	addr := l.Listener.Addr()
@@ -148,4 +139,14 @@ func (l *Listener) Status() *ListenerStatus {
 	ls.MaxConns = l.maxConns
 	ls.LastAccept = l.lastAccept
 	return &ls
+}
+
+// Close is used to close the listener.
+func (l *Listener) Close() error {
+	atomic.StoreInt32(&l.inShutdown, 1)
+	l.cond.Signal()
+	l.closeOnce.Do(func() {
+		l.ctx.deleteListener(l)
+	})
+	return l.Listener.Close()
 }

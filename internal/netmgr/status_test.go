@@ -24,14 +24,29 @@ func TestListenerStatus_String(t *testing.T) {
 	ls.Listened = listened
 	ls.LastAccept = lastAccept
 
-	const expected = `
+	t.Run("limit", func(t *testing.T) {
+		const expected = `
 ------------------------listener status-------------------------
 address:     tcp 127.0.0.1:1234
 connections: 123/10000 (est/max)
 listened:    2018-11-27 00:00:00 +08:00
 last accept: 2018-11-27 00:01:00 +08:00
 ----------------------------------------------------------------`
-	require.Equal(t, expected[1:], ls.String())
+		require.Equal(t, expected[1:], ls.String())
+	})
+
+	t.Run("no limit", func(t *testing.T) {
+		ls.MaxConns = 0
+
+		const expected = `
+------------------------listener status-------------------------
+address:     tcp 127.0.0.1:1234
+connections: 123/[no limit] (est/max)
+listened:    2018-11-27 00:00:00 +08:00
+last accept: 2018-11-27 00:01:00 +08:00
+----------------------------------------------------------------`
+		require.Equal(t, expected[1:], ls.String())
+	})
 }
 
 func TestConnStatus_String(t *testing.T) {

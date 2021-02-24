@@ -100,31 +100,21 @@ func (c *Conn) Write(b []byte) (int, error) {
 	return n, nil
 }
 
-// Close is used to close connection.
-func (c *Conn) Close() error {
-	c.closeOnce.Do(func() {
-		c.cancel()
-		if c.release != nil {
-			c.release()
-		}
-		c.ctx.deleteConn(c)
-	})
-	return c.Conn.Close()
-}
-
 // GUID is used to get the guid of the connection.
 func (c *Conn) GUID() guid.GUID {
 	return *c.guid
 }
 
-// GetLimitRate is used to get read and write limit rate.
+// GetLimitRate is used to get read and write limit rate,
+// zero value means no limit.
 func (c *Conn) GetLimitRate() (read, write uint64) {
 	c.rwm.RLock()
 	defer c.rwm.RUnlock()
 	return c.readLimitRate, c.writeLimitRate
 }
 
-// SetReadLimitRate is used to set read limit rate.
+// SetReadLimitRate is used to set read limit rate,
+// zero value means no limit.
 func (c *Conn) SetReadLimitRate(n uint64) {
 	limit := calcLimitRate(n)
 	c.readLimiter.SetLimit(limit)
@@ -134,7 +124,8 @@ func (c *Conn) SetReadLimitRate(n uint64) {
 	c.readLimitRate = n
 }
 
-// SetWriteLimitRate is used to set write limit rate.
+// SetWriteLimitRate is used to set write limit rate,
+// zero value means no limit.
 func (c *Conn) SetWriteLimitRate(n uint64) {
 	limit := calcLimitRate(n)
 	c.writeLimiter.SetLimit(limit)
@@ -165,6 +156,18 @@ func (c *Conn) Status() *ConnStatus {
 	cs.LastRead = c.lastRead
 	cs.LastWrite = c.lastWrite
 	return &cs
+}
+
+// Close is used to close connection.
+func (c *Conn) Close() error {
+	c.cancel()
+	c.closeOnce.Do(func() {
+		if c.release != nil {
+			c.release()
+		}
+		c.ctx.deleteConn(c)
+	})
+	return c.Conn.Close()
 }
 
 func calcLimitRate(n uint64) rate.Limit {
