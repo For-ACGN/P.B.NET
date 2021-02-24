@@ -23,11 +23,11 @@ type Logger interface {
 	// Println is used to log with new line, reference features about fmt.Println.
 	Println(lv Level, src string, log ...interface{})
 
-	// SetLevel is used to set logger minimum log level.
-	SetLevel(lv Level) error
-
 	// GetLevel is used to get logger current minimum log level.
 	GetLevel() Level
+
+	// SetLevel is used to set logger minimum log level.
+	SetLevel(lv Level) error
 }
 
 var (
@@ -90,6 +90,12 @@ func (c *common) discard(lv Level) bool {
 	return lv < c.lv
 }
 
+func (c *common) GetLevel() Level {
+	c.rwm.RLock()
+	defer c.rwm.RUnlock()
+	return c.lv
+}
+
 func (c *common) SetLevel(lv Level) error {
 	if lv > Off {
 		return fmt.Errorf("invalid logger level: %d", lv)
@@ -98,12 +104,6 @@ func (c *common) SetLevel(lv Level) error {
 	defer c.rwm.Unlock()
 	c.lv = lv
 	return nil
-}
-
-func (c *common) GetLevel() Level {
-	c.rwm.RLock()
-	defer c.rwm.RUnlock()
-	return c.lv
 }
 
 // [Test] [2020-01-21 12:36:41 +08:00] [debug] <test src> test-format test log
@@ -162,6 +162,12 @@ func writePrefix(lv Level, src string) *bytes.Buffer {
 	return output
 }
 
+func (t *test) GetLevel() Level {
+	t.rwm.RLock()
+	defer t.rwm.RUnlock()
+	return t.lv
+}
+
 func (t *test) SetLevel(lv Level) error {
 	if lv > Off {
 		return fmt.Errorf("invalid logger level: %d", lv)
@@ -172,12 +178,6 @@ func (t *test) SetLevel(lv Level) error {
 	return nil
 }
 
-func (t *test) GetLevel() Level {
-	t.rwm.RLock()
-	defer t.rwm.RUnlock()
-	return t.lv
-}
-
 type discard struct{}
 
 func (discard) Printf(Level, string, string, ...interface{}) {}
@@ -186,9 +186,9 @@ func (discard) Print(Level, string, ...interface{}) {}
 
 func (discard) Println(Level, string, ...interface{}) {}
 
-func (discard) SetLevel(Level) error { return nil }
-
 func (discard) GetLevel() Level { return Off }
+
+func (discard) SetLevel(Level) error { return nil }
 
 var _ Logger = new(multiLogger)
 
@@ -245,6 +245,12 @@ func (ml *multiLogger) discard(lv Level) bool {
 	return lv < ml.lv
 }
 
+func (ml *multiLogger) GetLevel() Level {
+	ml.rwm.RLock()
+	defer ml.rwm.RUnlock()
+	return ml.lv
+}
+
 func (ml *multiLogger) SetLevel(lv Level) error {
 	if lv > Off {
 		return fmt.Errorf("invalid logger level: %d", lv)
@@ -253,10 +259,4 @@ func (ml *multiLogger) SetLevel(lv Level) error {
 	defer ml.rwm.Unlock()
 	ml.lv = lv
 	return nil
-}
-
-func (ml *multiLogger) GetLevel() Level {
-	ml.rwm.RLock()
-	defer ml.rwm.RUnlock()
-	return ml.lv
 }
