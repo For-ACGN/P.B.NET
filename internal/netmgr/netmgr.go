@@ -41,7 +41,6 @@ func NewManager(now func() time.Time) *Manager {
 	return &Manager{
 		now:       now,
 		guid:      guid.NewGenerator(4096, now),
-		maxConns:  defaultListenerMaxConns,
 		listeners: make(map[guid.GUID]*Listener, 8),
 		conns:     make(map[guid.GUID]*Conn, 1024),
 	}
@@ -129,20 +128,20 @@ func (mgr *Manager) GetListenerMaxConns() uint64 {
 	return mgr.maxConns
 }
 
-// GetConnLimitRate is used to get the default read and write limit
-// rate of connection, zero value means no limit.
-func (mgr *Manager) GetConnLimitRate() (read, write uint64) {
-	mgr.defaultConfigRWM.RLock()
-	defer mgr.defaultConfigRWM.RUnlock()
-	return mgr.readLimitRate, mgr.writeLimitRate
-}
-
 // SetListenerMaxConns is used to set the default maximum number of
 // connections that each listener can established, zero value means no limit.
 func (mgr *Manager) SetListenerMaxConns(n uint64) {
 	mgr.defaultConfigRWM.Lock()
 	defer mgr.defaultConfigRWM.Unlock()
 	mgr.maxConns = n
+}
+
+// GetConnLimitRate is used to get the default read and write limit
+// rate of connection, zero value means no limit.
+func (mgr *Manager) GetConnLimitRate() (read, write uint64) {
+	mgr.defaultConfigRWM.RLock()
+	defer mgr.defaultConfigRWM.RUnlock()
+	return mgr.readLimitRate, mgr.writeLimitRate
 }
 
 // SetConnLimitRate is used to set the default read and write limit
@@ -152,6 +151,38 @@ func (mgr *Manager) SetConnLimitRate(read, write uint64) {
 	defer mgr.defaultConfigRWM.Unlock()
 	mgr.readLimitRate = read
 	mgr.writeLimitRate = write
+}
+
+// GetConnReadLimitRate is used to get the default read limit rate of
+// connection, zero value means no limit.
+func (mgr *Manager) GetConnReadLimitRate() uint64 {
+	mgr.defaultConfigRWM.RLock()
+	defer mgr.defaultConfigRWM.RUnlock()
+	return mgr.readLimitRate
+}
+
+// SetConnReadLimitRate is used to set the default read limit rate of
+// connection, zero value means no limit.
+func (mgr *Manager) SetConnReadLimitRate(n uint64) {
+	mgr.defaultConfigRWM.Lock()
+	defer mgr.defaultConfigRWM.Unlock()
+	mgr.readLimitRate = n
+}
+
+// GetConnWriteLimitRate is used to get the default write limit rate of
+// connection, zero value means no limit.
+func (mgr *Manager) GetConnWriteLimitRate() uint64 {
+	mgr.defaultConfigRWM.RLock()
+	defer mgr.defaultConfigRWM.RUnlock()
+	return mgr.writeLimitRate
+}
+
+// SetConnWriteLimitRate is used to set the default write limit rate of
+// connection, zero value means no limit.
+func (mgr *Manager) SetConnWriteLimitRate(n uint64) {
+	mgr.defaultConfigRWM.Lock()
+	defer mgr.defaultConfigRWM.Unlock()
+	mgr.writeLimitRate = n
 }
 
 func (mgr *Manager) shuttingDown() bool {

@@ -11,7 +11,7 @@ import (
 	"project/internal/guid"
 )
 
-// Conn is a net.Conn wrapper that spawned by Listener or Manager.TrackConn.
+// Conn is a net.Conn wrapper that spawned by Listener.AcceptEx or Manager.TrackConn.
 type Conn struct {
 	ctx *Manager
 
@@ -113,6 +113,23 @@ func (c *Conn) GetLimitRate() (read, write uint64) {
 	return c.readLimitRate, c.writeLimitRate
 }
 
+// SetLimitRate is used to set read and write limit rate,
+// zero value means no limit.
+func (c *Conn) SetLimitRate(read, write uint64) {
+	c.rwm.Lock()
+	defer c.rwm.Unlock()
+	c.readLimitRate = read
+	c.writeLimitRate = write
+}
+
+// GetReadLimitRate is used to get read limit rate,
+// zero value means no limit.
+func (c *Conn) GetReadLimitRate() uint64 {
+	c.rwm.RLock()
+	defer c.rwm.RUnlock()
+	return c.readLimitRate
+}
+
 // SetReadLimitRate is used to set read limit rate,
 // zero value means no limit.
 func (c *Conn) SetReadLimitRate(n uint64) {
@@ -122,6 +139,14 @@ func (c *Conn) SetReadLimitRate(n uint64) {
 	c.rwm.Lock()
 	defer c.rwm.Unlock()
 	c.readLimitRate = n
+}
+
+// GetWriteLimitRate is used to get write limit rate,
+// zero value means no limit.
+func (c *Conn) GetWriteLimitRate() uint64 {
+	c.rwm.RLock()
+	defer c.rwm.RUnlock()
+	return c.writeLimitRate
 }
 
 // SetWriteLimitRate is used to set write limit rate,

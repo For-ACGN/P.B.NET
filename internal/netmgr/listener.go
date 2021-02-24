@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
 	"project/internal/guid"
 )
 
-const defaultListenerMaxConns = 4096
-
-// Listener is a net.Listener wrapper that spawned by Manager.
+// Listener is a net.Listener wrapper that spawned by Manager.TrackListener.
 type Listener struct {
 	ctx *Manager
 
@@ -33,7 +32,6 @@ type Listener struct {
 
 func (mgr *Manager) newListener(listener net.Listener) *Listener {
 	now := mgr.now()
-	maxConns := mgr.GetListenerMaxConns()
 	rwm := new(sync.RWMutex)
 	return &Listener{
 		ctx:        mgr,
@@ -41,7 +39,7 @@ func (mgr *Manager) newListener(listener net.Listener) *Listener {
 		now:        mgr.now,
 		guid:       mgr.guid.Get(),
 		listened:   now,
-		maxConns:   maxConns,
+		maxConns:   mgr.GetListenerMaxConns(),
 		lastAccept: now,
 		rwm:        rwm,
 		cond:       sync.NewCond(rwm),
@@ -110,9 +108,6 @@ func (l *Listener) GetMaxConns() uint64 {
 // SetMaxConns is used to set the maximum number of the established
 // connection, zero value means no limit.
 func (l *Listener) SetMaxConns(n uint64) {
-	if n < 1 {
-		n = defaultListenerMaxConns
-	}
 	l.rwm.Lock()
 	defer l.rwm.Unlock()
 	l.maxConns = n
