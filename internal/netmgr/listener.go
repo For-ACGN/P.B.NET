@@ -69,18 +69,24 @@ func (l *Listener) AcceptEx() (*Conn, error) {
 	return c, nil
 }
 
+func (l *Listener) shuttingDown() bool {
+	return atomic.LoadInt32(&l.inShutdown) != 0
+}
+
 func (l *Listener) require() bool {
+	if l.shuttingDown() {
+		return false
+	}
 	l.rwm.Lock()
 	defer l.rwm.Unlock()
 	if l.maxConns == 0 {
 		return true
 	}
 	for l.estConns >= l.maxConns {
-		l.cond.Wait()
-		// check listener is closed
-		if atomic.LoadInt32(&l.inShutdown) != 0 {
+		if l.shuttingDown() {
 			return false
 		}
+		l.cond.Wait()
 	}
 	return true
 }
@@ -139,7 +145,11 @@ func (l *Listener) Status() *ListenerStatus {
 // Close is used to close the listener.
 func (l *Listener) Close() error {
 	atomic.StoreInt32(&l.inShutdown, 1)
+	// signal cond if l.require() is blocked
+	l.rwm.Lock()
+	defer l.rwm.Unlock()
 	l.cond.Signal()
+	// delete listener in network manager
 	l.closeOnce.Do(func() {
 		l.ctx.deleteListener(l)
 	})
