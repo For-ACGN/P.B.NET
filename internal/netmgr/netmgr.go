@@ -235,7 +235,9 @@ func (mgr *Manager) Close() error {
 	atomic.StoreInt32(&mgr.inShutdown, 1)
 	var err error
 	// close all listeners
-	for key, listener := range mgr.Listeners() {
+	mgr.listenersRWM.Lock()
+	defer mgr.listenersRWM.Unlock()
+	for key, listener := range mgr.listeners {
 		e := listener.Listener.Close()
 		if e != nil && !nettool.IsNetClosingError(e) && err == nil {
 			err = e
@@ -243,7 +245,9 @@ func (mgr *Manager) Close() error {
 		delete(mgr.listeners, key)
 	}
 	// close all connections
-	for key, conn := range mgr.Conns() {
+	mgr.connsRWM.Lock()
+	defer mgr.connsRWM.Unlock()
+	for key, conn := range mgr.conns {
 		e := conn.Conn.Close()
 		if e != nil && !nettool.IsNetClosingError(e) && err == nil {
 			err = e

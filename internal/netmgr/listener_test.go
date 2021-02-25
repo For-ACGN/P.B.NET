@@ -215,53 +215,71 @@ func TestListener_Close(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	t.Run("close when full conns", func(t *testing.T) {
+		netmgr := New(nil)
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	defer func() {
-		err := listener.Close()
-		require.Error(t, err)
-	}()
-	address := listener.Addr().String()
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() {
+			err := listener.Close()
+			require.Error(t, err)
+		}()
+		address := listener.Addr().String()
 
-	tListener := netmgr.TrackListener(listener)
-	tListener.SetMaxConns(1)
+		tListener := netmgr.TrackListener(listener)
+		tListener.SetMaxConns(1)
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		conn1, err := tListener.Accept()
+			conn1, err := tListener.Accept()
+			require.NoError(t, err)
+
+			conn2, err := tListener.Accept()
+			require.EqualError(t, err, "listener is closed")
+			require.Nil(t, conn2)
+
+			err = conn1.Close()
+			require.NoError(t, err)
+		}()
+
+		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
 
-		conn2, err := tListener.Accept()
-		require.EqualError(t, err, "listener is closed")
-		require.Nil(t, conn2)
+		// wait to run the second Accept
+		time.Sleep(3 * time.Second)
 
-		err = conn1.Close()
+		err = tListener.Close()
 		require.NoError(t, err)
-	}()
 
-	conn, err := net.Dial("tcp", address)
-	require.NoError(t, err)
+		err = conn.Close()
+		require.NoError(t, err)
 
-	// wait to run the second Accept
-	time.Sleep(3 * time.Second)
+		wg.Wait()
 
-	err = tListener.Close()
-	require.NoError(t, err)
+		testsuite.IsDestroyed(t, tListener)
 
-	err = conn.Close()
-	require.NoError(t, err)
+		err = netmgr.Close()
+		require.NoError(t, err)
 
-	wg.Wait()
+		testsuite.IsDestroyed(t, netmgr)
+	})
 
-	testsuite.IsDestroyed(t, tListener)
+	t.Run("failed to close inner listener", func(t *testing.T) {
+		netmgr := New(nil)
 
-	err = netmgr.Close()
-	require.NoError(t, err)
+		listener := testsuite.NewMockListenerWithCloseError()
 
-	testsuite.IsDestroyed(t, netmgr)
+		tListener := netmgr.TrackListener(listener)
+
+		err := tListener.Close()
+		testsuite.IsMockListenerCloseError(t, err)
+
+		err = netmgr.Close()
+		testsuite.IsMockListenerCloseError(t, err)
+
+		testsuite.IsDestroyed(t, netmgr)
+	})
 }

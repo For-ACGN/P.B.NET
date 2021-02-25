@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"project/internal/guid"
+	"project/internal/nettool"
 )
 
 // Listener is a net.Listener wrapper that spawned by Manager.TrackListener.
@@ -153,8 +154,12 @@ func (l *Listener) Status() *ListenerStatus {
 func (l *Listener) Close() error {
 	atomic.StoreInt32(&l.inShutdown, 1)
 	l.signal()
+	err := l.Listener.Close()
+	if err != nil && !nettool.IsNetClosingError(err) {
+		return err
+	}
 	l.closeOnce.Do(func() {
 		l.ctx.deleteListener(l)
 	})
-	return l.Listener.Close()
+	return nil
 }

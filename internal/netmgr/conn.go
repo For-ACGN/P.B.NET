@@ -9,6 +9,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"project/internal/guid"
+	"project/internal/nettool"
 )
 
 // Conn is a net.Conn wrapper that spawned by Listener.AcceptEx or Manager.TrackConn.
@@ -183,13 +184,17 @@ func (c *Conn) Status() *ConnStatus {
 // Close is used to close connection.
 func (c *Conn) Close() error {
 	c.cancel()
+	err := c.Conn.Close()
+	if err != nil && !nettool.IsNetClosingError(err) {
+		return err
+	}
 	c.closeOnce.Do(func() {
 		if c.release != nil {
 			c.release()
 		}
 		c.ctx.deleteConn(c)
 	})
-	return c.Conn.Close()
+	return nil
 }
 
 func calcLimitRate(n uint64) rate.Limit {
