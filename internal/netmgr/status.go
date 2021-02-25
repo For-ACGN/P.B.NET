@@ -39,11 +39,15 @@ last accept: %s
 	if ls.MaxConns != 0 {
 		maxConns = strconv.FormatUint(ls.MaxConns, 10)
 	}
+	lastAccept := "[empty]"
+	if !ls.LastAccept.IsZero() {
+		lastAccept = ls.LastAccept.Format(logger.TimeLayout)
+	}
 	return fmt.Sprintf(format[1:],
 		ls.Network, ls.Address,
 		ls.EstConns, maxConns,
 		ls.Listened.Format(logger.TimeLayout),
-		ls.LastAccept.Format(logger.TimeLayout),
+		lastAccept,
 	)
 }
 
@@ -92,6 +96,14 @@ last recv:   %s
 	if cs.ReadLimitRate != 0 {
 		receiveLimitRate = convert.StorageUnit(cs.ReadLimitRate)
 	}
+	lastRead := "[empty]"
+	if !cs.LastRead.IsZero() {
+		lastRead = cs.LastRead.Format(logger.TimeLayout)
+	}
+	lastWrite := "[empty]"
+	if !cs.LastWrite.IsZero() {
+		lastWrite = cs.LastWrite.Format(logger.TimeLayout)
+	}
 	return fmt.Sprintf(format[1:],
 		cs.LocalNetwork, cs.LocalAddress,
 		cs.RemoteNetwork, cs.RemoteAddress,
@@ -99,7 +111,6 @@ last recv:   %s
 		convert.StorageUnit(cs.Written),
 		convert.StorageUnit(cs.Read),
 		cs.Established.Format(logger.TimeLayout),
-		cs.LastWrite.Format(logger.TimeLayout),
-		cs.LastRead.Format(logger.TimeLayout),
+		lastWrite, lastRead,
 	)
 }

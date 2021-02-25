@@ -47,6 +47,20 @@ last accept: 2018-11-27 00:01:00 +08:00
 ----------------------------------------------------------------`
 		require.Equal(t, expected[1:], ls.String())
 	})
+
+	t.Run("empty last accept", func(t *testing.T) {
+		ls.MaxConns = 10000
+		ls.LastAccept = time.Time{}
+
+		const expected = `
+------------------------listener status-------------------------
+address:     tcp 127.0.0.1:1234
+connections: 123/10000 (est/max)
+listened:    2018-11-27 00:00:00 +08:00
+last accept: [empty]
+----------------------------------------------------------------`
+		require.Equal(t, expected[1:], ls.String())
+	})
 }
 
 func TestConnStatus_String(t *testing.T) {
@@ -130,6 +144,43 @@ rate:        [no limit]/[no limit] (send/recv)
 traffic:     123 Byte/1.1 KiB (sent/recv)
 established: 2018-11-27 00:00:00 +08:00
 last send:   2018-11-27 00:01:00 +08:00
+last recv:   2018-11-27 00:02:00 +08:00
+----------------------------------------------------------------`
+		require.Equal(t, expected[1:], cs.String())
+	})
+
+	t.Run("empty last read", func(t *testing.T) {
+		cs.ReadLimitRate = 32 * convert.MiB
+		cs.WriteLimitRate = 16 * convert.MiB
+		cs.LastRead = time.Time{}
+
+		const expected = `
+-----------------------connection status------------------------
+local addr:  tcp 127.0.0.1:1234
+remote addr: tcp4 127.0.0.1:5678
+rate:        16 MiB/32 MiB (send/recv)
+traffic:     123 Byte/1.1 KiB (sent/recv)
+established: 2018-11-27 00:00:00 +08:00
+last send:   2018-11-27 00:01:00 +08:00
+last recv:   [empty]
+----------------------------------------------------------------`
+		require.Equal(t, expected[1:], cs.String())
+	})
+
+	t.Run("empty last write", func(t *testing.T) {
+		cs.ReadLimitRate = 32 * convert.MiB
+		cs.WriteLimitRate = 16 * convert.MiB
+		cs.LastRead = lastRead
+		cs.LastWrite = time.Time{}
+
+		const expected = `
+-----------------------connection status------------------------
+local addr:  tcp 127.0.0.1:1234
+remote addr: tcp4 127.0.0.1:5678
+rate:        16 MiB/32 MiB (send/recv)
+traffic:     123 Byte/1.1 KiB (sent/recv)
+established: 2018-11-27 00:00:00 +08:00
+last send:   [empty]
 last recv:   2018-11-27 00:02:00 +08:00
 ----------------------------------------------------------------`
 		require.Equal(t, expected[1:], cs.String())
