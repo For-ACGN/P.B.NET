@@ -98,6 +98,13 @@ func (l *Listener) release() {
 	l.cond.Signal()
 }
 
+// signal is used to signal l.cond if l.require() is blocked
+func (l *Listener) signal() {
+	l.rwm.Lock()
+	defer l.rwm.Unlock()
+	l.cond.Signal()
+}
+
 // GUID is used to get the guid of the connection.
 func (l *Listener) GUID() guid.GUID {
 	return *l.guid
@@ -145,11 +152,7 @@ func (l *Listener) Status() *ListenerStatus {
 // Close is used to close the listener.
 func (l *Listener) Close() error {
 	atomic.StoreInt32(&l.inShutdown, 1)
-	// signal cond if l.require() is blocked
-	l.rwm.Lock()
-	defer l.rwm.Unlock()
-	l.cond.Signal()
-	// delete listener in network manager
+	l.signal()
 	l.closeOnce.Do(func() {
 		l.ctx.deleteListener(l)
 	})
