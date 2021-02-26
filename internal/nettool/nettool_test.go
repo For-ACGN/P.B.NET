@@ -239,7 +239,7 @@ func TestDeadlineConn(t *testing.T) {
 }
 
 func TestFprintConn(t *testing.T) {
-	listener, err := net.Listen("tcp", "localhost:0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	defer func() {
@@ -277,7 +277,7 @@ func (srv *mockServer) Addresses() []net.Addr {
 	return srv.addresses
 }
 
-func TestWaitServerServe(t *testing.T) {
+func TestWaitServer(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
 		server := new(mockServer)
 
@@ -286,7 +286,7 @@ func TestWaitServerServe(t *testing.T) {
 			server.Serve()
 			errCh <- nil
 		}()
-		addrs, err := WaitServerServe(context.Background(), errCh, server, 1)
+		addrs, err := WaitServer(context.Background(), errCh, server, 1)
 		require.NoError(t, err)
 		require.Len(t, addrs, 1)
 	})
@@ -298,7 +298,7 @@ func TestWaitServerServe(t *testing.T) {
 		go func() {
 			errCh <- errors.New("test")
 		}()
-		addrs, err := WaitServerServe(context.Background(), errCh, server, 1)
+		addrs, err := WaitServer(context.Background(), errCh, server, 1)
 		require.EqualError(t, err, "test")
 		require.Nil(t, addrs)
 	})
@@ -308,7 +308,7 @@ func TestWaitServerServe(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		addrs, err := WaitServerServe(ctx, nil, server, 1)
+		addrs, err := WaitServer(ctx, nil, server, 1)
 		require.Equal(t, context.DeadlineExceeded, err)
 		require.Nil(t, addrs)
 	})
@@ -318,7 +318,7 @@ func TestWaitServerServe(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		cancel()
-		addrs, err := WaitServerServe(ctx, nil, server, 1)
+		addrs, err := WaitServer(ctx, nil, server, 1)
 		require.Equal(t, context.Canceled, err)
 		require.Nil(t, addrs)
 	})
@@ -329,6 +329,6 @@ func TestWaitServerServe(t *testing.T) {
 		defer func() {
 			require.NotNil(t, recover())
 		}()
-		_, _ = WaitServerServe(context.Background(), nil, server, 0)
+		_, _ = WaitServer(context.Background(), nil, server, 0)
 	})
 }

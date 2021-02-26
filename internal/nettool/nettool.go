@@ -180,10 +180,10 @@ func SprintConn(conn net.Conn) string {
 // Output:
 // local:  tcp 127.0.0.1:1234
 // remote: tcp 127.0.0.1:1235
-func FprintConn(w io.Writer, c net.Conn) (int, error) {
+func FprintConn(w io.Writer, conn net.Conn) (int, error) {
 	return fmt.Fprintf(w, "local:  %s %s\nremote: %s %s",
-		c.LocalAddr().Network(), c.LocalAddr(),
-		c.RemoteAddr().Network(), c.RemoteAddr(),
+		conn.LocalAddr().Network(), conn.LocalAddr(),
+		conn.RemoteAddr().Network(), conn.RemoteAddr(),
 	)
 }
 
@@ -192,8 +192,8 @@ type Server interface {
 	Addresses() []net.Addr
 }
 
-// WaitServerServe is used to wait server serve, n is the target number of the addresses.
-func WaitServerServe(ctx context.Context, ec <-chan error, s Server, n int) ([]net.Addr, error) {
+// WaitServer is used to wait server serve, n is the target number of the addresses.
+func WaitServer(ctx context.Context, err <-chan error, srv Server, n int) ([]net.Addr, error) {
 	if n < 1 {
 		panic("n < 1")
 	}
@@ -202,13 +202,13 @@ func WaitServerServe(ctx context.Context, ec <-chan error, s Server, n int) ([]n
 	for {
 		select {
 		case <-timer.C:
-			addrs := s.Addresses()
+			addrs := srv.Addresses()
 			if len(addrs) >= n {
 				return addrs, nil
 			}
-		case err := <-ec:
-			if err != nil {
-				return nil, err
+		case e := <-err:
+			if e != nil {
+				return nil, e
 			}
 		case <-ctx.Done():
 			return nil, ctx.Err()
