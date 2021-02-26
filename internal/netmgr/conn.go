@@ -48,8 +48,10 @@ func (mgr *Manager) newConn(conn net.Conn, release func()) *Conn {
 	readLimitRate, writeLimitRate := mgr.GetConnLimitRate()
 	readLimit := calcLimitRate(readLimitRate)
 	writeLimit := calcLimitRate(writeLimitRate)
-	readLimiter := rate.NewLimiter(readLimit, int(readLimit))
-	writeLimiter := rate.NewLimiter(writeLimit, int(writeLimit))
+	readBurst := calcBurst(readLimitRate)
+	writeBurst := calcBurst(writeLimitRate)
+	readLimiter := rate.NewLimiter(readLimit, readBurst)
+	writeLimiter := rate.NewLimiter(writeLimit, writeBurst)
 	c := &Conn{
 		ctx:            mgr,
 		Conn:           conn,
@@ -87,6 +89,9 @@ func (c *Conn) limitReadRate(n int) error {
 	c.readLimiterMu.Lock()
 	defer c.readLimiterMu.Unlock()
 	burst := c.readLimiter.Burst()
+	if burst == 0 {
+		return nil
+	}
 	if burst < n {
 		c.readLimiter.SetBurst(n)
 		defer c.readLimiter.SetBurst(burst)
@@ -122,6 +127,9 @@ func (c *Conn) limitWriteRate(n int) error {
 	c.writeLimiterMu.Lock()
 	defer c.writeLimiterMu.Unlock()
 	burst := c.writeLimiter.Burst()
+	if burst == 0 {
+		return nil
+	}
 	if burst < n {
 		c.writeLimiter.SetBurst(n)
 		defer c.writeLimiter.SetBurst(burst)
@@ -152,16 +160,16 @@ func (c *Conn) GetLimitRate() (read, write uint64) {
 // SetLimitRate is used to set read and write limit rate,
 // zero value means no limit.
 func (c *Conn) SetLimitRate(read, write uint64) {
-	readLimit := calcLimitRate(read)
-	writeLimit := calcLimitRate(write)
-	c.readLimiter.SetLimit(readLimit)
-	c.writeLimiter.SetLimit(writeLimit)
+	c.readLimiter.SetLimit(calcLimitRate(read))
+	c.writeLimiter.SetLimit(calcLimitRate(write))
+
 	c.readLimiterMu.Lock()
 	defer c.readLimiterMu.Unlock()
-	c.readLimiter.SetBurst(int(readLimit))
+	c.readLimiter.SetBurst(calcBurst(read))
 	c.writeLimiterMu.Lock()
 	defer c.writeLimiterMu.Unlock()
-	c.writeLimiter.SetBurst(int(writeLimit))
+	c.writeLimiter.SetBurst(calcBurst(write))
+
 	c.rwm.Lock()
 	defer c.rwm.Unlock()
 	c.readLimitRate = read
@@ -179,11 +187,10 @@ func (c *Conn) GetReadLimitRate() uint64 {
 // SetReadLimitRate is used to set read limit rate,
 // zero value means no limit.
 func (c *Conn) SetReadLimitRate(n uint64) {
-	limit := calcLimitRate(n)
-	c.readLimiter.SetLimit(limit)
+	c.readLimiter.SetLimit(calcLimitRate(n))
 	c.readLimiterMu.Lock()
 	defer c.readLimiterMu.Unlock()
-	c.readLimiter.SetBurst(int(limit))
+	c.readLimiter.SetBurst(calcBurst(n))
 	c.rwm.Lock()
 	defer c.rwm.Unlock()
 	c.readLimitRate = n
@@ -200,11 +207,10 @@ func (c *Conn) GetWriteLimitRate() uint64 {
 // SetWriteLimitRate is used to set write limit rate,
 // zero value means no limit.
 func (c *Conn) SetWriteLimitRate(n uint64) {
-	limit := calcLimitRate(n)
-	c.writeLimiter.SetLimit(limit)
+	c.writeLimiter.SetLimit(calcLimitRate(n))
 	c.writeLimiterMu.Lock()
 	defer c.writeLimiterMu.Unlock()
-	c.writeLimiter.SetBurst(int(limit))
+	c.writeLimiter.SetBurst(calcBurst(n))
 	c.rwm.Lock()
 	defer c.rwm.Unlock()
 	c.writeLimitRate = n
@@ -255,4 +261,12 @@ func calcLimitRate(n uint64) rate.Limit {
 		limit = rate.Inf
 	}
 	return limit
+}
+
+func calcBurst(n uint64) int {
+	burst := int(n)
+	if burst < 0 {
+		burst = 1<<31 - 1
+	}
+	return burst
 }
