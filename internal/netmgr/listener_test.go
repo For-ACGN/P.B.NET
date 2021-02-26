@@ -121,7 +121,7 @@ func TestListener_AcceptEx(t *testing.T) {
 		}, true)
 	})
 
-	t.Run("full conns", func(t *testing.T) {
+	t.Run("reach max conns", func(t *testing.T) {
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer func() {
