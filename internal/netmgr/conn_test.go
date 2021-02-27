@@ -3,6 +3,7 @@ package netmgr
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -275,6 +276,119 @@ func TestConn_Write(t *testing.T) {
 
 		err = tConn.Close()
 		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn)
+	})
+
+	err := netmgr.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, netmgr)
+}
+
+func TestConn_SetLimitRate(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	netmgr := New(nil)
+
+	conn := testsuite.NewMockConn()
+	tConn := netmgr.TrackConn(conn)
+
+	const (
+		readLimitRate  uint64 = 16
+		writeLimitRate uint64 = 8
+	)
+
+	rlr, wlr := tConn.GetLimitRate()
+	require.Zero(t, rlr)
+	require.Zero(t, wlr)
+	status := tConn.Status()
+	require.Equal(t, uint64(0), status.ReadLimitRate)
+	require.Equal(t, uint64(0), status.WriteLimitRate)
+	require.Equal(t, uint64(0), status.Read)
+	require.Equal(t, uint64(0), status.Written)
+	require.Zero(t, status.LastRead)
+	require.Zero(t, status.LastWrite)
+
+	tConn.SetLimitRate(readLimitRate, writeLimitRate)
+
+	time.Sleep(2 * time.Second)
+
+	now := time.Now()
+
+	n, err := tConn.Read(make([]byte, readLimitRate*3))
+	require.NoError(t, err)
+	require.Equal(t, int(readLimitRate*3), n)
+
+	require.True(t, time.Since(now) > 2*time.Second)
+
+	now = time.Now()
+
+	n, err = tConn.Write(make([]byte, writeLimitRate*4))
+	require.NoError(t, err)
+	require.Equal(t, int(writeLimitRate*4), n)
+
+	require.True(t, time.Since(now) > 3*time.Second)
+
+	rlr, wlr = tConn.GetLimitRate()
+	require.Equal(t, readLimitRate, rlr)
+	require.Equal(t, writeLimitRate, wlr)
+	status = tConn.Status()
+	require.Equal(t, readLimitRate, status.ReadLimitRate)
+	require.Equal(t, writeLimitRate, status.WriteLimitRate)
+	require.Equal(t, readLimitRate*3, status.Read)
+	require.Equal(t, writeLimitRate*4, status.Written)
+	require.NotZero(t, status.LastRead)
+	require.NotZero(t, status.LastWrite)
+
+	err = tConn.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, tConn)
+
+	err = netmgr.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, netmgr)
+}
+
+func TestConn_Close(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	netmgr := New(nil)
+
+	t.Run("close when read or write", func(t *testing.T) {
+		conn := testsuite.NewMockConn()
+		tConn := netmgr.TrackConn(conn)
+
+		tConn.SetLimitRate(16, 32)
+
+		wg := sync.WaitGroup{}
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			n, err := tConn.Read(make([]byte, 1024))
+			require.Equal(t, net.ErrClosed, err)
+			require.Zero(t, n)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			n, err := tConn.Write(make([]byte, 1024))
+			require.Equal(t, net.ErrClosed, err)
+			require.Zero(t, n)
+		}()
+
+		err := tConn.Close()
+		require.NoError(t, err)
+
+		wg.Wait()
 
 		testsuite.IsDestroyed(t, tConn)
 	})
