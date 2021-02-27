@@ -45,7 +45,7 @@ func New(now func() time.Time) *Manager {
 		now:       now,
 		guid:      guid.NewGenerator(512, now),
 		listeners: make(map[guid.GUID]*Listener, 8),
-		conns:     make(map[guid.GUID]*Conn, 1024),
+		conns:     make(map[guid.GUID]*Conn, 64),
 	}
 }
 
