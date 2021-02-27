@@ -177,7 +177,6 @@ func TestListener_AcceptEx(t *testing.T) {
 			err := listener.Close()
 			require.Error(t, err)
 		}()
-
 		tListener := netmgr.TrackListener(listener)
 
 		err = tListener.Close()
@@ -192,7 +191,6 @@ func TestListener_AcceptEx(t *testing.T) {
 
 	t.Run("failed to accept", func(t *testing.T) {
 		listener := testsuite.NewMockListenerWithAcceptError()
-
 		tListener := netmgr.TrackListener(listener)
 
 		conn, err := tListener.Accept()
@@ -271,7 +269,6 @@ func TestListener_Close(t *testing.T) {
 		netmgr := New(nil)
 
 		listener := testsuite.NewMockListenerWithCloseError()
-
 		tListener := netmgr.TrackListener(listener)
 
 		err := tListener.Close()
@@ -280,6 +277,7 @@ func TestListener_Close(t *testing.T) {
 		err = netmgr.Close()
 		testsuite.IsMockListenerCloseError(t, err)
 
+		testsuite.IsDestroyed(t, tListener)
 		testsuite.IsDestroyed(t, netmgr)
 	})
 }
