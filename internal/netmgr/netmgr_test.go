@@ -117,3 +117,85 @@ func TestManager_KillConn(t *testing.T) {
 
 	testsuite.IsDestroyed(t, netmgr)
 }
+
+func TestManager_GetListenerMaxConns(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	netmgr := New(nil)
+
+	maxConns := netmgr.GetListenerMaxConns()
+	require.Zero(t, maxConns)
+
+	netmgr.SetListenerMaxConns(1000)
+
+	maxConns = netmgr.GetListenerMaxConns()
+	require.Equal(t, uint64(1000), maxConns)
+
+	err := netmgr.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, netmgr)
+}
+
+func TestManager_GetConnLimitRate(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	netmgr := New(nil)
+
+	read, write := netmgr.GetConnLimitRate()
+	require.Zero(t, read)
+	require.Zero(t, write)
+
+	netmgr.SetConnLimitRate(1000, 2000)
+
+	read, write = netmgr.GetConnLimitRate()
+	require.Equal(t, uint64(1000), read)
+	require.Equal(t, uint64(2000), write)
+
+	err := netmgr.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, netmgr)
+}
+
+func TestManager_GetConnReadLimitRate(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	netmgr := New(nil)
+
+	read := netmgr.GetConnReadLimitRate()
+	require.Zero(t, read)
+
+	netmgr.SetConnReadLimitRate(1000)
+
+	read = netmgr.GetConnReadLimitRate()
+	require.Equal(t, uint64(1000), read)
+
+	err := netmgr.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, netmgr)
+}
+
+func TestManager_GetConnWriteLimitRate(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	netmgr := New(nil)
+
+	write := netmgr.GetConnWriteLimitRate()
+	require.Zero(t, write)
+
+	netmgr.SetConnWriteLimitRate(1000)
+
+	write = netmgr.GetConnWriteLimitRate()
+	require.Equal(t, uint64(1000), write)
+
+	err := netmgr.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, netmgr)
+}
