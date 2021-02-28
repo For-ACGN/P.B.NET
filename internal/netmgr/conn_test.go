@@ -19,10 +19,10 @@ func TestConn(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	manager := New(nil)
 
 	conn := testsuite.NewMockConn()
-	tConn := netmgr.TrackConn(conn)
+	tConn := manager.TrackConn(conn)
 
 	guid := tConn.GUID()
 	require.False(t, guid.IsZero())
@@ -33,21 +33,21 @@ func TestConn(t *testing.T) {
 
 	testsuite.IsDestroyed(t, tConn)
 
-	err = netmgr.Close()
+	err = manager.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, netmgr)
+	testsuite.IsDestroyed(t, manager)
 }
 
 func TestConn_Read(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	manager := New(nil)
 
 	t.Run("no limit", func(t *testing.T) {
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		n, err := tConn.Read(make([]byte, 64))
 		require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestConn_Read(t *testing.T) {
 		const limitRate uint64 = 16
 
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		rlr := tConn.GetReadLimitRate()
 		require.Zero(t, rlr)
@@ -103,7 +103,7 @@ func TestConn_Read(t *testing.T) {
 
 	t.Run("conn closed", func(t *testing.T) {
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		tConn.SetReadLimitRate(16)
 
@@ -129,7 +129,7 @@ func TestConn_Read(t *testing.T) {
 		defer pg.Unpatch()
 
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		tConn.SetReadLimitRate(16)
 
@@ -145,7 +145,7 @@ func TestConn_Read(t *testing.T) {
 
 	t.Run("failed to read", func(t *testing.T) {
 		conn := testsuite.NewMockConnWithReadError()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		n, err := tConn.Read(make([]byte, 64))
 		testsuite.IsMockConnReadError(t, err)
@@ -157,21 +157,21 @@ func TestConn_Read(t *testing.T) {
 		testsuite.IsDestroyed(t, tConn)
 	})
 
-	err := netmgr.Close()
+	err := manager.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, netmgr)
+	testsuite.IsDestroyed(t, manager)
 }
 
 func TestConn_Write(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	manager := New(nil)
 
 	t.Run("no limit", func(t *testing.T) {
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		n, err := tConn.Write(make([]byte, 64))
 		require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestConn_Write(t *testing.T) {
 		const limitRate uint64 = 16
 
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		wlr := tConn.GetWriteLimitRate()
 		require.Zero(t, wlr)
@@ -227,7 +227,7 @@ func TestConn_Write(t *testing.T) {
 
 	t.Run("conn closed", func(t *testing.T) {
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		tConn.SetWriteLimitRate(16)
 
@@ -253,7 +253,7 @@ func TestConn_Write(t *testing.T) {
 		defer pg.Unpatch()
 
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		tConn.SetWriteLimitRate(16)
 
@@ -269,7 +269,7 @@ func TestConn_Write(t *testing.T) {
 
 	t.Run("failed to write", func(t *testing.T) {
 		conn := testsuite.NewMockConnWithWriteError()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		n, err := tConn.Write(make([]byte, 64))
 		testsuite.IsMockConnWriteError(t, err)
@@ -281,20 +281,20 @@ func TestConn_Write(t *testing.T) {
 		testsuite.IsDestroyed(t, tConn)
 	})
 
-	err := netmgr.Close()
+	err := manager.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, netmgr)
+	testsuite.IsDestroyed(t, manager)
 }
 
 func TestConn_SetLimitRate(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	manager := New(nil)
 
 	conn := testsuite.NewMockConn()
-	tConn := netmgr.TrackConn(conn)
+	tConn := manager.TrackConn(conn)
 
 	const (
 		readLimitRate  uint64 = 16
@@ -348,10 +348,10 @@ func TestConn_SetLimitRate(t *testing.T) {
 
 	testsuite.IsDestroyed(t, tConn)
 
-	err = netmgr.Close()
+	err = manager.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, netmgr)
+	testsuite.IsDestroyed(t, manager)
 }
 
 func TestConn_Close(t *testing.T) {
@@ -359,10 +359,10 @@ func TestConn_Close(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("close when read or write", func(t *testing.T) {
-		netmgr := New(nil)
+		manager := New(nil)
 
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		tConn.SetLimitRate(16, 32)
 
@@ -393,26 +393,26 @@ func TestConn_Close(t *testing.T) {
 
 		testsuite.IsDestroyed(t, tConn)
 
-		err = netmgr.Close()
+		err = manager.Close()
 		require.NoError(t, err)
 
-		testsuite.IsDestroyed(t, netmgr)
+		testsuite.IsDestroyed(t, manager)
 	})
 
 	t.Run("failed to close inner conn", func(t *testing.T) {
-		netmgr := New(nil)
+		manager := New(nil)
 
 		conn := testsuite.NewMockConnWithCloseError()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		err := tConn.Close()
 		testsuite.IsMockConnCloseError(t, err)
 
-		err = netmgr.Close()
+		err = manager.Close()
 		testsuite.IsMockConnCloseError(t, err)
 
 		testsuite.IsDestroyed(t, tConn)
-		testsuite.IsDestroyed(t, netmgr)
+		testsuite.IsDestroyed(t, manager)
 	})
 }
 
@@ -420,11 +420,11 @@ func TestConn_MaxLimitRate(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	manager := New(nil)
 
 	t.Run("SetLimitRate", func(t *testing.T) {
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		tConn.SetLimitRate(math.MaxUint64, math.MaxUint64)
 
@@ -446,7 +446,7 @@ func TestConn_MaxLimitRate(t *testing.T) {
 
 	t.Run("SetReadLimitRate", func(t *testing.T) {
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		tConn.SetReadLimitRate(math.MaxUint64)
 
@@ -466,7 +466,7 @@ func TestConn_MaxLimitRate(t *testing.T) {
 
 	t.Run("SetWriteLimitRate", func(t *testing.T) {
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		tConn.SetWriteLimitRate(math.MaxUint64)
 
@@ -485,10 +485,10 @@ func TestConn_MaxLimitRate(t *testing.T) {
 	})
 
 	t.Run("default config", func(t *testing.T) {
-		netmgr.SetConnLimitRate(math.MaxUint64, math.MaxUint64)
+		manager.SetConnLimitRate(math.MaxUint64, math.MaxUint64)
 
 		conn := testsuite.NewMockConn()
-		tConn := netmgr.TrackConn(conn)
+		tConn := manager.TrackConn(conn)
 
 		now := time.Now()
 
@@ -506,8 +506,8 @@ func TestConn_MaxLimitRate(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	err := netmgr.Close()
+	err := manager.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, netmgr)
+	testsuite.IsDestroyed(t, manager)
 }

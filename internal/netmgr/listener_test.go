@@ -15,7 +15,7 @@ func TestListener(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	manager := New(nil)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -25,7 +25,7 @@ func TestListener(t *testing.T) {
 	}()
 	address := listener.Addr().String()
 
-	tListener := netmgr.TrackListener(listener)
+	tListener := manager.TrackListener(listener)
 
 	guid := tListener.GUID()
 	require.False(t, guid.IsZero())
@@ -35,17 +35,17 @@ func TestListener(t *testing.T) {
 		return net.Dial("tcp", address)
 	}, true)
 
-	err = netmgr.Close()
+	err = manager.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, netmgr)
+	testsuite.IsDestroyed(t, manager)
 }
 
 func TestListener_Accept(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	manager := New(nil)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestListener_Accept(t *testing.T) {
 	}()
 	address := listener.Addr().String()
 
-	tListener := netmgr.TrackListener(listener)
+	tListener := manager.TrackListener(listener)
 
 	num := tListener.GetEstConnsNum()
 	require.Zero(t, num)
@@ -86,17 +86,17 @@ func TestListener_Accept(t *testing.T) {
 
 	testsuite.IsDestroyed(t, tListener)
 
-	err = netmgr.Close()
+	err = manager.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, netmgr)
+	testsuite.IsDestroyed(t, manager)
 }
 
 func TestListener_AcceptEx(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	netmgr := New(nil)
+	manager := New(nil)
 
 	t.Run("set max conns", func(t *testing.T) {
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -107,7 +107,7 @@ func TestListener_AcceptEx(t *testing.T) {
 		}()
 		address := listener.Addr().String()
 
-		tListener := netmgr.TrackListener(listener)
+		tListener := manager.TrackListener(listener)
 
 		maxConns := tListener.GetMaxConns()
 		require.Zero(t, maxConns)
@@ -130,7 +130,7 @@ func TestListener_AcceptEx(t *testing.T) {
 		}()
 		address := listener.Addr().String()
 
-		tListener := netmgr.TrackListener(listener)
+		tListener := manager.TrackListener(listener)
 		tListener.SetMaxConns(1)
 
 		server, client := testsuite.AcceptAndDial(t, tListener, func() (net.Conn, error) {
@@ -177,7 +177,7 @@ func TestListener_AcceptEx(t *testing.T) {
 			err := listener.Close()
 			require.Error(t, err)
 		}()
-		tListener := netmgr.TrackListener(listener)
+		tListener := manager.TrackListener(listener)
 
 		err = tListener.Close()
 		require.NoError(t, err)
@@ -191,7 +191,7 @@ func TestListener_AcceptEx(t *testing.T) {
 
 	t.Run("failed to accept", func(t *testing.T) {
 		listener := testsuite.NewMockListenerWithAcceptError()
-		tListener := netmgr.TrackListener(listener)
+		tListener := manager.TrackListener(listener)
 
 		conn, err := tListener.Accept()
 		testsuite.IsMockListenerAcceptError(t, err)
@@ -203,10 +203,10 @@ func TestListener_AcceptEx(t *testing.T) {
 		testsuite.IsDestroyed(t, tListener)
 	})
 
-	err := netmgr.Close()
+	err := manager.Close()
 	require.NoError(t, err)
 
-	testsuite.IsDestroyed(t, netmgr)
+	testsuite.IsDestroyed(t, manager)
 }
 
 func TestListener_Close(t *testing.T) {
@@ -214,7 +214,7 @@ func TestListener_Close(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("close when full conns", func(t *testing.T) {
-		netmgr := New(nil)
+		manager := New(nil)
 
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
@@ -224,7 +224,7 @@ func TestListener_Close(t *testing.T) {
 		}()
 		address := listener.Addr().String()
 
-		tListener := netmgr.TrackListener(listener)
+		tListener := manager.TrackListener(listener)
 		tListener.SetMaxConns(1)
 
 		wg := sync.WaitGroup{}
@@ -259,25 +259,25 @@ func TestListener_Close(t *testing.T) {
 
 		testsuite.IsDestroyed(t, tListener)
 
-		err = netmgr.Close()
+		err = manager.Close()
 		require.NoError(t, err)
 
-		testsuite.IsDestroyed(t, netmgr)
+		testsuite.IsDestroyed(t, manager)
 	})
 
 	t.Run("failed to close inner listener", func(t *testing.T) {
-		netmgr := New(nil)
+		manager := New(nil)
 
 		listener := testsuite.NewMockListenerWithCloseError()
-		tListener := netmgr.TrackListener(listener)
+		tListener := manager.TrackListener(listener)
 
 		err := tListener.Close()
 		testsuite.IsMockListenerCloseError(t, err)
 
-		err = netmgr.Close()
+		err = manager.Close()
 		testsuite.IsMockListenerCloseError(t, err)
 
 		testsuite.IsDestroyed(t, tListener)
-		testsuite.IsDestroyed(t, netmgr)
+		testsuite.IsDestroyed(t, manager)
 	})
 }
