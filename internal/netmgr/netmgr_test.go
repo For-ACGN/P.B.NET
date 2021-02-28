@@ -298,22 +298,6 @@ func TestManager_Parallel(t *testing.T) {
 
 				testsuite.IsDestroyed(t, tConn)
 			}
-			killListener1 := func() {
-				err := manager.KillListener(&listener1GUID)
-				require.NoError(t, err)
-			}
-			killListener2 := func() {
-				err := manager.KillListener(&listener2GUID)
-				require.NoError(t, err)
-			}
-			killConn1 := func() {
-				err := manager.KillConn(&conn1GUID)
-				require.NoError(t, err)
-			}
-			killConn2 := func() {
-				err := manager.KillConn(&conn2GUID)
-				require.NoError(t, err)
-			}
 			getListener1 := func() {
 				listener, err := manager.GetListener(&listener3GUID)
 				require.NoError(t, err)
@@ -333,6 +317,22 @@ func TestManager_Parallel(t *testing.T) {
 				conn, err := manager.GetConn(&conn4GUID)
 				require.NoError(t, err)
 				require.Equal(t, conn4GUID, conn.GUID())
+			}
+			killListener1 := func() {
+				err := manager.KillListener(&listener1GUID)
+				require.NoError(t, err)
+			}
+			killListener2 := func() {
+				err := manager.KillListener(&listener2GUID)
+				require.NoError(t, err)
+			}
+			killConn1 := func() {
+				err := manager.KillConn(&conn1GUID)
+				require.NoError(t, err)
+			}
+			killConn2 := func() {
+				err := manager.KillConn(&conn2GUID)
+				require.NoError(t, err)
 			}
 			listeners := func() {
 				listeners := manager.Listeners()
@@ -409,8 +409,12 @@ func TestManager_Parallel(t *testing.T) {
 
 				listener1GUID guid.GUID
 				listener2GUID guid.GUID
+				listener3GUID guid.GUID
+				listener4GUID guid.GUID
 				conn1GUID     guid.GUID
 				conn2GUID     guid.GUID
+				conn3GUID     guid.GUID
+				conn4GUID     guid.GUID
 			)
 
 			init := func() {
@@ -418,13 +422,21 @@ func TestManager_Parallel(t *testing.T) {
 
 				listener1 := manager.TrackListener(testsuite.NewMockListener())
 				listener2 := manager.TrackListener(testsuite.NewMockListener())
+				listener3 := manager.TrackListener(testsuite.NewMockListener())
+				listener4 := manager.TrackListener(testsuite.NewMockListener())
 				conn1 := manager.TrackConn(testsuite.NewMockConn())
 				conn2 := manager.TrackConn(testsuite.NewMockConn())
+				conn3 := manager.TrackConn(testsuite.NewMockConn())
+				conn4 := manager.TrackConn(testsuite.NewMockConn())
 
 				listener1GUID = listener1.GUID()
 				listener2GUID = listener2.GUID()
+				listener3GUID = listener3.GUID()
+				listener4GUID = listener4.GUID()
 				conn1GUID = conn1.GUID()
 				conn2GUID = conn2.GUID()
+				conn3GUID = conn3.GUID()
+				conn4GUID = conn4.GUID()
 			}
 			trackListener := func() {
 				listener := testsuite.NewMockListener()
@@ -454,23 +466,49 @@ func TestManager_Parallel(t *testing.T) {
 
 				testsuite.IsDestroyed(t, tConn)
 			}
-			listeners := func() {
-				manager.Listeners()
+			getListener1 := func() {
+				listener, err := manager.GetListener(&listener3GUID)
+				require.NoError(t, err)
+				require.Equal(t, listener3GUID, listener.GUID())
 			}
-			conns := func() {
-				manager.Conns()
+			getListener2 := func() {
+				listener, err := manager.GetListener(&listener4GUID)
+				require.NoError(t, err)
+				require.Equal(t, listener4GUID, listener.GUID())
 			}
-			killListener := func() {
+			getConn1 := func() {
+				conn, err := manager.GetConn(&conn3GUID)
+				require.NoError(t, err)
+				require.Equal(t, conn3GUID, conn.GUID())
+			}
+			getConn2 := func() {
+				conn, err := manager.GetConn(&conn4GUID)
+				require.NoError(t, err)
+				require.Equal(t, conn4GUID, conn.GUID())
+			}
+			killListener1 := func() {
 				err := manager.KillListener(&listener1GUID)
 				require.NoError(t, err)
-				err = manager.KillListener(&listener2GUID)
+			}
+			killListener2 := func() {
+				err := manager.KillListener(&listener2GUID)
 				require.NoError(t, err)
 			}
-			killConn := func() {
+			killConn1 := func() {
 				err := manager.KillConn(&conn1GUID)
 				require.NoError(t, err)
-				err = manager.KillConn(&conn2GUID)
+			}
+			killConn2 := func() {
+				err := manager.KillConn(&conn2GUID)
 				require.NoError(t, err)
+			}
+			listeners := func() {
+				listeners := manager.Listeners()
+				require.NotEmpty(t, listeners)
+			}
+			conns := func() {
+				conns := manager.Conns()
+				require.NotEmpty(t, conns)
 			}
 			getListenerMaxConns := func() {
 				manager.GetListenerMaxConns()
@@ -498,17 +536,22 @@ func TestManager_Parallel(t *testing.T) {
 			}
 			cleanup := func() {
 				ls := manager.Listeners()
-				require.Empty(t, ls)
-
+				require.NotEmpty(t, ls)
 				cs := manager.Conns()
-				require.Empty(t, cs)
+				require.NotEmpty(t, cs)
 
 				err := manager.Close()
 				require.NoError(t, err)
+
+				ls = manager.Listeners()
+				require.Empty(t, ls)
+				cs = manager.Conns()
+				require.Empty(t, cs)
 			}
 			fns := []func(){
 				trackListener, trackConn, listeners, conns,
-				killListener, killConn,
+				killListener1, killListener2, killConn1, killConn2,
+				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
 				getConnReadLimitRate, setConnReadLimitRate,
