@@ -33,7 +33,7 @@ func TestMockConnRemoteAddr(t *testing.T) {
 }
 
 func TestMockConn(t *testing.T) {
-	conn := new(mockConn)
+	conn := NewMockConn()
 
 	t.Run("Read", func(t *testing.T) {
 		n, err := conn.Read(nil)
@@ -197,14 +197,12 @@ func TestMockListenerAddr(t *testing.T) {
 }
 
 func TestMockListener(t *testing.T) {
-	listener := new(mockListener)
+	listener := NewMockListener()
 
 	t.Run("Accept", func(t *testing.T) {
-		listener := new(mockListener)
-
 		conn, err := listener.Accept()
 		require.NoError(t, err)
-		require.Nil(t, conn)
+		require.NotNil(t, conn)
 
 		err = listener.Close()
 		require.NoError(t, err)
@@ -222,7 +220,7 @@ func TestNewMockListenerWithAcceptError(t *testing.T) {
 
 	for i := 0; i < mockListenerAcceptTimes+1; i++ {
 		conn, err := listener.Accept()
-		require.Error(t, err)
+		IsMockListenerAcceptError(t, err)
 		require.Nil(t, conn)
 	}
 

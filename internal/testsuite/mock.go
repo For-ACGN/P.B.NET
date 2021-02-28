@@ -80,9 +80,6 @@ func (mockConnRemoteAddr) String() string {
 }
 
 type mockConn struct {
-	local  mockConnLocalAddr
-	remote mockConnRemoteAddr
-
 	readError          bool // Read() error
 	readPanic          bool // Read() panic
 	writeError         bool // Write() error
@@ -103,7 +100,7 @@ func (c *mockConn) isClosed() bool {
 	return atomic.LoadInt32(&c.closed) != 0
 }
 
-func (c *mockConn) Read([]byte) (int, error) {
+func (c *mockConn) Read(b []byte) (int, error) {
 	if c.isClosed() {
 		return 0, errMockConnClosed
 	}
@@ -117,9 +114,9 @@ func (c *mockConn) Read([]byte) (int, error) {
 		<-c.ctx.Done()
 		return 0, errMockConnClose
 	}
-	// prevent use too much CPU
+	// prevent use too much CPU in readLoop
 	time.Sleep(100 * time.Millisecond)
-	return 0, nil
+	return len(b), nil
 }
 
 func (c *mockConn) Write(b []byte) (int, error) {
@@ -150,11 +147,11 @@ func (c *mockConn) Close() error {
 }
 
 func (c *mockConn) LocalAddr() net.Addr {
-	return c.local
+	return mockConnLocalAddr{}
 }
 
 func (c *mockConn) RemoteAddr() net.Addr {
-	return c.remote
+	return mockConnRemoteAddr{}
 }
 
 func (c *mockConn) SetDeadline(time.Time) error {
@@ -312,18 +309,25 @@ func (mockListenerAddr) String() string {
 }
 
 type mockListener struct {
-	addr mockListenerAddr
-
 	error bool // Accept() error
 	panic bool // Accept() panic
 	n     int  // Accept() count
 	close bool // Close() error
 
+	closed int32
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
+func (l *mockListener) isClosed() bool {
+	return atomic.LoadInt32(&l.closed) != 0
+}
+
 func (l *mockListener) Accept() (net.Conn, error) {
+	if l.isClosed() {
+		return nil, errMockListenerClosed
+	}
 	if l.n > mockListenerAcceptTimes {
 		return nil, errMockListenerAcceptFatal
 	}
@@ -338,10 +342,13 @@ func (l *mockListener) Accept() (net.Conn, error) {
 		<-l.ctx.Done()
 		return nil, errMockListenerClosed
 	}
-	return nil, nil
+	// prevent use too much CPU in readLoop
+	time.Sleep(100 * time.Millisecond)
+	return NewMockConn(), nil
 }
 
 func (l *mockListener) Close() error {
+	atomic.StoreInt32(&l.closed, 1)
 	if l.cancel != nil {
 		l.cancel()
 	}
@@ -352,13 +359,23 @@ func (l *mockListener) Close() error {
 }
 
 func (l *mockListener) Addr() net.Addr {
-	return l.addr
+	return mockListenerAddr{}
+}
+
+// NewMockListener is used to create a mock listener.
+func NewMockListener() net.Listener {
+	return new(mockListener)
 }
 
 // NewMockListenerWithAcceptError is used to create a mock listener
 // that return a temporary error call Accept().
 func NewMockListenerWithAcceptError() net.Listener {
 	return &mockListener{error: true}
+}
+
+// IsMockListenerAcceptError is used to check err is errMockListenerAccept.
+func IsMockListenerAcceptError(t testing.TB, err error) {
+	require.Equal(t, errMockListenerAccept, err)
 }
 
 // IsMockListenerAcceptFatal is used to check err is errMockListenerAcceptFatal.

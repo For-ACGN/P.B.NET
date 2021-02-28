@@ -199,3 +199,34 @@ func TestManager_GetConnWriteLimitRate(t *testing.T) {
 
 	testsuite.IsDestroyed(t, netmgr)
 }
+
+func TestManager_Close(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	netmgr := New(nil)
+
+	err := netmgr.Close()
+	require.NoError(t, err)
+
+	listener := testsuite.NewMockListener()
+	tListener := netmgr.TrackListener(listener)
+	c, err := tListener.Accept()
+	testsuite.IsMockListenerClosedError(t, err)
+	require.Nil(t, c)
+
+	testsuite.IsDestroyed(t, tListener)
+
+	conn := testsuite.NewMockConn()
+	tConn := netmgr.TrackConn(conn)
+	n, err := tConn.Write(nil)
+	testsuite.IsMockConnClosedError(t, err)
+	require.Zero(t, n)
+
+	testsuite.IsDestroyed(t, tConn)
+
+	err = netmgr.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, netmgr)
+}
