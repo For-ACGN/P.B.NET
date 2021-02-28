@@ -63,28 +63,6 @@ func (mgr *Manager) TrackConn(conn net.Conn) *Conn {
 	return mc
 }
 
-// Listeners is used to get all tracked listeners.
-func (mgr *Manager) Listeners() map[guid.GUID]*Listener {
-	mgr.listenersRWM.RLock()
-	defer mgr.listenersRWM.RUnlock()
-	listeners := make(map[guid.GUID]*Listener, len(mgr.listeners))
-	for key, listener := range mgr.listeners {
-		listeners[key] = listener
-	}
-	return listeners
-}
-
-// Conns is used to get all tracked connections.
-func (mgr *Manager) Conns() map[guid.GUID]*Conn {
-	mgr.connsRWM.RLock()
-	defer mgr.connsRWM.RUnlock()
-	conns := make(map[guid.GUID]*Conn, len(mgr.conns))
-	for key, conn := range mgr.conns {
-		conns[key] = conn
-	}
-	return conns
-}
-
 // GetListener is used to get listener by guid.
 func (mgr *Manager) GetListener(guid *guid.GUID) (*Listener, error) {
 	mgr.listenersRWM.RLock()
@@ -121,6 +99,28 @@ func (mgr *Manager) KillConn(guid *guid.GUID) error {
 		return err
 	}
 	return conn.Close()
+}
+
+// Listeners is used to get all tracked listeners.
+func (mgr *Manager) Listeners() map[guid.GUID]*Listener {
+	mgr.listenersRWM.RLock()
+	defer mgr.listenersRWM.RUnlock()
+	listeners := make(map[guid.GUID]*Listener, len(mgr.listeners))
+	for key, listener := range mgr.listeners {
+		listeners[key] = listener
+	}
+	return listeners
+}
+
+// Conns is used to get all tracked connections.
+func (mgr *Manager) Conns() map[guid.GUID]*Conn {
+	mgr.connsRWM.RLock()
+	defer mgr.connsRWM.RUnlock()
+	conns := make(map[guid.GUID]*Conn, len(mgr.conns))
+	for key, conn := range mgr.conns {
+		conns[key] = conn
+	}
+	return conns
 }
 
 // GetListenerMaxConns is used to get the default maximum number of
