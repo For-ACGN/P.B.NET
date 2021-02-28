@@ -25,7 +25,7 @@ func TestPrintNetworkInfo(t *testing.T) {
 	printNetworkInfo()
 }
 
-func TestDeployPprofHTTPServer(t *testing.T) {
+func TestDeployPPROFHTTPServer(t *testing.T) {
 	patch := func(string, string) (net.Listener, error) {
 		return nil, monkey.Error
 	}
@@ -33,10 +33,10 @@ func TestDeployPprofHTTPServer(t *testing.T) {
 	defer pg.Unpatch()
 
 	defer DeferForPanic(t)
-	deployPprofHTTPServer()
+	deployPPROFHTTPServer()
 }
 
-func TestStartPprofHTTPServer(t *testing.T) {
+func TestStartPPROFHTTPServer(t *testing.T) {
 	t.Run("tcp4", func(t *testing.T) {
 		patch := func(string, string) (net.Listener, error) {
 			return nil, monkey.Error
@@ -44,7 +44,7 @@ func TestStartPprofHTTPServer(t *testing.T) {
 		pg := monkey.Patch(net.Listen, patch)
 		defer pg.Unpatch()
 
-		ok := startPprofHTTPServer(nil, 123)
+		ok := startPPROFHTTPServer(nil, 123)
 		require.False(t, ok)
 	})
 
@@ -58,7 +58,7 @@ func TestStartPprofHTTPServer(t *testing.T) {
 		pg := monkey.Patch(net.Listen, patch)
 		defer pg.Unpatch()
 
-		ok := startPprofHTTPServer(nil, 123)
+		ok := startPPROFHTTPServer(nil, 123)
 		require.False(t, ok)
 	})
 }
@@ -206,14 +206,14 @@ func TestRunHTTPServer(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("http", func(t *testing.T) {
-		server := http.Server{Addr: "localhost:0"}
+		server := http.Server{Addr: "127.0.0.1:0"}
 		port := RunHTTPServer(t, "tcp", &server)
 		defer func() { _ = server.Close() }()
 		t.Log("http server port:", port)
 
 		client := http.Client{Transport: new(http.Transport)}
 		defer client.CloseIdleConnections()
-		resp, err := client.Get(fmt.Sprintf("http://localhost:%s/", port))
+		resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s/", port))
 		require.NoError(t, err)
 		_, err = io.Copy(io.Discard, resp.Body)
 		require.NoError(t, err)
@@ -222,7 +222,7 @@ func TestRunHTTPServer(t *testing.T) {
 	t.Run("https", func(t *testing.T) {
 		serverCfg, clientCfg := TLSConfigPair(t, "127.0.0.1")
 		server := http.Server{
-			Addr:      "localhost:0",
+			Addr:      "127.0.0.1:0",
 			TLSConfig: serverCfg,
 		}
 		port := RunHTTPServer(t, "tcp", &server)
@@ -235,7 +235,7 @@ func TestRunHTTPServer(t *testing.T) {
 			},
 		}
 		defer client.CloseIdleConnections()
-		resp, err := client.Get(fmt.Sprintf("https://localhost:%s/", port))
+		resp, err := client.Get(fmt.Sprintf("https://127.0.0.1:%s/", port))
 		require.NoError(t, err)
 		_, err = io.Copy(io.Discard, resp.Body)
 		require.NoError(t, err)

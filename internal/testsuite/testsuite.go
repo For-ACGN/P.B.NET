@@ -29,7 +29,7 @@ var (
 
 func init() {
 	printNetworkInfo()
-	deployPprofHTTPServer()
+	deployPPROFHTTPServer()
 	isInGoland()
 }
 
@@ -46,7 +46,7 @@ func printNetworkInfo() {
 	fmt.Println("[debug] network unavailable")
 }
 
-func deployPprofHTTPServer() {
+func deployPPROFHTTPServer() {
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/debug/pprof/", pprof.Index)
 	serveMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -55,7 +55,7 @@ func deployPprofHTTPServer() {
 	serveMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	server := &http.Server{Handler: serveMux}
 	for port := 9931; port < 65536; port++ {
-		if startPprofHTTPServer(server, port) {
+		if startPPROFHTTPServer(server, port) {
 			fmt.Printf("[debug] pprof http server port: %d\n", port)
 			return
 		}
@@ -63,7 +63,7 @@ func deployPprofHTTPServer() {
 	panic("failed to deploy pprof http server")
 }
 
-func startPprofHTTPServer(server *http.Server, port int) bool {
+func startPPROFHTTPServer(server *http.Server, port int) bool {
 	var (
 		ipv4 net.Listener
 		ipv6 net.Listener

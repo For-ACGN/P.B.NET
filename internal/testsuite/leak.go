@@ -137,7 +137,7 @@ func (m *MemoryMark) compare() bool {
 // because no t *testing.T, so we need check it self.
 func TestMainCheckError(err error) {
 	if err != nil {
-		panic(fmt.Sprintf("error occoured in TestMain:\n%s", err))
+		panic(fmt.Sprintf("error occurred in TestMain:\n%s", err))
 	}
 }
 

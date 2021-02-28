@@ -244,8 +244,22 @@ func TestNewMockListenerWithAcceptPanic(t *testing.T) {
 func TestNewMockListenerWithCloseError(t *testing.T) {
 	listener := NewMockListenerWithCloseError()
 
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		conn, err := listener.Accept()
+		IsMockListenerClosedError(t, err)
+		require.Nil(t, conn)
+	}()
+
+	time.Sleep(time.Second)
+
 	err := listener.Close()
 	IsMockListenerCloseError(t, err)
+
+	wg.Wait()
 
 	conn, err := listener.Accept()
 	IsMockListenerClosedError(t, err)

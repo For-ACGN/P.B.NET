@@ -2,6 +2,7 @@ package testsuite
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -22,31 +23,34 @@ type Handshaker interface {
 
 // ListenerAndDial is used to test net.Listener and Dial.
 func ListenerAndDial(t *testing.T, listener net.Listener, dial dialer, close bool) {
-	t.Log("ConnSC")
 	for i := 0; i < 3; i++ {
-		t.Logf("%d\n", i)
-		server, client := AcceptAndDial(t, listener, dial)
-		ConnSC(t, server, client, close)
+		t.Run(fmt.Sprintf("ConnSC %d", i+1), func(t *testing.T) {
+			server, client := AcceptAndDial(t, listener, dial)
+			ConnSC(t, server, client, close)
+		})
 	}
-	t.Log("ConnCS")
 	for i := 0; i < 3; i++ {
-		t.Logf("%d\n", i)
-		server, client := AcceptAndDial(t, listener, dial)
-		ConnCS(t, client, server, close)
+		t.Run(fmt.Sprintf("ConnCS %d", i+1), func(t *testing.T) {
+			server, client := AcceptAndDial(t, listener, dial)
+			ConnCS(t, client, server, close)
+		})
 	}
+
 	err := listener.Close()
 	require.NoError(t, err)
 
 	IsDestroyed(t, listener)
 }
 
-// AcceptAndDial is used to accept and dial a connection.
+// AcceptAndDial is used to dial a connection and accept it.
 func AcceptAndDial(t *testing.T, listener net.Listener, dial dialer) (net.Conn, net.Conn) {
-	wg := sync.WaitGroup{}
 	var server net.Conn
+
+	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
 		var err error
 		server, err = listener.Accept()
 		require.NoError(t, err)
@@ -55,9 +59,12 @@ func AcceptAndDial(t *testing.T, listener net.Listener, dial dialer) (net.Conn, 
 			require.NoError(t, err)
 		}
 	}()
+
 	client, err := dial()
 	require.NoError(t, err)
+
 	wg.Wait()
+
 	return server, client
 }
 
@@ -72,18 +79,18 @@ func AcceptAndDial(t *testing.T, listener net.Listener, dial dialer) (net.Conn, 
 // ConnSC is used to test server & client connection,
 // server connection will send data firstly.
 func ConnSC(t *testing.T, server, client net.Conn, close bool) {
-	connAddr(t, server, client)
-	conn(t, server, client, close)
+	testConnAddr(t, server, client)
+	testConns(t, server, client, close)
 }
 
 // ConnCS is used to test client & server connection,
 // client connection will send data firstly.
 func ConnCS(t *testing.T, client, server net.Conn, close bool) {
-	connAddr(t, server, client)
-	conn(t, client, server, close)
+	testConnAddr(t, server, client)
+	testConns(t, client, server, close)
 }
 
-func connAddr(t *testing.T, server, client net.Conn) {
+func testConnAddr(t *testing.T, server, client net.Conn) {
 	t.Run("address", func(t *testing.T) {
 		t.Log("server remote:", server.RemoteAddr().Network(), server.RemoteAddr())
 		t.Log("client local:", client.LocalAddr().Network(), client.LocalAddr())
@@ -95,13 +102,14 @@ func connAddr(t *testing.T, server, client net.Conn) {
 			require.Equal(t, server.RemoteAddr().Network(), client.LocalAddr().Network())
 			require.Equal(t, server.RemoteAddr().String(), client.LocalAddr().String())
 		}
+
 		require.Equal(t, server.LocalAddr().Network(), client.RemoteAddr().Network())
 		require.Equal(t, server.LocalAddr().String(), client.RemoteAddr().String())
 	})
 }
 
 // conn1 will send data firstly.
-func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
+func testConns(t *testing.T, conn1, conn2 net.Conn, close bool) {
 	// Read(), Write() and SetDeadline()
 	write := func(conn net.Conn) {
 		data := Bytes()
@@ -123,41 +131,51 @@ func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
 			err := conn2.SetDeadline(time.Now().Add(5 * time.Second))
 			require.NoError(t, err)
 			read(conn2)
 			write(conn2)
-			wg.Add(2)
+
+			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				write(conn2)
 			}()
+
+			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				write(conn2)
 			}()
+
 			read(conn2)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
 			err := conn1.SetDeadline(time.Now().Add(5 * time.Second))
 			require.NoError(t, err)
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				write(conn1)
 			}()
+
 			read(conn1)
 			read(conn1)
 			read(conn1)
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				write(conn1)
 			}()
 		}()
+
 		wg.Wait()
 	})
 
@@ -171,37 +189,46 @@ func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
 			read(conn2)
 			write(conn2)
-			wg.Add(2)
+
+			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				write(conn2)
 			}()
+
+			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				write(conn2)
 			}()
+
 			read(conn2)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				write(conn1)
 			}()
+
 			read(conn1)
 			read(conn1)
 			read(conn1)
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				write(conn1)
 			}()
 		}()
+
 		wg.Wait()
 	})
 
@@ -214,11 +241,14 @@ func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
 		require.NoError(t, err)
 		err = conn2.SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
 		require.NoError(t, err)
+
 		time.Sleep(30 * time.Millisecond)
+
 		buf := Bytes()
 		n, err := conn1.Write(buf)
 		require.Error(t, err)
 		require.Equal(t, 0, n)
+
 		n, err = conn2.Read(buf)
 		require.Error(t, err)
 		require.Equal(t, 0, n)
@@ -231,11 +261,14 @@ func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
 		require.NoError(t, err)
 		err = conn2.SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
 		require.NoError(t, err)
+
 		time.Sleep(30 * time.Millisecond)
+
 		buf = Bytes()
 		n, err = conn1.Write(buf)
 		require.Error(t, err)
 		require.Equal(t, 0, n)
+
 		n, err = conn2.Read(buf)
 		require.Error(t, err)
 		require.Equal(t, 0, n)
@@ -247,17 +280,20 @@ func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
 	err = conn2.SetDeadline(time.Time{})
 	require.NoError(t, err)
 
-	if !close {
-		return
-	}
 	t.Run("close", func(t *testing.T) {
+		if !close {
+			return
+		}
+
 		buf := Bytes()
-		wg.Add(8)
 		for i := 0; i < 4; i++ {
+			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				_, _ = conn1.Write(buf)
 			}()
+
+			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				_, _ = conn2.Write(buf)
@@ -268,6 +304,7 @@ func conn(t *testing.T, conn1, conn2 net.Conn, close bool) {
 		require.NoError(t, err)
 		err = conn1.Close()
 		require.NoError(t, err)
+
 		wg.Wait()
 
 		n, err := conn1.Read(make([]byte, 1024))
