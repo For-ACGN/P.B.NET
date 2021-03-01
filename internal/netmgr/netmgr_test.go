@@ -565,7 +565,142 @@ func TestManager_Parallel(t *testing.T) {
 
 	t.Run("with close", func(t *testing.T) {
 		t.Run("part", func(t *testing.T) {
+			manager := New(nil)
 
+			var (
+				listener1GUID guid.GUID
+				listener2GUID guid.GUID
+				listener3GUID guid.GUID
+				listener4GUID guid.GUID
+				conn1GUID     guid.GUID
+				conn2GUID     guid.GUID
+				conn3GUID     guid.GUID
+				conn4GUID     guid.GUID
+			)
+
+			init := func() {
+				listener1 := manager.TrackListener(testsuite.NewMockListener())
+				listener2 := manager.TrackListener(testsuite.NewMockListener())
+				listener3 := manager.TrackListener(testsuite.NewMockListener())
+				listener4 := manager.TrackListener(testsuite.NewMockListener())
+				conn1 := manager.TrackConn(testsuite.NewMockConn())
+				conn2 := manager.TrackConn(testsuite.NewMockConn())
+				conn3 := manager.TrackConn(testsuite.NewMockConn())
+				conn4 := manager.TrackConn(testsuite.NewMockConn())
+
+				listener1GUID = listener1.GUID()
+				listener2GUID = listener2.GUID()
+				listener3GUID = listener3.GUID()
+				listener4GUID = listener4.GUID()
+				conn1GUID = conn1.GUID()
+				conn2GUID = conn2.GUID()
+				conn3GUID = conn3.GUID()
+				conn4GUID = conn4.GUID()
+			}
+			trackListener := func() {
+				listener := testsuite.NewMockListener()
+				tListener := manager.TrackListener(listener)
+
+				g := tListener.GUID()
+
+				manager.Listeners()
+
+				_ = manager.KillListener(&g)
+
+				testsuite.IsDestroyed(t, tListener)
+			}
+			trackConn := func() {
+				conn := testsuite.NewMockConn()
+				tConn := manager.TrackConn(conn)
+
+				g := tConn.GUID()
+
+				manager.Conns()
+
+				_ = manager.KillConn(&g)
+
+				testsuite.IsDestroyed(t, tConn)
+			}
+			getListener1 := func() {
+				_, _ = manager.GetListener(&listener3GUID)
+			}
+			getListener2 := func() {
+				_, _ = manager.GetListener(&listener4GUID)
+			}
+			getConn1 := func() {
+				_, _ = manager.GetConn(&conn3GUID)
+			}
+			getConn2 := func() {
+				_, _ = manager.GetConn(&conn4GUID)
+			}
+			killListener1 := func() {
+				_ = manager.KillListener(&listener1GUID)
+			}
+			killListener2 := func() {
+				_ = manager.KillListener(&listener2GUID)
+			}
+			killConn1 := func() {
+				_ = manager.KillConn(&conn1GUID)
+			}
+			killConn2 := func() {
+				_ = manager.KillConn(&conn2GUID)
+			}
+			listeners := func() {
+				manager.Listeners()
+			}
+			conns := func() {
+				manager.Conns()
+			}
+			getListenerMaxConns := func() {
+				manager.GetListenerMaxConns()
+			}
+			setListenerMaxConns := func() {
+				manager.SetListenerMaxConns(1000)
+			}
+			getConnLimitRate := func() {
+				manager.GetConnLimitRate()
+			}
+			setConnLimitRate := func() {
+				manager.SetConnLimitRate(1000, 2000)
+			}
+			getConnReadLimitRate := func() {
+				manager.GetConnReadLimitRate()
+			}
+			setConnReadLimitRate := func() {
+				manager.SetConnReadLimitRate(1000)
+			}
+			getConnWriteLimitRate := func() {
+				manager.GetConnWriteLimitRate()
+			}
+			setConnWriteLimitRate := func() {
+				manager.SetConnWriteLimitRate(2000)
+			}
+			close1 := func() {
+				err := manager.Close()
+				require.NoError(t, err)
+			}
+			cleanup := func() {
+				ls := manager.Listeners()
+				require.Empty(t, ls)
+				cs := manager.Conns()
+				require.Empty(t, cs)
+			}
+			fns := []func(){
+				trackListener, trackConn, listeners, conns,
+				killListener1, killListener2, killConn1, killConn2,
+				getListener1, getListener2, getConn1, getConn2,
+				getListenerMaxConns, setListenerMaxConns,
+				getConnLimitRate, setConnLimitRate,
+				getConnReadLimitRate, setConnReadLimitRate,
+				getConnWriteLimitRate, setConnWriteLimitRate,
+				close1,
+			}
+			testsuite.RunParallel(100, init, cleanup, fns...)
+
+			err := manager.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, manager)
 		})
 
 		t.Run("whole", func(t *testing.T) {
