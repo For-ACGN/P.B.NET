@@ -281,3 +281,110 @@ func TestListener_Close(t *testing.T) {
 		testsuite.IsDestroyed(t, manager)
 	})
 }
+
+func TestListener_Parallel(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("without close", func(t *testing.T) {
+		t.Run("part", func(t *testing.T) {
+			listener := testsuite.NewMockListener()
+			tListener := manager.TrackListener(listener)
+
+			accept := func() {
+				conn, err := tListener.Accept()
+				require.NoError(t, err)
+				err = conn.Close()
+				require.NoError(t, err)
+			}
+			getGUID := func() {
+				tListener.GUID()
+			}
+			getMaxConns := func() {
+				tListener.GetMaxConns()
+			}
+			setMaxConns := func() {
+				tListener.SetMaxConns(1000)
+			}
+			getEstConnsNum := func() {
+				tListener.GetEstConnsNum()
+			}
+			status := func() {
+				tListener.Status()
+			}
+			fns := []func(){
+				accept, getGUID,
+				getMaxConns, setMaxConns,
+				getEstConnsNum, status,
+			}
+			testsuite.RunParallel(100, nil, nil, fns...)
+
+			err := tListener.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, tListener)
+		})
+
+		t.Run("whole", func(t *testing.T) {
+			var tListener *Listener
+
+			init := func() {
+				listener := testsuite.NewMockListener()
+				tListener = manager.TrackListener(listener)
+			}
+			accept := func() {
+				conn, err := tListener.Accept()
+				require.NoError(t, err)
+				err = conn.Close()
+				require.NoError(t, err)
+			}
+			getGUID := func() {
+				tListener.GUID()
+			}
+			getMaxConns := func() {
+				tListener.GetMaxConns()
+			}
+			setMaxConns := func() {
+				tListener.SetMaxConns(1000)
+			}
+			getEstConnsNum := func() {
+				tListener.GetEstConnsNum()
+			}
+			status := func() {
+				tListener.Status()
+			}
+			cleanup := func() {
+				err := tListener.Close()
+				require.NoError(t, err)
+			}
+			fns := []func(){
+				accept, getGUID,
+				getMaxConns, setMaxConns,
+				getEstConnsNum, status,
+			}
+			testsuite.RunParallel(100, init, cleanup, fns...)
+
+			err := tListener.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, tListener)
+		})
+	})
+
+	t.Run("with close", func(t *testing.T) {
+		t.Run("part", func(t *testing.T) {
+
+		})
+
+		t.Run("whole", func(t *testing.T) {
+
+		})
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
