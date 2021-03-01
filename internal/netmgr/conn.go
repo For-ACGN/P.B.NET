@@ -243,7 +243,7 @@ func (c *Conn) Status() *ConnStatus {
 func (c *Conn) Close() error {
 	c.cancel()
 	err := c.Conn.Close()
-	if err != nil && !nettool.IsNetClosingError(err) {
+	if err != nil && !nettool.IsNetClosedError(err) {
 		return err
 	}
 	c.closeOnce.Do(func() {

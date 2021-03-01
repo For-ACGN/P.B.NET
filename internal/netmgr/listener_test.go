@@ -375,11 +375,96 @@ func TestListener_Parallel(t *testing.T) {
 
 	t.Run("with close", func(t *testing.T) {
 		t.Run("part", func(t *testing.T) {
+			listener := testsuite.NewMockListener()
+			tListener := manager.TrackListener(listener)
 
+			accept := func() {
+				conn, err := tListener.Accept()
+				if err != nil {
+					return
+				}
+				err = conn.Close()
+				require.NoError(t, err)
+			}
+			getGUID := func() {
+				tListener.GUID()
+			}
+			getMaxConns := func() {
+				tListener.GetMaxConns()
+			}
+			setMaxConns := func() {
+				tListener.SetMaxConns(1000)
+			}
+			getEstConnsNum := func() {
+				tListener.GetEstConnsNum()
+			}
+			status := func() {
+				tListener.Status()
+			}
+			close1 := func() {
+				err := tListener.Close()
+				require.NoError(t, err)
+			}
+			fns := []func(){
+				accept, getGUID,
+				getMaxConns, setMaxConns,
+				getEstConnsNum, status,
+				close1,
+			}
+			testsuite.RunParallel(100, nil, nil, fns...)
+
+			err := tListener.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, tListener)
 		})
 
 		t.Run("whole", func(t *testing.T) {
+			var tListener *Listener
 
+			init := func() {
+				listener := testsuite.NewMockListener()
+				tListener = manager.TrackListener(listener)
+			}
+			accept := func() {
+				conn, err := tListener.Accept()
+				if err != nil {
+					return
+				}
+				err = conn.Close()
+				require.NoError(t, err)
+			}
+			getGUID := func() {
+				tListener.GUID()
+			}
+			getMaxConns := func() {
+				tListener.GetMaxConns()
+			}
+			setMaxConns := func() {
+				tListener.SetMaxConns(1000)
+			}
+			getEstConnsNum := func() {
+				tListener.GetEstConnsNum()
+			}
+			status := func() {
+				tListener.Status()
+			}
+			close1 := func() {
+				err := tListener.Close()
+				require.NoError(t, err)
+			}
+			fns := []func(){
+				accept, getGUID,
+				getMaxConns, setMaxConns,
+				getEstConnsNum, status,
+				close1,
+			}
+			testsuite.RunParallel(100, init, nil, fns...)
+
+			err := tListener.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, tListener)
 		})
 	})
 

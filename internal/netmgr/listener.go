@@ -155,7 +155,7 @@ func (l *Listener) Close() error {
 	atomic.StoreInt32(&l.inShutdown, 1)
 	l.signal()
 	err := l.Listener.Close()
-	if err != nil && !nettool.IsNetClosingError(err) {
+	if err != nil && !nettool.IsNetClosedError(err) {
 		return err
 	}
 	l.closeOnce.Do(func() {

@@ -239,7 +239,7 @@ func (mgr *Manager) Close() error {
 	defer mgr.listenersRWM.Unlock()
 	for key, listener := range mgr.listeners {
 		e := listener.Listener.Close()
-		if e != nil && !nettool.IsNetClosingError(e) && err == nil {
+		if e != nil && !nettool.IsNetClosedError(e) && err == nil {
 			err = e
 		}
 		delete(mgr.listeners, key)
@@ -249,7 +249,7 @@ func (mgr *Manager) Close() error {
 	defer mgr.connsRWM.Unlock()
 	for key, conn := range mgr.conns {
 		e := conn.Conn.Close()
-		if e != nil && !nettool.IsNetClosingError(e) && err == nil {
+		if e != nil && !nettool.IsNetClosedError(e) && err == nil {
 			err = e
 		}
 		delete(mgr.conns, key)
