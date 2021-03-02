@@ -573,7 +573,63 @@ func TestConn_Parallel(t *testing.T) {
 		})
 
 		t.Run("whole", func(t *testing.T) {
+			var tConn *Conn
 
+			init := func() {
+				conn := testsuite.NewMockConn()
+				tConn = manager.TrackConn(conn)
+			}
+			read := func() {
+				n, err := tConn.Read(make([]byte, 64))
+				require.NoError(t, err)
+				require.Equal(t, 64, n)
+			}
+			write := func() {
+				n, err := tConn.Write(make([]byte, 32))
+				require.NoError(t, err)
+				require.Equal(t, 32, n)
+			}
+			getGUID := func() {
+				tConn.GUID()
+			}
+			getLimitRate := func() {
+				tConn.GetLimitRate()
+			}
+			setLimitRate := func() {
+				tConn.SetLimitRate(1024, 2048)
+			}
+			getReadLimitRate := func() {
+				tConn.GetReadLimitRate()
+			}
+			setReadLimitRate := func() {
+				tConn.SetReadLimitRate(1024)
+			}
+			getWriteLimitRate := func() {
+				tConn.GetWriteLimitRate()
+			}
+			setWriteLimitRate := func() {
+				tConn.SetWriteLimitRate(2048)
+			}
+			status := func() {
+				tConn.Status()
+			}
+			cleanup := func() {
+				err := tConn.Close()
+				require.NoError(t, err)
+			}
+			fns := []func(){
+				read, write, write,
+				getGUID, getLimitRate, setLimitRate,
+				getReadLimitRate, setReadLimitRate,
+				getWriteLimitRate, setWriteLimitRate,
+				status, status,
+			}
+			testsuite.RunParallel(100, init, cleanup, fns...)
+
+			err := tConn.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, tConn)
 		})
 	})
 
