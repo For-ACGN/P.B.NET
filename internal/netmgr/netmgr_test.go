@@ -387,7 +387,8 @@ func TestManager_Parallel(t *testing.T) {
 				require.Empty(t, cs)
 			}
 			fns := []func(){
-				trackListener, trackConn, listeners, conns,
+				trackListener, trackListener, trackConn, trackConn,
+				listeners, listeners, conns, conns,
 				killListener1, killListener2, killConn1, killConn2,
 				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
@@ -549,7 +550,8 @@ func TestManager_Parallel(t *testing.T) {
 				require.Empty(t, cs)
 			}
 			fns := []func(){
-				trackListener, trackConn, listeners, conns,
+				trackListener, trackListener, trackConn, trackConn,
+				listeners, listeners, conns, conns,
 				killListener1, killListener2, killConn1, killConn2,
 				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
@@ -686,14 +688,15 @@ func TestManager_Parallel(t *testing.T) {
 				require.Empty(t, cs)
 			}
 			fns := []func(){
-				trackListener, trackConn, listeners, conns,
+				trackListener, trackListener, trackConn, trackConn,
+				listeners, listeners, conns, conns,
 				killListener1, killListener2, killConn1, killConn2,
 				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
 				getConnReadLimitRate, setConnReadLimitRate,
 				getConnWriteLimitRate, setConnWriteLimitRate,
-				close1,
+				close1, close1,
 			}
 			testsuite.RunParallel(100, init, cleanup, fns...)
 
@@ -827,14 +830,15 @@ func TestManager_Parallel(t *testing.T) {
 				require.Empty(t, cs)
 			}
 			fns := []func(){
-				trackListener, trackConn, listeners, conns,
+				trackListener, trackListener, trackConn, trackConn,
+				listeners, listeners, conns, conns,
 				killListener1, killListener2, killConn1, killConn2,
 				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
 				getConnReadLimitRate, setConnReadLimitRate,
 				getConnWriteLimitRate, setConnWriteLimitRate,
-				close1,
+				close1, close1,
 			}
 			testsuite.RunParallel(100, init, cleanup, fns...)
 

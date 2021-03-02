@@ -317,7 +317,8 @@ func TestListener_Parallel(t *testing.T) {
 			fns := []func(){
 				accept, getGUID,
 				getMaxConns, setMaxConns,
-				getEstConnsNum, status,
+				getEstConnsNum, getEstConnsNum,
+				status, status,
 			}
 			testsuite.RunParallel(100, nil, nil, fns...)
 
@@ -362,7 +363,8 @@ func TestListener_Parallel(t *testing.T) {
 			fns := []func(){
 				accept, getGUID,
 				getMaxConns, setMaxConns,
-				getEstConnsNum, status,
+				getEstConnsNum, getEstConnsNum,
+				status, status,
 			}
 			testsuite.RunParallel(100, init, cleanup, fns...)
 
@@ -408,8 +410,9 @@ func TestListener_Parallel(t *testing.T) {
 			fns := []func(){
 				accept, getGUID,
 				getMaxConns, setMaxConns,
-				getEstConnsNum, status,
-				close1,
+				getEstConnsNum, getEstConnsNum,
+				status, status,
+				close1, close1,
 			}
 			testsuite.RunParallel(100, nil, nil, fns...)
 
@@ -456,8 +459,9 @@ func TestListener_Parallel(t *testing.T) {
 			fns := []func(){
 				accept, getGUID,
 				getMaxConns, setMaxConns,
-				getEstConnsNum, status,
-				close1,
+				getEstConnsNum, getEstConnsNum,
+				status, status,
+				close1, close1,
 			}
 			testsuite.RunParallel(100, init, nil, fns...)
 
