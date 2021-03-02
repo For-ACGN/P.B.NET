@@ -81,8 +81,8 @@ func CheckUDPNetwork(network string) error {
 	}
 }
 
-// IsNetClosingError is used to check this error is GOROOT/src/internal/poll.ErrNetClosing.
-func IsNetClosingError(err error) bool {
+// IsNetClosedError is used to check this error is GOROOT/src/internal/poll.ErrNetClosing.
+func IsNetClosedError(err error) bool {
 	if err == nil {
 		return false
 	}
