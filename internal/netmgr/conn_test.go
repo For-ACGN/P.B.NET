@@ -534,11 +534,7 @@ func TestConn_Write_Parallel(t *testing.T) {
 
 	t.Run("without close", func(t *testing.T) {
 		t.Run("part", func(t *testing.T) {
-			server, client := testsuite.AcceptAndDial(t, listener, dial)
-			defer func() {
-				err := client.Close()
-				require.NoError(t, err)
-			}()
+			server, client := testsuite.AcceptAndDial(t, tListener, dial)
 
 			read := func() {
 				_, err := io.CopyN(io.Discard, client, 96)
@@ -556,24 +552,123 @@ func TestConn_Write_Parallel(t *testing.T) {
 			}
 			testsuite.RunParallelTest(100, nil, nil, read, write1, write2)
 
-			err := server.Close()
+			err := client.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, client)
+
+			err = server.Close()
 			require.NoError(t, err)
 
 			testsuite.IsDestroyed(t, server)
 		})
 
 		t.Run("whole", func(t *testing.T) {
+			var (
+				server net.Conn
+				client net.Conn
+			)
 
+			init := func() {
+				server, client = testsuite.AcceptAndDial(t, tListener, dial)
+			}
+			read := func() {
+				_, err := io.CopyN(io.Discard, client, 96)
+				require.NoError(t, err)
+			}
+			write1 := func() {
+				n, err := server.Write(make([]byte, 32))
+				require.NoError(t, err)
+				require.Equal(t, 32, n)
+			}
+			write2 := func() {
+				n, err := server.Write(make([]byte, 64))
+				require.NoError(t, err)
+				require.Equal(t, 64, n)
+			}
+			cleanup := func() {
+				err := client.Close()
+				require.NoError(t, err)
+				err = server.Close()
+				require.NoError(t, err)
+			}
+			testsuite.RunParallelTest(100, init, cleanup, read, write1, write2)
+
+			testsuite.IsDestroyed(t, client)
+			testsuite.IsDestroyed(t, server)
 		})
 	})
 
 	t.Run("with close", func(t *testing.T) {
 		t.Run("part", func(t *testing.T) {
+			server, client := testsuite.AcceptAndDial(t, tListener, dial)
 
+			read := func() {
+				_, _ = io.CopyN(io.Discard, client, 96)
+			}
+			write1 := func() {
+				_, _ = server.Write(make([]byte, 32))
+			}
+			write2 := func() {
+				_, _ = server.Write(make([]byte, 64))
+			}
+			close1 := func() {
+				err := server.Close()
+				require.NoError(t, err)
+			}
+			fns := []func(){
+				read, write1, write2,
+				close1, close1,
+			}
+			testsuite.RunParallelTest(100, nil, nil, fns...)
+
+			err := client.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, client)
+
+			err = server.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, server)
 		})
 
 		t.Run("whole", func(t *testing.T) {
+			var (
+				server net.Conn
+				client net.Conn
+			)
 
+			init := func() {
+				server, client = testsuite.AcceptAndDial(t, tListener, dial)
+			}
+			read := func() {
+				_, _ = io.CopyN(io.Discard, client, 96)
+			}
+			write1 := func() {
+				_, _ = server.Write(make([]byte, 32))
+			}
+			write2 := func() {
+				_, _ = server.Write(make([]byte, 64))
+			}
+			close1 := func() {
+				err := server.Close()
+				require.NoError(t, err)
+			}
+			cleanup := func() {
+				err := client.Close()
+				require.NoError(t, err)
+				err = server.Close()
+				require.NoError(t, err)
+			}
+			fns := []func(){
+				read, write1, write2,
+				close1, close1,
+			}
+			testsuite.RunParallelTest(100, init, cleanup, fns...)
+
+			testsuite.IsDestroyed(t, client)
+			testsuite.IsDestroyed(t, server)
 		})
 	})
 
