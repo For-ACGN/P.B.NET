@@ -164,9 +164,9 @@ func RunMultiTimes(times int, fns ...func()) {
 	wg.Wait()
 }
 
-// RunParallel is used to call functions with go func().
-// object with Add(), Get() ... need it for test with race.
-func RunParallel(times int, init, cleanup func(), fns ...func()) {
+// RunParallelTest is used to run parallel for test with race.. init will be called
+// before each test, and cleanup will be called after all functions returned.
+func RunParallelTest(times int, init, cleanup func(), fns ...func()) {
 	l := len(fns)
 	if l == 0 {
 		return

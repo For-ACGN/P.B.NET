@@ -146,7 +146,7 @@ func TestRunMultiTimes(t *testing.T) {
 	})
 }
 
-func TestRunParallel(t *testing.T) {
+func TestRunParallelTest(t *testing.T) {
 	gm := MarkGoroutines(t)
 	defer gm.Compare()
 
@@ -183,19 +183,19 @@ func TestRunParallel(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		RunParallel(5, init, cleanup, f1, f2, f3)
+		RunParallelTest(5, init, cleanup, f1, f2, f3)
 
 		require.Equal(t, 1+2+3, test)
 	})
 
 	t.Run("no functions", func(t *testing.T) {
-		RunParallel(1, nil, nil)
+		RunParallelTest(1, nil, nil)
 	})
 
 	t.Run("invalid times", func(t *testing.T) {
 		test = 0
 
-		RunParallel(-1, nil, nil, f3)
+		RunParallelTest(-1, nil, nil, f3)
 
 		require.Equal(t, 3*100, test)
 	})

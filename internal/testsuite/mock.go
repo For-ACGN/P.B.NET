@@ -115,7 +115,7 @@ func (c *mockConn) Read(b []byte) (int, error) {
 		return 0, errMockConnClose
 	}
 	// prevent use too much CPU in readLoop
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 	return len(b), nil
 }
 
@@ -236,9 +236,9 @@ func IsMockConnWritePanic(t testing.TB, err error) {
 // NewMockConnWithCloseError is used to create a mock conn
 // that will return a errMockConnClose when call Close().
 func NewMockConnWithCloseError() net.Conn {
-	conn := &mockConn{closeError: true}
+	conn := mockConn{closeError: true}
 	conn.ctx, conn.cancel = context.WithCancel(context.Background())
-	return conn
+	return &conn
 }
 
 // IsMockConnCloseError is used to check err is errMockConnClose.
@@ -331,8 +331,8 @@ func (l *mockListener) Accept() (net.Conn, error) {
 	if l.n > mockListenerAcceptTimes {
 		return nil, errMockListenerAcceptFatal
 	}
-	l.n++
 	if l.error {
+		l.n++
 		return nil, errMockListenerAccept
 	}
 	if l.panic {
@@ -343,7 +343,7 @@ func (l *mockListener) Accept() (net.Conn, error) {
 		return nil, errMockListenerClosed
 	}
 	// prevent use too much CPU in readLoop
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 	return NewMockConn(), nil
 }
 
@@ -398,9 +398,9 @@ func IsMockListenerAcceptPanic(t testing.TB, err error) {
 // NewMockListenerWithCloseError is used to create a mock listener
 // that will return a errMockListenerClose when call Close().
 func NewMockListenerWithCloseError() net.Listener {
-	l := &mockListener{close: true}
-	l.ctx, l.cancel = context.WithCancel(context.Background())
-	return l
+	listener := mockListener{close: true}
+	listener.ctx, listener.cancel = context.WithCancel(context.Background())
+	return &listener
 }
 
 // IsMockListenerCloseError is used to check err is errMockListenerClose.
