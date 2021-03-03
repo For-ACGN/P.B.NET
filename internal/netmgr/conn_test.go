@@ -2,6 +2,7 @@ package netmgr
 
 import (
 	"context"
+	"io"
 	"math"
 	"net"
 	"sync"
@@ -507,6 +508,79 @@ func TestConn_MaxLimitRate(t *testing.T) {
 	})
 
 	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestConn_Write_Parallel(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() {
+		err := listener.Close()
+		require.Error(t, err)
+	}()
+	address := listener.Addr().String()
+	dial := func() (net.Conn, error) {
+		return net.Dial("tcp", address)
+	}
+
+	tListener := manager.TrackListener(listener)
+
+	t.Run("without close", func(t *testing.T) {
+		t.Run("part", func(t *testing.T) {
+			server, client := testsuite.AcceptAndDial(t, listener, dial)
+			defer func() {
+				err := client.Close()
+				require.NoError(t, err)
+			}()
+
+			read := func() {
+				_, err := io.CopyN(io.Discard, client, 96)
+				require.NoError(t, err)
+			}
+			write1 := func() {
+				n, err := server.Write(make([]byte, 32))
+				require.NoError(t, err)
+				require.Equal(t, 32, n)
+			}
+			write2 := func() {
+				n, err := server.Write(make([]byte, 64))
+				require.NoError(t, err)
+				require.Equal(t, 64, n)
+			}
+			testsuite.RunParallelTest(100, nil, nil, read, write1, write2)
+
+			err := server.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, server)
+		})
+
+		t.Run("whole", func(t *testing.T) {
+
+		})
+	})
+
+	t.Run("with close", func(t *testing.T) {
+		t.Run("part", func(t *testing.T) {
+
+		})
+
+		t.Run("whole", func(t *testing.T) {
+
+		})
+	})
+
+	err = tListener.Close()
+	require.NoError(t, err)
+
+	err = manager.Close()
 	require.NoError(t, err)
 
 	testsuite.IsDestroyed(t, manager)
