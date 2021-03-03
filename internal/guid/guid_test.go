@@ -219,7 +219,7 @@ func TestGenerator_Get_Parallel(t *testing.T) {
 			require.False(t, guid.IsZero())
 			g.Put(guid)
 		}
-		testsuite.RunParallel(100, nil, nil, get, get)
+		testsuite.RunParallelTest(100, nil, nil, get, get)
 
 		g.Close()
 
@@ -240,7 +240,7 @@ func TestGenerator_Get_Parallel(t *testing.T) {
 		cleanup := func() {
 			g.Close()
 		}
-		testsuite.RunParallel(100, init, cleanup, get, get)
+		testsuite.RunParallelTest(100, init, cleanup, get, get)
 
 		testsuite.IsDestroyed(t, g)
 	})
@@ -256,7 +256,7 @@ func TestGenerator_Close_Parallel(t *testing.T) {
 		close1 := func() {
 			g.Close()
 		}
-		testsuite.RunParallel(100, nil, nil, close1, close1)
+		testsuite.RunParallelTest(100, nil, nil, close1, close1)
 
 		testsuite.IsDestroyed(t, g)
 	})
@@ -270,7 +270,7 @@ func TestGenerator_Close_Parallel(t *testing.T) {
 		close1 := func() {
 			g.Close()
 		}
-		testsuite.RunParallel(100, init, nil, close1, close1)
+		testsuite.RunParallelTest(100, init, nil, close1, close1)
 
 		testsuite.IsDestroyed(t, g)
 	})
@@ -292,7 +292,7 @@ func TestGenerator_Parallel(t *testing.T) {
 		cleanup := func() {
 			g.Close()
 		}
-		testsuite.RunParallel(100, nil, cleanup, get, get, close1, close1)
+		testsuite.RunParallelTest(100, nil, cleanup, get, get, close1, close1)
 
 		testsuite.IsDestroyed(t, g)
 	})
@@ -312,7 +312,7 @@ func TestGenerator_Parallel(t *testing.T) {
 		cleanup := func() {
 			g.Close()
 		}
-		testsuite.RunParallel(100, init, cleanup, get, get, close1, close1)
+		testsuite.RunParallelTest(100, init, cleanup, get, get, close1, close1)
 
 		testsuite.IsDestroyed(t, g)
 	})

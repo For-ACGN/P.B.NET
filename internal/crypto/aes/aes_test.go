@@ -218,7 +218,7 @@ func TestAES_Parallel(t *testing.T) {
 					key := aes.Key()
 					require.Equal(t, test128BitKey, key)
 				}
-				testsuite.RunParallel(100, nil, nil, enc, dec, encWithIV, decWithIV, key)
+				testsuite.RunParallelTest(100, nil, nil, enc, dec, encWithIV, decWithIV, key)
 
 				testsuite.IsDestroyed(t, aes)
 			})
@@ -267,7 +267,7 @@ func TestAES_Parallel(t *testing.T) {
 					key := aes.Key()
 					require.Equal(t, test128BitKey, key)
 				}
-				testsuite.RunParallel(100, init, nil, enc, dec, encWithIV, decWithIV, key)
+				testsuite.RunParallelTest(100, init, nil, enc, dec, encWithIV, decWithIV, key)
 
 				testsuite.IsDestroyed(t, aes)
 			})

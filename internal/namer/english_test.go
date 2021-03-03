@@ -176,7 +176,7 @@ func TestEnglish_Load_Parallel(t *testing.T) {
 			err := english.checkWordNumber()
 			require.NoError(t, err)
 		}
-		testsuite.RunParallel(100, nil, cleanup, load, load)
+		testsuite.RunParallelTest(100, nil, cleanup, load, load)
 
 		testsuite.IsDestroyed(t, english)
 	})
@@ -195,7 +195,7 @@ func TestEnglish_Load_Parallel(t *testing.T) {
 			err := english.checkWordNumber()
 			require.NoError(t, err)
 		}
-		testsuite.RunParallel(100, init, cleanup, load, load)
+		testsuite.RunParallelTest(100, init, cleanup, load, load)
 
 		testsuite.IsDestroyed(t, english)
 	})
@@ -224,7 +224,7 @@ func TestEnglish_Generate_Parallel(t *testing.T) {
 			err := english.checkWordNumber()
 			require.NoError(t, err)
 		}
-		testsuite.RunParallel(100, nil, cleanup, gen, gen)
+		testsuite.RunParallelTest(100, nil, cleanup, gen, gen)
 
 		testsuite.IsDestroyed(t, english)
 	})
@@ -249,7 +249,7 @@ func TestEnglish_Generate_Parallel(t *testing.T) {
 			err := english.checkWordNumber()
 			require.NoError(t, err)
 		}
-		testsuite.RunParallel(100, init, cleanup, gen, gen)
+		testsuite.RunParallelTest(100, init, cleanup, gen, gen)
 
 		testsuite.IsDestroyed(t, english)
 	})
@@ -282,7 +282,7 @@ func TestEnglish_Parallel(t *testing.T) {
 			err := english.checkWordNumber()
 			require.NoError(t, err)
 		}
-		testsuite.RunParallel(100, nil, cleanup, load, gen, load, gen)
+		testsuite.RunParallelTest(100, nil, cleanup, load, gen, load, gen)
 
 		testsuite.IsDestroyed(t, english)
 	})
@@ -311,7 +311,7 @@ func TestEnglish_Parallel(t *testing.T) {
 			err := english.checkWordNumber()
 			require.NoError(t, err)
 		}
-		testsuite.RunParallel(100, init, cleanup, load, gen, load, gen)
+		testsuite.RunParallelTest(100, init, cleanup, load, gen, load, gen)
 
 		testsuite.IsDestroyed(t, english)
 	})

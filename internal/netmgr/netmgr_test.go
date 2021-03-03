@@ -396,7 +396,7 @@ func TestManager_Parallel(t *testing.T) {
 				getConnReadLimitRate, setConnReadLimitRate,
 				getConnWriteLimitRate, setConnWriteLimitRate,
 			}
-			testsuite.RunParallel(100, init, cleanup, fns...)
+			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
 			err := manager.Close()
 			require.NoError(t, err)
@@ -559,7 +559,7 @@ func TestManager_Parallel(t *testing.T) {
 				getConnReadLimitRate, setConnReadLimitRate,
 				getConnWriteLimitRate, setConnWriteLimitRate,
 			}
-			testsuite.RunParallel(100, init, cleanup, fns...)
+			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
 			testsuite.IsDestroyed(t, manager)
 		})
@@ -698,7 +698,7 @@ func TestManager_Parallel(t *testing.T) {
 				getConnWriteLimitRate, setConnWriteLimitRate,
 				close1, close1,
 			}
-			testsuite.RunParallel(100, init, cleanup, fns...)
+			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
 			err := manager.Close()
 			require.NoError(t, err)
@@ -840,7 +840,7 @@ func TestManager_Parallel(t *testing.T) {
 				getConnWriteLimitRate, setConnWriteLimitRate,
 				close1, close1,
 			}
-			testsuite.RunParallel(100, init, cleanup, fns...)
+			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
 			err := manager.Close()
 			require.NoError(t, err)

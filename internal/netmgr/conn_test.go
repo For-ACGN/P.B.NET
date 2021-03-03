@@ -564,7 +564,7 @@ func TestConn_Parallel(t *testing.T) {
 				getWriteLimitRate, setWriteLimitRate,
 				status, status,
 			}
-			testsuite.RunParallel(100, nil, nil, fns...)
+			testsuite.RunParallelTest(100, nil, nil, fns...)
 
 			err := tConn.Close()
 			require.NoError(t, err)
@@ -624,7 +624,7 @@ func TestConn_Parallel(t *testing.T) {
 				getWriteLimitRate, setWriteLimitRate,
 				status, status,
 			}
-			testsuite.RunParallel(100, init, cleanup, fns...)
+			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
 			err := tConn.Close()
 			require.NoError(t, err)
@@ -679,7 +679,7 @@ func TestConn_Parallel(t *testing.T) {
 				getWriteLimitRate, setWriteLimitRate,
 				status, status, close1, close1,
 			}
-			testsuite.RunParallel(100, nil, nil, fns...)
+			testsuite.RunParallelTest(100, nil, nil, fns...)
 
 			err := tConn.Close()
 			require.NoError(t, err)
@@ -735,7 +735,7 @@ func TestConn_Parallel(t *testing.T) {
 				getWriteLimitRate, setWriteLimitRate,
 				status, status, close1, close1,
 			}
-			testsuite.RunParallel(100, init, nil, fns...)
+			testsuite.RunParallelTest(100, init, nil, fns...)
 
 			err := tConn.Close()
 			require.NoError(t, err)

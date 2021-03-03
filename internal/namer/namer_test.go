@@ -169,7 +169,7 @@ func TestNamers_Parallel(t *testing.T) {
 
 					t.Log(word)
 				}
-				testsuite.RunParallel(100, nil, nil, load, gen, load, gen)
+				testsuite.RunParallelTest(100, nil, nil, load, gen, load, gen)
 
 				testsuite.IsDestroyed(t, namer)
 			})
@@ -193,7 +193,7 @@ func TestNamers_Parallel(t *testing.T) {
 
 					t.Log(word)
 				}
-				testsuite.RunParallel(100, init, nil, load, gen, load, gen)
+				testsuite.RunParallelTest(100, init, nil, load, gen, load, gen)
 
 				testsuite.IsDestroyed(t, namer)
 			})
@@ -255,7 +255,7 @@ func TestLoad_Parallel(t *testing.T) {
 		reg1, reg2, reg3, un1, un2,
 		load1, load2, load3,
 	}
-	testsuite.RunParallel(100, init, cleanup, fns...)
+	testsuite.RunParallelTest(100, init, cleanup, fns...)
 }
 
 func TestOptions(t *testing.T) {

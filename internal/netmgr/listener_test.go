@@ -320,7 +320,7 @@ func TestListener_Parallel(t *testing.T) {
 				getEstConnsNum, getEstConnsNum,
 				status, status,
 			}
-			testsuite.RunParallel(100, nil, nil, fns...)
+			testsuite.RunParallelTest(100, nil, nil, fns...)
 
 			err := tListener.Close()
 			require.NoError(t, err)
@@ -366,7 +366,7 @@ func TestListener_Parallel(t *testing.T) {
 				getEstConnsNum, getEstConnsNum,
 				status, status,
 			}
-			testsuite.RunParallel(100, init, cleanup, fns...)
+			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
 			err := tListener.Close()
 			require.NoError(t, err)
@@ -414,7 +414,7 @@ func TestListener_Parallel(t *testing.T) {
 				status, status,
 				close1, close1,
 			}
-			testsuite.RunParallel(100, nil, nil, fns...)
+			testsuite.RunParallelTest(100, nil, nil, fns...)
 
 			err := tListener.Close()
 			require.NoError(t, err)
@@ -463,7 +463,7 @@ func TestListener_Parallel(t *testing.T) {
 				status, status,
 				close1, close1,
 			}
-			testsuite.RunParallel(100, init, nil, fns...)
+			testsuite.RunParallelTest(100, init, nil, fns...)
 
 			err := tListener.Close()
 			require.NoError(t, err)
