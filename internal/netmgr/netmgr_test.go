@@ -232,6 +232,89 @@ func TestManager_Close(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
+func TestManager_TrackListener_Parallel(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	t.Run("without close", func(t *testing.T) {
+		t.Run("part", func(t *testing.T) {
+			manager := New(nil)
+
+			testsuite.RunMultiTimes(100, func() {
+				listener := testsuite.NewMockListener()
+				tListener := manager.TrackListener(listener)
+
+				g := tListener.GUID()
+
+				listeners := manager.Listeners()
+				require.Equal(t, tListener, listeners[g])
+
+				err := manager.KillListener(&g)
+				require.NoError(t, err)
+
+				testsuite.IsDestroyed(t, tListener)
+			})
+
+			err := manager.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, manager)
+		})
+
+		t.Run("whole", func(t *testing.T) {
+			var manager *Manager
+
+			init := func() {
+				manager = New(nil)
+			}
+			track := func() {
+				listener := testsuite.NewMockListener()
+				tListener := manager.TrackListener(listener)
+
+				g := tListener.GUID()
+
+				listeners := manager.Listeners()
+				require.Equal(t, tListener, listeners[g])
+
+				err := manager.KillListener(&g)
+				require.NoError(t, err)
+
+				testsuite.IsDestroyed(t, tListener)
+			}
+			cleanup := func() {
+				listeners := manager.Listeners()
+				require.Empty(t, listeners)
+
+				err := manager.Close()
+				require.NoError(t, err)
+
+				listeners = manager.Listeners()
+				require.Empty(t, listeners)
+			}
+			testsuite.RunParallelTest(100, init, cleanup, track, track)
+
+			err := manager.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, manager)
+		})
+	})
+
+	t.Run("with close", func(t *testing.T) {
+		t.Run("part", func(t *testing.T) {
+
+		})
+
+		t.Run("whole", func(t *testing.T) {
+
+		})
+	})
+}
+
+func TestManager_TrackConn_Parallel(t *testing.T) {
+
+}
+
 func TestManager_Parallel(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
@@ -696,7 +779,7 @@ func TestManager_Parallel(t *testing.T) {
 				getConnLimitRate, setConnLimitRate,
 				getConnReadLimitRate, setConnReadLimitRate,
 				getConnWriteLimitRate, setConnWriteLimitRate,
-				close1, close1,
+				close1, close1, close1, close1,
 			}
 			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
@@ -838,7 +921,7 @@ func TestManager_Parallel(t *testing.T) {
 				getConnLimitRate, setConnLimitRate,
 				getConnReadLimitRate, setConnReadLimitRate,
 				getConnWriteLimitRate, setConnWriteLimitRate,
-				close1, close1,
+				close1, close1, close1, close1,
 			}
 			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
