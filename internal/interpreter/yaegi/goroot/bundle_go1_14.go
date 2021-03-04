@@ -51,7 +51,15 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/csv"
+	"encoding/gob"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
+	"encoding/xml"
 	"errors"
+	"expvar"
+	"flag"
+	"fmt"
 	"go/constant"
 	"go/token"
 	"io"
@@ -115,7 +123,15 @@ func init() {
 	init_encoding_base64()
 	init_encoding_binary()
 	init_encoding_csv()
+	init_encoding_gob()
+	init_encoding_hex()
+	init_encoding_json()
+	init_encoding_pem()
+	init_encoding_xml()
 	init_errors()
+	init_expvar()
+	init_flag()
+	init_fmt()
 	init_io()
 	init_math()
 	init_math_big()
@@ -3136,6 +3152,224 @@ func init_encoding_csv() {
 	}
 }
 
+func init_encoding_gob() {
+	Symbols["encoding/gob"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"NewDecoder":   reflect.ValueOf(gob.NewDecoder),
+		"NewEncoder":   reflect.ValueOf(gob.NewEncoder),
+		"Register":     reflect.ValueOf(gob.Register),
+		"RegisterName": reflect.ValueOf(gob.RegisterName),
+
+		// type definitions
+		"CommonType": reflect.ValueOf((*gob.CommonType)(nil)),
+		"Decoder":    reflect.ValueOf((*gob.Decoder)(nil)),
+		"Encoder":    reflect.ValueOf((*gob.Encoder)(nil)),
+		"GobDecoder": reflect.ValueOf((*gob.GobDecoder)(nil)),
+		"GobEncoder": reflect.ValueOf((*gob.GobEncoder)(nil)),
+
+		// interface wrapper definitions
+		"_GobDecoder": reflect.ValueOf((*_encoding_gob_GobDecoder)(nil)),
+		"_GobEncoder": reflect.ValueOf((*_encoding_gob_GobEncoder)(nil)),
+	}
+}
+
+// _encoding_gob_GobDecoder is an interface wrapper for GobDecoder type
+type _encoding_gob_GobDecoder struct {
+	WGobDecode func(a0 []byte) error
+}
+
+func (W _encoding_gob_GobDecoder) GobDecode(a0 []byte) error { return W.WGobDecode(a0) }
+
+// _encoding_gob_GobEncoder is an interface wrapper for GobEncoder type
+type _encoding_gob_GobEncoder struct {
+	WGobEncode func() ([]byte, error)
+}
+
+func (W _encoding_gob_GobEncoder) GobEncode() ([]byte, error) { return W.WGobEncode() }
+
+func init_encoding_hex() {
+	Symbols["encoding/hex"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Decode":         reflect.ValueOf(hex.Decode),
+		"DecodeString":   reflect.ValueOf(hex.DecodeString),
+		"DecodedLen":     reflect.ValueOf(hex.DecodedLen),
+		"Dump":           reflect.ValueOf(hex.Dump),
+		"Dumper":         reflect.ValueOf(hex.Dumper),
+		"Encode":         reflect.ValueOf(hex.Encode),
+		"EncodeToString": reflect.ValueOf(hex.EncodeToString),
+		"EncodedLen":     reflect.ValueOf(hex.EncodedLen),
+		"ErrLength":      reflect.ValueOf(&hex.ErrLength).Elem(),
+		"NewDecoder":     reflect.ValueOf(hex.NewDecoder),
+		"NewEncoder":     reflect.ValueOf(hex.NewEncoder),
+
+		// type definitions
+		"InvalidByteError": reflect.ValueOf((*hex.InvalidByteError)(nil)),
+	}
+}
+
+func init_encoding_json() {
+	Symbols["encoding/json"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Compact":       reflect.ValueOf(json.Compact),
+		"HTMLEscape":    reflect.ValueOf(json.HTMLEscape),
+		"Indent":        reflect.ValueOf(json.Indent),
+		"Marshal":       reflect.ValueOf(json.Marshal),
+		"MarshalIndent": reflect.ValueOf(json.MarshalIndent),
+		"NewDecoder":    reflect.ValueOf(json.NewDecoder),
+		"NewEncoder":    reflect.ValueOf(json.NewEncoder),
+		"Unmarshal":     reflect.ValueOf(json.Unmarshal),
+		"Valid":         reflect.ValueOf(json.Valid),
+
+		// type definitions
+		"Decoder":               reflect.ValueOf((*json.Decoder)(nil)),
+		"Delim":                 reflect.ValueOf((*json.Delim)(nil)),
+		"Encoder":               reflect.ValueOf((*json.Encoder)(nil)),
+		"InvalidUTF8Error":      reflect.ValueOf((*json.InvalidUTF8Error)(nil)),
+		"InvalidUnmarshalError": reflect.ValueOf((*json.InvalidUnmarshalError)(nil)),
+		"Marshaler":             reflect.ValueOf((*json.Marshaler)(nil)),
+		"MarshalerError":        reflect.ValueOf((*json.MarshalerError)(nil)),
+		"Number":                reflect.ValueOf((*json.Number)(nil)),
+		"RawMessage":            reflect.ValueOf((*json.RawMessage)(nil)),
+		"SyntaxError":           reflect.ValueOf((*json.SyntaxError)(nil)),
+		"Token":                 reflect.ValueOf((*json.Token)(nil)),
+		"UnmarshalFieldError":   reflect.ValueOf((*json.UnmarshalFieldError)(nil)),
+		"UnmarshalTypeError":    reflect.ValueOf((*json.UnmarshalTypeError)(nil)),
+		"Unmarshaler":           reflect.ValueOf((*json.Unmarshaler)(nil)),
+		"UnsupportedTypeError":  reflect.ValueOf((*json.UnsupportedTypeError)(nil)),
+		"UnsupportedValueError": reflect.ValueOf((*json.UnsupportedValueError)(nil)),
+
+		// interface wrapper definitions
+		"_Marshaler":   reflect.ValueOf((*_encoding_json_Marshaler)(nil)),
+		"_Token":       reflect.ValueOf((*_encoding_json_Token)(nil)),
+		"_Unmarshaler": reflect.ValueOf((*_encoding_json_Unmarshaler)(nil)),
+	}
+}
+
+// _encoding_json_Marshaler is an interface wrapper for Marshaler type
+type _encoding_json_Marshaler struct {
+	WMarshalJSON func() ([]byte, error)
+}
+
+func (W _encoding_json_Marshaler) MarshalJSON() ([]byte, error) { return W.WMarshalJSON() }
+
+// _encoding_json_Token is an interface wrapper for Token type
+type _encoding_json_Token struct {
+}
+
+// _encoding_json_Unmarshaler is an interface wrapper for Unmarshaler type
+type _encoding_json_Unmarshaler struct {
+	WUnmarshalJSON func(a0 []byte) error
+}
+
+func (W _encoding_json_Unmarshaler) UnmarshalJSON(a0 []byte) error { return W.WUnmarshalJSON(a0) }
+
+func init_encoding_pem() {
+	Symbols["encoding/pem"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Decode":         reflect.ValueOf(pem.Decode),
+		"Encode":         reflect.ValueOf(pem.Encode),
+		"EncodeToMemory": reflect.ValueOf(pem.EncodeToMemory),
+
+		// type definitions
+		"Block": reflect.ValueOf((*pem.Block)(nil)),
+	}
+}
+
+func init_encoding_xml() {
+	Symbols["encoding/xml"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"CopyToken":       reflect.ValueOf(xml.CopyToken),
+		"Escape":          reflect.ValueOf(xml.Escape),
+		"EscapeText":      reflect.ValueOf(xml.EscapeText),
+		"HTMLAutoClose":   reflect.ValueOf(&xml.HTMLAutoClose).Elem(),
+		"HTMLEntity":      reflect.ValueOf(&xml.HTMLEntity).Elem(),
+		"Header":          reflect.ValueOf(constant.MakeFromLiteral("\"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\\n\"", token.STRING, 0)),
+		"Marshal":         reflect.ValueOf(xml.Marshal),
+		"MarshalIndent":   reflect.ValueOf(xml.MarshalIndent),
+		"NewDecoder":      reflect.ValueOf(xml.NewDecoder),
+		"NewEncoder":      reflect.ValueOf(xml.NewEncoder),
+		"NewTokenDecoder": reflect.ValueOf(xml.NewTokenDecoder),
+		"Unmarshal":       reflect.ValueOf(xml.Unmarshal),
+
+		// type definitions
+		"Attr":                 reflect.ValueOf((*xml.Attr)(nil)),
+		"CharData":             reflect.ValueOf((*xml.CharData)(nil)),
+		"Comment":              reflect.ValueOf((*xml.Comment)(nil)),
+		"Decoder":              reflect.ValueOf((*xml.Decoder)(nil)),
+		"Directive":            reflect.ValueOf((*xml.Directive)(nil)),
+		"Encoder":              reflect.ValueOf((*xml.Encoder)(nil)),
+		"EndElement":           reflect.ValueOf((*xml.EndElement)(nil)),
+		"Marshaler":            reflect.ValueOf((*xml.Marshaler)(nil)),
+		"MarshalerAttr":        reflect.ValueOf((*xml.MarshalerAttr)(nil)),
+		"Name":                 reflect.ValueOf((*xml.Name)(nil)),
+		"ProcInst":             reflect.ValueOf((*xml.ProcInst)(nil)),
+		"StartElement":         reflect.ValueOf((*xml.StartElement)(nil)),
+		"SyntaxError":          reflect.ValueOf((*xml.SyntaxError)(nil)),
+		"TagPathError":         reflect.ValueOf((*xml.TagPathError)(nil)),
+		"Token":                reflect.ValueOf((*xml.Token)(nil)),
+		"TokenReader":          reflect.ValueOf((*xml.TokenReader)(nil)),
+		"UnmarshalError":       reflect.ValueOf((*xml.UnmarshalError)(nil)),
+		"Unmarshaler":          reflect.ValueOf((*xml.Unmarshaler)(nil)),
+		"UnmarshalerAttr":      reflect.ValueOf((*xml.UnmarshalerAttr)(nil)),
+		"UnsupportedTypeError": reflect.ValueOf((*xml.UnsupportedTypeError)(nil)),
+
+		// interface wrapper definitions
+		"_Marshaler":       reflect.ValueOf((*_encoding_xml_Marshaler)(nil)),
+		"_MarshalerAttr":   reflect.ValueOf((*_encoding_xml_MarshalerAttr)(nil)),
+		"_Token":           reflect.ValueOf((*_encoding_xml_Token)(nil)),
+		"_TokenReader":     reflect.ValueOf((*_encoding_xml_TokenReader)(nil)),
+		"_Unmarshaler":     reflect.ValueOf((*_encoding_xml_Unmarshaler)(nil)),
+		"_UnmarshalerAttr": reflect.ValueOf((*_encoding_xml_UnmarshalerAttr)(nil)),
+	}
+}
+
+// _encoding_xml_Marshaler is an interface wrapper for Marshaler type
+type _encoding_xml_Marshaler struct {
+	WMarshalXML func(e *xml.Encoder, start xml.StartElement) error
+}
+
+func (W _encoding_xml_Marshaler) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	return W.WMarshalXML(e, start)
+}
+
+// _encoding_xml_MarshalerAttr is an interface wrapper for MarshalerAttr type
+type _encoding_xml_MarshalerAttr struct {
+	WMarshalXMLAttr func(name xml.Name) (xml.Attr, error)
+}
+
+func (W _encoding_xml_MarshalerAttr) MarshalXMLAttr(name xml.Name) (xml.Attr, error) {
+	return W.WMarshalXMLAttr(name)
+}
+
+// _encoding_xml_Token is an interface wrapper for Token type
+type _encoding_xml_Token struct {
+}
+
+// _encoding_xml_TokenReader is an interface wrapper for TokenReader type
+type _encoding_xml_TokenReader struct {
+	WToken func() (xml.Token, error)
+}
+
+func (W _encoding_xml_TokenReader) Token() (xml.Token, error) { return W.WToken() }
+
+// _encoding_xml_Unmarshaler is an interface wrapper for Unmarshaler type
+type _encoding_xml_Unmarshaler struct {
+	WUnmarshalXML func(d *xml.Decoder, start xml.StartElement) error
+}
+
+func (W _encoding_xml_Unmarshaler) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	return W.WUnmarshalXML(d, start)
+}
+
+// _encoding_xml_UnmarshalerAttr is an interface wrapper for UnmarshalerAttr type
+type _encoding_xml_UnmarshalerAttr struct {
+	WUnmarshalXMLAttr func(attr xml.Attr) error
+}
+
+func (W _encoding_xml_UnmarshalerAttr) UnmarshalXMLAttr(attr xml.Attr) error {
+	return W.WUnmarshalXMLAttr(attr)
+}
+
 func init_errors() {
 	Symbols["errors"] = map[string]reflect.Value{
 		// function, constant and variable definitions
@@ -3145,6 +3379,213 @@ func init_errors() {
 		"Unwrap": reflect.ValueOf(errors.Unwrap),
 	}
 }
+
+func init_expvar() {
+	Symbols["expvar"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Do":        reflect.ValueOf(expvar.Do),
+		"Get":       reflect.ValueOf(expvar.Get),
+		"Handler":   reflect.ValueOf(expvar.Handler),
+		"NewFloat":  reflect.ValueOf(expvar.NewFloat),
+		"NewInt":    reflect.ValueOf(expvar.NewInt),
+		"NewMap":    reflect.ValueOf(expvar.NewMap),
+		"NewString": reflect.ValueOf(expvar.NewString),
+		"Publish":   reflect.ValueOf(expvar.Publish),
+
+		// type definitions
+		"Float":    reflect.ValueOf((*expvar.Float)(nil)),
+		"Func":     reflect.ValueOf((*expvar.Func)(nil)),
+		"Int":      reflect.ValueOf((*expvar.Int)(nil)),
+		"KeyValue": reflect.ValueOf((*expvar.KeyValue)(nil)),
+		"Map":      reflect.ValueOf((*expvar.Map)(nil)),
+		"String":   reflect.ValueOf((*expvar.String)(nil)),
+		"Var":      reflect.ValueOf((*expvar.Var)(nil)),
+
+		// interface wrapper definitions
+		"_Var": reflect.ValueOf((*_expvar_Var)(nil)),
+	}
+}
+
+// _expvar_Var is an interface wrapper for Var type
+type _expvar_Var struct {
+	WString func() string
+}
+
+func (W _expvar_Var) String() string { return W.WString() }
+
+func init_flag() {
+	Symbols["flag"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Arg":             reflect.ValueOf(flag.Arg),
+		"Args":            reflect.ValueOf(flag.Args),
+		"Bool":            reflect.ValueOf(flag.Bool),
+		"BoolVar":         reflect.ValueOf(flag.BoolVar),
+		"CommandLine":     reflect.ValueOf(&flag.CommandLine).Elem(),
+		"ContinueOnError": reflect.ValueOf(flag.ContinueOnError),
+		"Duration":        reflect.ValueOf(flag.Duration),
+		"DurationVar":     reflect.ValueOf(flag.DurationVar),
+		"ErrHelp":         reflect.ValueOf(&flag.ErrHelp).Elem(),
+		"ExitOnError":     reflect.ValueOf(flag.ExitOnError),
+		"Float64":         reflect.ValueOf(flag.Float64),
+		"Float64Var":      reflect.ValueOf(flag.Float64Var),
+		"Int":             reflect.ValueOf(flag.Int),
+		"Int64":           reflect.ValueOf(flag.Int64),
+		"Int64Var":        reflect.ValueOf(flag.Int64Var),
+		"IntVar":          reflect.ValueOf(flag.IntVar),
+		"Lookup":          reflect.ValueOf(flag.Lookup),
+		"NArg":            reflect.ValueOf(flag.NArg),
+		"NFlag":           reflect.ValueOf(flag.NFlag),
+		"NewFlagSet":      reflect.ValueOf(flag.NewFlagSet),
+		"PanicOnError":    reflect.ValueOf(flag.PanicOnError),
+		"Parse":           reflect.ValueOf(flag.Parse),
+		"Parsed":          reflect.ValueOf(flag.Parsed),
+		"PrintDefaults":   reflect.ValueOf(flag.PrintDefaults),
+		"Set":             reflect.ValueOf(flag.Set),
+		"String":          reflect.ValueOf(flag.String),
+		"StringVar":       reflect.ValueOf(flag.StringVar),
+		"Uint":            reflect.ValueOf(flag.Uint),
+		"Uint64":          reflect.ValueOf(flag.Uint64),
+		"Uint64Var":       reflect.ValueOf(flag.Uint64Var),
+		"UintVar":         reflect.ValueOf(flag.UintVar),
+		"UnquoteUsage":    reflect.ValueOf(flag.UnquoteUsage),
+		"Usage":           reflect.ValueOf(&flag.Usage).Elem(),
+		"Var":             reflect.ValueOf(flag.Var),
+		"Visit":           reflect.ValueOf(flag.Visit),
+		"VisitAll":        reflect.ValueOf(flag.VisitAll),
+
+		// type definitions
+		"ErrorHandling": reflect.ValueOf((*flag.ErrorHandling)(nil)),
+		"Flag":          reflect.ValueOf((*flag.Flag)(nil)),
+		"FlagSet":       reflect.ValueOf((*flag.FlagSet)(nil)),
+		"Getter":        reflect.ValueOf((*flag.Getter)(nil)),
+		"Value":         reflect.ValueOf((*flag.Value)(nil)),
+
+		// interface wrapper definitions
+		"_Getter": reflect.ValueOf((*_flag_Getter)(nil)),
+		"_Value":  reflect.ValueOf((*_flag_Value)(nil)),
+	}
+}
+
+// _flag_Getter is an interface wrapper for Getter type
+type _flag_Getter struct {
+	WGet    func() interface{}
+	WSet    func(a0 string) error
+	WString func() string
+}
+
+func (W _flag_Getter) Get() interface{}    { return W.WGet() }
+func (W _flag_Getter) Set(a0 string) error { return W.WSet(a0) }
+func (W _flag_Getter) String() string      { return W.WString() }
+
+// _flag_Value is an interface wrapper for Value type
+type _flag_Value struct {
+	WSet    func(a0 string) error
+	WString func() string
+}
+
+func (W _flag_Value) Set(a0 string) error { return W.WSet(a0) }
+func (W _flag_Value) String() string      { return W.WString() }
+
+func init_fmt() {
+	Symbols["fmt"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Errorf":   reflect.ValueOf(fmt.Errorf),
+		"Fprint":   reflect.ValueOf(fmt.Fprint),
+		"Fprintf":  reflect.ValueOf(fmt.Fprintf),
+		"Fprintln": reflect.ValueOf(fmt.Fprintln),
+		"Fscan":    reflect.ValueOf(fmt.Fscan),
+		"Fscanf":   reflect.ValueOf(fmt.Fscanf),
+		"Fscanln":  reflect.ValueOf(fmt.Fscanln),
+		"Print":    reflect.ValueOf(fmt.Print),
+		"Printf":   reflect.ValueOf(fmt.Printf),
+		"Println":  reflect.ValueOf(fmt.Println),
+		"Scan":     reflect.ValueOf(fmt.Scan),
+		"Scanf":    reflect.ValueOf(fmt.Scanf),
+		"Scanln":   reflect.ValueOf(fmt.Scanln),
+		"Sprint":   reflect.ValueOf(fmt.Sprint),
+		"Sprintf":  reflect.ValueOf(fmt.Sprintf),
+		"Sprintln": reflect.ValueOf(fmt.Sprintln),
+		"Sscan":    reflect.ValueOf(fmt.Sscan),
+		"Sscanf":   reflect.ValueOf(fmt.Sscanf),
+		"Sscanln":  reflect.ValueOf(fmt.Sscanln),
+
+		// type definitions
+		"Formatter":  reflect.ValueOf((*fmt.Formatter)(nil)),
+		"GoStringer": reflect.ValueOf((*fmt.GoStringer)(nil)),
+		"ScanState":  reflect.ValueOf((*fmt.ScanState)(nil)),
+		"Scanner":    reflect.ValueOf((*fmt.Scanner)(nil)),
+		"State":      reflect.ValueOf((*fmt.State)(nil)),
+		"Stringer":   reflect.ValueOf((*fmt.Stringer)(nil)),
+
+		// interface wrapper definitions
+		"_Formatter":  reflect.ValueOf((*_fmt_Formatter)(nil)),
+		"_GoStringer": reflect.ValueOf((*_fmt_GoStringer)(nil)),
+		"_ScanState":  reflect.ValueOf((*_fmt_ScanState)(nil)),
+		"_Scanner":    reflect.ValueOf((*_fmt_Scanner)(nil)),
+		"_State":      reflect.ValueOf((*_fmt_State)(nil)),
+		"_Stringer":   reflect.ValueOf((*_fmt_Stringer)(nil)),
+	}
+}
+
+// _fmt_Formatter is an interface wrapper for Formatter type
+type _fmt_Formatter struct {
+	WFormat func(f fmt.State, c rune)
+}
+
+func (W _fmt_Formatter) Format(f fmt.State, c rune) { W.WFormat(f, c) }
+
+// _fmt_GoStringer is an interface wrapper for GoStringer type
+type _fmt_GoStringer struct {
+	WGoString func() string
+}
+
+func (W _fmt_GoStringer) GoString() string { return W.WGoString() }
+
+// _fmt_ScanState is an interface wrapper for ScanState type
+type _fmt_ScanState struct {
+	WRead       func(buf []byte) (n int, err error)
+	WReadRune   func() (r rune, size int, err error)
+	WSkipSpace  func()
+	WToken      func(skipSpace bool, f func(rune) bool) (token []byte, err error)
+	WUnreadRune func() error
+	WWidth      func() (wid int, ok bool)
+}
+
+func (W _fmt_ScanState) Read(buf []byte) (n int, err error)      { return W.WRead(buf) }
+func (W _fmt_ScanState) ReadRune() (r rune, size int, err error) { return W.WReadRune() }
+func (W _fmt_ScanState) SkipSpace()                              { W.WSkipSpace() }
+func (W _fmt_ScanState) Token(skipSpace bool, f func(rune) bool) (token []byte, err error) {
+	return W.WToken(skipSpace, f)
+}
+func (W _fmt_ScanState) UnreadRune() error         { return W.WUnreadRune() }
+func (W _fmt_ScanState) Width() (wid int, ok bool) { return W.WWidth() }
+
+// _fmt_Scanner is an interface wrapper for Scanner type
+type _fmt_Scanner struct {
+	WScan func(state fmt.ScanState, verb rune) error
+}
+
+func (W _fmt_Scanner) Scan(state fmt.ScanState, verb rune) error { return W.WScan(state, verb) }
+
+// _fmt_State is an interface wrapper for State type
+type _fmt_State struct {
+	WFlag      func(c int) bool
+	WPrecision func() (prec int, ok bool)
+	WWidth     func() (wid int, ok bool)
+	WWrite     func(b []byte) (n int, err error)
+}
+
+func (W _fmt_State) Flag(c int) bool                   { return W.WFlag(c) }
+func (W _fmt_State) Precision() (prec int, ok bool)    { return W.WPrecision() }
+func (W _fmt_State) Width() (wid int, ok bool)         { return W.WWidth() }
+func (W _fmt_State) Write(b []byte) (n int, err error) { return W.WWrite(b) }
+
+// _fmt_Stringer is an interface wrapper for Stringer type
+type _fmt_Stringer struct {
+	WString func() string
+}
+
+func (W _fmt_Stringer) String() string { return W.WString() }
 
 func init_io() {
 	Symbols["io"] = map[string]reflect.Value{
