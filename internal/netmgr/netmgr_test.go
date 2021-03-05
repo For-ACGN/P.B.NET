@@ -369,7 +369,76 @@ func TestManager_TrackListener_Parallel(t *testing.T) {
 }
 
 func TestManager_TrackConn_Parallel(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
 
+	t.Run("without close", func(t *testing.T) {
+		t.Run("part", func(t *testing.T) {
+			manager := New(nil)
+
+			testsuite.RunMultiTimes(100, func() {
+				conn := testsuite.NewMockConn()
+				tConn := manager.TrackConn(conn)
+
+				g := tConn.GUID()
+
+				conns := manager.Conns()
+				require.Equal(t, tConn, conns[g])
+
+				err := manager.KillConn(&g)
+				require.NoError(t, err)
+
+				testsuite.IsDestroyed(t, tConn)
+			})
+
+			err := manager.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, manager)
+		})
+
+		t.Run("whole", func(t *testing.T) {
+			var manager *Manager
+
+			init := func() {
+				manager = New(nil)
+			}
+			track := func() {
+				conn := testsuite.NewMockConn()
+				tConn := manager.TrackConn(conn)
+
+				g := tConn.GUID()
+
+				conns := manager.Conns()
+				require.Equal(t, tConn, conns[g])
+
+				err := manager.KillConn(&g)
+				require.NoError(t, err)
+
+				testsuite.IsDestroyed(t, tConn)
+			}
+			cleanup := func() {
+				conns := manager.Conns()
+				require.Empty(t, conns)
+
+				err := manager.Close()
+				require.NoError(t, err)
+
+				conns = manager.Conns()
+				require.Empty(t, conns)
+			}
+			testsuite.RunParallelTest(100, init, cleanup, track, track)
+
+			err := manager.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, manager)
+		})
+	})
+
+	t.Run("with close", func(t *testing.T) {
+
+	})
 }
 
 func TestManager_Parallel(t *testing.T) {
