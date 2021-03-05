@@ -12,6 +12,59 @@ import (
 	"project/internal/nettool"
 )
 
+// Interface is used to wrap Manager and not export functions about Track and Close.
+type Interface interface {
+	// GetListener is used to get listener by guid.
+	GetListener(guid *guid.GUID) (*Listener, error)
+
+	// GetConn is used to get connection by guid.
+	GetConn(guid *guid.GUID) (*Conn, error)
+
+	// KillListener is used to kill listener by guid.
+	KillListener(guid *guid.GUID) error
+
+	// KillConn is used to kill connection by guid.
+	KillConn(guid *guid.GUID) error
+
+	// Listeners is used to get all tracked listeners.
+	Listeners() map[guid.GUID]*Listener
+
+	// Conns is used to get all tracked connections.
+	Conns() map[guid.GUID]*Conn
+
+	// GetListenerMaxConns is used to get the default maximum number of
+	// connections that each listener can established, zero value means no limit.
+	GetListenerMaxConns() uint64
+
+	// SetListenerMaxConns is used to set the default maximum number of
+	// connections that each listener can established, zero value means no limit.
+	SetListenerMaxConns(n uint64)
+
+	// GetConnLimitRate is used to get the default read and write limit
+	// rate of connection, zero value means no limit.
+	GetConnLimitRate() (read, write uint64)
+
+	// SetConnLimitRate is used to set the default read and write limit
+	// rate of connection, zero value means no limit.
+	SetConnLimitRate(read, write uint64)
+
+	// GetConnReadLimitRate is used to get the default read limit rate of
+	// connection, zero value means no limit.
+	GetConnReadLimitRate() uint64
+
+	// SetConnReadLimitRate is used to set the default read limit rate of
+	// connection, zero value means no limit.
+	SetConnReadLimitRate(n uint64)
+
+	// GetConnWriteLimitRate is used to get the default write limit rate of
+	// connection, zero value means no limit.
+	GetConnWriteLimitRate() uint64
+
+	// SetConnWriteLimitRate is used to set the default write limit rate of
+	// connection, zero value means no limit.
+	SetConnWriteLimitRate(n uint64)
+}
+
 // Manager is the network manager, it used to store status about listeners
 // and connections. It can close the listeners and connections by guid,
 // limit established connections about each listener, it also can set the
