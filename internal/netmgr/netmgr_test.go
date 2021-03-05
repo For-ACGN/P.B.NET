@@ -302,11 +302,68 @@ func TestManager_TrackListener_Parallel(t *testing.T) {
 
 	t.Run("with close", func(t *testing.T) {
 		t.Run("part", func(t *testing.T) {
+			manager := New(nil)
 
+			track := func() {
+				listener := testsuite.NewMockListener()
+				tListener := manager.TrackListener(listener)
+
+				g := tListener.GUID()
+
+				manager.Listeners()
+
+				_ = manager.KillListener(&g)
+
+				testsuite.IsDestroyed(t, tListener)
+			}
+			close1 := func() {
+				err := manager.Close()
+				require.NoError(t, err)
+			}
+			fns := []func(){
+				track, track, track, track,
+				close1, close1, close1, close1,
+			}
+			testsuite.RunParallelTest(100, nil, nil, fns...)
+
+			err := manager.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, manager)
 		})
 
 		t.Run("whole", func(t *testing.T) {
+			var manager *Manager
 
+			init := func() {
+				manager = New(nil)
+			}
+			track := func() {
+				listener := testsuite.NewMockListener()
+				tListener := manager.TrackListener(listener)
+
+				g := tListener.GUID()
+
+				manager.Listeners()
+
+				_ = manager.KillListener(&g)
+
+				testsuite.IsDestroyed(t, tListener)
+			}
+			close1 := func() {
+				err := manager.Close()
+				require.NoError(t, err)
+			}
+			fns := []func(){
+				track, track, track, track,
+				close1, close1, close1, close1,
+			}
+			testsuite.RunParallelTest(100, init, nil, fns...)
+
+			err := manager.Close()
+			require.NoError(t, err)
+
+			testsuite.IsDestroyed(t, manager)
 		})
 	})
 }
