@@ -20,11 +20,11 @@ type Interface interface {
 	// GetConn is used to get connection by guid.
 	GetConn(guid *guid.GUID) (*Conn, error)
 
-	// KillListener is used to kill listener by guid.
-	KillListener(guid *guid.GUID) error
+	// CloseListener is used to close listener by guid.
+	CloseListener(guid *guid.GUID) error
 
-	// KillConn is used to kill connection by guid.
-	KillConn(guid *guid.GUID) error
+	// CloseConn is used to close connection by guid.
+	CloseConn(guid *guid.GUID) error
 
 	// Listeners is used to get all tracked listeners.
 	Listeners() map[guid.GUID]*Listener
@@ -37,7 +37,8 @@ type Interface interface {
 	GetListenerMaxConns() uint64
 
 	// SetListenerMaxConns is used to set the default maximum number of
-	// connections that each listener can established, zero value means no limit.
+	// connections that each listener can established, zero value means
+	// no limit. Only subsequent new tracked listeners will be affected.
 	SetListenerMaxConns(n uint64)
 
 	// GetConnLimitRate is used to get the default read and write limit
@@ -45,7 +46,8 @@ type Interface interface {
 	GetConnLimitRate() (read, write uint64)
 
 	// SetConnLimitRate is used to set the default read and write limit
-	// rate of connection, zero value means no limit.
+	// rate of connection, zero value means no limit. Only subsequent
+	// new tracked connections will be affected.
 	SetConnLimitRate(read, write uint64)
 
 	// GetConnReadLimitRate is used to get the default read limit rate of
@@ -53,7 +55,8 @@ type Interface interface {
 	GetConnReadLimitRate() uint64
 
 	// SetConnReadLimitRate is used to set the default read limit rate of
-	// connection, zero value means no limit.
+	// connection, zero value means no limit. Only subsequent new tracked
+	// connections will be affected.
 	SetConnReadLimitRate(n uint64)
 
 	// GetConnWriteLimitRate is used to get the default write limit rate of
@@ -61,7 +64,8 @@ type Interface interface {
 	GetConnWriteLimitRate() uint64
 
 	// SetConnWriteLimitRate is used to set the default write limit rate of
-	// connection, zero value means no limit.
+	// connection, zero value means no limit. Only subsequent new tracked
+	// connections will be affected.
 	SetConnWriteLimitRate(n uint64)
 }
 
@@ -136,8 +140,18 @@ func (mgr *Manager) GetConn(guid *guid.GUID) (*Conn, error) {
 	return nil, errors.Errorf("connection: %s is not exist", guid)
 }
 
-// KillListener is used to kill listener by guid.
-func (mgr *Manager) KillListener(guid *guid.GUID) error {
+// GetListenerMaxConnsByGUID is used to get listener maximum number of the
+// established connection by GUID, zero value means no limit.
+func (mgr *Manager) GetListenerMaxConnsByGUID(guid *guid.GUID) (uint64, error) {
+	listener, err := mgr.GetListener(guid)
+	if err != nil {
+		return 0, err
+	}
+	return listener.GetMaxConns(), nil
+}
+
+// CloseListener is used to close listener by guid.
+func (mgr *Manager) CloseListener(guid *guid.GUID) error {
 	listener, err := mgr.GetListener(guid)
 	if err != nil {
 		return err
@@ -145,8 +159,8 @@ func (mgr *Manager) KillListener(guid *guid.GUID) error {
 	return listener.Close()
 }
 
-// KillConn is used to kill connection by guid.
-func (mgr *Manager) KillConn(guid *guid.GUID) error {
+// CloseConn is used to close connection by guid.
+func (mgr *Manager) CloseConn(guid *guid.GUID) error {
 	conn, err := mgr.GetConn(guid)
 	if err != nil {
 		return err
@@ -185,7 +199,8 @@ func (mgr *Manager) GetListenerMaxConns() uint64 {
 }
 
 // SetListenerMaxConns is used to set the default maximum number of
-// connections that each listener can established, zero value means no limit.
+// connections that each listener can established, zero value means
+// no limit. Only subsequent new tracked listeners will be affected.
 func (mgr *Manager) SetListenerMaxConns(n uint64) {
 	mgr.defaultConfigRWM.Lock()
 	defer mgr.defaultConfigRWM.Unlock()
@@ -201,7 +216,8 @@ func (mgr *Manager) GetConnLimitRate() (read, write uint64) {
 }
 
 // SetConnLimitRate is used to set the default read and write limit
-// rate of connection, zero value means no limit.
+// rate of connection, zero value means no limit. Only subsequent
+// new tracked connections will be affected.
 func (mgr *Manager) SetConnLimitRate(read, write uint64) {
 	mgr.defaultConfigRWM.Lock()
 	defer mgr.defaultConfigRWM.Unlock()
@@ -218,7 +234,8 @@ func (mgr *Manager) GetConnReadLimitRate() uint64 {
 }
 
 // SetConnReadLimitRate is used to set the default read limit rate of
-// connection, zero value means no limit.
+// connection, zero value means no limit. Only subsequent new tracked
+// connections will be affected.
 func (mgr *Manager) SetConnReadLimitRate(n uint64) {
 	mgr.defaultConfigRWM.Lock()
 	defer mgr.defaultConfigRWM.Unlock()
@@ -234,7 +251,8 @@ func (mgr *Manager) GetConnWriteLimitRate() uint64 {
 }
 
 // SetConnWriteLimitRate is used to set the default write limit rate of
-// connection, zero value means no limit.
+// connection, zero value means no limit. Only subsequent new tracked
+// connections will be affected.
 func (mgr *Manager) SetConnWriteLimitRate(n uint64) {
 	mgr.defaultConfigRWM.Lock()
 	defer mgr.defaultConfigRWM.Unlock()

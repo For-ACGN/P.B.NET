@@ -63,7 +63,7 @@ func TestManager_TrackConn(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
-func TestManager_KillListener(t *testing.T) {
+func TestManager_CloseListener(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
@@ -76,13 +76,13 @@ func TestManager_KillListener(t *testing.T) {
 	require.Len(t, listeners, 1)
 
 	g := tListener.GUID()
-	err := manager.KillListener(&g)
+	err := manager.CloseListener(&g)
 	require.NoError(t, err)
 
 	listeners = manager.Listeners()
 	require.Empty(t, listeners)
 
-	err = manager.KillListener(&g)
+	err = manager.CloseListener(&g)
 	require.Error(t, err)
 
 	err = manager.Close()
@@ -91,7 +91,7 @@ func TestManager_KillListener(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
-func TestManager_KillConn(t *testing.T) {
+func TestManager_CloseConn(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
@@ -104,13 +104,13 @@ func TestManager_KillConn(t *testing.T) {
 	require.Len(t, conns, 1)
 
 	g := tConn.GUID()
-	err := manager.KillConn(&g)
+	err := manager.CloseConn(&g)
 	require.NoError(t, err)
 
 	conns = manager.Conns()
 	require.Empty(t, conns)
 
-	err = manager.KillConn(&g)
+	err = manager.CloseConn(&g)
 	require.Error(t, err)
 
 	err = manager.Close()
@@ -249,7 +249,7 @@ func TestManager_TrackListener_Parallel(t *testing.T) {
 				listeners := manager.Listeners()
 				require.Equal(t, tListener, listeners[g])
 
-				err := manager.KillListener(&g)
+				err := manager.CloseListener(&g)
 				require.NoError(t, err)
 
 				testsuite.IsDestroyed(t, tListener)
@@ -276,7 +276,7 @@ func TestManager_TrackListener_Parallel(t *testing.T) {
 				listeners := manager.Listeners()
 				require.Equal(t, tListener, listeners[g])
 
-				err := manager.KillListener(&g)
+				err := manager.CloseListener(&g)
 				require.NoError(t, err)
 
 				testsuite.IsDestroyed(t, tListener)
@@ -312,7 +312,7 @@ func TestManager_TrackListener_Parallel(t *testing.T) {
 
 				manager.Listeners()
 
-				_ = manager.KillListener(&g)
+				_ = manager.CloseListener(&g)
 
 				testsuite.IsDestroyed(t, tListener)
 			}
@@ -346,7 +346,7 @@ func TestManager_TrackListener_Parallel(t *testing.T) {
 
 				manager.Listeners()
 
-				_ = manager.KillListener(&g)
+				_ = manager.CloseListener(&g)
 
 				testsuite.IsDestroyed(t, tListener)
 			}
@@ -385,7 +385,7 @@ func TestManager_TrackConn_Parallel(t *testing.T) {
 				conns := manager.Conns()
 				require.Equal(t, tConn, conns[g])
 
-				err := manager.KillConn(&g)
+				err := manager.CloseConn(&g)
 				require.NoError(t, err)
 
 				testsuite.IsDestroyed(t, tConn)
@@ -412,7 +412,7 @@ func TestManager_TrackConn_Parallel(t *testing.T) {
 				conns := manager.Conns()
 				require.Equal(t, tConn, conns[g])
 
-				err := manager.KillConn(&g)
+				err := manager.CloseConn(&g)
 				require.NoError(t, err)
 
 				testsuite.IsDestroyed(t, tConn)
@@ -448,7 +448,7 @@ func TestManager_TrackConn_Parallel(t *testing.T) {
 
 				manager.Conns()
 
-				_ = manager.KillConn(&g)
+				_ = manager.CloseConn(&g)
 
 				testsuite.IsDestroyed(t, tConn)
 			}
@@ -482,7 +482,7 @@ func TestManager_TrackConn_Parallel(t *testing.T) {
 
 				manager.Conns()
 
-				_ = manager.KillConn(&g)
+				_ = manager.CloseConn(&g)
 
 				testsuite.IsDestroyed(t, tConn)
 			}
@@ -551,7 +551,7 @@ func TestManager_Parallel(t *testing.T) {
 				listeners := manager.Listeners()
 				require.Equal(t, tListener, listeners[g])
 
-				err := manager.KillListener(&g)
+				err := manager.CloseListener(&g)
 				require.NoError(t, err)
 
 				testsuite.IsDestroyed(t, tListener)
@@ -565,7 +565,7 @@ func TestManager_Parallel(t *testing.T) {
 				conns := manager.Conns()
 				require.Equal(t, tConn, conns[g])
 
-				err := manager.KillConn(&g)
+				err := manager.CloseConn(&g)
 				require.NoError(t, err)
 
 				testsuite.IsDestroyed(t, tConn)
@@ -590,20 +590,20 @@ func TestManager_Parallel(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, conn4GUID, conn.GUID())
 			}
-			killListener1 := func() {
-				err := manager.KillListener(&listener1GUID)
+			closeListener1 := func() {
+				err := manager.CloseListener(&listener1GUID)
 				require.NoError(t, err)
 			}
-			killListener2 := func() {
-				err := manager.KillListener(&listener2GUID)
+			closeListener2 := func() {
+				err := manager.CloseListener(&listener2GUID)
 				require.NoError(t, err)
 			}
-			killConn1 := func() {
-				err := manager.KillConn(&conn1GUID)
+			closeConn1 := func() {
+				err := manager.CloseConn(&conn1GUID)
 				require.NoError(t, err)
 			}
-			killConn2 := func() {
-				err := manager.KillConn(&conn2GUID)
+			closeConn2 := func() {
+				err := manager.CloseConn(&conn2GUID)
 				require.NoError(t, err)
 			}
 			listeners := func() {
@@ -644,13 +644,13 @@ func TestManager_Parallel(t *testing.T) {
 				cs := manager.Conns()
 				require.NotEmpty(t, cs)
 
-				err := manager.KillListener(&listener3GUID)
+				err := manager.CloseListener(&listener3GUID)
 				require.NoError(t, err)
-				err = manager.KillListener(&listener4GUID)
+				err = manager.CloseListener(&listener4GUID)
 				require.NoError(t, err)
-				err = manager.KillConn(&conn3GUID)
+				err = manager.CloseConn(&conn3GUID)
 				require.NoError(t, err)
-				err = manager.KillConn(&conn4GUID)
+				err = manager.CloseConn(&conn4GUID)
 				require.NoError(t, err)
 
 				ls = manager.Listeners()
@@ -661,7 +661,7 @@ func TestManager_Parallel(t *testing.T) {
 			fns := []func(){
 				trackListener, trackListener, trackConn, trackConn,
 				listeners, listeners, conns, conns,
-				killListener1, killListener2, killConn1, killConn2,
+				closeListener1, closeListener2, closeConn1, closeConn2,
 				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
@@ -720,7 +720,7 @@ func TestManager_Parallel(t *testing.T) {
 				listeners := manager.Listeners()
 				require.Equal(t, tListener, listeners[g])
 
-				err := manager.KillListener(&g)
+				err := manager.CloseListener(&g)
 				require.NoError(t, err)
 
 				testsuite.IsDestroyed(t, tListener)
@@ -734,7 +734,7 @@ func TestManager_Parallel(t *testing.T) {
 				conns := manager.Conns()
 				require.Equal(t, tConn, conns[g])
 
-				err := manager.KillConn(&g)
+				err := manager.CloseConn(&g)
 				require.NoError(t, err)
 
 				testsuite.IsDestroyed(t, tConn)
@@ -759,20 +759,20 @@ func TestManager_Parallel(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, conn4GUID, conn.GUID())
 			}
-			killListener1 := func() {
-				err := manager.KillListener(&listener1GUID)
+			closeListener1 := func() {
+				err := manager.CloseListener(&listener1GUID)
 				require.NoError(t, err)
 			}
-			killListener2 := func() {
-				err := manager.KillListener(&listener2GUID)
+			closeListener2 := func() {
+				err := manager.CloseListener(&listener2GUID)
 				require.NoError(t, err)
 			}
-			killConn1 := func() {
-				err := manager.KillConn(&conn1GUID)
+			closeConn1 := func() {
+				err := manager.CloseConn(&conn1GUID)
 				require.NoError(t, err)
 			}
-			killConn2 := func() {
-				err := manager.KillConn(&conn2GUID)
+			closeConn2 := func() {
+				err := manager.CloseConn(&conn2GUID)
 				require.NoError(t, err)
 			}
 			listeners := func() {
@@ -824,7 +824,7 @@ func TestManager_Parallel(t *testing.T) {
 			fns := []func(){
 				trackListener, trackListener, trackConn, trackConn,
 				listeners, listeners, conns, conns,
-				killListener1, killListener2, killConn1, killConn2,
+				closeListener1, closeListener2, closeConn1, closeConn2,
 				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
@@ -879,7 +879,7 @@ func TestManager_Parallel(t *testing.T) {
 
 				manager.Listeners()
 
-				_ = manager.KillListener(&g)
+				_ = manager.CloseListener(&g)
 
 				testsuite.IsDestroyed(t, tListener)
 			}
@@ -891,7 +891,7 @@ func TestManager_Parallel(t *testing.T) {
 
 				manager.Conns()
 
-				_ = manager.KillConn(&g)
+				_ = manager.CloseConn(&g)
 
 				testsuite.IsDestroyed(t, tConn)
 			}
@@ -907,17 +907,17 @@ func TestManager_Parallel(t *testing.T) {
 			getConn2 := func() {
 				_, _ = manager.GetConn(&conn4GUID)
 			}
-			killListener1 := func() {
-				_ = manager.KillListener(&listener1GUID)
+			closeListener1 := func() {
+				_ = manager.CloseListener(&listener1GUID)
 			}
-			killListener2 := func() {
-				_ = manager.KillListener(&listener2GUID)
+			closeListener2 := func() {
+				_ = manager.CloseListener(&listener2GUID)
 			}
-			killConn1 := func() {
-				_ = manager.KillConn(&conn1GUID)
+			closeConn1 := func() {
+				_ = manager.CloseConn(&conn1GUID)
 			}
-			killConn2 := func() {
-				_ = manager.KillConn(&conn2GUID)
+			closeConn2 := func() {
+				_ = manager.CloseConn(&conn2GUID)
 			}
 			listeners := func() {
 				manager.Listeners()
@@ -962,7 +962,7 @@ func TestManager_Parallel(t *testing.T) {
 			fns := []func(){
 				trackListener, trackListener, trackConn, trackConn,
 				listeners, listeners, conns, conns,
-				killListener1, killListener2, killConn1, killConn2,
+				closeListener1, closeListener2, closeConn1, closeConn2,
 				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
@@ -1021,7 +1021,7 @@ func TestManager_Parallel(t *testing.T) {
 
 				manager.Listeners()
 
-				_ = manager.KillListener(&g)
+				_ = manager.CloseListener(&g)
 
 				testsuite.IsDestroyed(t, tListener)
 			}
@@ -1033,7 +1033,7 @@ func TestManager_Parallel(t *testing.T) {
 
 				manager.Conns()
 
-				_ = manager.KillConn(&g)
+				_ = manager.CloseConn(&g)
 
 				testsuite.IsDestroyed(t, tConn)
 			}
@@ -1049,17 +1049,17 @@ func TestManager_Parallel(t *testing.T) {
 			getConn2 := func() {
 				_, _ = manager.GetConn(&conn4GUID)
 			}
-			killListener1 := func() {
-				_ = manager.KillListener(&listener1GUID)
+			closeListener1 := func() {
+				_ = manager.CloseListener(&listener1GUID)
 			}
-			killListener2 := func() {
-				_ = manager.KillListener(&listener2GUID)
+			closeListener2 := func() {
+				_ = manager.CloseListener(&listener2GUID)
 			}
-			killConn1 := func() {
-				_ = manager.KillConn(&conn1GUID)
+			closeConn1 := func() {
+				_ = manager.CloseConn(&conn1GUID)
 			}
-			killConn2 := func() {
-				_ = manager.KillConn(&conn2GUID)
+			closeConn2 := func() {
+				_ = manager.CloseConn(&conn2GUID)
 			}
 			listeners := func() {
 				manager.Listeners()
@@ -1104,7 +1104,7 @@ func TestManager_Parallel(t *testing.T) {
 			fns := []func(){
 				trackListener, trackListener, trackConn, trackConn,
 				listeners, listeners, conns, conns,
-				killListener1, killListener2, killConn1, killConn2,
+				closeListener1, closeListener2, closeConn1, closeConn2,
 				getListener1, getListener2, getConn1, getConn2,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
