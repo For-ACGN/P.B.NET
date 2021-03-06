@@ -20,17 +20,77 @@ type Interface interface {
 	// GetConn is used to get connection by guid.
 	GetConn(guid *guid.GUID) (*Conn, error)
 
+	// GetListenerMaxConnsByGUID is used to get listener maximum number of
+	// the established connection by guid, zero value means no limit.
+	GetListenerMaxConnsByGUID(guid *guid.GUID) (uint64, error)
+
+	// SetListenerMaxConnsByGUID is used to set listener maximum number of
+	// the established connection by guid, zero value means no limit.
+	SetListenerMaxConnsByGUID(guid *guid.GUID, n uint64) error
+
+	// GetListenerEstConnsNumByGUID is used to get listener the number of
+	// the established connection by guid.
+	GetListenerEstConnsNumByGUID(guid *guid.GUID) (uint64, error)
+
+	// GetConnLimitRateByGUID is used to get connection read and write limit
+	// rate by guid, zero value means no limit.
+	GetConnLimitRateByGUID(guid *guid.GUID) (uint64, uint64, error)
+
+	// SetConnLimitRateByGUID is used to set connection read and write limit
+	// rate by guid, zero value means no limit.
+	SetConnLimitRateByGUID(guid *guid.GUID, read, write uint64) error
+
+	// GetConnReadLimitRateByGUID is used to get connection read limit rate
+	// by guid, zero value means no limit.
+	GetConnReadLimitRateByGUID(guid *guid.GUID) (uint64, error)
+
+	// SetConnReadLimitRateByGUID is used to set connection read limit rate
+	// by guid, zero value means no limit.
+	SetConnReadLimitRateByGUID(guid *guid.GUID, n uint64) error
+
+	// GetConnWriteLimitRateByGUID is used to get connection write limit rate
+	// by guid, zero value means no limit.
+	GetConnWriteLimitRateByGUID(guid *guid.GUID) (uint64, error)
+
+	// SetConnWriteLimitRateByGUID is used to set connection write limit rate
+	// by guid, zero value means no limit.
+	SetConnWriteLimitRateByGUID(guid *guid.GUID, n uint64) error
+
+	// GetListenerStatusByGUID is used to get listener status by guid.
+	GetListenerStatusByGUID(guid *guid.GUID) (*ListenerStatus, error)
+
+	// GetConnStatusByGUID is used to get connection status by guid.
+	GetConnStatusByGUID(guid *guid.GUID) (*ConnStatus, error)
+
 	// CloseListener is used to close listener by guid.
 	CloseListener(guid *guid.GUID) error
 
 	// CloseConn is used to close connection by guid.
 	CloseConn(guid *guid.GUID) error
 
+	// GetListenersNum is used to get the number of the listeners.
+	GetListenersNum() int
+
+	// GetConnsNum is used to get the number of the connections.
+	GetConnsNum() int
+
 	// Listeners is used to get all tracked listeners.
 	Listeners() map[guid.GUID]*Listener
 
 	// Conns is used to get all tracked connections.
 	Conns() map[guid.GUID]*Conn
+
+	// GetAllListenersStatus is used to get status about all listeners.
+	GetAllListenersStatus() map[guid.GUID]*ListenerStatus
+
+	// GetAllConnsStatus is used to get status about all connections.
+	GetAllConnsStatus() map[guid.GUID]*ConnStatus
+
+	// CloseAllListeners is used to close all listeners.
+	CloseAllListeners() error
+
+	// CloseAllConns is used to close all connections.
+	CloseAllConns() error
 
 	// GetListenerMaxConns is used to get the default maximum number of
 	// connections that each listener can established, zero value means no limit.
@@ -171,6 +231,70 @@ func (mgr *Manager) GetListenerEstConnsNumByGUID(guid *guid.GUID) (uint64, error
 	return listener.GetEstConnsNum(), nil
 }
 
+// GetConnLimitRateByGUID is used to get connection read and write limit
+// rate by guid, zero value means no limit.
+func (mgr *Manager) GetConnLimitRateByGUID(guid *guid.GUID) (uint64, uint64, error) {
+	conn, err := mgr.GetConn(guid)
+	if err != nil {
+		return 0, 0, err
+	}
+	read, write := conn.GetLimitRate()
+	return read, write, nil
+}
+
+// SetConnLimitRateByGUID is used to set connection read and write limit
+// rate by guid, zero value means no limit.
+func (mgr *Manager) SetConnLimitRateByGUID(guid *guid.GUID, read, write uint64) error {
+	conn, err := mgr.GetConn(guid)
+	if err != nil {
+		return err
+	}
+	conn.SetLimitRate(read, write)
+	return nil
+}
+
+// GetConnReadLimitRateByGUID is used to get connection read limit rate
+// by guid, zero value means no limit.
+func (mgr *Manager) GetConnReadLimitRateByGUID(guid *guid.GUID) (uint64, error) {
+	conn, err := mgr.GetConn(guid)
+	if err != nil {
+		return 0, err
+	}
+	return conn.GetReadLimitRate(), nil
+}
+
+// SetConnReadLimitRateByGUID is used to set connection read limit rate
+// by guid, zero value means no limit.
+func (mgr *Manager) SetConnReadLimitRateByGUID(guid *guid.GUID, n uint64) error {
+	conn, err := mgr.GetConn(guid)
+	if err != nil {
+		return err
+	}
+	conn.SetReadLimitRate(n)
+	return nil
+}
+
+// GetConnWriteLimitRateByGUID is used to get connection write limit rate
+// by guid, zero value means no limit.
+func (mgr *Manager) GetConnWriteLimitRateByGUID(guid *guid.GUID) (uint64, error) {
+	conn, err := mgr.GetConn(guid)
+	if err != nil {
+		return 0, err
+	}
+	return conn.GetWriteLimitRate(), nil
+}
+
+// SetConnWriteLimitRateByGUID is used to set connection write limit rate
+// by guid, zero value means no limit.
+func (mgr *Manager) SetConnWriteLimitRateByGUID(guid *guid.GUID, n uint64) error {
+	conn, err := mgr.GetConn(guid)
+	if err != nil {
+		return err
+	}
+	conn.SetWriteLimitRate(n)
+	return nil
+}
+
 // GetListenerStatusByGUID is used to get listener status by guid.
 func (mgr *Manager) GetListenerStatusByGUID(guid *guid.GUID) (*ListenerStatus, error) {
 	listener, err := mgr.GetListener(guid)
@@ -243,8 +367,8 @@ func (mgr *Manager) Conns() map[guid.GUID]*Conn {
 	return conns
 }
 
-// GetListenersStatus is used to get status about all listeners.
-func (mgr *Manager) GetListenersStatus() map[guid.GUID]*ListenerStatus {
+// GetAllListenersStatus is used to get status about all listeners.
+func (mgr *Manager) GetAllListenersStatus() map[guid.GUID]*ListenerStatus {
 	listeners := mgr.Listeners()
 	status := make(map[guid.GUID]*ListenerStatus, len(listeners))
 	for key, listener := range listeners {
@@ -253,14 +377,38 @@ func (mgr *Manager) GetListenersStatus() map[guid.GUID]*ListenerStatus {
 	return status
 }
 
-// GetConnsStatus is used to get status about all connections.
-func (mgr *Manager) GetConnsStatus() map[guid.GUID]*ConnStatus {
+// GetAllConnsStatus is used to get status about all connections.
+func (mgr *Manager) GetAllConnsStatus() map[guid.GUID]*ConnStatus {
 	conns := mgr.Conns()
 	status := make(map[guid.GUID]*ConnStatus, len(conns))
 	for key, conn := range conns {
 		status[key] = conn.Status()
 	}
 	return status
+}
+
+// CloseAllListeners is used to close all listeners.
+func (mgr *Manager) CloseAllListeners() error {
+	var err error
+	for _, listener := range mgr.Listeners() {
+		e := listener.Close()
+		if e != nil && !nettool.IsNetClosedError(e) && err == nil {
+			err = e
+		}
+	}
+	return err
+}
+
+// CloseAllConns is used to close all connections.
+func (mgr *Manager) CloseAllConns() error {
+	var err error
+	for _, conn := range mgr.Conns() {
+		e := conn.Close()
+		if e != nil && !nettool.IsNetClosedError(e) && err == nil {
+			err = e
+		}
+	}
+	return err
 }
 
 // GetListenerMaxConns is used to get the default maximum number of
