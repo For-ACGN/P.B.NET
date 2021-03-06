@@ -479,64 +479,6 @@ func TestManager_GetConnStatusByGUID(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
-func TestManager_GetListenersNum(t *testing.T) {
-	gm := testsuite.MarkGoroutines(t)
-	defer gm.Compare()
-
-	manager := New(nil)
-
-	num := manager.GetListenersNum()
-	require.Zero(t, num)
-
-	listener := testsuite.NewMockListener()
-	tListener := manager.TrackListener(listener)
-
-	num = manager.GetListenersNum()
-	require.Equal(t, 1, num)
-
-	err := tListener.Close()
-	require.NoError(t, err)
-
-	num = manager.GetListenersNum()
-	require.Zero(t, num)
-
-	testsuite.IsDestroyed(t, tListener)
-
-	err = manager.Close()
-	require.NoError(t, err)
-
-	testsuite.IsDestroyed(t, manager)
-}
-
-func TestManager_GetConnsNum(t *testing.T) {
-	gm := testsuite.MarkGoroutines(t)
-	defer gm.Compare()
-
-	manager := New(nil)
-
-	num := manager.GetConnsNum()
-	require.Zero(t, num)
-
-	conn := testsuite.NewMockConn()
-	tConn := manager.TrackConn(conn)
-
-	num = manager.GetConnsNum()
-	require.Equal(t, 1, num)
-
-	err := tConn.Close()
-	require.NoError(t, err)
-
-	num = manager.GetConnsNum()
-	require.Zero(t, num)
-
-	testsuite.IsDestroyed(t, tConn)
-
-	err = manager.Close()
-	require.NoError(t, err)
-
-	testsuite.IsDestroyed(t, manager)
-}
-
 func TestManager_CloseListener(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
@@ -598,6 +540,120 @@ func TestManager_CloseConn(t *testing.T) {
 		err := manager.CloseConn(&g)
 		require.Error(t, err)
 	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_GetListenersNum(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	num := manager.GetListenersNum()
+	require.Zero(t, num)
+
+	listener := testsuite.NewMockListener()
+	tListener := manager.TrackListener(listener)
+
+	num = manager.GetListenersNum()
+	require.Equal(t, 1, num)
+
+	err := tListener.Close()
+	require.NoError(t, err)
+
+	num = manager.GetListenersNum()
+	require.Zero(t, num)
+
+	testsuite.IsDestroyed(t, tListener)
+
+	err = manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_GetConnsNum(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	num := manager.GetConnsNum()
+	require.Zero(t, num)
+
+	conn := testsuite.NewMockConn()
+	tConn := manager.TrackConn(conn)
+
+	num = manager.GetConnsNum()
+	require.Equal(t, 1, num)
+
+	err := tConn.Close()
+	require.NoError(t, err)
+
+	num = manager.GetConnsNum()
+	require.Zero(t, num)
+
+	testsuite.IsDestroyed(t, tConn)
+
+	err = manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_GetAllListenersStatus(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	allStatus := manager.GetAllListenersStatus()
+	require.Empty(t, allStatus)
+
+	listener1 := testsuite.NewMockListener()
+	tListener1 := manager.TrackListener(listener1)
+	status1 := tListener1.Status()
+
+	listener2 := testsuite.NewMockListener()
+	tListener2 := manager.TrackListener(listener2)
+	status2 := tListener2.Status()
+
+	allStatus = manager.GetAllListenersStatus()
+	require.Len(t, allStatus, 2)
+	require.Equal(t, allStatus[tListener1.GUID()], status1)
+	require.Equal(t, allStatus[tListener2.GUID()], status2)
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_GetAllConnsStatus(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	allStatus := manager.GetAllConnsStatus()
+	require.Empty(t, allStatus)
+
+	conn1 := testsuite.NewMockConn()
+	tConn1 := manager.TrackConn(conn1)
+	status1 := tConn1.Status()
+
+	conn2 := testsuite.NewMockConn()
+	tConn2 := manager.TrackConn(conn2)
+	status2 := tConn2.Status()
+
+	allStatus = manager.GetAllConnsStatus()
+	require.Len(t, allStatus, 2)
+	require.Equal(t, allStatus[tConn1.GUID()], status1)
+	require.Equal(t, allStatus[tConn2.GUID()], status2)
 
 	err := manager.Close()
 	require.NoError(t, err)
