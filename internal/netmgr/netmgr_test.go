@@ -479,6 +479,64 @@ func TestManager_GetConnStatusByGUID(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
+func TestManager_GetListenersNum(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	num := manager.GetListenersNum()
+	require.Zero(t, num)
+
+	listener := testsuite.NewMockListener()
+	tListener := manager.TrackListener(listener)
+
+	num = manager.GetListenersNum()
+	require.Equal(t, 1, num)
+
+	err := tListener.Close()
+	require.NoError(t, err)
+
+	num = manager.GetListenersNum()
+	require.Zero(t, num)
+
+	testsuite.IsDestroyed(t, tListener)
+
+	err = manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_GetConnsNum(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	num := manager.GetConnsNum()
+	require.Zero(t, num)
+
+	conn := testsuite.NewMockConn()
+	tConn := manager.TrackConn(conn)
+
+	num = manager.GetConnsNum()
+	require.Equal(t, 1, num)
+
+	err := tConn.Close()
+	require.NoError(t, err)
+
+	num = manager.GetConnsNum()
+	require.Zero(t, num)
+
+	testsuite.IsDestroyed(t, tConn)
+
+	err = manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
 func TestManager_CloseListener(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
