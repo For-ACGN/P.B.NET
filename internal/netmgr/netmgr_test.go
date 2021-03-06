@@ -99,6 +99,93 @@ func TestManager_GetListenerMaxConnsByGUID(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
+func TestManager_SetListenerMaxConnsByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		listener := testsuite.NewMockListener()
+		tListener := manager.TrackListener(listener)
+		g := tListener.GUID()
+
+		err := manager.SetListenerMaxConnsByGUID(&g, 1000)
+		require.NoError(t, err)
+
+		maxConns := tListener.GetMaxConns()
+		require.Equal(t, uint64(1000), maxConns)
+
+		err = tListener.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tListener)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := new(guid.GUID)
+
+		err := manager.SetListenerMaxConnsByGUID(g, 1000)
+		require.Error(t, err)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_GetListenerEstConnsNumByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		listener := testsuite.NewMockListener()
+		tListener := manager.TrackListener(listener)
+		g := tListener.GUID()
+
+		conn, err := tListener.Accept()
+		require.NoError(t, err)
+
+		num, err := manager.GetListenerEstConnsNumByGUID(&g)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1), num)
+
+		num = tListener.GetEstConnsNum()
+		require.Equal(t, uint64(1), num)
+
+		err = conn.Close()
+		require.NoError(t, err)
+
+		num, err = manager.GetListenerEstConnsNumByGUID(&g)
+		require.NoError(t, err)
+		require.Zero(t, num)
+
+		num = tListener.GetEstConnsNum()
+		require.Zero(t, num)
+
+		err = tListener.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tListener)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := new(guid.GUID)
+
+		num, err := manager.GetListenerEstConnsNumByGUID(g)
+		require.Error(t, err)
+		require.Zero(t, num)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
 func TestManager_CloseListener(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
