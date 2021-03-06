@@ -186,6 +186,81 @@ func TestManager_GetListenerEstConnsNumByGUID(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
+func TestManager_GetConnLimitRateByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		conn := testsuite.NewMockConn()
+		tConn := manager.TrackConn(conn)
+		tConn.SetLimitRate(1000, 2000)
+		g := tConn.GUID()
+
+		read, write, err := manager.GetConnLimitRateByGUID(&g)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1000), read)
+		require.Equal(t, uint64(2000), write)
+
+		err = tConn.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := new(guid.GUID)
+
+		read, write, err := manager.GetConnLimitRateByGUID(g)
+		require.Error(t, err)
+		require.Zero(t, read)
+		require.Zero(t, write)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_SetConnLimitRateByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		conn := testsuite.NewMockConn()
+		tConn := manager.TrackConn(conn)
+		g := tConn.GUID()
+
+		err := manager.SetConnLimitRateByGUID(&g, 1000, 2000)
+		require.NoError(t, err)
+
+		read, write := tConn.GetLimitRate()
+		require.Equal(t, uint64(1000), read)
+		require.Equal(t, uint64(2000), write)
+
+		err = tConn.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := new(guid.GUID)
+
+		err := manager.SetConnLimitRateByGUID(g, 1000, 2000)
+		require.Error(t, err)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
 func TestManager_CloseListener(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
