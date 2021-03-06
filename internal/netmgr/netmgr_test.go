@@ -63,29 +63,71 @@ func TestManager_TrackConn(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
+func TestManager_GetListenerMaxConnsByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		listener := testsuite.NewMockListener()
+		tListener := manager.TrackListener(listener)
+		tListener.SetMaxConns(1000)
+		g := tListener.GUID()
+
+		maxConns, err := manager.GetListenerMaxConnsByGUID(&g)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1000), maxConns)
+
+		err = tListener.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tListener)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := new(guid.GUID)
+
+		maxConns, err := manager.GetListenerMaxConnsByGUID(g)
+		require.Error(t, err)
+		require.Zero(t, maxConns)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
 func TestManager_CloseListener(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
 	manager := New(nil)
 
-	listener := testsuite.NewMockListener()
-	tListener := manager.TrackListener(listener)
+	t.Run("common", func(t *testing.T) {
+		listener := testsuite.NewMockListener()
+		tListener := manager.TrackListener(listener)
 
-	listeners := manager.Listeners()
-	require.Len(t, listeners, 1)
+		listeners := manager.Listeners()
+		require.Len(t, listeners, 1)
 
-	g := tListener.GUID()
-	err := manager.CloseListener(&g)
-	require.NoError(t, err)
+		g := tListener.GUID()
+		err := manager.CloseListener(&g)
+		require.NoError(t, err)
 
-	listeners = manager.Listeners()
-	require.Empty(t, listeners)
+		listeners = manager.Listeners()
+		require.Empty(t, listeners)
+	})
 
-	err = manager.CloseListener(&g)
-	require.Error(t, err)
+	t.Run("not exist", func(t *testing.T) {
+		g := new(guid.GUID)
 
-	err = manager.Close()
+		err := manager.CloseListener(g)
+		require.Error(t, err)
+	})
+
+	err := manager.Close()
 	require.NoError(t, err)
 
 	testsuite.IsDestroyed(t, manager)
@@ -97,23 +139,29 @@ func TestManager_CloseConn(t *testing.T) {
 
 	manager := New(nil)
 
-	conn := testsuite.NewMockConn()
-	tConn := manager.TrackConn(conn)
+	t.Run("common", func(t *testing.T) {
+		conn := testsuite.NewMockConn()
+		tConn := manager.TrackConn(conn)
 
-	conns := manager.Conns()
-	require.Len(t, conns, 1)
+		conns := manager.Conns()
+		require.Len(t, conns, 1)
 
-	g := tConn.GUID()
-	err := manager.CloseConn(&g)
-	require.NoError(t, err)
+		g := tConn.GUID()
+		err := manager.CloseConn(&g)
+		require.NoError(t, err)
 
-	conns = manager.Conns()
-	require.Empty(t, conns)
+		conns = manager.Conns()
+		require.Empty(t, conns)
+	})
 
-	err = manager.CloseConn(&g)
-	require.Error(t, err)
+	t.Run("not exist", func(t *testing.T) {
+		g := new(guid.GUID)
 
-	err = manager.Close()
+		err := manager.CloseConn(g)
+		require.Error(t, err)
+	})
+
+	err := manager.Close()
 	require.NoError(t, err)
 
 	testsuite.IsDestroyed(t, manager)
