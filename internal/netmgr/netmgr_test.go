@@ -86,9 +86,9 @@ func TestManager_GetListenerMaxConnsByGUID(t *testing.T) {
 	})
 
 	t.Run("not exist", func(t *testing.T) {
-		g := new(guid.GUID)
+		g := guid.GUID{}
 
-		maxConns, err := manager.GetListenerMaxConnsByGUID(g)
+		maxConns, err := manager.GetListenerMaxConnsByGUID(&g)
 		require.Error(t, err)
 		require.Zero(t, maxConns)
 	})
@@ -123,9 +123,9 @@ func TestManager_SetListenerMaxConnsByGUID(t *testing.T) {
 	})
 
 	t.Run("not exist", func(t *testing.T) {
-		g := new(guid.GUID)
+		g := guid.GUID{}
 
-		err := manager.SetListenerMaxConnsByGUID(g, 1000)
+		err := manager.SetListenerMaxConnsByGUID(&g, 1000)
 		require.Error(t, err)
 	})
 
@@ -173,9 +173,9 @@ func TestManager_GetListenerEstConnsNumByGUID(t *testing.T) {
 	})
 
 	t.Run("not exist", func(t *testing.T) {
-		g := new(guid.GUID)
+		g := guid.GUID{}
 
-		num, err := manager.GetListenerEstConnsNumByGUID(g)
+		num, err := manager.GetListenerEstConnsNumByGUID(&g)
 		require.Error(t, err)
 		require.Zero(t, num)
 	})
@@ -210,9 +210,9 @@ func TestManager_GetConnLimitRateByGUID(t *testing.T) {
 	})
 
 	t.Run("not exist", func(t *testing.T) {
-		g := new(guid.GUID)
+		g := guid.GUID{}
 
-		read, write, err := manager.GetConnLimitRateByGUID(g)
+		read, write, err := manager.GetConnLimitRateByGUID(&g)
 		require.Error(t, err)
 		require.Zero(t, read)
 		require.Zero(t, write)
@@ -249,9 +249,81 @@ func TestManager_SetConnLimitRateByGUID(t *testing.T) {
 	})
 
 	t.Run("not exist", func(t *testing.T) {
-		g := new(guid.GUID)
+		g := guid.GUID{}
 
-		err := manager.SetConnLimitRateByGUID(g, 1000, 2000)
+		err := manager.SetConnLimitRateByGUID(&g, 1000, 2000)
+		require.Error(t, err)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_GetConnReadLimitRateByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		conn := testsuite.NewMockConn()
+		tConn := manager.TrackConn(conn)
+		tConn.SetReadLimitRate(1000)
+		g := tConn.GUID()
+
+		read, err := manager.GetConnReadLimitRateByGUID(&g)
+		require.NoError(t, err)
+		require.Equal(t, uint64(1000), read)
+
+		err = tConn.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := guid.GUID{}
+
+		read, err := manager.GetConnReadLimitRateByGUID(&g)
+		require.Error(t, err)
+		require.Zero(t, read)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_SetConnReadLimitRateByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		conn := testsuite.NewMockConn()
+		tConn := manager.TrackConn(conn)
+		g := tConn.GUID()
+
+		err := manager.SetConnReadLimitRateByGUID(&g, 1000)
+		require.NoError(t, err)
+
+		read := tConn.GetReadLimitRate()
+		require.Equal(t, uint64(1000), read)
+
+		err = tConn.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := guid.GUID{}
+
+		err := manager.SetConnReadLimitRateByGUID(&g, 1000)
 		require.Error(t, err)
 	})
 
@@ -283,9 +355,9 @@ func TestManager_CloseListener(t *testing.T) {
 	})
 
 	t.Run("not exist", func(t *testing.T) {
-		g := new(guid.GUID)
+		g := guid.GUID{}
 
-		err := manager.CloseListener(g)
+		err := manager.CloseListener(&g)
 		require.Error(t, err)
 	})
 
@@ -317,9 +389,9 @@ func TestManager_CloseConn(t *testing.T) {
 	})
 
 	t.Run("not exist", func(t *testing.T) {
-		g := new(guid.GUID)
+		g := guid.GUID{}
 
-		err := manager.CloseConn(g)
+		err := manager.CloseConn(&g)
 		require.Error(t, err)
 	})
 
