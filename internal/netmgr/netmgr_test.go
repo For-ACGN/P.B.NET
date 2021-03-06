@@ -405,6 +405,80 @@ func TestManager_SetConnWriteLimitRateByGUID(t *testing.T) {
 	testsuite.IsDestroyed(t, manager)
 }
 
+func TestManager_GetListenerStatusByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		listener := testsuite.NewMockListener()
+		tListener := manager.TrackListener(listener)
+		status := tListener.Status()
+		g := tListener.GUID()
+
+		s, err := manager.GetListenerStatusByGUID(&g)
+		require.NoError(t, err)
+
+		require.Equal(t, status, s)
+
+		err = tListener.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tListener)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := guid.GUID{}
+
+		status, err := manager.GetListenerStatusByGUID(&g)
+		require.Error(t, err)
+		require.Nil(t, status)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_GetConnStatusByGUID(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	manager := New(nil)
+
+	t.Run("common", func(t *testing.T) {
+		conn := testsuite.NewMockConn()
+		tConn := manager.TrackConn(conn)
+		status := tConn.Status()
+		g := tConn.GUID()
+
+		s, err := manager.GetConnStatusByGUID(&g)
+		require.NoError(t, err)
+
+		require.Equal(t, status, s)
+
+		err = tConn.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		g := guid.GUID{}
+
+		status, err := manager.GetConnStatusByGUID(&g)
+		require.Error(t, err)
+		require.Nil(t, status)
+	})
+
+	err := manager.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, manager)
+}
+
 func TestManager_CloseListener(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
