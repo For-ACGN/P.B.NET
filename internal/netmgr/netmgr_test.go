@@ -496,6 +496,11 @@ func TestManager_CloseListener(t *testing.T) {
 		err := manager.CloseListener(&g)
 		require.NoError(t, err)
 
+		err = tListener.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tListener)
+
 		listeners = manager.Listeners()
 		require.Empty(t, listeners)
 	})
@@ -529,6 +534,11 @@ func TestManager_CloseConn(t *testing.T) {
 		g := tConn.GUID()
 		err := manager.CloseConn(&g)
 		require.NoError(t, err)
+
+		err = tConn.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn)
 
 		conns = manager.Conns()
 		require.Empty(t, conns)
@@ -627,7 +637,17 @@ func TestManager_GetAllListenersStatus(t *testing.T) {
 	require.Equal(t, allStatus[tListener1.GUID()], status1)
 	require.Equal(t, allStatus[tListener2.GUID()], status2)
 
-	err := manager.Close()
+	err := tListener1.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, tListener1)
+
+	err = tListener2.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, tListener2)
+
+	err = manager.Close()
 	require.NoError(t, err)
 
 	testsuite.IsDestroyed(t, manager)
@@ -655,10 +675,87 @@ func TestManager_GetAllConnsStatus(t *testing.T) {
 	require.Equal(t, allStatus[tConn1.GUID()], status1)
 	require.Equal(t, allStatus[tConn2.GUID()], status2)
 
-	err := manager.Close()
+	err := tConn1.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, tConn1)
+
+	err = tConn2.Close()
+	require.NoError(t, err)
+
+	testsuite.IsDestroyed(t, tConn2)
+
+	err = manager.Close()
 	require.NoError(t, err)
 
 	testsuite.IsDestroyed(t, manager)
+}
+
+func TestManager_CloseAllListeners(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	t.Run("common", func(t *testing.T) {
+		manager := New(nil)
+
+		listener1 := testsuite.NewMockListener()
+		tListener1 := manager.TrackListener(listener1)
+
+		listener2 := testsuite.NewMockListener()
+		tListener2 := manager.TrackListener(listener2)
+
+		num := manager.GetListenersNum()
+		require.Equal(t, 2, num)
+
+		err := manager.CloseAllListeners()
+		require.NoError(t, err)
+
+		num = manager.GetListenersNum()
+		require.Zero(t, num)
+
+		err = tListener1.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tListener1)
+
+		err = tListener2.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tListener2)
+
+		err = manager.Close()
+		require.NoError(t, err)
+	})
+
+	t.Run("close with error", func(t *testing.T) {
+		manager := New(nil)
+
+		listener1 := testsuite.NewMockListenerWithCloseError()
+		tListener1 := manager.TrackListener(listener1)
+
+		listener2 := testsuite.NewMockListenerWithCloseError()
+		tListener2 := manager.TrackListener(listener2)
+
+		num := manager.GetListenersNum()
+		require.Equal(t, 2, num)
+
+		err := manager.CloseAllListeners()
+		testsuite.IsMockListenerCloseError(t, err)
+
+		num = manager.GetListenersNum()
+		require.Equal(t, 2, num)
+
+		err = tListener1.Close()
+		testsuite.IsMockListenerCloseError(t, err)
+
+		err = tListener2.Close()
+		testsuite.IsMockListenerCloseError(t, err)
+
+		err = manager.Close()
+		testsuite.IsMockListenerCloseError(t, err)
+
+		testsuite.IsDestroyed(t, manager)
+	})
 }
 
 func TestManager_GetListenerMaxConns(t *testing.T) {
