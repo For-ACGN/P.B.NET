@@ -140,14 +140,53 @@ func (mgr *Manager) GetConn(guid *guid.GUID) (*Conn, error) {
 	return nil, errors.Errorf("connection: %s is not exist", guid)
 }
 
-// GetListenerMaxConnsByGUID is used to get listener maximum number of the
-// established connection by GUID, zero value means no limit.
+// GetListenerMaxConnsByGUID is used to get listener maximum number of
+// the established connection by guid, zero value means no limit.
 func (mgr *Manager) GetListenerMaxConnsByGUID(guid *guid.GUID) (uint64, error) {
 	listener, err := mgr.GetListener(guid)
 	if err != nil {
 		return 0, err
 	}
 	return listener.GetMaxConns(), nil
+}
+
+// SetListenerMaxConnsByGUID is used to set listener maximum number of
+// the established connection by guid, zero value means no limit.
+func (mgr *Manager) SetListenerMaxConnsByGUID(guid *guid.GUID, n uint64) error {
+	listener, err := mgr.GetListener(guid)
+	if err != nil {
+		return err
+	}
+	listener.SetMaxConns(n)
+	return nil
+}
+
+// GetListenerEstConnsNumByGUID is used to get listener the number of
+// the established connection by guid.
+func (mgr *Manager) GetListenerEstConnsNumByGUID(guid *guid.GUID) (uint64, error) {
+	listener, err := mgr.GetListener(guid)
+	if err != nil {
+		return 0, err
+	}
+	return listener.GetEstConnsNum(), nil
+}
+
+// GetListenerStatusByGUID is used to get listener status by guid.
+func (mgr *Manager) GetListenerStatusByGUID(guid *guid.GUID) (*ListenerStatus, error) {
+	listener, err := mgr.GetListener(guid)
+	if err != nil {
+		return nil, err
+	}
+	return listener.Status(), nil
+}
+
+// GetConnStatusByGUID is used to get connection status by guid.
+func (mgr *Manager) GetConnStatusByGUID(guid *guid.GUID) (*ConnStatus, error) {
+	conn, err := mgr.GetConn(guid)
+	if err != nil {
+		return nil, err
+	}
+	return conn.Status(), nil
 }
 
 // CloseListener is used to close listener by guid.
@@ -166,6 +205,20 @@ func (mgr *Manager) CloseConn(guid *guid.GUID) error {
 		return err
 	}
 	return conn.Close()
+}
+
+// GetListenersNum is used to get the number of the listeners.
+func (mgr *Manager) GetListenersNum() int {
+	mgr.listenersRWM.RLock()
+	defer mgr.listenersRWM.RUnlock()
+	return len(mgr.listeners)
+}
+
+// GetConnsNum is used to get the number of the connections.
+func (mgr *Manager) GetConnsNum() int {
+	mgr.connsRWM.RLock()
+	defer mgr.connsRWM.RUnlock()
+	return len(mgr.conns)
 }
 
 // Listeners is used to get all tracked listeners.
@@ -188,6 +241,26 @@ func (mgr *Manager) Conns() map[guid.GUID]*Conn {
 		conns[key] = conn
 	}
 	return conns
+}
+
+// GetListenersStatus is used to get status about all listeners.
+func (mgr *Manager) GetListenersStatus() map[guid.GUID]*ListenerStatus {
+	listeners := mgr.Listeners()
+	status := make(map[guid.GUID]*ListenerStatus, len(listeners))
+	for key, listener := range listeners {
+		status[key] = listener.Status()
+	}
+	return status
+}
+
+// GetConnsStatus is used to get status about all connections.
+func (mgr *Manager) GetConnsStatus() map[guid.GUID]*ConnStatus {
+	conns := mgr.Conns()
+	status := make(map[guid.GUID]*ConnStatus, len(conns))
+	for key, conn := range conns {
+		status[key] = conn.Status()
+	}
+	return status
 }
 
 // GetListenerMaxConns is used to get the default maximum number of
