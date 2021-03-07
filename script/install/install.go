@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,7 +111,7 @@ func getGoRootPaths(suffix string) []string {
 
 func installPatchFiles() bool {
 	log.Println(logger.Info, "install patch files")
-	paths := getGoRootPaths("/src")
+	goRootPaths := getGoRootPaths("/src")
 	var errs []error
 	walkFunc := func(path string, stat os.FileInfo, err error) error {
 		if err != nil {
@@ -123,10 +122,10 @@ func installPatchFiles() bool {
 			return nil
 		}
 		var appearErr bool
-		for i := 0; i < len(paths); i++ {
-			dst := strings.Replace(path, "patch", paths[i], 1)
+		for i := 0; i < len(goRootPaths); i++ {
+			dst := strings.Replace(path, "patch", goRootPaths[i], 1)
 			dst = strings.Replace(dst, ".gop", ".go", 1)
-			err = copyFileToGoRoot(path, dst)
+			err = system.CopyFile(dst, path)
 			if err != nil {
 				errs = append(errs, err)
 				appearErr = true
@@ -153,17 +152,9 @@ func installPatchFiles() bool {
 	return false
 }
 
-func copyFileToGoRoot(src, dst string) error {
-	data, err := ioutil.ReadFile(src) // #nosec
-	if err != nil {
-		return err
-	}
-	return system.WriteFile(dst, data)
-}
-
 func uninstallPatchFiles() bool {
 	log.Println(logger.Info, "uninstall patch files")
-	paths := getGoRootPaths("/src")
+	goRootPaths := getGoRootPaths("/src")
 	var errs []error
 	walkFunc := func(path string, stat os.FileInfo, err error) error {
 		if err != nil {
@@ -174,8 +165,8 @@ func uninstallPatchFiles() bool {
 			return nil
 		}
 		var appearErr bool
-		for i := 0; i < len(paths); i++ {
-			dst := strings.Replace(path, "patch", paths[i], 1)
+		for i := 0; i < len(goRootPaths); i++ {
+			dst := strings.Replace(path, "patch", goRootPaths[i], 1)
 			dst = strings.Replace(dst, ".gop", ".go", 1)
 			err = os.Remove(dst)
 			if err != nil {
@@ -212,11 +203,11 @@ func verifyPatchFiles() bool {
 		log.Println(logger.Error, "failed to disable go module:", err)
 		return false
 	}
-	paths := getGoRootPaths("/bin/go")
-	errCh := make(chan error, len(paths))
+	goRootPaths := getGoRootPaths("/bin/go")
+	errCh := make(chan error, len(goRootPaths))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	for _, path := range paths {
+	for _, path := range goRootPaths {
 		go func(path string) {
 			const file = "script/install/patch/verify.go"
 			var err error
@@ -226,7 +217,7 @@ func verifyPatchFiles() bool {
 			log.Printf(logger.Info, "go run output:\n%s", output)
 		}(path)
 	}
-	for i := 0; i < len(paths); i++ {
+	for i := 0; i < len(goRootPaths); i++ {
 		err := <-errCh
 		if err != nil {
 			log.Println(logger.Error, err)

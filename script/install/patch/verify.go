@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/maphash"
 	"io"
 	"log"
 	"net"
@@ -45,6 +46,9 @@ func main() {
 	// errors
 	errors.Is(nil, nil)
 	errors.Is(errors.New("aaa"), errors.New("bbb"))
+
+	// hash
+	fmt.Println(maphash.MakeSeed())
 
 	// io
 	var sw io.StringWriter
