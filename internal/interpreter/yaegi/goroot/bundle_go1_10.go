@@ -62,6 +62,12 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"hash"
+	"hash/adler32"
+	"hash/crc32"
+	"hash/crc64"
+	"hash/fnv"
+	"hash/maphash"
 	"io"
 	"math"
 	"math/big"
@@ -132,6 +138,12 @@ func init() {
 	init_expvar()
 	init_flag()
 	init_fmt()
+	init_hash()
+	init_hash_adler32()
+	init_hash_crc32()
+	init_hash_crc64()
+	init_hash_fnv()
+	init_hash_maphash()
 	init_io()
 	init_math()
 	init_math_big()
@@ -3292,6 +3304,137 @@ type _fmt_Stringer struct {
 }
 
 func (W _fmt_Stringer) String() string { return W.WString() }
+
+func init_hash() {
+	Symbols["hash"] = map[string]reflect.Value{
+		// type definitions
+		"Hash":   reflect.ValueOf((*hash.Hash)(nil)),
+		"Hash32": reflect.ValueOf((*hash.Hash32)(nil)),
+		"Hash64": reflect.ValueOf((*hash.Hash64)(nil)),
+
+		// interface wrapper definitions
+		"_Hash":   reflect.ValueOf((*_hash_Hash)(nil)),
+		"_Hash32": reflect.ValueOf((*_hash_Hash32)(nil)),
+		"_Hash64": reflect.ValueOf((*_hash_Hash64)(nil)),
+	}
+}
+
+// _hash_Hash is an interface wrapper for Hash type
+type _hash_Hash struct {
+	WBlockSize func() int
+	WReset     func()
+	WSize      func() int
+	WSum       func(b []byte) []byte
+	WWrite     func(p []byte) (n int, err error)
+}
+
+func (W _hash_Hash) BlockSize() int                    { return W.WBlockSize() }
+func (W _hash_Hash) Reset()                            { W.WReset() }
+func (W _hash_Hash) Size() int                         { return W.WSize() }
+func (W _hash_Hash) Sum(b []byte) []byte               { return W.WSum(b) }
+func (W _hash_Hash) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+// _hash_Hash32 is an interface wrapper for Hash32 type
+type _hash_Hash32 struct {
+	WBlockSize func() int
+	WReset     func()
+	WSize      func() int
+	WSum       func(b []byte) []byte
+	WSum32     func() uint32
+	WWrite     func(p []byte) (n int, err error)
+}
+
+func (W _hash_Hash32) BlockSize() int                    { return W.WBlockSize() }
+func (W _hash_Hash32) Reset()                            { W.WReset() }
+func (W _hash_Hash32) Size() int                         { return W.WSize() }
+func (W _hash_Hash32) Sum(b []byte) []byte               { return W.WSum(b) }
+func (W _hash_Hash32) Sum32() uint32                     { return W.WSum32() }
+func (W _hash_Hash32) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+// _hash_Hash64 is an interface wrapper for Hash64 type
+type _hash_Hash64 struct {
+	WBlockSize func() int
+	WReset     func()
+	WSize      func() int
+	WSum       func(b []byte) []byte
+	WSum64     func() uint64
+	WWrite     func(p []byte) (n int, err error)
+}
+
+func (W _hash_Hash64) BlockSize() int                    { return W.WBlockSize() }
+func (W _hash_Hash64) Reset()                            { W.WReset() }
+func (W _hash_Hash64) Size() int                         { return W.WSize() }
+func (W _hash_Hash64) Sum(b []byte) []byte               { return W.WSum(b) }
+func (W _hash_Hash64) Sum64() uint64                     { return W.WSum64() }
+func (W _hash_Hash64) Write(p []byte) (n int, err error) { return W.WWrite(p) }
+
+func init_hash_adler32() {
+	Symbols["hash/adler32"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Checksum": reflect.ValueOf(adler32.Checksum),
+		"New":      reflect.ValueOf(adler32.New),
+		"Size":     reflect.ValueOf(constant.MakeFromLiteral("4", token.INT, 0)),
+	}
+}
+
+func init_hash_crc32() {
+	Symbols["hash/crc32"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Castagnoli":   reflect.ValueOf(constant.MakeFromLiteral("2197175160", token.INT, 0)),
+		"Checksum":     reflect.ValueOf(crc32.Checksum),
+		"ChecksumIEEE": reflect.ValueOf(crc32.ChecksumIEEE),
+		"IEEE":         reflect.ValueOf(constant.MakeFromLiteral("3988292384", token.INT, 0)),
+		"IEEETable":    reflect.ValueOf(&crc32.IEEETable).Elem(),
+		"Koopman":      reflect.ValueOf(constant.MakeFromLiteral("3945912366", token.INT, 0)),
+		"MakeTable":    reflect.ValueOf(crc32.MakeTable),
+		"New":          reflect.ValueOf(crc32.New),
+		"NewIEEE":      reflect.ValueOf(crc32.NewIEEE),
+		"Size":         reflect.ValueOf(constant.MakeFromLiteral("4", token.INT, 0)),
+		"Update":       reflect.ValueOf(crc32.Update),
+
+		// type definitions
+		"Table": reflect.ValueOf((*crc32.Table)(nil)),
+	}
+}
+
+func init_hash_crc64() {
+	Symbols["hash/crc64"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"Checksum":  reflect.ValueOf(crc64.Checksum),
+		"ECMA":      reflect.ValueOf(constant.MakeFromLiteral("14514072000185962306", token.INT, 0)),
+		"ISO":       reflect.ValueOf(constant.MakeFromLiteral("15564440312192434176", token.INT, 0)),
+		"MakeTable": reflect.ValueOf(crc64.MakeTable),
+		"New":       reflect.ValueOf(crc64.New),
+		"Size":      reflect.ValueOf(constant.MakeFromLiteral("8", token.INT, 0)),
+		"Update":    reflect.ValueOf(crc64.Update),
+
+		// type definitions
+		"Table": reflect.ValueOf((*crc64.Table)(nil)),
+	}
+}
+
+func init_hash_fnv() {
+	Symbols["hash/fnv"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"New128":  reflect.ValueOf(fnv.New128),
+		"New128a": reflect.ValueOf(fnv.New128a),
+		"New32":   reflect.ValueOf(fnv.New32),
+		"New32a":  reflect.ValueOf(fnv.New32a),
+		"New64":   reflect.ValueOf(fnv.New64),
+		"New64a":  reflect.ValueOf(fnv.New64a),
+	}
+}
+
+func init_hash_maphash() {
+	Symbols["hash/maphash"] = map[string]reflect.Value{
+		// function, constant and variable definitions
+		"MakeSeed": reflect.ValueOf(maphash.MakeSeed),
+
+		// type definitions
+		"Hash": reflect.ValueOf((*maphash.Hash)(nil)),
+		"Seed": reflect.ValueOf((*maphash.Seed)(nil)),
+	}
+}
 
 func init_io() {
 	Symbols["io"] = map[string]reflect.Value{
