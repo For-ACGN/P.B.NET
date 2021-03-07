@@ -130,6 +130,12 @@ func init() {
 		"expvar",
 		"flag",
 		"fmt",
+		"hash",
+		"hash/adler32",
+		"hash/crc32",
+		"hash/crc64",
+		"hash/fnv",
+		"hash/maphash",
 		"io",
 		"math",
 		"math/big",
@@ -143,7 +149,7 @@ func init() {
 		switch pkg {
 		case "crypto/rand": // same package name with "math/rand"
 			_, _ = fmt.Fprintln(importBuf, "\tcrypto_rand  \"crypto/rand\"")
-		case "crypto/aes", "crypto/dsa", "crypto/md5", "crypto/rc4", "crypto/sha1": // insecure package
+		case "crypto/des", "crypto/dsa", "crypto/md5", "crypto/rc4", "crypto/sha1": // insecure package
 			_, _ = fmt.Fprintf(importBuf, "\t\"%s\" // #nosec\n", pkg)
 		default:
 			_, _ = fmt.Fprintf(importBuf, "\t\"%s\"\n", pkg)
@@ -152,7 +158,7 @@ func init() {
 		_, _ = fmt.Fprintf(initBuf, "\tinit_%s()\n", init)
 		code, err := generateCode(pkg, init)
 		require.NoError(t, err)
-		// handle crypto rand
+		// process package "crypto/rand"
 		if pkg == "crypto/rand" {
 			code = strings.ReplaceAll(code, "rand.", "crypto_rand.")
 		}
