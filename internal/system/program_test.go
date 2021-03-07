@@ -11,13 +11,13 @@ import (
 )
 
 func TestExecutableName(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
 		name, err := ExecutableName()
 		require.NoError(t, err)
 		t.Log(name)
 	})
 
-	t.Run("failed", func(t *testing.T) {
+	t.Run("failed to get executable path", func(t *testing.T) {
 		patch := func() (string, error) {
 			return "", monkey.Error
 		}
@@ -39,7 +39,7 @@ func TestChdirToExe(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
 		err = ChdirToExe()
 		require.NoError(t, err)
 
@@ -50,7 +50,7 @@ func TestChdirToExe(t *testing.T) {
 		require.NotEqual(t, cd, dd)
 	})
 
-	t.Run("failed", func(t *testing.T) {
+	t.Run("failed to get executable path", func(t *testing.T) {
 		patch := func() (string, error) {
 			return "", monkey.Error
 		}
