@@ -2,10 +2,12 @@ package system
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"project/internal/patch/monkey"
 	"project/internal/testsuite"
 )
 
@@ -113,6 +115,61 @@ func TestMoveFile(t *testing.T) {
 		err := MoveFile("foo_dst", "foo_src")
 		require.Error(t, err)
 	})
+}
+
+func TestIsSamePath(t *testing.T) {
+	t.Run("same", func(t *testing.T) {
+		same, err := IsSamePath("a", "a")
+		require.NoError(t, err)
+		require.True(t, same)
+	})
+
+	t.Run("not same", func(t *testing.T) {
+		same, err := IsSamePath("a", "b")
+		require.NoError(t, err)
+		require.False(t, same)
+	})
+
+	t.Run("not enough path", func(t *testing.T) {
+		same, err := IsSamePath("a")
+		require.Error(t, err)
+		require.False(t, same)
+	})
+
+	t.Run("invalid path", func(t *testing.T) {
+		patch := func(string) (string, error) {
+			return "", monkey.Error
+		}
+		pg := monkey.Patch(filepath.Abs, patch)
+		defer pg.Unpatch()
+
+		same, err := IsSamePath("a", "b")
+		monkey.IsMonkeyError(t, err)
+		require.False(t, same)
+	})
+
+	t.Run("invalid second path", func(t *testing.T) {
+		patch := func(path string) (string, error) {
+			if path == "b" {
+				return "", monkey.Error
+			}
+			return "", nil
+		}
+		pg := monkey.Patch(filepath.Abs, patch)
+		defer pg.Unpatch()
+
+		same, err := IsSamePath("a", "b")
+		monkey.IsMonkeyError(t, err)
+		require.False(t, same)
+	})
+}
+
+func TestIsFilePath(t *testing.T) {
+
+}
+
+func TestIsDirPath(t *testing.T) {
+
 }
 
 func TestIsPathExist(t *testing.T) {
