@@ -1,6 +1,8 @@
 package system
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -33,8 +35,51 @@ func WriteFile(filename string, data []byte) error {
 	return err
 }
 
-// IsExist is used to check the target path or file is exist.
-func IsExist(path string) (bool, error) {
+// CopyFile is used to copy file from source path to destination path.
+func CopyFile(dst, src string) error {
+	srcFile, err := os.Open(src) // #nosec
+	if err != nil {
+		return err
+	}
+	defer func() { _ = srcFile.Close() }()
+	fi, err := srcFile.Stat()
+	if err != nil {
+		return err
+	}
+	if fi.IsDir() {
+		return fmt.Errorf("\"%s\" is a directory", src)
+	}
+	dstFile, err := OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = dstFile.Close() }()
+	fi, err = dstFile.Stat()
+	if err != nil {
+		return err
+	}
+	if fi.IsDir() {
+		return fmt.Errorf("\"%s\" is a directory", dst)
+	}
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return err
+	}
+	return dstFile.Sync()
+}
+
+// MoveFile is used to move file from source path to destination path.
+// It can move file to the different volume(not use os.Rename).
+func MoveFile(dst, src string) error {
+	err := CopyFile(dst, src)
+	if err != nil {
+		return err
+	}
+	return os.Remove(src)
+}
+
+// IsPathExist is used to check the target file or directory is exist.
+func IsPathExist(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
 		return true, nil
@@ -45,8 +90,8 @@ func IsExist(path string) (bool, error) {
 	return false, err
 }
 
-// IsNotExist is used to check the target path or file is not exist.
-func IsNotExist(path string) (bool, error) {
+// IsPathNotExist is used to check the target file or directory is not exist.
+func IsPathNotExist(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
 		return false, nil

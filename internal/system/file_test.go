@@ -54,41 +54,102 @@ func TestWriteFile(t *testing.T) {
 	})
 }
 
-func TestIsExist(t *testing.T) {
+func TestCopyFile(t *testing.T) {
+	const (
+		src = "testdata/cf_src.dat"
+		dst = "testdata/cf_dst.dat"
+	)
+	err := WriteFile(src, testsuite.Bytes())
+	require.NoError(t, err)
+	defer func() {
+		err = os.Remove(src)
+		require.NoError(t, err)
+	}()
+
+	t.Run("common", func(t *testing.T) {
+		err := CopyFile(dst, src)
+		require.NoError(t, err)
+
+		err = os.Remove(dst)
+		require.NoError(t, err)
+	})
+
+	t.Run("source file is not exist", func(t *testing.T) {
+		err := CopyFile(dst, "foo")
+		require.Error(t, err)
+	})
+}
+
+func TestMoveFile(t *testing.T) {
+	t.Run("common", func(t *testing.T) {
+		const (
+			src = "testdata/mf_src.dat"
+			dst = "testdata/mf_dst.dat"
+		)
+		err := WriteFile(src, testsuite.Bytes())
+		require.NoError(t, err)
+		defer func() {
+			err = os.Remove(src)
+			require.Error(t, err)
+		}()
+
+		err = MoveFile(dst, src)
+		require.NoError(t, err)
+		defer func() {
+			err = os.Remove(dst)
+			require.NoError(t, err)
+		}()
+
+		exist, err := IsPathExist(dst)
+		require.NoError(t, err)
+		require.True(t, exist)
+
+		exist, err = IsPathNotExist(src)
+		require.NoError(t, err)
+		require.True(t, exist)
+	})
+
+	t.Run("not exist", func(t *testing.T) {
+		err := MoveFile("foo_dst", "foo_src")
+		require.Error(t, err)
+	})
+}
+
+func TestIsPathExist(t *testing.T) {
 	t.Run("exist", func(t *testing.T) {
-		exist, err := IsExist("testdata")
+		exist, err := IsPathExist("testdata")
 		require.NoError(t, err)
 		require.True(t, exist)
 	})
 
 	t.Run("is not exist", func(t *testing.T) {
-		exist, err := IsExist("not")
+		exist, err := IsPathExist("not")
 		require.NoError(t, err)
 		require.False(t, exist)
 	})
 
 	t.Run("invalid path", func(t *testing.T) {
-		exist, err := IsExist("testdata/<</file")
+		exist, err := IsPathExist("testdata/<</file")
 		require.Error(t, err)
 		require.False(t, exist)
 	})
 }
 
-func TestIsNotExist(t *testing.T) {
+func TestIsPathNotExist(t *testing.T) {
 	t.Run("is not exist", func(t *testing.T) {
-		notExist, err := IsNotExist("not")
+		notExist, err := IsPathNotExist("not")
 		require.NoError(t, err)
 		require.True(t, notExist)
 	})
 
 	t.Run("exist", func(t *testing.T) {
-		notExist, err := IsNotExist("testdata")
+		notExist, err := IsPathNotExist("testdata")
 		require.NoError(t, err)
 		require.False(t, notExist)
 	})
 
 	t.Run("invalid path", func(t *testing.T) {
-		notExist, err := IsNotExist("testdata/<</file")
+		notExist, err := IsPathNotExist("testdata/<</file")
 		require.Error(t, err)
 		require.False(t, notExist)
 	})
