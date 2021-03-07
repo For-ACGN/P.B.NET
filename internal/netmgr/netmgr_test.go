@@ -1590,6 +1590,100 @@ func TestManager_Parallel(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, conn4GUID, conn.GUID())
 			}
+			getListenerMaxConnsByGUID1 := func() {
+				_, err := manager.GetListenerMaxConnsByGUID(&listener3GUID)
+				require.NoError(t, err)
+			}
+			getListenerMaxConnsByGUID2 := func() {
+				_, err := manager.GetListenerMaxConnsByGUID(&listener4GUID)
+				require.NoError(t, err)
+			}
+			setListenerMaxConnsByGUID1 := func() {
+				err := manager.SetListenerMaxConnsByGUID(&listener3GUID, 1000)
+				require.NoError(t, err)
+			}
+			setListenerMaxConnsByGUID2 := func() {
+				err := manager.SetListenerMaxConnsByGUID(&listener4GUID, 1000)
+				require.NoError(t, err)
+			}
+			getListenerEstConnsNumByGUID1 := func() {
+				num, err := manager.GetListenerEstConnsNumByGUID(&listener3GUID)
+				require.NoError(t, err)
+				require.Zero(t, num)
+			}
+			getListenerEstConnsNumByGUID2 := func() {
+				num, err := manager.GetListenerEstConnsNumByGUID(&listener4GUID)
+				require.NoError(t, err)
+				require.Zero(t, num)
+			}
+			getConnLimitRateByGUID1 := func() {
+				_, _, err := manager.GetConnLimitRateByGUID(&conn3GUID)
+				require.NoError(t, err)
+			}
+			getConnLimitRateByGUID2 := func() {
+				_, _, err := manager.GetConnLimitRateByGUID(&conn4GUID)
+				require.NoError(t, err)
+			}
+			setConnLimitRateByGUID1 := func() {
+				err := manager.SetConnLimitRateByGUID(&conn3GUID, 1000, 2000)
+				require.NoError(t, err)
+			}
+			setConnLimitRateByGUID2 := func() {
+				err := manager.SetConnLimitRateByGUID(&conn4GUID, 1000, 2000)
+				require.NoError(t, err)
+			}
+			getConnReadLimitRateByGUID1 := func() {
+				_, err := manager.GetConnReadLimitRateByGUID(&conn3GUID)
+				require.NoError(t, err)
+			}
+			getConnReadLimitRateByGUID2 := func() {
+				_, err := manager.GetConnReadLimitRateByGUID(&conn4GUID)
+				require.NoError(t, err)
+			}
+			setConnReadLimitRateByGUID1 := func() {
+				err := manager.SetConnReadLimitRateByGUID(&conn3GUID, 1000)
+				require.NoError(t, err)
+			}
+			setConnReadLimitRateByGUID2 := func() {
+				err := manager.SetConnReadLimitRateByGUID(&conn4GUID, 1000)
+				require.NoError(t, err)
+			}
+			getConnWriteLimitRateByGUID1 := func() {
+				_, err := manager.GetConnWriteLimitRateByGUID(&conn3GUID)
+				require.NoError(t, err)
+			}
+			getConnWriteLimitRateByGUID2 := func() {
+				_, err := manager.GetConnWriteLimitRateByGUID(&conn4GUID)
+				require.NoError(t, err)
+			}
+			setConnWriteLimitRateByGUID1 := func() {
+				err := manager.SetConnWriteLimitRateByGUID(&conn3GUID, 1000)
+				require.NoError(t, err)
+			}
+			setConnWriteLimitRateByGUID2 := func() {
+				err := manager.SetConnWriteLimitRateByGUID(&conn4GUID, 1000)
+				require.NoError(t, err)
+			}
+			getListenerStatusByGUID1 := func() {
+				status, err := manager.GetListenerStatusByGUID(&listener3GUID)
+				require.NoError(t, err)
+				require.NotNil(t, status)
+			}
+			getListenerStatusByGUID2 := func() {
+				status, err := manager.GetListenerStatusByGUID(&listener4GUID)
+				require.NoError(t, err)
+				require.NotNil(t, status)
+			}
+			getConnStatusByGUID1 := func() {
+				status, err := manager.GetConnStatusByGUID(&conn3GUID)
+				require.NoError(t, err)
+				require.NotNil(t, status)
+			}
+			getConnStatusByGUID2 := func() {
+				status, err := manager.GetConnStatusByGUID(&conn4GUID)
+				require.NoError(t, err)
+				require.NotNil(t, status)
+			}
 			closeListener1 := func() {
 				err := manager.CloseListener(&listener1GUID)
 				require.NoError(t, err)
@@ -1606,6 +1700,14 @@ func TestManager_Parallel(t *testing.T) {
 				err := manager.CloseConn(&conn2GUID)
 				require.NoError(t, err)
 			}
+			getListenersNum := func() {
+				num := manager.GetListenersNum()
+				require.NotZero(t, num)
+			}
+			getConnsNum := func() {
+				num := manager.GetConnsNum()
+				require.NotZero(t, num)
+			}
 			listeners := func() {
 				listeners := manager.Listeners()
 				require.NotEmpty(t, listeners)
@@ -1613,6 +1715,14 @@ func TestManager_Parallel(t *testing.T) {
 			conns := func() {
 				conns := manager.Conns()
 				require.NotEmpty(t, conns)
+			}
+			getAllListenersStatus := func() {
+				status := manager.GetAllListenersStatus()
+				require.NotEmpty(t, status)
+			}
+			getAllConnsStatus := func() {
+				status := manager.GetAllConnsStatus()
+				require.NotEmpty(t, status)
 			}
 			getListenerMaxConns := func() {
 				manager.GetListenerMaxConns()
@@ -1654,9 +1764,24 @@ func TestManager_Parallel(t *testing.T) {
 			}
 			fns := []func(){
 				trackListener, trackListener, trackConn, trackConn,
-				listeners, listeners, conns, conns,
-				closeListener1, closeListener2, closeConn1, closeConn2,
 				getListener1, getListener2, getConn1, getConn2,
+				getListenerMaxConnsByGUID1, getListenerMaxConnsByGUID2,
+				setListenerMaxConnsByGUID1, setListenerMaxConnsByGUID2,
+				getListenerEstConnsNumByGUID1, getListenerEstConnsNumByGUID2,
+				getListenerEstConnsNumByGUID2, getListenerEstConnsNumByGUID2,
+				getConnLimitRateByGUID1, getConnLimitRateByGUID2,
+				setConnLimitRateByGUID1, setConnLimitRateByGUID2,
+				getConnReadLimitRateByGUID1, getConnReadLimitRateByGUID2,
+				setConnReadLimitRateByGUID1, setConnReadLimitRateByGUID2,
+				getConnWriteLimitRateByGUID1, getConnWriteLimitRateByGUID2,
+				setConnWriteLimitRateByGUID1, setConnWriteLimitRateByGUID2,
+				getListenerStatusByGUID1, getListenerStatusByGUID2,
+				getConnStatusByGUID1, getConnStatusByGUID2,
+				closeListener1, closeListener2, closeConn1, closeConn2,
+				getListenersNum, getListenersNum, getConnsNum, getConnsNum,
+				listeners, listeners, listeners, conns, conns, conns,
+				getAllListenersStatus, getAllListenersStatus,
+				getAllConnsStatus, getAllConnsStatus,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
 				getConnReadLimitRate, setConnReadLimitRate,
