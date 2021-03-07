@@ -758,6 +758,73 @@ func TestManager_CloseAllListeners(t *testing.T) {
 	})
 }
 
+func TestManager_CloseAllConns(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	t.Run("common", func(t *testing.T) {
+		manager := New(nil)
+
+		conn1 := testsuite.NewMockConn()
+		tConn1 := manager.TrackConn(conn1)
+
+		conn2 := testsuite.NewMockConn()
+		tConn2 := manager.TrackConn(conn2)
+
+		num := manager.GetConnsNum()
+		require.Equal(t, 2, num)
+
+		err := manager.CloseAllConns()
+		require.NoError(t, err)
+
+		num = manager.GetConnsNum()
+		require.Zero(t, num)
+
+		err = tConn1.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn1)
+
+		err = tConn2.Close()
+		require.NoError(t, err)
+
+		testsuite.IsDestroyed(t, tConn2)
+
+		err = manager.Close()
+		require.NoError(t, err)
+	})
+
+	t.Run("close with error", func(t *testing.T) {
+		manager := New(nil)
+
+		conn1 := testsuite.NewMockConnWithCloseError()
+		tConn1 := manager.TrackConn(conn1)
+
+		conn2 := testsuite.NewMockConnWithCloseError()
+		tConn2 := manager.TrackConn(conn2)
+
+		num := manager.GetConnsNum()
+		require.Equal(t, 2, num)
+
+		err := manager.CloseAllConns()
+		testsuite.IsMockConnCloseError(t, err)
+
+		num = manager.GetConnsNum()
+		require.Equal(t, 2, num)
+
+		err = tConn1.Close()
+		testsuite.IsMockConnCloseError(t, err)
+
+		err = tConn2.Close()
+		testsuite.IsMockConnCloseError(t, err)
+
+		err = manager.Close()
+		testsuite.IsMockConnCloseError(t, err)
+
+		testsuite.IsDestroyed(t, manager)
+	})
+}
+
 func TestManager_GetListenerMaxConns(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
