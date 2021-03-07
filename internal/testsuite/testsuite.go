@@ -16,6 +16,9 @@ import (
 	"project/internal/nettool"
 )
 
+// InvalidFilePath is a invalid file path.
+const InvalidFilePath = "testdata/<</file"
+
 var (
 	// IPv4Enabled is used to tell tests current system is enable IPv4.
 	IPv4Enabled bool

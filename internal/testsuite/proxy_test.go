@@ -71,7 +71,7 @@ func (mps *mockProxyServer) Serve(listener net.Listener) error {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			if nettool.IsNetClosingError(err) {
+			if nettool.IsNetClosedError(err) {
 				return nil
 			}
 			return err
@@ -108,7 +108,7 @@ func (mps *mockProxyServer) close() error {
 	// close all listeners
 	for listener := range mps.listeners {
 		e := (*listener).Close()
-		if e != nil && !nettool.IsNetClosingError(e) && err == nil {
+		if e != nil && !nettool.IsNetClosedError(e) && err == nil {
 			err = e
 		}
 		delete(mps.listeners, listener)
@@ -122,7 +122,7 @@ func TestWaitProxyServerServe(t *testing.T) {
 
 	const (
 		network = "tcp"
-		address = "localhost:0"
+		address = "127.0.0.1:0"
 	)
 
 	t.Run("ok", func(t *testing.T) {

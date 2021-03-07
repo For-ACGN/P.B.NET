@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"project/internal/testsuite"
 )
 
 func TestNewWriterWithPrefix(t *testing.T) {
@@ -38,21 +40,22 @@ func TestHijackLogWriter(t *testing.T) {
 
 func TestSetErrorLogger(t *testing.T) {
 	t.Run("common", func(t *testing.T) {
-		const name = "testdata/test.err"
+		const path = "testdata/test.err"
 
-		file, err := SetErrorLogger(name)
+		file, err := SetErrorLogger(path)
 		require.NoError(t, err)
 
 		log.Println("test log")
 
 		err = file.Close()
 		require.NoError(t, err)
-		err = os.Remove(name)
+
+		err = os.Remove(path)
 		require.NoError(t, err)
 	})
 
-	t.Run("fail", func(t *testing.T) {
-		file, err := SetErrorLogger("testdata/<</file")
+	t.Run("invalid file path", func(t *testing.T) {
+		file, err := SetErrorLogger(testsuite.InvalidFilePath)
 		require.Error(t, err)
 		require.Nil(t, file)
 	})

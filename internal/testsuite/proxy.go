@@ -15,8 +15,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-
-	"project/internal/cert/certpool"
 )
 
 // for test proxy client.
@@ -160,6 +158,7 @@ func initHTTPServers(t testing.TB) {
 }
 
 // WaitProxyServerServe is used to wait proxy server until is serving.
+// TODO: replace nettool.WaitServer
 func WaitProxyServerServe(t *testing.T, server proxyServer, addressNum int) {
 	ok := waitProxyServerServe(server, addressNum)
 	require.True(t, ok, "wait proxy server serve timeout")
@@ -210,10 +209,8 @@ func HTTPClient(t *testing.T, transport *http.Transport, hostname string) {
 		require.Equal(t, testHandlerData, data)
 	}
 
-	const format = "://%s:%s/t"
-
 	t.Run("http target", func(t *testing.T) {
-		url := fmt.Sprintf("http"+format, hostname, HTTPServerPort)
+		url := fmt.Sprintf("http://%s:%s/t", hostname, HTTPServerPort)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		require.NoError(t, err)
 		wg.Add(1)
@@ -221,7 +218,7 @@ func HTTPClient(t *testing.T, transport *http.Transport, hostname string) {
 	})
 
 	t.Run("https target", func(t *testing.T) {
-		url := fmt.Sprintf("https"+format, hostname, HTTPSServerPort)
+		url := fmt.Sprintf("https://%s:%s/t", hostname, HTTPSServerPort)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		require.NoError(t, err)
 		wg.Add(1)
@@ -504,16 +501,13 @@ func ProxyClientCancelConnect(t testing.TB, server io.Closer, client proxyClient
 
 // ProxyClientWithHTTPSTarget is used to test proxy client with https target.
 func ProxyClientWithHTTPSTarget(t testing.TB, client proxyClient) {
-	transport := new(http.Transport)
-	certPool, err := certpool.System()
-	require.NoError(t, err)
-
-	transport.TLSClientConfig = &tls.Config{
+	tr := new(http.Transport)
+	tr.TLSClientConfig = &tls.Config{
 		MinVersion: tls.VersionTLS12,
-		RootCAs:    certPool,
 	}
-	client.HTTP(transport)
-	httpClient := http.Client{Transport: transport}
+	client.HTTP(tr)
+
+	httpClient := http.Client{Transport: tr}
 	defer httpClient.CloseIdleConnections()
 
 	resp, err := httpClient.Get("https://www.cloudflare.com/")

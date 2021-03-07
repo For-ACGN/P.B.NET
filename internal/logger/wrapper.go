@@ -95,8 +95,8 @@ func HijackLogWriter(lv Level, src string, logger Logger) {
 
 // SetErrorLogger is used to log error before service program start.
 // If occur some error before start, you can get it.
-func SetErrorLogger(name string) (*os.File, error) {
-	file, err := system.OpenFile(name, os.O_CREATE|os.O_APPEND, 0600)
+func SetErrorLogger(path string) (*os.File, error) {
+	file, err := system.OpenFile(path, os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
 		return nil, err
 	}
