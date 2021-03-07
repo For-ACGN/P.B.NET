@@ -29,7 +29,7 @@ func TestReader_Read(t *testing.T) {
 		}
 	})
 
-	t.Run("failed", func(t *testing.T) {
+	t.Run("failed to read", func(t *testing.T) {
 		patch := func(io.Reader, []byte) (int, error) {
 			return 0, monkey.Error
 		}

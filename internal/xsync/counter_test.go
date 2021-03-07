@@ -25,7 +25,7 @@ func TestCounter(t *testing.T) {
 		fns[i] = serve
 	}
 	fns[100] = stop
-	testsuite.RunParallel(100, nil, nil, fns...)
+	testsuite.RunParallelTest(100, nil, nil, fns...)
 
 	testsuite.IsDestroyed(t, &counter)
 }
