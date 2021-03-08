@@ -1863,6 +1863,72 @@ func TestManager_Parallel(t *testing.T) {
 			getConn2 := func() {
 				_, _ = manager.GetConn(&conn4GUID)
 			}
+			getListenerMaxConnsByGUID1 := func() {
+				_, _ = manager.GetListenerMaxConnsByGUID(&listener3GUID)
+			}
+			getListenerMaxConnsByGUID2 := func() {
+				_, _ = manager.GetListenerMaxConnsByGUID(&listener4GUID)
+			}
+			setListenerMaxConnsByGUID1 := func() {
+				_ = manager.SetListenerMaxConnsByGUID(&listener3GUID, 1000)
+			}
+			setListenerMaxConnsByGUID2 := func() {
+				_ = manager.SetListenerMaxConnsByGUID(&listener4GUID, 1000)
+			}
+			getListenerEstConnsNumByGUID1 := func() {
+				_, _ = manager.GetListenerEstConnsNumByGUID(&listener3GUID)
+			}
+			getListenerEstConnsNumByGUID2 := func() {
+				_, _ = manager.GetListenerEstConnsNumByGUID(&listener4GUID)
+			}
+			getConnLimitRateByGUID1 := func() {
+				_, _, _ = manager.GetConnLimitRateByGUID(&conn3GUID)
+			}
+			getConnLimitRateByGUID2 := func() {
+				_, _, _ = manager.GetConnLimitRateByGUID(&conn4GUID)
+			}
+			setConnLimitRateByGUID1 := func() {
+				_ = manager.SetConnLimitRateByGUID(&conn3GUID, 1000, 2000)
+			}
+			setConnLimitRateByGUID2 := func() {
+				_ = manager.SetConnLimitRateByGUID(&conn4GUID, 1000, 2000)
+			}
+			getConnReadLimitRateByGUID1 := func() {
+				_, _ = manager.GetConnReadLimitRateByGUID(&conn3GUID)
+			}
+			getConnReadLimitRateByGUID2 := func() {
+				_, _ = manager.GetConnReadLimitRateByGUID(&conn4GUID)
+			}
+			setConnReadLimitRateByGUID1 := func() {
+				_ = manager.SetConnReadLimitRateByGUID(&conn3GUID, 1000)
+			}
+			setConnReadLimitRateByGUID2 := func() {
+				_ = manager.SetConnReadLimitRateByGUID(&conn4GUID, 1000)
+			}
+			getConnWriteLimitRateByGUID1 := func() {
+				_, _ = manager.GetConnWriteLimitRateByGUID(&conn3GUID)
+			}
+			getConnWriteLimitRateByGUID2 := func() {
+				_, _ = manager.GetConnWriteLimitRateByGUID(&conn4GUID)
+			}
+			setConnWriteLimitRateByGUID1 := func() {
+				_ = manager.SetConnWriteLimitRateByGUID(&conn3GUID, 1000)
+			}
+			setConnWriteLimitRateByGUID2 := func() {
+				_ = manager.SetConnWriteLimitRateByGUID(&conn4GUID, 1000)
+			}
+			getListenerStatusByGUID1 := func() {
+				_, _ = manager.GetListenerStatusByGUID(&listener3GUID)
+			}
+			getListenerStatusByGUID2 := func() {
+				_, _ = manager.GetListenerStatusByGUID(&listener4GUID)
+			}
+			getConnStatusByGUID1 := func() {
+				_, _ = manager.GetConnStatusByGUID(&conn3GUID)
+			}
+			getConnStatusByGUID2 := func() {
+				_, _ = manager.GetConnStatusByGUID(&conn4GUID)
+			}
 			closeListener1 := func() {
 				_ = manager.CloseListener(&listener1GUID)
 			}
@@ -1875,11 +1941,31 @@ func TestManager_Parallel(t *testing.T) {
 			closeConn2 := func() {
 				_ = manager.CloseConn(&conn2GUID)
 			}
+			getListenersNum := func() {
+				manager.GetListenersNum()
+			}
+			getConnsNum := func() {
+				manager.GetConnsNum()
+			}
 			listeners := func() {
 				manager.Listeners()
 			}
 			conns := func() {
 				manager.Conns()
+			}
+			getAllListenersStatus := func() {
+				manager.GetAllListenersStatus()
+			}
+			getAllConnsStatus := func() {
+				manager.GetAllConnsStatus()
+			}
+			closeAllListeners := func() {
+				err := manager.CloseAllListeners()
+				require.NoError(t, err)
+			}
+			closeAllConns := func() {
+				err := manager.CloseAllConns()
+				require.NoError(t, err)
 			}
 			getListenerMaxConns := func() {
 				manager.GetListenerMaxConns()
@@ -1917,14 +2003,31 @@ func TestManager_Parallel(t *testing.T) {
 			}
 			fns := []func(){
 				trackListener, trackListener, trackConn, trackConn,
-				listeners, listeners, conns, conns,
-				closeListener1, closeListener2, closeConn1, closeConn2,
 				getListener1, getListener2, getConn1, getConn2,
+				getListenerMaxConnsByGUID1, getListenerMaxConnsByGUID2,
+				setListenerMaxConnsByGUID1, setListenerMaxConnsByGUID2,
+				getListenerEstConnsNumByGUID1, getListenerEstConnsNumByGUID2,
+				getListenerEstConnsNumByGUID2, getListenerEstConnsNumByGUID2,
+				getConnLimitRateByGUID1, getConnLimitRateByGUID2,
+				setConnLimitRateByGUID1, setConnLimitRateByGUID2,
+				getConnReadLimitRateByGUID1, getConnReadLimitRateByGUID2,
+				setConnReadLimitRateByGUID1, setConnReadLimitRateByGUID2,
+				getConnWriteLimitRateByGUID1, getConnWriteLimitRateByGUID2,
+				setConnWriteLimitRateByGUID1, setConnWriteLimitRateByGUID2,
+				getListenerStatusByGUID1, getListenerStatusByGUID2,
+				getConnStatusByGUID1, getConnStatusByGUID2,
+				closeListener1, closeListener2, closeConn1, closeConn2,
+				getListenersNum, getListenersNum, getConnsNum, getConnsNum,
+				listeners, listeners, listeners, conns, conns, conns,
+				getAllListenersStatus, getAllListenersStatus,
+				getAllConnsStatus, getAllConnsStatus,
+				closeAllListeners, closeAllListeners, closeAllListeners,
+				closeAllConns, closeAllConns, closeAllConns,
 				getListenerMaxConns, setListenerMaxConns,
 				getConnLimitRate, setConnLimitRate,
 				getConnReadLimitRate, setConnReadLimitRate,
 				getConnWriteLimitRate, setConnWriteLimitRate,
-				close1, close1, close1, close1,
+				close1, close1, close1, close1, close1, close1,
 			}
 			testsuite.RunParallelTest(100, init, cleanup, fns...)
 
