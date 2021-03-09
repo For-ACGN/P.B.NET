@@ -29,8 +29,8 @@ func TestPauser(t *testing.T) {
 	require.True(t, time.Since(now) > time.Second)
 	require.Equal(t, StateRunning, pauser.State())
 
-	pauser.Close()
-	require.Equal(t, StateClosed, pauser.State())
+	pauser.Stop()
+	require.Equal(t, StateStopped, pauser.State())
 }
 
 func TestPauser_Pause(t *testing.T) {
@@ -46,7 +46,7 @@ func TestPauser_Pause(t *testing.T) {
 		require.Equal(t, StateRunning, pauser.State())
 	})
 
-	t.Run("closed", func(t *testing.T) {
+	t.Run("stopped", func(t *testing.T) {
 		pauser := New()
 
 		pauser.Pause()
@@ -54,13 +54,13 @@ func TestPauser_Pause(t *testing.T) {
 
 		go func() {
 			time.Sleep(2 * time.Second)
-			pauser.Close()
+			pauser.Stop()
 		}()
 
 		now := time.Now()
 		pauser.Paused()
 		require.True(t, time.Since(now) > time.Second)
-		require.Equal(t, StateClosed, pauser.State())
+		require.Equal(t, StateStopped, pauser.State())
 
 		pauser.Paused()
 	})
