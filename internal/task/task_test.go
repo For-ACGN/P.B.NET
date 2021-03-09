@@ -296,7 +296,7 @@ func TestTask_Start(t *testing.T) {
 		// set invalid state
 		go func() {
 			time.Sleep(100 * time.Millisecond)
-			atomic.StoreInt32(task.state, pStateReady)
+			atomic.StoreInt32(task.state, priStateReady)
 		}()
 
 		err := task.Start()
@@ -440,7 +440,7 @@ func TestTask_Pause(t *testing.T) {
 		testsuite.IsDestroyed(t, mt)
 	})
 
-	t.Run("event failed", func(t *testing.T) {
+	t.Run("failed to call event", func(t *testing.T) {
 		mt := testNewMockTask()
 		task := New(testTaskName, mt, nil)
 
@@ -678,7 +678,7 @@ func TestTask_Paused(t *testing.T) {
 			time.Sleep(time.Second)
 
 			// mock finish
-			atomic.StoreInt32(task.state, pStateProcess)
+			atomic.StoreInt32(task.state, priStateProcess)
 
 			// mock continue
 			task.pauseCh <- struct{}{}
@@ -693,7 +693,7 @@ func TestTask_Paused(t *testing.T) {
 		testsuite.IsDestroyed(t, mt)
 	})
 
-	t.Run("event failed", func(t *testing.T) {
+	t.Run("failed to call event", func(t *testing.T) {
 		mt := testNewMockTask()
 		task := New(testTaskName, mt, nil)
 
