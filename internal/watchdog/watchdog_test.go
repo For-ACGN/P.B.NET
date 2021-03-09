@@ -36,7 +36,7 @@ func testNewMockWorker(watch, process time.Duration, notice Callback) *mockWorke
 
 func (mw *mockWorker) Start() {
 	mw.wg.Add(1)
-	go mw.sendTaskLoop()
+	go mw.taskSender()
 	for i := 0; i < 4; i++ {
 		mw.wg.Add(1)
 		go mw.work()
@@ -44,23 +44,33 @@ func (mw *mockWorker) Start() {
 	mw.watchDog.Start()
 }
 
-func (mw *mockWorker) sendTaskLoop() {
+func (mw *mockWorker) taskSender() {
 	defer mw.wg.Done()
-	select {
-	case mw.taskCh <- 1:
-	case <-mw.stopSignal:
-		return
+	for {
+		select {
+		case mw.taskCh <- 1:
+		case <-mw.stopSignal:
+			return
+		}
 	}
 }
 
 func (mw *mockWorker) work() {
 	defer mw.wg.Done()
-	_, watcher := mw.watchDog.NewWatcher()
+	watcher := mw.watchDog.NewWatcher()
+	defer watcher.Stop()
 	for {
+		select {
+		case <-mw.stopSignal:
+			return
+		default:
+			watcher.Receive()
+		}
+
 		select {
 		case <-mw.taskCh:
 			time.Sleep(mw.process)
-		case <-watcher:
+		case <-watcher.Signal:
 		case <-mw.stopSignal:
 			return
 		}
@@ -81,17 +91,21 @@ func TestWatchDog(t *testing.T) {
 
 	t.Run("common", func(t *testing.T) {
 		const (
-			watch   = 3 * time.Second
-			process = time.Second
+			watch   = 100 * time.Millisecond
+			process = 10 * time.Millisecond
 		)
 
-		notice := func(int) {
+		notice := func(int32) {
 			t.Fatal("watcher blocked")
 		}
 		worker := testNewMockWorker(watch, process, notice)
 		worker.Start()
 
-		time.Sleep(6 * time.Second)
+		time.Sleep(time.Second)
+
+		num := worker.watchDog.WatchersNum()
+		require.Equal(t, 4, num)
+		require.Empty(t, worker.watchDog.BlockedID())
 
 		worker.Stop()
 
@@ -100,14 +114,14 @@ func TestWatchDog(t *testing.T) {
 
 	t.Run("block", func(t *testing.T) {
 		const (
-			watch   = time.Second
-			process = 3 * time.Second
+			watch   = 100 * time.Millisecond
+			process = 2 * time.Second
 		)
 
-		block := make(map[int]struct{}, 4)
+		block := make(map[int32]struct{}, 4)
 		blockMu := sync.Mutex{}
 
-		notice := func(id int) {
+		notice := func(id int32) {
 			blockMu.Lock()
 			defer blockMu.Unlock()
 			require.NotContainsf(t, block, id, "notice watcher %d multi times", id)
@@ -116,7 +130,11 @@ func TestWatchDog(t *testing.T) {
 		worker := testNewMockWorker(watch, process, notice)
 		worker.Start()
 
-		time.Sleep(6 * time.Second)
+		time.Sleep(time.Second)
+
+		num := worker.watchDog.WatchersNum()
+		require.Equal(t, 4, num)
+		require.Len(t, worker.watchDog.BlockedID(), 4)
 
 		worker.Stop()
 
