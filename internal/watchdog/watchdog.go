@@ -13,10 +13,13 @@ import (
 
 const defaultWatchInterval = 10 * time.Second
 
+// Callback is used to notice when watcher is blocked.
+type Callback func(id int)
+
 // WatchDog is used to watch a loop in worker goroutine is blocked.
 type WatchDog struct {
 	logger  logger.Logger
-	onBlock func(id int)
+	onBlock Callback
 
 	logSrc   string
 	interval atomic.Value
@@ -30,17 +33,17 @@ type WatchDog struct {
 	blockedIDRWM sync.RWMutex
 
 	stopSignal chan struct{}
-	closeOnce  sync.Once
+	stopOnce   sync.Once
 	wg         sync.WaitGroup
 }
 
 // New is used to create a new watch dog.
-func New(lg logger.Logger, tag string, onBlock func(id int)) (*WatchDog, error) {
+func New(logger logger.Logger, tag string, onBlock Callback) (*WatchDog, error) {
 	if tag == "" {
 		return nil, errors.New("empty watch dog tag")
 	}
 	wd := WatchDog{
-		logger:     lg,
+		logger:     logger,
 		onBlock:    onBlock,
 		logSrc:     "watchdog-" + tag,
 		nextID:     -1,
@@ -52,14 +55,20 @@ func New(lg logger.Logger, tag string, onBlock func(id int)) (*WatchDog, error) 
 	return &wd, nil
 }
 
-// Watcher is used to create a new watcher.
-func (wd *WatchDog) Watcher() (int, <-chan struct{}) {
+// NewWatcher is used to create a new watcher.
+func (wd *WatchDog) NewWatcher() (int, <-chan struct{}) {
 	id := int(atomic.AddInt32(&wd.nextID, 1))
 	watcher := make(chan struct{}, 1)
 	wd.watchersRWM.Lock()
 	defer wd.watchersRWM.Unlock()
 	wd.watchers[id] = watcher
 	return id, watcher
+}
+
+// Start is used to start watch loop.
+func (wd *WatchDog) Start() {
+	wd.wg.Add(1)
+	go wd.watchLoop()
 }
 
 // GetWatchInterval is used to get watch interval.
@@ -73,12 +82,6 @@ func (wd *WatchDog) SetWatchInterval(interval time.Duration) {
 		interval = defaultWatchInterval
 	}
 	wd.interval.Store(interval)
-}
-
-// Start is used to start watch loop.
-func (wd *WatchDog) Start() {
-	wd.wg.Add(1)
-	go wd.watchLoop()
 }
 
 func (wd *WatchDog) logf(lv logger.Level, format string, log ...interface{}) {
@@ -115,16 +118,15 @@ func (wd *WatchDog) watchLoop() {
 
 func (wd *WatchDog) watch() {
 	for id, watcher := range wd.getWatchers() {
-		blocked := wd.isBlocked(id)
 		select {
 		case watcher <- struct{}{}:
-			if blocked {
+			if wd.isBlocked(id) {
 				wd.deleteBlockedID(id)
 			}
 			continue
 		default:
 		}
-		if blocked {
+		if wd.isBlocked(id) {
 			return
 		}
 		wd.addBlockedID(id)
@@ -168,6 +170,13 @@ func (wd *WatchDog) deleteBlockedID(id int) {
 	delete(wd.blockedID, id)
 }
 
+// WatchersNum is used to get the number of watcher.
+func (wd *WatchDog) WatchersNum() int {
+	wd.watchersRWM.RLock()
+	defer wd.watchersRWM.RUnlock()
+	return len(wd.watchers)
+}
+
 // BlockedID is used to get blocked watcher id list.
 func (wd *WatchDog) BlockedID() []int {
 	wd.blockedIDRWM.RLock()
@@ -179,9 +188,9 @@ func (wd *WatchDog) BlockedID() []int {
 	return list
 }
 
-// Close is used to close watch dog.
-func (wd *WatchDog) Close() {
-	wd.closeOnce.Do(func() {
+// Stop is used to close watch dog.
+func (wd *WatchDog) Stop() {
+	wd.stopOnce.Do(func() {
 		close(wd.stopSignal)
 		wd.wg.Wait()
 		wd.onBlock = nil
