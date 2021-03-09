@@ -1,6 +1,7 @@
 package watchdog
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,7 +24,7 @@ type WatchDog struct {
 
 	logSrc   string
 	interval atomic.Value
-	nextID   int32
+	nextID   *int32
 
 	watchers    map[int]chan struct{}
 	watchersRWM sync.RWMutex
@@ -32,6 +33,7 @@ type WatchDog struct {
 	blockedID    map[int]struct{}
 	blockedIDRWM sync.RWMutex
 
+	// about control
 	stopSignal chan struct{}
 	stopOnce   sync.Once
 	wg         sync.WaitGroup
@@ -46,18 +48,19 @@ func New(logger logger.Logger, tag string, onBlock Callback) (*WatchDog, error) 
 		logger:     logger,
 		onBlock:    onBlock,
 		logSrc:     "watchdog-" + tag,
-		nextID:     -1,
+		nextID:     new(int32),
 		watchers:   make(map[int]chan struct{}),
 		blockedID:  make(map[int]struct{}),
 		stopSignal: make(chan struct{}),
 	}
+	*wd.nextID = -1
 	wd.interval.Store(defaultWatchInterval)
 	return &wd, nil
 }
 
 // NewWatcher is used to create a new watcher.
 func (wd *WatchDog) NewWatcher() (int, <-chan struct{}) {
-	id := int(atomic.AddInt32(&wd.nextID, 1))
+	id := int(atomic.AddInt32(wd.nextID, 1))
 	watcher := make(chan struct{}, 1)
 	wd.watchersRWM.Lock()
 	defer wd.watchersRWM.Unlock()
@@ -118,6 +121,9 @@ func (wd *WatchDog) watchLoop() {
 
 func (wd *WatchDog) watch() {
 	for id, watcher := range wd.getWatchers() {
+
+		fmt.Println(id)
+
 		select {
 		case watcher <- struct{}{}:
 			if wd.isBlocked(id) {
@@ -130,13 +136,13 @@ func (wd *WatchDog) watch() {
 			return
 		}
 		wd.addBlockedID(id)
-		go func(id int) {
+		go func(id int, onBlock Callback) {
 			if r := recover(); r != nil {
 				wd.log(logger.Fatal, xpanic.Printf(r, "WatchDog.watch"))
 			}
 			wd.logf(logger.Warning, "watcher [%d] is blocked", id)
-			wd.onBlock(id)
-		}(id)
+			onBlock(id)
+		}(id, wd.onBlock)
 	}
 }
 

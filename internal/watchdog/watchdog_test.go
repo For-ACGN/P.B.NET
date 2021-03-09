@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"project/internal/logger"
 	"project/internal/testsuite"
 )
@@ -20,12 +22,12 @@ type mockWorker struct {
 	wg         sync.WaitGroup
 }
 
-func testNewMockWorker(interval, process time.Duration, notice Callback) *mockWorker {
+func testNewMockWorker(watch, process time.Duration, notice Callback) *mockWorker {
 	watchDog, _ := New(logger.Test, "test", notice)
-	watchDog.SetWatchInterval(interval)
+	watchDog.SetWatchInterval(watch)
 	mw := mockWorker{
 		process:    process,
-		taskCh:     make(chan int, 1),
+		taskCh:     make(chan int, 16),
 		watchDog:   watchDog,
 		stopSignal: make(chan struct{}),
 	}
@@ -33,38 +35,32 @@ func testNewMockWorker(interval, process time.Duration, notice Callback) *mockWo
 }
 
 func (mw *mockWorker) Start() {
-	mw.wg.Add(2)
+	mw.wg.Add(1)
 	go mw.sendTaskLoop()
-	go mw.processLoop()
+	for i := 0; i < 4; i++ {
+		mw.wg.Add(1)
+		go mw.work()
+	}
 	mw.watchDog.Start()
 }
 
 func (mw *mockWorker) sendTaskLoop() {
 	defer mw.wg.Done()
-	ticker := time.NewTicker(mw.process)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			select {
-			case mw.taskCh <- 1:
-			case <-mw.stopSignal:
-				return
-			}
-		case <-mw.stopSignal:
-			return
-		}
+	select {
+	case mw.taskCh <- 1:
+	case <-mw.stopSignal:
+		return
 	}
 }
 
-func (mw *mockWorker) processLoop() {
+func (mw *mockWorker) work() {
 	defer mw.wg.Done()
-	_, watchDog := mw.watchDog.NewWatcher()
+	_, watcher := mw.watchDog.NewWatcher()
 	for {
 		select {
 		case <-mw.taskCh:
 			time.Sleep(mw.process)
-		case <-watchDog:
+		case <-watcher:
 		case <-mw.stopSignal:
 			return
 		}
@@ -84,20 +80,48 @@ func TestWatchDog(t *testing.T) {
 	defer gm.Compare()
 
 	t.Run("common", func(t *testing.T) {
+		const (
+			watch   = 3 * time.Second
+			process = time.Second
+		)
+
 		notice := func(int) {
 			t.Fatal("watcher blocked")
 		}
-		mw := testNewMockWorker(3*time.Second, time.Second, notice)
-		mw.Start()
+		worker := testNewMockWorker(watch, process, notice)
+		worker.Start()
 
 		time.Sleep(6 * time.Second)
 
-		mw.Stop()
+		worker.Stop()
 
-		testsuite.IsDestroyed(t, mw)
+		testsuite.IsDestroyed(t, worker)
 	})
 
 	t.Run("block", func(t *testing.T) {
+		const (
+			watch   = time.Second
+			process = 3 * time.Second
+		)
 
+		block := make(map[int]struct{}, 4)
+		blockMu := sync.Mutex{}
+
+		notice := func(id int) {
+			blockMu.Lock()
+			defer blockMu.Unlock()
+			require.NotContainsf(t, block, id, "notice watcher %d multi times", id)
+			block[id] = struct{}{}
+		}
+		worker := testNewMockWorker(watch, process, notice)
+		worker.Start()
+
+		time.Sleep(6 * time.Second)
+
+		worker.Stop()
+
+		testsuite.IsDestroyed(t, worker)
+
+		require.Len(t, block, 4)
 	})
 }
