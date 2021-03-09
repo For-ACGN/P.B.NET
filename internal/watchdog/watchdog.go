@@ -1,6 +1,7 @@
 package watchdog
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,7 +15,7 @@ import (
 const defaultWatchInterval = 10 * time.Second
 
 // Callback is used to notice when watcher is blocked.
-type Callback func(id int32)
+type Callback func(ctx context.Context, id int32)
 
 // Watcher is a watcher that spawned by WatchDog.
 type Watcher struct {
@@ -55,9 +56,10 @@ type WatchDog struct {
 	blockedIDRWM sync.RWMutex
 
 	// about control
-	stopSignal chan struct{}
-	stopOnce   sync.Once
-	wg         sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
+	stopOnce sync.Once
+	wg       sync.WaitGroup
 }
 
 // New is used to create a new watch dog.
@@ -66,16 +68,16 @@ func New(logger logger.Logger, tag string, onBlock Callback) (*WatchDog, error) 
 		return nil, errors.New("empty watch dog tag")
 	}
 	wd := WatchDog{
-		logger:     logger,
-		onBlock:    onBlock,
-		logSrc:     "watchdog-" + tag,
-		nextID:     new(int32),
-		watchers:   make(map[int32]chan struct{}),
-		blockedID:  make(map[int32]struct{}),
-		stopSignal: make(chan struct{}),
+		logger:    logger,
+		onBlock:   onBlock,
+		logSrc:    "watchdog-" + tag,
+		nextID:    new(int32),
+		watchers:  make(map[int32]chan struct{}),
+		blockedID: make(map[int32]struct{}),
 	}
 	*wd.nextID = -1
 	wd.interval.Store(defaultWatchInterval)
+	wd.ctx, wd.cancel = context.WithCancel(context.Background())
 	return &wd, nil
 }
 
@@ -137,7 +139,7 @@ func (wd *WatchDog) watchLoop() {
 		select {
 		case <-timer.C:
 			wd.watch()
-		case <-wd.stopSignal:
+		case <-wd.ctx.Done():
 			return
 		}
 		timer.Reset(wd.GetWatchInterval())
@@ -150,20 +152,25 @@ func (wd *WatchDog) watch() {
 		case watcher <- struct{}{}:
 			if wd.isBlocked(id) {
 				wd.deleteBlockedID(id)
+				wd.logf(logger.Info, "watcher [%d] is running", id)
 			}
 			continue
 		default:
 		}
+		// check is blocked
 		if wd.isBlocked(id) {
 			return
 		}
 		wd.addBlockedID(id)
+		// start a new goroutine to notice
+		wd.wg.Add(1)
 		go func(id int32, onBlock Callback) {
+			defer wd.wg.Done()
 			if r := recover(); r != nil {
 				wd.log(logger.Fatal, xpanic.Printf(r, "WatchDog.watch"))
 			}
 			wd.logf(logger.Warning, "watcher [%d] is blocked", id)
-			onBlock(id)
+			onBlock(wd.ctx, id)
 		}(id, wd.onBlock)
 	}
 }
@@ -225,7 +232,7 @@ func (wd *WatchDog) BlockedID() []int32 {
 // Stop is used to close watch dog.
 func (wd *WatchDog) Stop() {
 	wd.stopOnce.Do(func() {
-		close(wd.stopSignal)
+		wd.cancel()
 		wd.wg.Wait()
 		wd.onBlock = nil
 	})

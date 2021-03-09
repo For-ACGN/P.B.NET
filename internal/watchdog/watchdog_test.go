@@ -1,6 +1,7 @@
 package watchdog
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -95,7 +96,7 @@ func TestWatchDog(t *testing.T) {
 			process = 10 * time.Millisecond
 		)
 
-		notice := func(int32) {
+		notice := func(context.Context, int32) {
 			t.Fatal("watcher blocked")
 		}
 		worker := testNewMockWorker(watch, process, notice)
@@ -121,7 +122,7 @@ func TestWatchDog(t *testing.T) {
 		block := make(map[int32]struct{}, 4)
 		blockMu := sync.Mutex{}
 
-		notice := func(id int32) {
+		notice := func(ctx context.Context, id int32) {
 			blockMu.Lock()
 			defer blockMu.Unlock()
 			require.NotContainsf(t, block, id, "notice watcher %d multi times", id)
@@ -141,5 +142,37 @@ func TestWatchDog(t *testing.T) {
 		testsuite.IsDestroyed(t, worker)
 
 		require.Len(t, block, 4)
+	})
+
+	t.Run("running", func(t *testing.T) {
+		const (
+			watch   = 100 * time.Millisecond
+			process = 250 * time.Millisecond
+		)
+
+		block := make(map[int32]int, 4)
+		blockMu := sync.Mutex{}
+
+		notice := func(ctx context.Context, id int32) {
+			blockMu.Lock()
+			defer blockMu.Unlock()
+			block[id] += 1
+		}
+		worker := testNewMockWorker(watch, process, notice)
+		worker.Start()
+
+		time.Sleep(time.Second)
+
+		num := worker.watchDog.WatchersNum()
+		require.Equal(t, 4, num)
+
+		worker.Stop()
+
+		testsuite.IsDestroyed(t, worker)
+
+		require.Len(t, block, 4)
+		for i := int32(0); i < 4; i++ {
+			require.GreaterOrEqual(t, block[i], 3)
+		}
 	})
 }
