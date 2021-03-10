@@ -58,20 +58,20 @@ func (mw *mockWorker) taskSender() {
 
 func (mw *mockWorker) work() {
 	defer mw.wg.Done()
-	watcher := mw.watchDog.NewWatcher()
-	defer watcher.Stop()
+	receiver := mw.watchDog.Receiver()
+	defer receiver.Stop()
 	for {
 		select {
 		case <-mw.stopSignal:
 			return
 		default:
-			watcher.Receive()
+			receiver.Receive()
 		}
 
 		select {
 		case <-mw.taskCh:
 			time.Sleep(mw.process)
-		case <-watcher.Signal:
+		case <-receiver.Signal:
 		case <-mw.stopSignal:
 			return
 		}
@@ -101,22 +101,24 @@ func TestWatchDog(t *testing.T) {
 		}
 		worker := testNewMockWorker(period, process, onBlock)
 		worker.Start()
+		watchDog := worker.watchDog
 
 		time.Sleep(time.Second)
 
-		num := worker.watchDog.WatchersNum()
+		num := worker.watchDog.ReceiversNum()
 		require.Equal(t, 4, num)
 		require.Empty(t, worker.watchDog.BlockedID())
 
 		worker.Stop()
 
 		testsuite.IsDestroyed(t, worker)
+		testsuite.IsDestroyed(t, watchDog)
 	})
 
 	t.Run("block", func(t *testing.T) {
 		const (
 			period  = 100 * time.Millisecond
-			process = 2 * time.Second
+			process = 3 * time.Second
 		)
 
 		block := make(map[int32]struct{}, 4)
@@ -130,16 +132,18 @@ func TestWatchDog(t *testing.T) {
 		}
 		worker := testNewMockWorker(period, process, onBlock)
 		worker.Start()
+		watchDog := worker.watchDog
 
 		time.Sleep(time.Second)
 
-		num := worker.watchDog.WatchersNum()
+		num := worker.watchDog.ReceiversNum()
 		require.Equal(t, 4, num)
 		require.Len(t, worker.watchDog.BlockedID(), 4)
 
 		worker.Stop()
 
 		testsuite.IsDestroyed(t, worker)
+		testsuite.IsDestroyed(t, watchDog)
 
 		require.Len(t, block, 4)
 	})
@@ -160,15 +164,17 @@ func TestWatchDog(t *testing.T) {
 		}
 		worker := testNewMockWorker(period, process, onBlock)
 		worker.Start()
+		watchDog := worker.watchDog
 
 		time.Sleep(time.Second)
 
-		num := worker.watchDog.WatchersNum()
+		num := worker.watchDog.ReceiversNum()
 		require.Equal(t, 4, num)
 
 		worker.Stop()
 
 		testsuite.IsDestroyed(t, worker)
+		testsuite.IsDestroyed(t, watchDog)
 
 		require.Len(t, block, 4)
 		for i := int32(0); i < 4; i++ {
@@ -181,8 +187,28 @@ func TestWatchDog_SetPeriod(t *testing.T) {
 	gm := testsuite.MarkGoroutines(t)
 	defer gm.Compare()
 
-	watchDog := New(logger.Test, "test", nil)
-	period := watchDog.GetPeriod()
+	t.Run("before start", func(t *testing.T) {
+		watchDog := New(logger.Test, "test", nil)
 
-	require.Equal(t, defaultPeriod, period)
+		period := watchDog.GetPeriod()
+		require.Equal(t, defaultPeriod, period)
+
+		watchDog.SetPeriod(5 * time.Second)
+		period = watchDog.GetPeriod()
+		require.Equal(t, 5*time.Second, period)
+
+		watchDog.SetPeriod(0)
+		period = watchDog.GetPeriod()
+		require.Equal(t, defaultPeriod, period)
+
+		watchDog.SetPeriod(2 * time.Millisecond)
+		period = watchDog.GetPeriod()
+		require.Equal(t, defaultPeriod, period)
+
+		watchDog.SetPeriod(10 * time.Minute)
+		period = watchDog.GetPeriod()
+		require.Equal(t, defaultPeriod, period)
+
+		testsuite.IsDestroyed(t, watchDog)
+	})
 }
