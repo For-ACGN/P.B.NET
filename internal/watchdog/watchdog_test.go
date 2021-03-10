@@ -23,9 +23,9 @@ type mockWorker struct {
 	wg         sync.WaitGroup
 }
 
-func testNewMockWorker(watch, process time.Duration, notice Callback) *mockWorker {
-	watchDog, _ := New(logger.Test, "test", notice)
-	watchDog.SetWatchInterval(watch)
+func testNewMockWorker(period, process time.Duration, onBlock Callback) *mockWorker {
+	watchDog := New(logger.Test, "test", onBlock)
+	watchDog.SetPeriod(period)
 	mw := mockWorker{
 		process:    process,
 		taskCh:     make(chan int, 16),
@@ -92,14 +92,14 @@ func TestWatchDog(t *testing.T) {
 
 	t.Run("common", func(t *testing.T) {
 		const (
-			watch   = 100 * time.Millisecond
+			period  = 100 * time.Millisecond
 			process = 10 * time.Millisecond
 		)
 
-		notice := func(context.Context, int32) {
+		onBlock := func(context.Context, int32) {
 			t.Fatal("watcher blocked")
 		}
-		worker := testNewMockWorker(watch, process, notice)
+		worker := testNewMockWorker(period, process, onBlock)
 		worker.Start()
 
 		time.Sleep(time.Second)
@@ -115,20 +115,20 @@ func TestWatchDog(t *testing.T) {
 
 	t.Run("block", func(t *testing.T) {
 		const (
-			watch   = 100 * time.Millisecond
+			period  = 100 * time.Millisecond
 			process = 2 * time.Second
 		)
 
 		block := make(map[int32]struct{}, 4)
 		blockMu := sync.Mutex{}
 
-		notice := func(ctx context.Context, id int32) {
+		onBlock := func(ctx context.Context, id int32) {
 			blockMu.Lock()
 			defer blockMu.Unlock()
 			require.NotContainsf(t, block, id, "notice watcher %d multi times", id)
 			block[id] = struct{}{}
 		}
-		worker := testNewMockWorker(watch, process, notice)
+		worker := testNewMockWorker(period, process, onBlock)
 		worker.Start()
 
 		time.Sleep(time.Second)
@@ -146,19 +146,19 @@ func TestWatchDog(t *testing.T) {
 
 	t.Run("running", func(t *testing.T) {
 		const (
-			watch   = 100 * time.Millisecond
+			period  = 100 * time.Millisecond
 			process = 250 * time.Millisecond
 		)
 
 		block := make(map[int32]int, 4)
 		blockMu := sync.Mutex{}
 
-		notice := func(ctx context.Context, id int32) {
+		onBlock := func(ctx context.Context, id int32) {
 			blockMu.Lock()
 			defer blockMu.Unlock()
-			block[id] += 1
+			block[id]++
 		}
-		worker := testNewMockWorker(watch, process, notice)
+		worker := testNewMockWorker(period, process, onBlock)
 		worker.Start()
 
 		time.Sleep(time.Second)
@@ -175,4 +175,14 @@ func TestWatchDog(t *testing.T) {
 			require.GreaterOrEqual(t, block[i], 3)
 		}
 	})
+}
+
+func TestWatchDog_SetPeriod(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	watchDog := New(logger.Test, "test", nil)
+	period := watchDog.GetPeriod()
+
+	require.Equal(t, defaultPeriod, period)
 }

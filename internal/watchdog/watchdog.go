@@ -6,13 +6,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"project/internal/logger"
 	"project/internal/xpanic"
 )
 
-const defaultWatchInterval = 10 * time.Second
+const defaultPeriod = 10 * time.Second
 
 // Callback is used to notice when watcher is blocked.
 type Callback func(ctx context.Context, id int32)
@@ -44,9 +42,9 @@ type WatchDog struct {
 	logger  logger.Logger
 	onBlock Callback
 
-	logSrc   string
-	interval atomic.Value
-	nextID   *int32
+	logSrc string
+	nextID *int32
+	period atomic.Value
 
 	watchers    map[int32]chan struct{}
 	watchersRWM sync.RWMutex
@@ -63,22 +61,23 @@ type WatchDog struct {
 }
 
 // New is used to create a new watch dog.
-func New(logger logger.Logger, tag string, onBlock Callback) (*WatchDog, error) {
-	if tag == "" {
-		return nil, errors.New("empty watch dog tag")
+func New(logger logger.Logger, tag string, onBlock Callback) *WatchDog {
+	logSrc := "watchdog"
+	if tag != "" {
+		logSrc += "-" + tag
 	}
 	wd := WatchDog{
 		logger:    logger,
 		onBlock:   onBlock,
-		logSrc:    "watchdog-" + tag,
+		logSrc:    logSrc,
 		nextID:    new(int32),
 		watchers:  make(map[int32]chan struct{}),
 		blockedID: make(map[int32]struct{}),
 	}
 	*wd.nextID = -1
-	wd.interval.Store(defaultWatchInterval)
+	wd.period.Store(defaultPeriod)
 	wd.ctx, wd.cancel = context.WithCancel(context.Background())
-	return &wd, nil
+	return &wd
 }
 
 // NewWatcher is used to create a new watcher.
@@ -98,20 +97,20 @@ func (wd *WatchDog) NewWatcher() *Watcher {
 // Start is used to start watch dog.
 func (wd *WatchDog) Start() {
 	wd.wg.Add(1)
-	go wd.watchLoop()
+	go wd.kickLoop()
 }
 
-// GetWatchInterval is used to get watch interval.
-func (wd *WatchDog) GetWatchInterval() time.Duration {
-	return wd.interval.Load().(time.Duration)
+// GetPeriod is used to get watch dog period.
+func (wd *WatchDog) GetPeriod() time.Duration {
+	return wd.period.Load().(time.Duration)
 }
 
-// SetWatchInterval is used to set watch interval.
-func (wd *WatchDog) SetWatchInterval(interval time.Duration) {
-	if interval < 10*time.Millisecond || interval > 3*time.Minute {
-		interval = defaultWatchInterval
+// SetPeriod is used to set watch dog period.
+func (wd *WatchDog) SetPeriod(period time.Duration) {
+	if period < 10*time.Millisecond || period > 3*time.Minute {
+		period = defaultPeriod
 	}
-	wd.interval.Store(interval)
+	wd.period.Store(period)
 }
 
 func (wd *WatchDog) logf(lv logger.Level, format string, log ...interface{}) {
@@ -122,32 +121,39 @@ func (wd *WatchDog) log(lv logger.Level, log ...interface{}) {
 	wd.logger.Println(lv, wd.logSrc, log...)
 }
 
-func (wd *WatchDog) watchLoop() {
+func (wd *WatchDog) kickLoop() {
 	defer wd.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
-			wd.log(logger.Fatal, xpanic.Print(r, "WatchDog.watchLoop"))
+			wd.log(logger.Fatal, xpanic.Print(r, "WatchDog.kickLoop"))
 			// restart
 			time.Sleep(time.Second)
 			wd.wg.Add(1)
-			go wd.watchLoop()
+			go wd.kickLoop()
 		}
 	}()
-	timer := time.NewTimer(wd.GetWatchInterval())
-	defer timer.Stop()
+	period := wd.GetPeriod()
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-timer.C:
-			wd.watch()
+		case <-ticker.C:
+			wd.kick()
 		case <-wd.ctx.Done():
 			return
 		}
-		timer.Reset(wd.GetWatchInterval())
+		// update kick period
+		p := wd.GetPeriod()
+		if p != period {
+			period = p
+		}
+		ticker.Reset(period)
 	}
 }
 
-func (wd *WatchDog) watch() {
+func (wd *WatchDog) kick() {
 	for id, watcher := range wd.getWatchers() {
+		// kicking
 		select {
 		case watcher <- struct{}{}:
 			if wd.isBlocked(id) {
@@ -157,21 +163,24 @@ func (wd *WatchDog) watch() {
 			continue
 		default:
 		}
-		// check is blocked
+		// check it is already blocked
 		if wd.isBlocked(id) {
 			return
 		}
 		wd.addBlockedID(id)
-		// start a new goroutine to notice
+		// start a new goroutine to call onBlock
 		wd.wg.Add(1)
-		go func(id int32, onBlock Callback) {
+		go func(id int32) {
 			defer wd.wg.Done()
 			if r := recover(); r != nil {
-				wd.log(logger.Fatal, xpanic.Printf(r, "WatchDog.watch"))
+				wd.log(logger.Fatal, xpanic.Printf(r, "WatchDog.onBlock"))
 			}
 			wd.logf(logger.Warning, "watcher [%d] is blocked", id)
-			onBlock(wd.ctx, id)
-		}(id, wd.onBlock)
+			if wd.onBlock == nil {
+				return
+			}
+			wd.onBlock(wd.ctx, id)
+		}(id)
 	}
 }
 
