@@ -137,7 +137,7 @@ type Manager struct {
 	now func() time.Time
 
 	// for generate key about listener and connection
-	guid *guid.Generator
+	guidGen *guid.Generator
 
 	// default configuration
 	readLimitRate    uint64 // connection
@@ -160,7 +160,7 @@ func New(now func() time.Time) *Manager {
 	}
 	return &Manager{
 		now:       now,
-		guid:      guid.NewGenerator(512, now),
+		guidGen:   guid.NewGenerator(512, now),
 		listeners: make(map[guid.GUID]*Listener, 8),
 		conns:     make(map[guid.GUID]*Conn, 64),
 	}
@@ -546,6 +546,6 @@ func (mgr *Manager) Close() error {
 		}
 		delete(mgr.conns, key)
 	}
-	mgr.guid.Close()
+	mgr.guidGen.Stop()
 	return err
 }

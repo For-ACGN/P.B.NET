@@ -37,7 +37,7 @@ func (mgr *Manager) newListener(listener net.Listener) *Listener {
 		ctx:      mgr,
 		Listener: listener,
 		now:      mgr.now,
-		guid:     mgr.guid.Get(),
+		guid:     mgr.guidGen.Get(),
 		listened: mgr.now(),
 		maxConns: mgr.GetListenerMaxConns(),
 		rwm:      rwm,

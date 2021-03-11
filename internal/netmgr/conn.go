@@ -57,7 +57,7 @@ func (mgr *Manager) newConn(conn net.Conn, release func()) *Conn {
 		Conn:           conn,
 		release:        release,
 		now:            mgr.now,
-		guid:           mgr.guid.Get(),
+		guid:           mgr.guidGen.Get(),
 		established:    mgr.now(),
 		readLimiter:    readLimiter,
 		writeLimiter:   writeLimiter,
