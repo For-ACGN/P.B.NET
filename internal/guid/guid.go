@@ -91,6 +91,7 @@ func (guid *GUID) UnmarshalJSON(data []byte) error {
 type Generator struct {
 	now    func() time.Time
 	nowRWM sync.RWMutex
+
 	rand   *random.Rand
 	guidCh chan *GUID
 
@@ -105,7 +106,7 @@ type Generator struct {
 	cachePool sync.Pool
 
 	stopSignal chan struct{}
-	closeOnce  sync.Once
+	stopOnce   sync.Once
 	wg         sync.WaitGroup
 }
 
@@ -113,101 +114,106 @@ type Generator struct {
 // size is the guid channel buffer size, now is used
 // to get timestamp, if now is nil, use time.Now.
 func NewGenerator(size int, now func() time.Time) *Generator {
-	g := Generator{
+	gen := Generator{
 		rand:       random.NewRand(),
 		stopSignal: make(chan struct{}),
 	}
 	if now != nil {
-		g.now = now
+		gen.now = now
 	} else {
-		g.now = time.Now
+		gen.now = time.Now
 	}
 	if size < 1 {
-		g.guidCh = make(chan *GUID, 1)
+		gen.guidCh = make(chan *GUID, 1)
 	} else {
-		g.guidCh = make(chan *GUID, size)
+		gen.guidCh = make(chan *GUID, size)
 	}
 	// calculate head (8+4 PID)
 	hash := sha256.New()
 	for i := 0; i < 4096; i++ {
-		hash.Write(g.rand.Bytes(64))
+		hash.Write(gen.rand.Bytes(64))
 	}
-	g.head = make([]byte, 0, 8)
-	g.head = append(g.head, hash.Sum(nil)[:8]...)
+	gen.head = make([]byte, 0, 8)
+	gen.head = append(gen.head, hash.Sum(nil)[:8]...)
 	hash.Write(convert.BEInt64ToBytes(int64(os.Getpid())))
-	g.head = append(g.head, hash.Sum(nil)[:4]...)
+	gen.head = append(gen.head, hash.Sum(nil)[:4]...)
 	// <security> initialize random ID for prevent leak some
 	// information like Node, Beacon and Controller Boot time.
 	hash.Reset()
 	for i := 0; i < 16; i++ {
-		hash.Write(g.rand.Bytes(16))
+		hash.Write(gen.rand.Bytes(16))
 	}
 	id := hash.Sum(nil)[:convert.Uint32Size]
-	g.id = convert.BEBytesToUint32(id)
+	gen.id = convert.BEBytesToUint32(id)
 	// initialize guid cache pool
-	g.cachePool.New = func() interface{} {
+	gen.cachePool.New = func() interface{} {
 		return new(GUID)
 	}
 	// start generating
-	g.wg.Add(1)
-	go g.generateLoop()
-	return &g
+	gen.wg.Add(1)
+	go gen.generateLoop()
+	return &gen
 }
 
-func (g *Generator) generateLoop() {
-	defer g.wg.Done()
+func (gen *Generator) generateLoop() {
+	defer gen.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			xpanic.Log(r, "Generator.generateLoop")
 			// restart
 			time.Sleep(time.Second)
-			g.wg.Add(1)
-			go g.generateLoop()
+			gen.wg.Add(1)
+			go gen.generateLoop()
 		}
 	}()
 	for {
-		g.id += g.rand.Uint32()
-		guid := g.cachePool.Get().(*GUID)
-		copy(guid[:], g.head)
-		copy(guid[12:20], g.rand.Bytes(8))
+		gen.id += gen.rand.Uint32()
+		guid := gen.cachePool.Get().(*GUID)
+		copy(guid[:], gen.head)
+		copy(guid[12:20], gen.rand.Bytes(8))
 		// reserve timestamp guid[20:28]
-		binary.BigEndian.PutUint32(guid[28:32], g.id)
+		binary.BigEndian.PutUint32(guid[28:32], gen.id)
 		select {
-		case g.guidCh <- guid:
-		case <-g.stopSignal:
+		case gen.guidCh <- guid:
+		case <-gen.stopSignal:
 			return
 		}
 	}
 }
 
-// Get is used to get a guid, if guid generator closed, it will return zero guid.
-func (g *Generator) Get() *GUID {
-	guid := <-g.guidCh
+// Get is used to get a guid, if generator stopped, it will return random guid.
+func (gen *Generator) Get() *GUID {
+	guid := <-gen.guidCh
 	if guid == nil {
-		return new(GUID)
+		guid = new(GUID)
+		copy(guid[:], gen.rand.Bytes(Size))
+		return guid
 	}
-	g.nowRWM.RLock()
-	defer g.nowRWM.RUnlock()
-	if g.now == nil {
-		return new(GUID)
+	gen.nowRWM.RLock()
+	defer gen.nowRWM.RUnlock()
+	var unix int64
+	if gen.now != nil {
+		unix = gen.now().Unix()
+	} else {
+		unix = time.Now().Unix()
 	}
-	binary.BigEndian.PutUint64(guid[20:28], uint64(g.now().Unix()))
+	binary.BigEndian.PutUint64(guid[20:28], uint64(unix))
 	return guid
 }
 
-// Put is used to put useless guid to cache pool.
-func (g *Generator) Put(guid *GUID) {
-	g.cachePool.Put(guid)
+// Put is used to put useless guid to cache pool, it is not necessary.
+func (gen *Generator) Put(guid *GUID) {
+	gen.cachePool.Put(guid)
 }
 
-// Close is used to close guid generator.
-func (g *Generator) Close() {
-	g.closeOnce.Do(func() {
-		close(g.stopSignal)
-		g.wg.Wait()
-		close(g.guidCh)
-		g.nowRWM.Lock()
-		defer g.nowRWM.Unlock()
-		g.now = nil
+// Stop is used to stop guid generator.
+func (gen *Generator) Stop() {
+	gen.stopOnce.Do(func() {
+		close(gen.stopSignal)
+		gen.wg.Wait()
+		close(gen.guidCh)
+		gen.nowRWM.Lock()
+		defer gen.nowRWM.Unlock()
+		gen.now = nil
 	})
 }
