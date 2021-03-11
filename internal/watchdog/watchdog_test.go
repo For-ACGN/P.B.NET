@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"project/internal/logger"
+	"project/internal/patch/monkey"
 	"project/internal/testsuite"
 )
 
@@ -210,5 +211,85 @@ func TestWatchDog_SetPeriod(t *testing.T) {
 		require.Equal(t, defaultPeriod, period)
 
 		testsuite.IsDestroyed(t, watchDog)
+	})
+
+	t.Run("after start", func(t *testing.T) {
+		const (
+			period  = 500 * time.Millisecond
+			process = 200 * time.Millisecond
+		)
+
+		block := make(map[int32]int, 4)
+		blockMu := sync.Mutex{}
+
+		onBlock := func(ctx context.Context, id int32) {
+			blockMu.Lock()
+			defer blockMu.Unlock()
+			block[id]++
+		}
+		worker := testNewMockWorker(period, process, onBlock)
+		worker.Start()
+		watchDog := worker.watchDog
+
+		time.Sleep(time.Second)
+
+		watchDog.SetPeriod(100 * time.Millisecond)
+
+		time.Sleep(time.Second)
+
+		worker.Stop()
+
+		testsuite.IsDestroyed(t, worker)
+		testsuite.IsDestroyed(t, watchDog)
+
+		require.Len(t, block, 4)
+		for i := int32(0); i < 4; i++ {
+			require.GreaterOrEqual(t, block[i], 3)
+		}
+	})
+}
+
+func TestWatchDog_kickLoop(t *testing.T) {
+	gm := testsuite.MarkGoroutines(t)
+	defer gm.Compare()
+
+	t.Run("panic in kickLoop()", func(t *testing.T) {
+		var (
+			wd    *WatchDog
+			count int
+		)
+		patch := func(wd *WatchDog) time.Duration {
+			count++
+			if count == 2 {
+				panic(monkey.Panic)
+			}
+			return wd.period.Load().(time.Duration)
+		}
+		pg := monkey.PatchInstanceMethod(wd, "GetPeriod", patch)
+		defer pg.Unpatch()
+
+		const (
+			period  = 500 * time.Millisecond
+			process = 200 * time.Millisecond
+		)
+
+		worker := testNewMockWorker(period, process, nil)
+		worker.Start()
+		watchDog := worker.watchDog
+
+		time.Sleep(3 * time.Second)
+
+		worker.Stop()
+
+		testsuite.IsDestroyed(t, worker)
+		testsuite.IsDestroyed(t, watchDog)
+	})
+
+	t.Run("panic in onBlock", func(t *testing.T) {
+
+	})
+
+	t.Run("call onBlock after stop", func(t *testing.T) {
+
 	})
 }
