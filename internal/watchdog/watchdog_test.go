@@ -3,6 +3,7 @@ package watchdog
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ type mockWorker struct {
 	wg         sync.WaitGroup
 }
 
-func testNewMockWorker(period, process time.Duration, onBlock Callback) *mockWorker {
+func testNewMockWorker(period, process time.Duration, onBlock OnBlock) *mockWorker {
 	watchDog := New(logger.Test, "test", onBlock)
 	watchDog.SetPeriod(period)
 	mw := mockWorker{
@@ -109,6 +110,27 @@ func TestWatchDog(t *testing.T) {
 		num := worker.watchDog.ReceiversNum()
 		require.Equal(t, 4, num)
 		require.Empty(t, worker.watchDog.BlockedID())
+
+		worker.Stop()
+
+		testsuite.IsDestroyed(t, worker)
+		testsuite.IsDestroyed(t, watchDog)
+	})
+
+	t.Run("nil onBlock", func(t *testing.T) {
+		const (
+			period  = 100 * time.Millisecond
+			process = 250 * time.Millisecond
+		)
+
+		worker := testNewMockWorker(period, process, nil)
+		worker.Start()
+		watchDog := worker.watchDog
+
+		time.Sleep(time.Second)
+
+		num := worker.watchDog.ReceiversNum()
+		require.Equal(t, 4, num)
 
 		worker.Stop()
 
@@ -277,7 +299,7 @@ func TestWatchDog_kickLoop(t *testing.T) {
 		worker.Start()
 		watchDog := worker.watchDog
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second)
 
 		worker.Stop()
 
@@ -286,10 +308,30 @@ func TestWatchDog_kickLoop(t *testing.T) {
 	})
 
 	t.Run("panic in onBlock", func(t *testing.T) {
+		const (
+			period  = 100 * time.Millisecond
+			process = 250 * time.Millisecond
+		)
 
-	})
+		var blocked int32
+		onBlock := func(context.Context, int32) {
+			atomic.StoreInt32(&blocked, 1)
+			panic("test panic")
+		}
+		worker := testNewMockWorker(period, process, onBlock)
+		worker.Start()
+		watchDog := worker.watchDog
 
-	t.Run("call onBlock after stop", func(t *testing.T) {
+		time.Sleep(time.Second)
 
+		num := worker.watchDog.ReceiversNum()
+		require.Equal(t, 4, num)
+
+		require.Equal(t, int32(1), atomic.LoadInt32(&blocked))
+
+		worker.Stop()
+
+		testsuite.IsDestroyed(t, worker)
+		testsuite.IsDestroyed(t, watchDog)
 	})
 }

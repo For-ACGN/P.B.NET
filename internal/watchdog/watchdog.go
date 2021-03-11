@@ -12,8 +12,8 @@ import (
 
 const defaultPeriod = 10 * time.Second
 
-// Callback is used to notice when receiver is blocked.
-type Callback func(ctx context.Context, id int32)
+// OnBlock is used to notice when receiver is blocked.
+type OnBlock func(ctx context.Context, id int32)
 
 // Receiver is a receiver that spawned by WatchDog.
 type Receiver struct {
@@ -40,7 +40,7 @@ func (r *Receiver) Stop() {
 // WatchDog is used to watch a loop in worker goroutine is blocked.
 type WatchDog struct {
 	logger  logger.Logger
-	onBlock Callback
+	onBlock OnBlock
 
 	logSrc string
 	nextID *int32
@@ -61,7 +61,7 @@ type WatchDog struct {
 }
 
 // New is used to create a new watch dog.
-func New(logger logger.Logger, tag string, onBlock Callback) *WatchDog {
+func New(logger logger.Logger, tag string, onBlock OnBlock) *WatchDog {
 	logSrc := "watchdog"
 	if tag != "" {
 		logSrc += "-" + tag
@@ -173,9 +173,11 @@ func (wd *WatchDog) kick() {
 		wd.wg.Add(1)
 		go func(id int32) {
 			defer wd.wg.Done()
-			if r := recover(); r != nil {
-				wd.log(logger.Fatal, xpanic.Printf(r, "WatchDog.onBlock"))
-			}
+			defer func() {
+				if r := recover(); r != nil {
+					wd.log(logger.Fatal, xpanic.Printf(r, "WatchDog.onBlock"))
+				}
+			}()
 			wd.logf(logger.Warning, "receiver [%d] is blocked", id)
 			if wd.onBlock == nil {
 				return
