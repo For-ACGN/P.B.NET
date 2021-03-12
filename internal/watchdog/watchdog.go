@@ -147,7 +147,8 @@ func (wd *WatchDog) kickLoop() {
 		p := wd.GetPeriod()
 		if p != period {
 			period = p
-			ticker.Reset(period)
+			ticker.Stop()
+			ticker = time.NewTicker(period)
 		}
 	}
 }
