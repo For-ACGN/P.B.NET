@@ -128,6 +128,20 @@ func main() {
 	time.Duration(111).Microseconds()
 	time.Duration(111).Milliseconds()
 
+	if !strings.Contains(runtime.Version(), "go1.14") {
+		ticker := time.NewTicker(5 * time.Second)
+		ticker.Reset(100 * time.Millisecond)
+
+		now := time.Now()
+		<-ticker.C
+		<-ticker.C
+		<-ticker.C
+		if time.Since(now) < 300*time.Millisecond {
+			fmt.Println("invalid time.Ticker")
+			os.Exit(1)
+		}
+	}
+
 	fmt.Println("--------------------------------")
 	fmt.Println("verify passed!")
 	fmt.Println("--------------------------------")
